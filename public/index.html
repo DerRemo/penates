@@ -1,0 +1,3943 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CC Hub">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <title>Claude Code Hub</title>
+  <!-- No-Flash: Theme-Attribut VOR Body-Paint setzen, sonst blitzt kurz
+       das falsche Theme auf. Muss als allererstes im <head> stehen. -->
+  <script>
+    (function(){
+      try {
+        var stored = localStorage.getItem('cchub_theme');
+        var preferred = stored || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', preferred);
+        document.documentElement.style.colorScheme = preferred;
+      } catch (e) { /* localStorage disabled — fall through to dark */ }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Fonts werden lokal aus public/fonts/ ausgeliefert (kein CDN, kein CORS).
+       JetBrains Mono deckt Latin + Box Drawing + Block Elements, aber KEINE
+       Braille (U+2800–28FF), Dingbats (✻ U+273B) oder Misc-Technical-Symbole
+       (⏺ U+23FA, ⎿ U+23BF). Zwei komplementäre Noto-Symbol-Fonts füllen
+       diese Blöcke via unicode-range. Hinweis: der eigentliche Umlaut-/
+       Symbol-Bug war die fehlende UTF-8-Locale in tmux (-u Flag in server.js),
+       nicht die Fonts — aber die Symbol-Fallbacks sind trotzdem sinnvoll, da
+       JBM ohne sie ⏺/⎿/✻ gar nicht rendern kann. */
+    @font-face {
+      font-family: 'JetBrains Mono';
+      font-style: normal;
+      font-weight: 400;
+      font-display: block;
+      src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      font-style: normal;
+      font-weight: 700;
+      font-display: block;
+      src: url('/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      font-style: italic;
+      font-weight: 400;
+      font-display: block;
+      src: url('/fonts/JetBrainsMono-Italic.woff2') format('woff2');
+    }
+    @font-face {
+      /* Noto Sans Symbols → enthält ⎿ U+23BF und Misc Technical */
+      font-family: 'CC Symbols Fallback';
+      font-style: normal;
+      font-weight: 400;
+      font-display: block;
+      src: url('/fonts/NotoSansSymbols.woff2') format('woff2');
+      unicode-range: U+2300-23FF, U+2400-243F;
+    }
+    @font-face {
+      /* Noto Sans Symbols 2 → enthält ⏺ U+23FA, ✻ U+273B, Braille, Dingbats */
+      font-family: 'CC Symbols Fallback';
+      font-style: normal;
+      font-weight: 400;
+      font-display: block;
+      src: url('/fonts/NotoSansSymbols2.woff2') format('woff2');
+      unicode-range: U+2300-23FF, U+2600-26FF, U+2700-27BF, U+2800-28FF;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+  <style>
+    /* Dark-Theme (Default). Alle Farben gehen durch CSS-Variablen, damit
+       Light-Theme weiter unten nur die Werte überschreibt. */
+    :root, :root[data-theme="dark"] {
+      --bg-deep: #0a0e14;
+      --bg-surface: #111720;
+      --bg-surface-translucent: rgba(10, 14, 20, 0.85);
+      --bg-card: #161d28;
+      --bg-card-hover: #1a2332;
+      --bg-elevated: #1e2738;
+      --border: #1e2a3a;
+      --border-subtle: #152030;
+      --text-primary: #e4e8ee;
+      --text-secondary: #7a8ba0;
+      --text-muted: #4a5a6e;
+      --teal: #2dd4bf;
+      --teal-dim: #1a9e8e;
+      --teal-glow: rgba(45, 212, 191, 0.12);
+      --teal-glow-strong: rgba(45, 212, 191, 0.25);
+      --orange: #f59e0b;
+      --orange-dim: rgba(245, 158, 11, 0.15);
+      --red: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.12);
+      --green: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.12);
+      --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.3);
+      --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+      --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
+      --modal-backdrop: rgba(0, 0, 0, 0.7);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(45, 212, 191, 0.04) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 60%);
+      --scanline-display: block;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-lg: 16px;
+    }
+
+    /* Light-Theme. Weichere Paper-Farben, dunkleres Teal für Kontrast,
+       Scanline aus (sieht auf hellem BG hässlich aus). */
+    :root[data-theme="light"] {
+      --bg-deep: #f6f7f9;
+      --bg-surface: #ffffff;
+      --bg-surface-translucent: rgba(255, 255, 255, 0.85);
+      --bg-card: #ffffff;
+      --bg-card-hover: #f2f4f7;
+      --bg-elevated: #ffffff;
+      --border: #e2e6ec;
+      --border-subtle: #edf0f4;
+      --text-primary: #0f1623;
+      --text-secondary: #4b5a70;
+      --text-muted: #8795a8;
+      --teal: #0d9488;
+      --teal-dim: #0f766e;
+      --teal-glow: rgba(13, 148, 136, 0.10);
+      --teal-glow-strong: rgba(13, 148, 136, 0.22);
+      --orange: #c2660a;
+      --orange-dim: rgba(194, 102, 10, 0.10);
+      --red: #dc2626;
+      --red-dim: rgba(220, 38, 38, 0.08);
+      --green: #15803d;
+      --green-dim: rgba(21, 128, 61, 0.10);
+      --shadow-card: 0 4px 14px rgba(15, 22, 35, 0.06);
+      --shadow-modal: 0 20px 60px rgba(15, 22, 35, 0.18);
+      --shadow-toast: 0 8px 24px rgba(15, 22, 35, 0.12);
+      --modal-backdrop: rgba(15, 22, 35, 0.35);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(13, 148, 136, 0.06) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(99, 102, 241, 0.04) 0%, transparent 60%);
+      --scanline-display: none;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated background ──────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: var(--bg-gradient-1), var(--bg-gradient-2);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Scanline overlay (Dashboard nur, nicht Terminal) ──────────── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.02) 2px,
+        rgba(0, 0, 0, 0.02) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+      display: var(--scanline-display);
+    }
+
+    body:not([data-current-view="dashboard"])::after {
+      display: none;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-surface-translucent);
+      backdrop-filter: blur(20px) saturate(1.2);
+      -webkit-backdrop-filter: blur(20px) saturate(1.2);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: env(safe-area-inset-top) max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
+      height: calc(64px + env(safe-area-inset-top));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--teal) 0%, #0ea5e9 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--bg-deep);
+      box-shadow: 0 0 20px var(--teal-glow-strong);
+    }
+
+    .logo-text {
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.3px;
+    }
+
+    .logo-text span {
+      color: var(--teal);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2.5s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── View Container ───────────────────────────────────────────── */
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px max(24px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+    }
+
+    /* ── Dashboard View ───────────────────────────────────────────── */
+    .dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+
+    .dashboard-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* ── Dashboard-Tabs (Sessions / Usage) ─────────────────────────── */
+    .dashboard-tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .dashboard-tab {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+    .dashboard-tab:hover { color: var(--text-secondary); }
+    .dashboard-tab.active {
+      color: var(--bg-deep);
+      background: var(--teal);
+    }
+
+    /* Elemente mit data-tab-scope nur sichtbar, wenn passender Tab aktiv.
+       JS setzt beim Tab-Wechsel das `data-active-tab`-Attribut auf <body>. */
+    /* Tab-Scope-Elemente nur sichtbar wenn der passende Tab aktiv ist.
+       `:not()` skaliert sauber auf N Tabs ohne O(N²)-Ausdrücke. */
+    body:not([data-active-tab="sessions"]) [data-tab-scope="sessions"] { display: none !important; }
+    body:not([data-active-tab="usage"]) [data-tab-scope="usage"] { display: none !important; }
+    body:not([data-active-tab="projects"]) [data-tab-scope="projects"] { display: none !important; }
+
+    /* ── Usage-View ────────────────────────────────────────────────── */
+    .usage-view { display: flex; flex-direction: column; gap: 24px; }
+    .usage-summary {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 28px 32px;
+      box-shadow: var(--shadow-card);
+    }
+    .usage-summary-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .usage-summary-total {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--teal);
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .usage-summary-breakdown {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .usage-summary-breakdown span strong {
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+
+    .usage-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+    .usage-table thead th {
+      text-align: left;
+      padding: 14px 18px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.3px;
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-elevated);
+    }
+    .usage-table thead th.num { text-align: right; }
+    .usage-table tbody td {
+      padding: 12px 18px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-primary);
+    }
+    .usage-table tbody td.num { text-align: right; }
+    .usage-table tbody tr:last-child td { border-bottom: none; }
+    .usage-table tbody tr.empty td {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .usage-empty {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      background: var(--bg-card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-md);
+    }
+
+    /* ── Command-Output-Block ─────────────────────────────────────────
+       Gemeinsame visuelle Sprache für Projekte-Empty-State + Project-
+       Detail-Shell. Sieht aus wie die Ausgabe eines tatsächlich ausge-
+       führten `hub`-Kommandos — on-brand für den Terminal-Cyberdeck-Look
+       des Hubs und bereitet Phase 1 vor, wenn echte Projekt-Daten im
+       gleichen Format kommen. */
+    .cmd-output-block {
+      max-width: 620px;
+      margin: 48px auto;
+      padding: 36px 44px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 0 60px -24px rgba(45, 212, 191, 0.22),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.02);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.75;
+      color: var(--text-secondary);
+      animation: fadeIn 0.45s ease backwards;
+      position: relative;
+    }
+    /* Subtile Ecken-Dekoration wie bei einer Terminal-Ausgabe */
+    .cmd-output-block::before,
+    .cmd-output-block::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: var(--teal);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .cmd-output-block::before {
+      top: 10px; left: 10px;
+      border-top: 1px solid; border-left: 1px solid;
+    }
+    .cmd-output-block::after {
+      bottom: 10px; right: 10px;
+      border-bottom: 1px solid; border-right: 1px solid;
+    }
+    .cmd-output-block .cmd-line {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+    }
+    .cmd-output-block .cmd-line--prompt { margin-bottom: 4px; }
+    .cmd-output-block .cmd-line--lead { margin: 18px 0 4px; }
+    .cmd-prompt {
+      color: var(--teal);
+      opacity: 0.55;
+      font-weight: 700;
+      user-select: none;
+    }
+    .cmd-command {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .cmd-marker {
+      color: var(--teal);
+      font-weight: 700;
+      user-select: none;
+    }
+    .cmd-rule {
+      border: none;
+      border-top: 1px dashed var(--border-subtle);
+      margin: 14px 0;
+    }
+    .cmd-block {
+      padding-left: 22px;
+      margin: 6px 0 4px;
+    }
+    .cmd-block p { margin: 10px 0 6px; }
+    .cmd-block p:first-child { margin-top: 0; }
+    .cmd-path {
+      color: var(--teal);
+      background: rgba(45, 212, 191, 0.06);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12.5px;
+    }
+    .cmd-bullets {
+      list-style: none;
+      margin: 4px 0 0;
+      padding: 0;
+    }
+    .cmd-bullets li {
+      position: relative;
+      padding-left: 18px;
+      margin: 2px 0;
+      color: var(--text-secondary);
+    }
+    .cmd-bullets li::before {
+      content: '·';
+      position: absolute;
+      left: 4px;
+      color: var(--teal);
+      font-weight: 700;
+    }
+    .cmd-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .cmd-status-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .cmd-status-item strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .cmd-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 8px rgba(45, 212, 191, 0.6);
+      display: inline-block;
+    }
+    .cmd-status-sep {
+      color: var(--border);
+      user-select: none;
+    }
+    .cmd-cursor {
+      display: inline-block;
+      color: var(--teal);
+      margin-left: 6px;
+      animation: cursor-blink 1.1s steps(1) infinite;
+      user-select: none;
+    }
+    @keyframes cursor-blink {
+      50% { opacity: 0; }
+    }
+
+    @media (max-width: 560px) {
+      .cmd-output-block {
+        margin: 24px 0;
+        padding: 24px 20px;
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      .cmd-block { padding-left: 16px; }
+      .cmd-output-block::before,
+      .cmd-output-block::after { display: none; }
+    }
+
+    /* ── Projects-List ──────────────────────────────────────────────── */
+    .project-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      padding: 4px;
+    }
+    .project-card {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 16px; background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+      color: inherit; text-align: left; font: inherit;
+      cursor: pointer;
+      transition: border-color 120ms, transform 120ms, background 120ms;
+    }
+    .project-card:hover { border-color: var(--teal); transform: translateY(-1px); background: rgba(45,212,191,0.04); }
+    .project-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .project-card-name { font-weight: 600; font-size: 15px; }
+    .project-missing {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      padding: 2px 6px; border: 1px solid #f87171; color: #f87171; border-radius: 999px;
+      white-space: nowrap;
+    }
+    .project-card-versions {
+      display: flex; gap: 8px; align-items: center;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      opacity: 0.75;
+    }
+    .project-card-versions strong { opacity: 1; font-weight: 600; }
+    .project-card-sep { opacity: 0.5; }
+    .project-card-progress { display: flex; flex-direction: column; gap: 4px; }
+    .project-card-progress-bar {
+      height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden;
+    }
+    .project-card-progress-bar > div {
+      height: 100%; background: var(--teal); transition: width 200ms;
+    }
+    .project-card-progress-text {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.6;
+    }
+
+    /* ── Roadmap-Detail-View ─────────────────────────────────────────── */
+    .roadmap-meta-line {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      opacity: 0.55; padding: 8px 12px; margin-bottom: 12px;
+      border-bottom: 1px dashed rgba(255,255,255,0.08);
+    }
+    .roadmap-section { margin: 20px 0; }
+    .roadmap-section h3 {
+      font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; opacity: 0.6;
+      margin: 0 0 10px;
+    }
+    .roadmap-version { color: var(--teal); font-family: 'JetBrains Mono', monospace; }
+    .roadmap-list { list-style: none; margin: 0; padding: 0; }
+    .roadmap-item {
+      display: flex; gap: 8px; align-items: baseline;
+      padding: 6px 12px; font-size: 14px;
+    }
+    .roadmap-item.done { opacity: 0.5; }
+    .roadmap-item.done .roadmap-text { text-decoration: line-through; }
+    .roadmap-checkbox {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      color: var(--teal); flex-shrink: 0;
+    }
+    .roadmap-text { flex: 1; }
+    .roadmap-meta {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5;
+    }
+    .roadmap-empty {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      opacity: 0.5; padding: 6px 12px;
+    }
+    .roadmap-changelog {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+      background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px;
+      max-height: 300px; overflow: auto;
+    }
+
+    /* ── Item-Interaktivität (Step 2a) ────────────────────────────── */
+    .roadmap-item {
+      position: relative;
+    }
+    .roadmap-checkbox {
+      background: none; border: none; color: #2dd4bf;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      padding: 2px 4px; margin: -2px -4px;
+      cursor: pointer; border-radius: 4px;
+      transition: background 120ms;
+    }
+    .roadmap-checkbox:hover { background: rgba(45,212,191,0.12); }
+    .roadmap-item-delete {
+      background: none; border: none; color: inherit;
+      font-size: 16px; line-height: 1; padding: 2px 8px; margin-left: auto;
+      opacity: 0; cursor: pointer; border-radius: 4px;
+      transition: opacity 120ms, color 120ms, background 120ms;
+    }
+    .roadmap-item:hover .roadmap-item-delete { opacity: 0.5; }
+    .roadmap-item-delete:hover { opacity: 1; color: #f87171; background: rgba(248,113,113,0.1); }
+    .roadmap-add-btn {
+      display: inline-block; margin: 8px 12px 0;
+      background: none; border: 1px dashed rgba(45,212,191,0.4);
+      color: #2dd4bf; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      padding: 4px 10px; border-radius: 6px;
+      cursor: pointer; transition: background 120ms, border-color 120ms;
+    }
+    .roadmap-add-btn:hover { background: rgba(45,212,191,0.08); border-color: #2dd4bf; }
+
+    .project-toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(20,24,34,0.95); color: #f8fafc;
+      border: 1px solid rgba(248,113,113,0.5); border-radius: 8px;
+      padding: 10px 16px; font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      opacity: 0; pointer-events: none;
+      transition: opacity 200ms, transform 200ms;
+      z-index: 10000;
+    }
+    .project-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Project-Detail-View (Phase 0 Shell) ───────────────────────── */
+    .detail-view {
+      flex-direction: column;
+      height: calc(100dvh - 64px - env(safe-area-inset-top));
+    }
+    .detail-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .detail-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--teal);
+    }
+    .detail-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px max(24px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+    }
+
+    /* ── Dashboard-Tab Phase-Indikator-Dot ─────────────────────────── */
+    .dashboard-tab--new {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dashboard-tab-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      opacity: 0.7;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .dashboard-tab--new:hover .dashboard-tab-dot,
+    .dashboard-tab--new.active .dashboard-tab-dot {
+      background: var(--bg-deep);
+      opacity: 1;
+    }
+
+    /* ── Session-Card Projekt-Badge-Slot (Phase 0 versteckt) ───────── */
+    .session-project-badge {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(45, 212, 191, 0.3);
+      background: rgba(45, 212, 191, 0.06);
+      color: var(--teal);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: lowercase;
+      line-height: 1.6;
+    }
+    .session-project-badge[data-project]:not([data-project=""]) {
+      display: inline-flex;
+    }
+    .session-project-badge svg {
+      width: 10px;
+      height: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--teal) 0%, #0ea5e9 100%);
+      color: var(--bg-deep);
+      box-shadow: 0 2px 12px var(--teal-glow-strong);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px var(--teal-glow-strong);
+    }
+
+    .btn-ghost {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
+
+    .btn-danger {
+      background: var(--red-dim);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-sm {
+      padding: 6px 14px;
+      font-size: 13px;
+    }
+
+    .btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ── Session Grid ─────────────────────────────────────────────── */
+    .sessions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 16px;
+    }
+    /* `hidden`-Attribut überschreibt explizite display-Regeln nicht von
+       selbst — Specificity-Issue. Für alle Tab-Panels hart durchsetzen. */
+    [data-tab-panel][hidden] { display: none !important; }
+
+    .session-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .session-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--teal), transparent);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .session-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--teal-glow-strong);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-card);
+    }
+
+    .session-card:hover::before {
+      opacity: 1;
+    }
+
+    .session-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .session-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .session-name .icon {
+      color: var(--teal);
+      font-size: 13px;
+    }
+
+    /* Activity-Badge: 4 Zustände, abgeleitet aus dem tmux-Pane-Content.
+       working  = Claude arbeitet gerade (Spinner / ESC-Hinweis sichtbar)
+       waiting  = Claude wartet auf Input (Konfirm-Dialog / Menü)
+       ready    = Claude ist bereit, Input-Footer sichtbar
+       unknown  = Nicht-Claude oder nicht parsebar — Fallback grau
+       Die zugehörige Logik lebt in server.js `detectActivity()` und wird
+       später vom Notifications-Feature wiederverwendet. */
+    .session-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .session-status::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+    .session-status.working {
+      background: rgba(59, 130, 246, 0.12);
+      color: #3b82f6;
+    }
+    .session-status.waiting {
+      background: var(--orange-dim);
+      color: var(--orange);
+    }
+    .session-status.ready {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+    .session-status.unknown {
+      background: rgba(122, 139, 160, 0.12);
+      color: var(--text-secondary);
+    }
+    .session-status.working::before,
+    .session-status.waiting::before {
+      animation: pulse 1.2s ease infinite;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .session-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .session-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .usage-5h-badge {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .usage-5h-green { color: var(--teal); }
+    .usage-5h-amber { color: #f59e0b; }
+    .usage-5h-red   { color: #ef4444; }
+
+    .session-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .session-actions .btn {
+      flex: 1;
+      justify-content: center;
+    }
+
+    /* ── Empty state ──────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.3;
+    }
+
+    .empty-state h3 {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    /* ── Modal ─────────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--modal-backdrop);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      width: 100%;
+      max-width: 480px;
+      transform: scale(0.95) translateY(10px);
+      transition: transform 0.25s ease;
+      box-shadow: var(--shadow-modal);
+    }
+
+    .modal-overlay.open .modal {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .modal p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-input:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px var(--teal-glow);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Select-Chevron via SVG-Mask mit CSS-Variable als Farbe — Theme-aware.
+       Select wird in einen .select-wrapper div mit position:relative verpackt,
+       der Chevron ist ein ::after auf dem Wrapper. */
+    select.form-input {
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      padding-right: 38px;
+    }
+    .select-wrapper {
+      position: relative;
+    }
+    .select-wrapper::after {
+      content: '';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      width: 12px;
+      height: 8px;
+      transform: translateY(-50%);
+      background-color: var(--text-muted);
+      -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>") center/contain no-repeat;
+      mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>") center/contain no-repeat;
+      pointer-events: none;
+    }
+
+    select.form-input option {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+
+    /* ── Tree Picker ─────────────────────────────────────────────── */
+    .tree-picker {
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      transition: border-color 0.2s ease;
+    }
+
+    .tree-picker:focus-within,
+    .tree-picker.active {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px var(--teal-glow);
+    }
+
+    .tree-selected {
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--teal);
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      direction: rtl;
+      text-align: left;
+    }
+
+    .tree-selected::before {
+      content: '▸ ';
+      color: var(--text-muted);
+    }
+
+    .tree-list {
+      max-height: 260px;
+      overflow-y: auto;
+      padding: 6px 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+    }
+
+    .tree-list::-webkit-scrollbar { width: 8px; }
+    .tree-list::-webkit-scrollbar-track { background: transparent; }
+    .tree-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    .tree-node { }
+
+    .tree-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      border-radius: 4px;
+      user-select: none;
+      transition: background 0.1s ease, color 0.1s ease;
+    }
+
+    .tree-row:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .tree-row.selected {
+      background: var(--teal-glow);
+      color: var(--teal);
+    }
+
+    .tree-arrow {
+      display: inline-block;
+      width: 12px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .tree-node.expanded > .tree-row > .tree-arrow {
+      transform: rotate(90deg);
+    }
+
+    .tree-arrow.empty {
+      opacity: 0;
+    }
+
+    .tree-icon {
+      display: inline-block;
+      width: 14px;
+      font-size: 12px;
+      flex-shrink: 0;
+      opacity: 0.8;
+    }
+
+    .tree-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tree-children {
+      margin-left: 14px;
+      border-left: 1px solid var(--border-subtle);
+      padding-left: 2px;
+      display: none;
+    }
+
+    .tree-node.expanded > .tree-children {
+      display: block;
+    }
+
+    .tree-empty,
+    .tree-error {
+      padding: 8px 12px;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-style: italic;
+    }
+
+    .tree-error {
+      color: var(--red);
+    }
+
+    /* ── View-Manager ──────────────────────────────────────────────────
+       Einheitliches Sichtbarkeits-Pattern für alle Top-Level-Views:
+       `data-view`-Attribut auf dem Container, `body[data-current-view]`
+       entscheidet welcher sichtbar ist. Ersetzt die frühere Mischung aus
+       `.hidden`-Klasse (dashboard) und `.active`-Klasse (terminal).
+       Scale-out-ready für project-detail (Phase 0) und mehr. */
+    body > [data-view] { display: none; }
+    body[data-current-view="dashboard"]      > [data-view="dashboard"]      { display: block; }
+    body[data-current-view="terminal"]       > [data-view="terminal"]       { display: flex; }
+    body[data-current-view="project-detail"] > [data-view="project-detail"] { display: flex; }
+
+    /* ── Terminal View ─────────────────────────────────────────────── */
+    /* --kb-inset wird von JS gesetzt wenn die iOS-Tastatur auftaucht —
+       dvh berücksichtigt nur das Safari-Chrome, nicht die Keyboard-Höhe.
+       Ohne diese Rechnung würde die unterste Terminal-Zeile (und damit
+       die aktive Eingabe) hinter der Tastatur verschwinden. */
+    .terminal-view {
+      flex-direction: column;
+      height: calc(100dvh - 64px - env(safe-area-inset-top) - var(--kb-inset, 0px));
+    }
+
+    .terminal-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terminal-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .terminal-session-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--teal);
+    }
+
+    .terminal-container {
+      flex: 1;
+      padding: 8px max(8px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+      background: var(--bg-deep);
+      overflow: hidden;
+    }
+
+    .terminal-container .xterm {
+      height: 100%;
+    }
+
+    /* iOS: alle Touch-Gesten im Terminal an unseren JS-Handler weiterreichen,
+       nicht an die native .xterm-viewport-Scrollmechanik. Ohne das fängt
+       iOS vertikale Swipes als Page-Scroll ab und unser touch-Handler
+       bekommt keine move-Events. */
+    .terminal-container, .terminal-container * {
+      touch-action: none;
+    }
+
+    /* ── Touch-Toolbar über iOS-Tastatur ──────────────────────────
+       - Nur sichtbar auf Touch-Geräten mit aktiver Terminal-View
+       - Position wird per visualViewport-JS über der Tastatur gehalten
+       - `--touch-bar-h` wird von JS gesetzt, damit .terminal-view Platz
+         darunter freilässt */
+    .touch-bar {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: env(safe-area-inset-bottom);
+      height: 44px;
+      padding: 6px max(8px, env(safe-area-inset-left)) 6px max(8px, env(safe-area-inset-right));
+      gap: 6px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      z-index: 200;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      align-items: center;
+    }
+    .touch-bar::-webkit-scrollbar { display: none; }
+
+    @media (pointer: coarse) {
+      body[data-current-view="terminal"] .touch-bar { display: flex; }
+      body[data-current-view="terminal"] .terminal-view {
+        padding-bottom: calc(44px + env(safe-area-inset-bottom));
+      }
+    }
+
+    .touch-key {
+      flex: 0 0 auto;
+      min-width: 44px;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      cursor: pointer;
+    }
+    .touch-key:active {
+      background: var(--bg-card);
+      transform: scale(0.94);
+    }
+    .touch-key--wide { min-width: 64px; }
+    .touch-key.sticky-active {
+      background: var(--teal);
+      color: var(--bg-deep);
+      border-color: var(--teal);
+    }
+
+    /* ── Dashboard container — Sichtbarkeit via body[data-current-view] ──
+       (keine eigenen display-Regeln mehr; alles im [data-view]-Block oben) */
+
+    /* ── Loading spinner ──────────────────────────────────────────── */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ─────────────────────────────────────────────────────── */
+    .toast-container {
+      position: fixed;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      right: calc(24px + env(safe-area-inset-right));
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      font-size: 13px;
+      color: var(--text-primary);
+      box-shadow: var(--shadow-toast);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast.error { border-left: 3px solid var(--red); }
+    .toast.success { border-left: 3px solid var(--green); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .container { padding: 20px max(16px, env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+      .sessions-grid { grid-template-columns: 1fr; }
+      .header { padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
+      .dashboard-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    }
+
+    /* ── Animations ───────────────────────────────────────────────── */
+    .fade-in {
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .session-card { animation: fadeIn 0.4s ease backwards; }
+    .session-card:nth-child(1) { animation-delay: 0.05s; }
+    .session-card:nth-child(2) { animation-delay: 0.1s; }
+    .session-card:nth-child(3) { animation-delay: 0.15s; }
+    .session-card:nth-child(4) { animation-delay: 0.2s; }
+    .session-card:nth-child(5) { animation-delay: 0.25s; }
+    .session-card:nth-child(6) { animation-delay: 0.3s; }
+
+    /* ── D5: Focus-visible for keyboard a11y ───────────────────────── */
+    :focus { outline: none; }
+    .btn:focus-visible,
+    .form-input:focus-visible,
+    .session-card:focus-visible,
+    .search-input:focus-visible,
+    .layout-toggle-btn:focus-visible,
+    .theme-toggle:focus-visible,
+    .tree-row:focus-visible {
+      outline: 2px solid var(--teal);
+      outline-offset: 2px;
+    }
+
+    /* ── D5: Respect reduced-motion preference ────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+      .session-card { animation: none !important; }
+      .status-dot { animation: none !important; }
+    }
+
+    /* ── Theme-Toggle-Button im Header ─────────────────────────────── */
+    .theme-toggle {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .theme-toggle:hover {
+      background: var(--bg-card-hover);
+      color: var(--teal);
+      border-color: var(--teal-glow-strong);
+    }
+    .theme-toggle svg { width: 18px; height: 18px; }
+    /* Sun zeigen im Dark-Mode (zum Light-Wechsel), Moon im Light-Mode */
+    :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+    :root[data-theme="light"] .theme-toggle .icon-sun { display: none; }
+
+    /* ── D3: Search-Filter ─────────────────────────────────────────── */
+    .dashboard-header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex: 1;
+      min-width: 0;
+    }
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      max-width: 320px;
+    }
+    .search-wrapper svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px 8px 32px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .search-input::placeholder { color: var(--text-muted); }
+    .search-input:focus { border-color: var(--teal); }
+    .search-input::-webkit-search-cancel-button {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--text-muted);
+      -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M18 6L6 18M6 6l12 12' stroke='black' stroke-width='2' stroke-linecap='round' fill='none'/></svg>") center/contain no-repeat;
+              mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M18 6L6 18M6 6l12 12' stroke='black' stroke-width='2' stroke-linecap='round' fill='none'/></svg>") center/contain no-repeat;
+      cursor: pointer;
+    }
+
+    /* ── D7: Layout-Toggle (Grid/List) ──────────────────────────────── */
+    .layout-toggle {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      padding: 3px;
+      gap: 2px;
+    }
+    .layout-toggle-btn {
+      width: 30px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .layout-toggle-btn svg { width: 14px; height: 14px; }
+    .layout-toggle-btn:hover { color: var(--text-secondary); }
+    .layout-toggle-btn.active {
+      background: var(--teal-glow);
+      color: var(--teal);
+    }
+
+    /* ── D7: List-Layout-Styles für das Grid ────────────────────────── */
+    .sessions-grid.layout-list {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+    .sessions-grid.layout-list .session-card {
+      padding: 10px 16px;
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+      gap: 14px;
+      min-height: 48px;
+    }
+    .sessions-grid.layout-list .session-card::before { display: none; }
+    .sessions-grid.layout-list .session-card:hover { transform: none; }
+    .sessions-grid.layout-list .session-card-header {
+      margin: 0;
+      display: contents;
+    }
+    .sessions-grid.layout-list .session-name { font-size: 14px; }
+    .sessions-grid.layout-list .session-status {
+      padding: 3px 8px;
+      font-size: 10px;
+    }
+    .sessions-grid.layout-list .session-meta {
+      font-size: 11px;
+      gap: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .sessions-grid.layout-list .session-actions {
+      margin: 0;
+      padding: 0;
+      border-top: none;
+      gap: 6px;
+    }
+    .sessions-grid.layout-list .session-actions .btn {
+      flex: 0 0 auto;
+      padding: 6px 12px;
+    }
+    /* Auf Mobile: Liste bleibt einspaltig, aber Meta-Info wandert in Zeile 2 */
+    @media (max-width: 640px) {
+      .sessions-grid.layout-list .session-card {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          'name status'
+          'meta actions';
+        row-gap: 6px;
+      }
+      .sessions-grid.layout-list .session-name { grid-area: name; }
+      .sessions-grid.layout-list .session-status { grid-area: status; }
+      .sessions-grid.layout-list .session-meta { grid-area: meta; }
+      .sessions-grid.layout-list .session-actions { grid-area: actions; }
+    }
+
+    /* ── D1: Loading-Skeleton ───────────────────────────────────────── */
+    .skeleton-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      height: 120px;
+      position: relative;
+      overflow: hidden;
+    }
+    .skeleton-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--bg-card-hover) 50%,
+        transparent 100%
+      );
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(100%); }
+    }
+    .sessions-grid.layout-list .skeleton-card {
+      height: 48px;
+      padding: 10px 16px;
+    }
+
+    /* ── D6: Attached-Session Highlighting ──────────────────────────── */
+    .session-card[data-attached="true"] {
+      border-color: var(--teal-glow-strong);
+      box-shadow: 0 0 0 1px var(--teal-glow-strong);
+    }
+    .session-card[data-attached="true"]::before {
+      opacity: 1;
+    }
+
+    /* Recovery / Adoption UI ---------------------------------------------- */
+
+    /* ── Recovery & Adoption UI ─────────────────────────────────────────
+       Drei Status-Kategorien im Sessions-Grid: Aktiv (Default), Ruhend
+       (persistiert, nicht in tmux — "archivierte Shell-History"), Fremd
+       (tmux ohne Hub-Prefix — "noch nicht adoptiert"). Section-Header
+       trennen die Gruppen. Alles über Design-Tokens, damit Dark+Light
+       ohne Zusatz-Regeln funktionieren.                                  */
+
+    .sessions-section-header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 12px 0 2px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--teal);
+    }
+    /* Kleine Sigil-Box vor dem Label, erinnert an tmux-Pane-Indicator. */
+    .sessions-section-header::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--teal);
+      box-shadow: 0 0 8px var(--teal-glow-strong);
+      flex-shrink: 0;
+    }
+    .sessions-section-header::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--teal-glow-strong), transparent);
+    }
+    .sessions-section-header .count {
+      color: var(--text-muted);
+      font-weight: 400;
+      font-variant-numeric: tabular-nums;
+    }
+    /* Erste Section oben knapper ans Grid andocken (kein Extra-Margin). */
+    .sessions-grid > .sessions-section-header:first-child {
+      margin-top: 0;
+    }
+
+    /* ── Dormant ────────────────────────────────────────────────────────
+       Diagonaler Stripe-Overlay signalisiert "archiviert", ohne die
+       Card-Struktur zu dimmen — Border und Restore-CTA bleiben crisp.
+       Opacity liegt nur auf dem Inhalt, nicht auf der ganzen Card.      */
+    .session-card[data-status="dormant"] {
+      cursor: default;
+      border-style: dashed;
+      border-color: var(--border);
+      background: var(--bg-card);
+    }
+    .session-card[data-status="dormant"]::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        135deg,
+        transparent 0,
+        transparent 10px,
+        var(--teal-glow) 10px,
+        var(--teal-glow) 11px
+      );
+      pointer-events: none;
+      opacity: 0.55;
+    }
+    .session-card[data-status="dormant"] > * {
+      position: relative;
+      z-index: 1;
+    }
+    .session-card[data-status="dormant"]:hover {
+      transform: none;
+      border-color: var(--teal-dim);
+      background: var(--bg-card);
+    }
+    .session-card[data-status="dormant"]:hover::before {
+      opacity: 0;
+    }
+    .session-card[data-status="dormant"] .session-name {
+      color: var(--text-secondary);
+    }
+    .session-card[data-status="dormant"] .session-status {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      letter-spacing: 0.12em;
+    }
+    .session-card[data-status="dormant"] .session-status::before {
+      background: var(--text-muted);
+      box-shadow: none;
+      animation: none;
+    }
+    .session-card[data-status="dormant"] .dormant-stub {
+      padding: 10px 12px 14px;
+      margin: 4px -4px 12px;
+      font-size: 11.5px;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.65;
+      color: var(--text-muted);
+      border-left: 2px solid var(--teal-dim);
+      background: linear-gradient(
+        to right,
+        var(--teal-glow) 0%,
+        transparent 60%
+      );
+    }
+    .session-card[data-status="dormant"] .dormant-stub .path {
+      color: var(--text-secondary);
+      word-break: break-all;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .session-card[data-status="dormant"] .dormant-stub div:nth-child(2) {
+      color: var(--teal);
+      opacity: 0.85;
+    }
+    .session-card[data-status="dormant"] .dormant-stub div:nth-child(3) {
+      margin-top: 4px;
+      font-size: 10.5px;
+      letter-spacing: 0.03em;
+    }
+    /* Restore-CTA leuchtet als primärer Fokus — etwas kräftiger als
+       ein normaler btn-primary, damit die Aktion auf der grauen Karte
+       die Augen sofort anspringt. */
+    .session-card[data-status="dormant"] .btn[data-action="restore"] {
+      background: var(--teal);
+      color: #04141a;
+      border: 1px solid var(--teal);
+      box-shadow: 0 0 0 1px var(--teal-glow-strong), 0 0 14px var(--teal-glow);
+      font-weight: 600;
+    }
+    .session-card[data-status="dormant"] .btn[data-action="restore"]:hover {
+      background: #5ee7d2;
+      box-shadow: 0 0 0 2px var(--teal-glow-strong), 0 0 22px var(--teal-glow-strong);
+    }
+    .session-card[data-status="dormant"] .btn[data-action="forget"] {
+      opacity: 0.6;
+    }
+    .session-card[data-status="dormant"] .btn[data-action="forget"]:hover {
+      opacity: 1;
+    }
+
+    /* ── Foreign ────────────────────────────────────────────────────────
+       Statt simpler Dashed-Border zeigen vier Corner-Brackets an, dass
+       die Karte "noch nicht adoptiert" ist — visuell verwandt mit tmux-
+       Pane-Select-Ecken. Border selbst ist eine gedämpfte Teal-Linie,
+       nicht dashed.                                                      */
+    .session-card[data-status="foreign"] {
+      border-color: var(--teal-dim);
+      background: var(--bg-card);
+    }
+    .session-card[data-status="foreign"]::after {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      pointer-events: none;
+      background:
+        linear-gradient(to right,  var(--teal) 14px, transparent 14px) top left / 14px 2px no-repeat,
+        linear-gradient(to bottom, var(--teal) 14px, transparent 14px) top left / 2px 14px no-repeat,
+        linear-gradient(to left,   var(--teal) 14px, transparent 14px) top right / 14px 2px no-repeat,
+        linear-gradient(to bottom, var(--teal) 14px, transparent 14px) top right / 2px 14px no-repeat,
+        linear-gradient(to right,  var(--teal) 14px, transparent 14px) bottom left / 14px 2px no-repeat,
+        linear-gradient(to top,    var(--teal) 14px, transparent 14px) bottom left / 2px 14px no-repeat,
+        linear-gradient(to left,   var(--teal) 14px, transparent 14px) bottom right / 14px 2px no-repeat,
+        linear-gradient(to top,    var(--teal) 14px, transparent 14px) bottom right / 2px 14px no-repeat;
+      opacity: 0.6;
+      transition: opacity 0.25s ease, inset 0.25s ease;
+    }
+    .session-card[data-status="foreign"]:hover::after {
+      opacity: 1;
+      inset: 4px;
+    }
+    .session-card[data-status="foreign"]:hover {
+      border-color: var(--teal);
+    }
+    .session-card[data-status="foreign"] .session-name {
+      color: var(--text-primary);
+    }
+    .session-card[data-status="foreign"] .foreign-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--teal);
+      background: var(--teal-glow);
+      border: 1px solid var(--teal-dim);
+      border-radius: 2px;
+      padding: 2px 7px;
+    }
+    .session-card[data-status="foreign"] .btn[data-action="adopt"] {
+      background: var(--teal-glow);
+      color: var(--teal);
+      border: 1px solid var(--teal);
+      font-weight: 600;
+    }
+    .session-card[data-status="foreign"] .btn[data-action="adopt"]:hover {
+      background: var(--teal);
+      color: #04141a;
+      box-shadow: 0 0 14px var(--teal-glow-strong);
+    }
+
+    /* ── Adopt-Modal ───────────────────────────────────────────────── */
+    .adopt-modal .adopt-intro {
+      margin: 0 0 18px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+    .adopt-modal .adopt-intro code {
+      background: var(--teal-glow);
+      border: 1px solid var(--teal-dim);
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--teal);
+    }
+    .adopt-modal label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    /* ── D2: Connection-Status im Terminal-Toolbar ──────────────────── */
+    .conn-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .conn-status .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .conn-status[data-state="connected"] { color: var(--green); background: var(--green-dim); }
+    .conn-status[data-state="connecting"] { color: var(--orange); background: var(--orange-dim); }
+    .conn-status[data-state="connecting"] .dot { animation: pulse 1s ease infinite; }
+    .conn-status[data-state="disconnected"] { color: var(--red); background: var(--red-dim); }
+
+    /* ── D4: Keyboard-Shortcut Help Overlay ─────────────────────────── */
+    /* Der Trigger sitzt rechts oben im Header neben dem Theme-Toggle und
+       teilt sich dessen Look (36×36, gleiche Borders, gleicher Hover). */
+    .kbd-help-trigger {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .kbd-help-trigger:hover {
+      background: var(--bg-card-hover);
+      color: var(--teal);
+      border-color: var(--teal-glow-strong);
+    }
+    .kbd-help-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--modal-backdrop);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 1500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .kbd-help-overlay.open { display: flex; }
+    .kbd-help-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      box-shadow: var(--shadow-modal);
+      min-width: 320px;
+    }
+    .kbd-help-box h3 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .kbd-help-box dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px 18px;
+      align-items: center;
+    }
+    .kbd-help-box kbd {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 12px;
+      color: var(--teal);
+      justify-self: start;
+    }
+    .kbd-help-box dd {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ───────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo-mark">&gt;_</div>
+      <div class="logo-text">Claude Code <span>Hub</span></div>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        <div class="status-dot"></div>
+        <span id="session-count">0 Sessions</span>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Theme umschalten" title="Theme umschalten (t)">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="kbd-help-trigger" id="kbd-help-trigger" type="button" aria-label="Tastaturkürzel anzeigen" title="Tastaturkürzel (?)">?</button>
+    </div>
+  </header>
+
+  <!-- ── Dashboard View ───────────────────────────────────────── -->
+  <div class="dashboard-view" id="dashboard-view" data-view="dashboard">
+    <div class="container">
+      <div class="dashboard-header">
+        <div class="dashboard-header-left">
+          <div class="dashboard-tabs" role="tablist" aria-label="Dashboard-Tabs">
+            <button class="dashboard-tab" id="tab-sessions" data-tab="sessions" type="button" role="tab">Sessions</button>
+            <button class="dashboard-tab" id="tab-usage" data-tab="usage" type="button" role="tab">Usage</button>
+            <button class="dashboard-tab dashboard-tab--new" id="tab-projects" data-tab="projects" type="button" role="tab" title="Projekt-Verwaltung (Phase 1 Step 2a — Mutations)">
+              Projekte
+              <span class="dashboard-tab-dot" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="search-wrapper" data-tab-scope="sessions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" class="search-input" id="session-search" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <div class="layout-toggle" role="group" aria-label="Layout" data-tab-scope="sessions">
+            <button class="layout-toggle-btn" id="layout-grid-btn" type="button" aria-label="Grid-Ansicht" title="Grid (g)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            </button>
+            <button class="layout-toggle-btn" id="layout-list-btn" type="button" aria-label="Listen-Ansicht" title="Liste (l)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
+            </button>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="refresh-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+            Aktualisieren
+          </button>
+          <button class="btn btn-primary btn-sm" id="new-session-btn" type="button" data-tab-scope="sessions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Neue Session
+          </button>
+        </div>
+      </div>
+      <div class="sessions-grid" id="sessions-grid" data-tab-panel="sessions">
+        <!-- Sessions will be rendered here -->
+      </div>
+      <div class="usage-view" id="usage-view" data-tab-panel="usage" hidden>
+        <!-- renderUsage() injected -->
+      </div>
+      <div class="projects-view" id="projects-view" data-tab-panel="projects" hidden>
+        <div class="cmd-output-block" role="region" aria-label="Projekte — Phase 0 Empty State">
+          <div class="cmd-line cmd-line--prompt">
+            <span class="cmd-prompt">$</span>
+            <span class="cmd-command">hub projects list</span>
+          </div>
+          <hr class="cmd-rule">
+          <div class="cmd-line cmd-line--lead">
+            <span class="cmd-marker">›</span>
+            <span>no ROADMAP.md files discovered yet.</span>
+          </div>
+          <div class="cmd-block">
+            <p>Auto-Discovery wird Phase 1 einhängen:<br>
+               <span class="cmd-path">~/Projects/*/ROADMAP.md</span></p>
+            <p>Features geplant:</p>
+            <ul class="cmd-bullets">
+              <li>Backlog + Changelog pro Projekt</li>
+              <li>Session ↔ Projekt-Verknüpfung</li>
+              <li>File-Watcher für Live-Sync</li>
+              <li>„Version abschließen" generiert Release-Notes-Markdown</li>
+            </ul>
+          </div>
+          <hr class="cmd-rule">
+          <div class="cmd-status">
+            <span class="cmd-status-item"><span class="cmd-status-dot"></span>status:&nbsp;<strong>pending</strong></span>
+            <span class="cmd-status-sep">·</span>
+            <span class="cmd-status-item"><span class="cmd-status-dot"></span>phase:&nbsp;<strong>0 of 2</strong></span>
+            <span class="cmd-cursor" aria-hidden="true">▊</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Project-Detail View (Phase 0: Shell, Phase 1 fills it) ── -->
+  <div class="detail-view" id="project-detail-view" data-view="project-detail">
+    <div class="detail-toolbar">
+      <div class="detail-toolbar-left">
+        <button class="btn btn-ghost btn-sm" id="project-back-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Zurück
+        </button>
+        <span class="detail-title" id="project-detail-title">—</span>
+      </div>
+    </div>
+    <div class="detail-body">
+      <div class="cmd-output-block" role="region" aria-label="Project Detail — Phase 0 Shell">
+        <div class="cmd-line cmd-line--prompt">
+          <span class="cmd-prompt">$</span>
+          <span class="cmd-command">hub project open &lt;unrouted&gt;</span>
+        </div>
+        <hr class="cmd-rule">
+        <div class="cmd-line cmd-line--lead">
+          <span class="cmd-marker">›</span>
+          <span>project-detail route is registered,<br>but Phase 0 has no loader wired up.</span>
+        </div>
+        <div class="cmd-block">
+          <p>Phase 1 will render:</p>
+          <ul class="cmd-bullets">
+            <li>Released / Dev / Backlog / Changelog sub-tabs</li>
+            <li>clickable checkboxes that write back to <span class="cmd-path">ROADMAP.md</span> atomically</li>
+            <li>„Version abschließen" — moves Dev items → Changelog, generates release-notes markdown</li>
+          </ul>
+        </div>
+        <hr class="cmd-rule">
+        <div class="cmd-status">
+          <span class="cmd-status-item"><span class="cmd-status-dot"></span>phase:&nbsp;<strong>0 of 2</strong></span>
+          <span class="cmd-status-sep">·</span>
+          <span class="cmd-status-item"><span class="cmd-status-dot"></span>state:&nbsp;<strong>shell</strong></span>
+          <span class="cmd-cursor" aria-hidden="true">▊</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Terminal View ────────────────────────────────────────── -->
+  <div class="terminal-view" id="terminal-view" data-view="terminal">
+    <div class="terminal-toolbar">
+      <div class="terminal-toolbar-left">
+        <button class="btn btn-ghost btn-sm" id="disconnect-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Zurück
+        </button>
+        <span class="terminal-session-name" id="terminal-session-name"></span>
+        <span class="conn-status" id="conn-status" data-state="connecting">
+          <span class="dot"></span><span id="conn-status-label">Verbinde</span>
+        </span>
+      </div>
+      <button class="btn btn-danger btn-sm" id="kill-current-btn" type="button">
+        Session beenden
+      </button>
+    </div>
+    <div class="terminal-container" id="terminal-container"></div>
+  </div>
+
+  <!-- ── Touch-Toolbar über der iOS-Tastatur ───────────────────── -->
+  <div class="touch-bar" id="touch-bar" role="toolbar" aria-label="Virtuelle Tasten">
+    <button class="touch-key" type="button" data-seq="\x1b">Esc</button>
+    <button class="touch-key" type="button" data-seq="\t">Tab</button>
+    <button class="touch-key" type="button" data-ctrl>Ctrl</button>
+    <button class="touch-key" type="button" data-seq="\x1b[A">↑</button>
+    <button class="touch-key" type="button" data-seq="\x1b[B">↓</button>
+    <button class="touch-key" type="button" data-seq="\x1b[D">←</button>
+    <button class="touch-key" type="button" data-seq="\x1b[C">→</button>
+    <button class="touch-key" type="button" data-seq="|">|</button>
+    <button class="touch-key" type="button" data-seq="~">~</button>
+    <button class="touch-key" type="button" data-seq="/">/</button>
+    <button class="touch-key touch-key--wide" type="button" data-seq="\x03">Ctrl+C</button>
+  </div>
+
+  <!-- ── New Session Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <div class="modal">
+      <h2 id="login-title">Anmeldung</h2>
+      <p>Auth-Token aus <code>.env</code> — wird einmalig im Browser gespeichert.</p>
+      <form id="login-form" action="/api/login" method="post" autocomplete="on">
+        <input type="text" name="username" value="hub" autocomplete="username" style="display:none" tabindex="-1" aria-hidden="true">
+        <div class="form-group">
+          <label class="form-label" for="login-token">Token</label>
+          <input class="form-input" id="login-token" name="password" type="password" autocomplete="current-password" required spellcheck="false" autocapitalize="off">
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" type="submit">Anmelden</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="new-session-modal" role="dialog" aria-modal="true" aria-labelledby="new-session-title">
+    <div class="modal">
+      <h2 id="new-session-title">Neue Session starten</h2>
+      <p>Starte eine neue Claude Code Session auf deinem Mac mini.</p>
+      <div class="form-group">
+        <label class="form-label">Session Name</label>
+        <input class="form-input" id="new-session-name" placeholder="z.B. kalvo-feature" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Projektverzeichnis</label>
+        <div class="tree-picker" id="tree-picker">
+          <div class="tree-selected" id="tree-selected" dir="rtl">~</div>
+          <div class="tree-list" id="tree-root">
+            <div class="tree-empty">Lädt…</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Startbefehl</label>
+        <div class="select-wrapper">
+          <select class="form-input" id="new-session-cmd">
+            <option value="claude">claude</option>
+            <option value="claude --dangerously-skip-permissions">claude --dangerously-skip-permissions</option>
+            <option value="claude --channels plugin:telegram@claude-plugins-official --dangerously-skip-permissions">claude + telegram</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button">Abbrechen</button>
+        <button class="btn btn-primary" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Starten
+        </button>
+      </div>
+    </div>
+  </div>
+
+    <!-- Adopt-Modal: kleines Modal zum Umbenennen einer fremden tmux-Session -->
+    <div id="adopt-modal" class="modal-overlay">
+      <div class="modal adopt-modal">
+        <div class="modal-header">
+          <h2>Session adoptieren</h2>
+          <button class="modal-close" onclick="closeAdoptModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="adopt-intro">
+            Die fremde tmux-Session <code id="adopt-source-name"></code> wird auf
+            <code>cc-&lt;name&gt;</code> umbenannt und ab sofort vom Hub verwaltet.
+          </p>
+          <label for="adopt-new-name">Neuer Name (ohne cc-Prefix)</label>
+          <input id="adopt-new-name" type="text" class="input" autocomplete="off" />
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeAdoptModal()">Abbrechen</button>
+          <button class="btn btn-primary" onclick="submitAdopt()">Adoptieren</button>
+        </div>
+      </div>
+    </div>
+
+  <!-- ── Keyboard Help Overlay ───────────────────────────────── -->
+  <!-- Der Trigger-Button `#kbd-help-trigger` sitzt im Header rechts neben
+       dem Theme-Toggle. Hier nur noch das Overlay. -->
+  <div class="kbd-help-overlay" id="kbd-help-overlay" role="dialog" aria-modal="true" aria-labelledby="kbd-help-title">
+    <div class="kbd-help-box">
+      <h3 id="kbd-help-title">Tastaturkürzel</h3>
+      <dl>
+        <kbd>n</kbd><dd>Neue Session</dd>
+        <kbd>/</kbd><dd>Filter fokussieren</dd>
+        <kbd>r</kbd><dd>Sessions neu laden</dd>
+        <kbd>g</kbd><dd>Grid-Layout</dd>
+        <kbd>l</kbd><dd>Listen-Layout</dd>
+        <kbd>t</kbd><dd>Theme umschalten</dd>
+        <kbd>Esc</kbd><dd>Zurück / Schließen</dd>
+        <kbd>?</kbd><dd>Diese Hilfe</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- ── Toast container ──────────────────────────────────────── -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // ── State ─────────────────────────────────────────────────────
+    let sessions = null;          // null = noch nicht geladen (Skeleton)
+    let searchQuery = '';          // D3
+    let currentTerminal = null;
+    let currentWs = null;
+    let currentSessionName = null;
+    let currentResizeObserver = null;
+    let refreshInterval = null;
+    let reconnectTimer = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT = 3;
+    let pendingCtrl = false;       // Touch-Toolbar: sticky Ctrl-Modifier
+    let touchScrollAbort = null;   // AbortController für Touch-Scroll-Listener
+
+    // ── Theme ──────────────────────────────────────────────────────
+    function getTheme() {
+      return document.documentElement.getAttribute('data-theme') || 'dark';
+    }
+    function setTheme(theme, persist = true) {
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.style.colorScheme = theme;
+      if (persist) localStorage.setItem('cchub_theme', theme);
+      if (currentTerminal) applyTerminalTheme(currentTerminal);
+    }
+    function toggleTheme() {
+      setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+    }
+    // Folge System-Theme, wenn User keine eigene Präferenz gesetzt hat.
+    if (!localStorage.getItem('cchub_theme')) {
+      matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+        if (!localStorage.getItem('cchub_theme')) setTheme(e.matches ? 'light' : 'dark', false);
+      });
+    }
+
+    // Liest die aktuellen CSS-Variablen und baut daraus ein xterm-Theme.
+    // So bleibt das Terminal immer im Sync mit dem globalen Theme.
+    function buildXtermTheme() {
+      const css = getComputedStyle(document.documentElement);
+      const v = (name) => css.getPropertyValue(name).trim();
+      const isLight = getTheme() === 'light';
+      return {
+        background: v('--bg-deep'),
+        foreground: v('--text-primary'),
+        cursor: v('--teal'),
+        cursorAccent: v('--bg-deep'),
+        selectionBackground: isLight ? 'rgba(13, 148, 136, 0.22)' : 'rgba(45, 212, 191, 0.25)',
+        black: isLight ? '#0f1623' : '#0a0e14',
+        red: v('--red'),
+        green: v('--green'),
+        yellow: v('--orange'),
+        blue: isLight ? '#2563eb' : '#3b82f6',
+        magenta: isLight ? '#9333ea' : '#a855f7',
+        cyan: v('--teal'),
+        white: isLight ? '#1f2937' : '#e4e8ee',
+        brightBlack: v('--text-muted'),
+        brightRed: isLight ? '#ef4444' : '#f87171',
+        brightGreen: isLight ? '#16a34a' : '#4ade80',
+        brightYellow: isLight ? '#d97706' : '#fbbf24',
+        brightBlue: isLight ? '#3b82f6' : '#60a5fa',
+        brightMagenta: isLight ? '#a855f7' : '#c084fc',
+        brightCyan: isLight ? '#14b8a6' : '#5eead4',
+        brightWhite: isLight ? '#0f1623' : '#f8fafc',
+      };
+    }
+    function applyTerminalTheme(term) {
+      try { term.options.theme = buildXtermTheme(); } catch {}
+    }
+
+    // ── Layout (D7) ────────────────────────────────────────────────
+    function getLayout() {
+      return localStorage.getItem('cchub_layout') || 'grid';
+    }
+    function setLayout(layout) {
+      localStorage.setItem('cchub_layout', layout);
+      const grid = document.getElementById('sessions-grid');
+      grid.classList.toggle('layout-list', layout === 'list');
+      document.getElementById('layout-grid-btn').classList.toggle('active', layout === 'grid');
+      document.getElementById('layout-list-btn').classList.toggle('active', layout === 'list');
+    }
+
+    // ── View-Manager ───────────────────────────────────────────────
+    // Drei Top-Level-Views: dashboard, terminal, project-detail.
+    // Einzige zentrale Stelle die zwischen ihnen schaltet. Kümmert sich
+    // um: body[data-current-view], History-Integration, Polling-Lifecycle,
+    // view-spezifischen Init (Terminal-Attach / Project-Lade).
+    let currentView = 'dashboard';
+    const VALID_VIEWS = new Set(['dashboard', 'terminal', 'project-detail']);
+
+    function setView(name, opts = {}) {
+      if (!VALID_VIEWS.has(name)) name = 'dashboard';
+      const { fromPopstate = false, sessionName = null, projectId = null } = opts;
+      const prev = currentView;
+      currentView = name;
+      document.body.setAttribute('data-current-view', name);
+
+      // History-Integration: Terminal und Project-Detail pushen Einträge,
+      // Dashboard ist der Fallback-Zustand (kein push).
+      if (!fromPopstate && prev !== name) {
+        if (name === 'terminal' && history.state?.view !== 'terminal') {
+          history.pushState({ view: 'terminal', sessionName }, '');
+        } else if (name === 'project-detail' && history.state?.view !== 'project-detail') {
+          history.pushState({ view: 'project-detail', projectId }, '');
+        } else if (name === 'dashboard' && history.state?.view && history.state.view !== 'dashboard') {
+          // Zurück zu Dashboard ohne fromPopstate → history.back() auslösen,
+          // damit der Eintrag aus dem History-Stack geräumt wird. popstate
+          // ruft dann setView('dashboard', {fromPopstate:true}) erneut auf,
+          // diese Bedingung matcht dann nicht mehr → kein Loop.
+          history.back();
+          return;
+        }
+      }
+
+      // Project-Detail laden wenn dorthin navigiert wird (direkt oder via popstate).
+      if (name === 'project-detail') {
+        const id = opts.projectId ?? history.state?.projectId;
+        if (id) renderProjectDetail(id);
+        else setView('dashboard');
+      }
+
+      // Polling-Lifecycle: läuft genau dann, wenn Dashboard+Sessions-Tab aktiv.
+      if (name === 'dashboard' && getTab() === 'sessions') {
+        startSessionPolling();
+      } else {
+        stopSessionPolling();
+      }
+    }
+
+    // ── Polling-Helper ─────────────────────────────────────────────
+    function startSessionPolling() {
+      if (refreshInterval) return;
+      refreshSessions();
+      refreshInterval = setInterval(refreshSessions, 5000);
+    }
+    function stopSessionPolling() {
+      if (!refreshInterval) return;
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+
+    // ── Tabs (Sessions / Usage / Projekte) ─────────────────────────
+    const TAB_KEY = 'cchub_tab';
+    const VALID_TABS = new Set(['sessions', 'usage', 'projects']);
+    function getTab() {
+      const t = localStorage.getItem(TAB_KEY);
+      return VALID_TABS.has(t) ? t : 'sessions';
+    }
+    function setTab(tab) {
+      if (!VALID_TABS.has(tab)) tab = 'sessions';
+      localStorage.setItem(TAB_KEY, tab);
+      document.body.setAttribute('data-active-tab', tab);
+      document.getElementById('tab-sessions').classList.toggle('active', tab === 'sessions');
+      document.getElementById('tab-usage').classList.toggle('active', tab === 'usage');
+      document.getElementById('tab-projects').classList.toggle('active', tab === 'projects');
+      document.getElementById('sessions-grid').hidden = tab !== 'sessions';
+      document.getElementById('usage-view').hidden = tab !== 'usage';
+      document.getElementById('projects-view').hidden = tab !== 'projects';
+      if (tab === 'sessions' && currentView === 'dashboard') {
+        startSessionPolling();
+      } else {
+        stopSessionPolling();
+      }
+      if (tab === 'usage') renderUsage();
+      if (tab === 'projects') renderProjects();
+    }
+
+    // ── Token-Formatter ────────────────────────────────────────────
+    function formatContextTokens(n) {
+      if (n === null || n === undefined) return '—';
+      if (n < 1000) return `${n} ctx`;
+      if (n < 1_000_000) return `${Math.round(n / 1000)}k ctx`;
+      return `${(n / 1_000_000).toFixed(1)}M ctx`;
+    }
+    function formatContextPct(p) {
+      if (p === null || p === undefined) return '—';
+      return `${p}% ctx`;
+    }
+    function formatUsage5h(pct) {
+      if (pct === null || pct === undefined) return null;
+      const cls = pct >= 85 ? 'usage-5h-red' : pct >= 60 ? 'usage-5h-amber' : 'usage-5h-green';
+      return `<span class="usage-5h-badge ${cls}">${pct}%</span>`;
+    }
+    function formatContextTooltip(s) {
+      if (s.contextTokens == null) return 'Noch keine Claude-Code-Daten im cwd';
+      const tok = formatContextTokens(s.contextTokens).replace(' ctx', '');
+      const lim = s.contextLimit >= 1_000_000
+        ? `${(s.contextLimit / 1_000_000).toFixed(0)}M`
+        : `${Math.round(s.contextLimit / 1000)}k`;
+      const model = s.contextModel || '?';
+      return `${tok} / ${lim} tokens · ${model}`;
+    }
+    function formatTokensCompact(n) {
+      if (!n) return '0';
+      if (n < 1000) return String(n);
+      if (n < 1_000_000) return `${Math.round(n / 1000)}k`;
+      return `${(n / 1_000_000).toFixed(2)}M`;
+    }
+
+    // ── Projects-View ──────────────────────────────────────────────
+    const PROJECTS_EMPTY_HTML = `
+      <div class="cmd-output-block" role="region" aria-label="Projekte — leer">
+        <div class="cmd-line cmd-line--prompt">
+          <span class="cmd-prompt">$</span>
+          <span class="cmd-command">hub projects list</span>
+        </div>
+        <hr class="cmd-rule">
+        <div class="cmd-line cmd-line--lead">
+          <span class="cmd-marker">›</span>
+          <span>keine ROADMAP.md-Dateien gefunden.</span>
+        </div>
+        <div class="cmd-block">
+          <p>Lege eine <span class="cmd-path">ROADMAP.md</span> in einem Projekt unter <span class="cmd-path">~/Projects/*</span> an — beim nächsten Server-Start wird sie automatisch registriert.</p>
+        </div>
+        <hr class="cmd-rule">
+        <div class="cmd-status">
+          <span class="cmd-status-item"><span class="cmd-status-dot"></span>status:&nbsp;<strong>empty</strong></span>
+          <span class="cmd-cursor" aria-hidden="true">▊</span>
+        </div>
+      </div>`;
+
+    async function renderProjects() {
+      const view = document.getElementById('projects-view');
+      view.innerHTML = '<div class="usage-empty">Lade Projekte…</div>';
+      try {
+        const res = await fetch('/api/projects', { headers: apiHeaders() });
+        if (res.status === 401) {
+          clearToken();
+          showLoginModal();
+          view.innerHTML = '<div class="usage-empty">Auth abgelaufen.</div>';
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const projects = data.projects || [];
+
+        if (projects.length === 0) {
+          view.innerHTML = PROJECTS_EMPTY_HTML;
+          return;
+        }
+
+        const cards = projects.map(p => {
+          const devTotal = p.dev?.total ?? 0;
+          const devDone  = p.dev?.done  ?? 0;
+          const pct = devTotal > 0
+            ? Math.min(100, Math.max(0, Math.round((devDone / devTotal) * 100)))
+            : 0;
+          const relLabel = p.released?.version ? `v${escapeHtml(p.released.version)}` : '—';
+          const devLabel = p.dev?.version      ? `v${escapeHtml(p.dev.version)}`      : '—';
+          return `
+            <button class="project-card" type="button" data-project-id="${escapeHtml(p.id)}">
+              <div class="project-card-head">
+                <span class="project-card-name">${escapeHtml(p.displayName)}</span>
+                ${p.missing ? '<span class="project-missing">ROADMAP.md fehlt</span>' : ''}
+              </div>
+              <div class="project-card-versions">
+                <span>released&nbsp;<strong>${relLabel}</strong></span>
+                <span class="project-card-sep">·</span>
+                <span>dev&nbsp;<strong>${devLabel}</strong></span>
+              </div>
+              <div class="project-card-progress">
+                <div class="project-card-progress-bar"><div style="width:${pct}%"></div></div>
+                <span class="project-card-progress-text">${devDone}/${devTotal} dev · ${p.backlogCount ?? 0} backlog</span>
+              </div>
+            </button>`;
+        }).join('');
+
+        view.innerHTML = `<div class="project-list">${cards}</div>`;
+
+        view.querySelectorAll('.project-card').forEach(btn => {
+          btn.addEventListener('click', () => {
+            setView('project-detail', { projectId: btn.dataset.projectId });
+          });
+        });
+      } catch (e) {
+        view.innerHTML = `<div class="usage-empty">Fehler: ${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    // ── patchItem ──────────────────────────────────────────────────
+    // Zentraler Helper für PATCH /api/projects/:id/items. Wirft Error
+    // mit .status, damit Aufrufer zwischen 401/409/400/500 unterscheiden
+    // können.
+    async function patchItem(projectId, body) {
+      const res = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/items', {
+        method: 'PATCH',
+        headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 401) {
+        clearToken();
+        showLoginModal();
+        const e = new Error('auth'); e.status = 401; throw e;
+      }
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try { const j = await res.json(); detail = j.error || detail; } catch {}
+        const e = new Error(detail); e.status = res.status; throw e;
+      }
+      return res.json();
+    }
+
+    // Simple inline toast — auto-dismiss nach 3s. Wird für Fehler- und
+    // Konflikt-Meldungen im Projekt-Detail-View benutzt.
+    function showProjectToast(msg) {
+      let toast = document.getElementById('project-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'project-toast';
+        toast.className = 'project-toast';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toast._hideTimer);
+      toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ── Project-Detail-View ────────────────────────────────────────
+    let projectDetailReq = 0;
+    async function renderProjectDetail(id) {
+      const body  = document.querySelector('#project-detail-view .detail-body');
+      const title = document.getElementById('project-detail-title');
+      if (!body || !title) return;
+
+      const reqId = ++projectDetailReq;
+
+      title.textContent = '…';
+      body.innerHTML = '<div class="usage-empty">Lade Projekt…</div>';
+
+      try {
+        const res = await fetch('/api/projects/' + encodeURIComponent(id), { headers: apiHeaders() });
+        if (res.status === 401) {
+          clearToken();
+          showLoginModal();
+          body.innerHTML = '<div class="usage-empty">Auth abgelaufen.</div>';
+          return;
+        }
+        if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+        const p = res.status === 404 ? null : await res.json();
+
+        if (reqId !== projectDetailReq) return;
+
+        if (res.status === 404) {
+          title.textContent = id;
+          body.innerHTML = '<div class="usage-empty">Projekt nicht gefunden.</div>';
+          return;
+        }
+
+        title.textContent = p.displayName;
+
+        if (p.missing) {
+          body.innerHTML = `
+            <div class="cmd-output-block" role="region" aria-label="Projekt — ROADMAP.md fehlt">
+              <div class="cmd-line cmd-line--prompt">
+                <span class="cmd-prompt">$</span>
+                <span class="cmd-command">hub project open ${escapeHtml(p.displayName)}</span>
+              </div>
+              <hr class="cmd-rule">
+              <div class="cmd-line cmd-line--lead">
+                <span class="cmd-marker">›</span>
+                <span>ROADMAP.md nicht lesbar.</span>
+              </div>
+              <div class="cmd-block">
+                <p>Pfad: <span class="cmd-path">${escapeHtml(p.path)}</span></p>
+                <p>Lege eine <span class="cmd-path">ROADMAP.md</span> in diesem Verzeichnis an und starte den Server neu.</p>
+              </div>
+              <hr class="cmd-rule">
+              <div class="cmd-status">
+                <span class="cmd-status-item"><span class="cmd-status-dot"></span>status:&nbsp;<strong>missing</strong></span>
+                <span class="cmd-cursor" aria-hidden="true">▊</span>
+              </div>
+            </div>`;
+          return;
+        }
+
+        const renderItem = (it, sectionKey) => `
+          <li class="roadmap-item${it.done ? ' done' : ''}" data-section="${sectionKey}" data-line="${it.line}">
+            <button class="roadmap-checkbox" type="button" aria-label="${it.done ? 'Als offen markieren' : 'Als erledigt markieren'}">${it.done ? '[x]' : '[ ]'}</button>
+            <span class="roadmap-text">${escapeHtml(it.text)}</span>
+            ${Object.keys(it.meta || {}).length
+              ? `<span class="roadmap-meta">${escapeHtml(JSON.stringify(it.meta))}</span>`
+              : ''}
+            <button class="roadmap-item-delete" type="button" aria-label="Item löschen" title="Löschen">×</button>
+          </li>`;
+
+        const section = (label, version, items, sectionKey) => `
+          <section class="roadmap-section" data-section="${sectionKey}">
+            <h3>${label}${version ? ` · <span class="roadmap-version">v${escapeHtml(version)}</span>` : ''}</h3>
+            ${items.length
+              ? `<ul class="roadmap-list">${items.map(it => renderItem(it, sectionKey)).join('')}</ul>`
+              : '<p class="roadmap-empty">— leer —</p>'}
+            <button class="roadmap-add-btn" type="button" data-section="${sectionKey}">+ Item</button>
+          </section>`;
+
+        body.innerHTML = `
+          <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
+          ${section('Released',       p.released?.version, p.released?.items || [], 'released')}
+          ${section('In Entwicklung', p.dev?.version,      p.dev?.items      || [], 'dev')}
+          ${section('Backlog / Ideen', null,               p.backlog         || [], 'backlog')}
+          ${p.changelog
+            ? `<section class="roadmap-section"><h3>Changelog</h3><pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre></section>`
+            : ''}`;
+
+        // ── Interaktivität (Step 2a) ──────────────────────────────
+        // Alle drei Mutation-Actions re-rendern bei Erfolg die komplette
+        // View via erneutem renderProjectDetail — damit sind line-Nummern
+        // immer konsistent und wir brauchen keine lokale State-Pflege.
+        body.querySelectorAll('.roadmap-checkbox').forEach(btn => {
+          btn.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            const li = btn.closest('.roadmap-item');
+            if (!li) return;
+            const sectionKey = li.getAttribute('data-section');
+            const line = parseInt(li.getAttribute('data-line'), 10);
+            if (!sectionKey || !Number.isInteger(line)) return;
+            if (btn.disabled) return;
+            btn.disabled = true;
+
+            // Optimistic flip
+            const wasDone = li.classList.contains('done');
+            li.classList.toggle('done');
+            btn.textContent = wasDone ? '[ ]' : '[x]';
+
+            try {
+              await patchItem(p.id, { action: 'toggle', section: sectionKey, line });
+              renderProjectDetail(p.id);
+            } catch (err) {
+              if (err.status === 409) {
+                showProjectToast('Konflikt — lade neu…');
+                renderProjectDetail(p.id);
+              } else {
+                // Revert optimistic flip in allen Fehler-Pfaden
+                // (inkl. 401 — sonst zeigt der Haken für Sekunden den
+                // falschen Stand während der Login-Modal läuft).
+                li.classList.toggle('done');
+                btn.textContent = wasDone ? '[x]' : '[ ]';
+                btn.disabled = false;
+                if (err.status !== 401) {
+                  showProjectToast('Fehler: ' + err.message);
+                }
+              }
+            }
+          });
+        });
+
+        body.querySelectorAll('.roadmap-item-delete').forEach(btn => {
+          btn.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            const li = btn.closest('.roadmap-item');
+            if (!li) return;
+            const sectionKey = li.getAttribute('data-section');
+            const line = parseInt(li.getAttribute('data-line'), 10);
+            if (!sectionKey || !Number.isInteger(line)) return;
+            if (btn.disabled) return;
+
+            const text = li.querySelector('.roadmap-text')?.textContent || '';
+            if (!confirm(`Item löschen?\n\n${text}`)) return;
+
+            btn.disabled = true;
+            li.style.opacity = '0.4';
+            try {
+              await patchItem(p.id, { action: 'delete', section: sectionKey, line });
+              renderProjectDetail(p.id);
+            } catch (err) {
+              li.style.opacity = '';
+              btn.disabled = false;
+              if (err.status === 409) {
+                showProjectToast('Konflikt — lade neu…');
+                renderProjectDetail(p.id);
+              } else if (err.status !== 401) {
+                showProjectToast('Fehler: ' + err.message);
+              }
+            }
+          });
+        });
+
+        body.querySelectorAll('.roadmap-add-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const sectionKey = btn.getAttribute('data-section');
+            if (!sectionKey) return;
+            if (btn.disabled) return;
+            // Disable BEFORE prompt() — sonst kann der User in der Zeit,
+            // während der modale Dialog sichtbar ist, den Button nochmal
+            // aktivieren (z.B. durch Enter-Keypress vom Vor-Click).
+            btn.disabled = true;
+            try {
+              const text = prompt('Neues Item — Text:');
+              if (!text || !text.trim()) return;
+              await patchItem(p.id, { action: 'add', section: sectionKey, text: text.trim() });
+              renderProjectDetail(p.id);
+            } catch (err) {
+              if (err.status === 409) {
+                showProjectToast('Konflikt — lade neu…');
+                renderProjectDetail(p.id);
+              } else if (err.status !== 401) {
+                showProjectToast('Fehler: ' + err.message);
+              }
+            } finally {
+              // Auf Cancel (return) ODER Error re-enablen. Success-Pfad
+              // re-rendert via renderProjectDetail → neuer Button.
+              btn.disabled = false;
+            }
+          });
+        });
+      } catch (e) {
+        body.innerHTML = `<div class="usage-empty">Fehler: ${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    // ── Usage-View ─────────────────────────────────────────────────
+    async function renderUsage() {
+      const view = document.getElementById('usage-view');
+      view.innerHTML = '<div class="usage-empty">Lade Usage-Daten…</div>';
+      try {
+        const res = await fetch('/api/usage/history?days=30', { headers: apiHeaders() });
+        if (res.status === 401) {
+          clearToken();
+          showLoginModal();
+          view.innerHTML = '<div class="usage-empty">Auth abgelaufen.</div>';
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!data.monthTotal && data.days.every(d => !d.input && !d.output)) {
+          view.innerHTML = `
+            <div class="usage-empty">
+              Noch keine Daten vorhanden — Claude Code war diesen Monat noch nicht aktiv.
+            </div>`;
+          return;
+        }
+
+        const modelEntries = Object.entries(data.monthByModel)
+          .filter(([m, v]) => v > 0 && m !== '<synthetic>')
+          .sort((a, b) => b[1] - a[1]);
+        const breakdown = modelEntries.length
+          ? modelEntries.map(([m, v]) =>
+              `<span>${escapeHtml(m)}: <strong>${formatTokensCompact(v)}</strong></span>`
+            ).join('')
+          : '<span>—</span>';
+
+        const rows = data.days.map(d => {
+          const total = d.input + d.output;
+          const empty = total === 0 ? ' class="empty"' : '';
+          return `
+            <tr${empty}>
+              <td>${d.date}</td>
+              <td class="num">${formatTokensCompact(d.input)}</td>
+              <td class="num">${formatTokensCompact(d.output)}</td>
+              <td class="num">${total ? formatTokensCompact(total) : '—'}</td>
+            </tr>`;
+        }).join('');
+
+        view.innerHTML = `
+          <div class="usage-summary">
+            <div class="usage-summary-label">Dieser Monat</div>
+            <div class="usage-summary-total">${formatTokensCompact(data.monthTotal)} tokens</div>
+            <div class="usage-summary-breakdown">${breakdown}</div>
+          </div>
+          <table class="usage-table">
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th class="num">Input</th>
+                <th class="num">Output</th>
+                <th class="num">Gesamt</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      } catch (e) {
+        view.innerHTML = `<div class="usage-empty">Fehler beim Laden: ${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    // Auth-Token: NICHT mehr hardcoded in den Page-Quellen, sondern aus
+    // localStorage / prompt. Der Server liefert public/ ohne Auth-Check,
+    // ein hardcoded Token wäre damit frei lesbar.
+    const TOKEN_KEY = 'cchub_token';
+    let AUTH_TOKEN = localStorage.getItem(TOKEN_KEY) || '';
+    function ensureToken() {
+      if (AUTH_TOKEN) return AUTH_TOKEN;
+      showLoginModal();
+      return '';
+    }
+    function clearToken() {
+      AUTH_TOKEN = '';
+      localStorage.removeItem(TOKEN_KEY);
+    }
+    function showLoginModal() {
+      const modal = document.getElementById('login-modal');
+      modal.classList.add('open');
+      // Fokus erst nach Transition, damit iOS-Autofill-Bar korrekt triggert
+      setTimeout(() => document.getElementById('login-token')?.focus(), 50);
+    }
+    function hideLoginModal() {
+      document.getElementById('login-modal').classList.remove('open');
+    }
+
+    // ── API helpers ──────────────────────────────────────────────
+    function apiHeaders() {
+      const h = { 'Content-Type': 'application/json' };
+      if (AUTH_TOKEN) h['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+      return h;
+    }
+
+    // WebSocket-URL OHNE Token im Query-String (sonst Leak in Access-Logs).
+    // Token wird statt dessen via Sec-WebSocket-Protocol als `bearer.<token>`
+    // subprotocol übergeben — siehe openTerminalWebSocket().
+    function wsUrl(sessionName) {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${location.host}/api/terminal/${encodeURIComponent(sessionName)}`;
+    }
+
+    // ── Fetch sessions ───────────────────────────────────────────
+    async function refreshSessions() {
+      if (!ensureToken()) return; // Nutzer hat Prompt abgebrochen
+      try {
+        const res = await fetch('/api/sessions', { headers: apiHeaders() });
+        if (res.status === 401) {
+          clearToken();
+          sessions = [];
+          renderSessions();
+          showToast('Token ungültig — bitte neu eingeben', 'error');
+          showLoginModal();
+          return;
+        }
+        if (!res.ok) throw new Error('Failed to fetch');
+        sessions = await res.json();
+        renderSessions();
+        const total = sessions.length;
+        const attached = sessions.filter(s => s.attached).length;
+        const label = total === 0
+          ? '0 Sessions'
+          : attached > 0
+            ? `${total} Session${total !== 1 ? 's' : ''} · ${attached} aktiv`
+            : `${total} Session${total !== 1 ? 's' : ''}`;
+        document.getElementById('session-count').textContent = label;
+      } catch (err) {
+        if (sessions === null) sessions = []; // erster Fetch fehlgeschlagen → nicht ewig Skeleton zeigen
+        renderSessions();
+        showToast('Verbindung zum Server fehlgeschlagen', 'error');
+      }
+    }
+
+    // ── Skeleton ──────────────────────────────────────────────────
+    function renderSkeleton() {
+      const grid = document.getElementById('sessions-grid');
+      grid.innerHTML = '';
+      const count = getLayout() === 'list' ? 5 : 3;
+      for (let i = 0; i < count; i++) {
+        const sk = document.createElement('div');
+        sk.className = 'skeleton-card';
+        grid.appendChild(sk);
+      }
+    }
+
+    // ── Render sessions ──────────────────────────────────────────
+    // Session-Namen kommen ursprünglich vom User und werden NICHT direkt in
+    // onclick-Attribute interpoliert (XSS). Wir nutzen data-name-Attribute mit
+    // escapeHtml und delegieren Clicks am Ende per addEventListener.
+    function renderSessions() {
+      const grid = document.getElementById('sessions-grid');
+
+      // D1: null = noch nicht geladen → Skeleton statt Empty-State
+      if (sessions === null) {
+        renderSkeleton();
+        return;
+      }
+
+      // D3: Filter anwenden — nur auf Session-Namen, Preview wurde
+      // entfernt und kommt nicht mehr vom Server.
+      const q = searchQuery.trim().toLowerCase();
+      const filtered = q
+        ? sessions.filter(s => s.name.toLowerCase().includes(q))
+        : sessions;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.style.gridColumn = '1 / -1';
+        if (sessions.length > 0 && q) {
+          empty.innerHTML = `
+            <div class="empty-state-icon">⌕</div>
+            <h3>Keine Treffer</h3>
+            <p>Kein Session-Name oder Preview matcht "${escapeHtml(q)}".</p>
+          `;
+        } else {
+          empty.innerHTML = `
+            <div class="empty-state-icon">&gt;_</div>
+            <h3>Keine aktiven Sessions</h3>
+            <p>Starte eine neue Claude Code Session um loszulegen.</p>
+            <button class="btn btn-primary" data-action="new-session">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+              Neue Session
+            </button>
+          `;
+        }
+        grid.appendChild(empty);
+        const newBtn = empty.querySelector('[data-action="new-session"]');
+        if (newBtn) newBtn.addEventListener('click', openNewSessionModal);
+        return;
+      }
+
+      // Gruppiere nach Status — stabile Reihenfolge innerhalb jeder Gruppe.
+      const byStatus = { running: [], dormant: [], foreign: [] };
+      for (const s of filtered) {
+        const key = s.status || 'running';
+        if (byStatus[key]) byStatus[key].push(s);
+      }
+
+      const activityMap = {
+        working: { cls: 'working', label: 'Arbeitet',       title: 'Claude arbeitet gerade (ESC im Terminal zum Abbrechen)' },
+        waiting: { cls: 'waiting', label: 'Braucht Input',  title: 'Claude wartet auf deinen Input' },
+        idle:    { cls: 'ready',   label: 'Bereit',         title: 'Claude ist bereit für den nächsten Auftrag' },
+        unknown: { cls: 'unknown', label: 'Aktiv',          title: 'Session läuft, Zustand nicht erkennbar' },
+      };
+
+      const renderRunningCard = (s) => {
+        const displayName = s.name.replace(/^cc-/, '');
+        const age = formatAge(s.created);
+        const safeName = escapeHtml(s.name);
+        const act = activityMap[s.activity] || activityMap.unknown;
+        const label = s.activity === 'unknown' && !s.attached ? 'Leerlauf' : act.label;
+        return `
+          <div class="session-card" data-status="running" data-name="${safeName}" data-attached="${s.attached}">
+            <div class="session-card-header">
+              <div class="session-name">
+                <span class="icon">&gt;_</span>
+                ${escapeHtml(displayName)}
+                <span class="session-project-badge" data-project="${escapeHtml(s.projectId || '')}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                  <span class="session-project-name">${escapeHtml(s.projectName || '')}</span>
+                </span>
+              </div>
+              <div class="session-status ${act.cls}" title="${escapeHtml(act.title)}">${label}</div>
+            </div>
+            <div class="session-meta">
+              <div class="session-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                ${age}
+              </div>
+              <div class="session-meta-item" title="${formatContextTooltip(s)}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+                ${formatContextPct(s.contextPct)}
+              </div>
+              ${formatUsage5h(s.usagePct5h) ? `
+              <div class="session-meta-item" title="5h-Nutzungslimit">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                5h ${formatUsage5h(s.usagePct5h)}
+              </div>` : ''}
+            </div>
+            <div class="session-actions" data-stop-propagation>
+              <button class="btn btn-ghost btn-sm" data-action="connect">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                Verbinden
+              </button>
+              <button class="btn btn-danger btn-sm" data-action="kill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                Beenden
+              </button>
+            </div>
+          </div>
+        `;
+      };
+
+      const renderDormantCard = (s) => {
+        const displayName = s.name.replace(/^cc-/, '');
+        const safeName = escapeHtml(s.name);
+        const lastSeen = formatRelativeTime(s.lastSeenAt);
+        return `
+          <div class="session-card" data-status="dormant" data-name="${safeName}">
+            <div class="session-card-header">
+              <div class="session-name">
+                <span class="icon">&gt;_</span>
+                ${escapeHtml(displayName)}
+              </div>
+              <div class="session-status" title="Session ist nicht in tmux aktiv, kann wiederhergestellt werden">Ruhend</div>
+            </div>
+            <div class="dormant-stub">
+              <div class="path">${escapeHtml(s.path || '')}</div>
+              <div>$ ${escapeHtml(s.command || 'claude')}</div>
+              <div>Zuletzt gesehen: ${escapeHtml(lastSeen)}</div>
+            </div>
+            <div class="session-actions" data-stop-propagation>
+              <button class="btn btn-primary btn-sm" data-action="restore">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Wiederherstellen
+              </button>
+              <button class="btn btn-ghost btn-sm" data-action="forget" title="Aus der Liste entfernen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                Vergessen
+              </button>
+            </div>
+          </div>
+        `;
+      };
+
+      const renderForeignCard = (s) => {
+        const displayName = s.name;
+        const safeName = escapeHtml(s.name);
+        const age = formatAge(s.created);
+        return `
+          <div class="session-card" data-status="foreign" data-name="${safeName}">
+            <div class="session-card-header">
+              <div class="session-name">
+                <span class="icon">&gt;_</span>
+                ${escapeHtml(displayName)}
+              </div>
+              <span class="foreign-badge">tmux</span>
+            </div>
+            <div class="session-meta">
+              <div class="session-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                ${age}
+              </div>
+            </div>
+            <div class="session-actions" data-stop-propagation>
+              <button class="btn btn-primary btn-sm" data-action="adopt">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+                Adoptieren
+              </button>
+              <button class="btn btn-ghost btn-sm" data-action="connect">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                Verbinden
+              </button>
+            </div>
+          </div>
+        `;
+      };
+
+      const section = (label, items, renderer) => {
+        if (!items.length) return '';
+        const header = `<div class="sessions-section-header">${label}<span class="count">${items.length}</span></div>`;
+        return header + items.map(renderer).join('');
+      };
+
+      grid.innerHTML =
+        section('Aktiv', byStatus.running, renderRunningCard) +
+        section('Ruhend', byStatus.dormant, renderDormantCard) +
+        section('Fremd', byStatus.foreign, renderForeignCard);
+
+      // Event-Delegation: ein Listener pro Card, dispatched per status.
+      grid.querySelectorAll('.session-card').forEach(card => {
+        const name = card.dataset.name;
+        const status = card.dataset.status;
+        if (status === 'running') {
+          card.addEventListener('click', (e) => {
+            if (e.target.closest('[data-stop-propagation]')) return;
+            connectToSession(name);
+          });
+          card.querySelector('[data-action="connect"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            connectToSession(name);
+          });
+          card.querySelector('[data-action="kill"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            killSession(name);
+          });
+        } else if (status === 'dormant') {
+          card.querySelector('[data-action="restore"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            restoreSession(name);
+          });
+          card.querySelector('[data-action="forget"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            forgetSession(name);
+          });
+        } else if (status === 'foreign') {
+          card.querySelector('[data-action="adopt"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openAdoptModal(name);
+          });
+          card.querySelector('[data-action="connect"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            connectToSession(name);
+          });
+        }
+      });
+    }
+
+    // ── Connect to terminal ──────────────────────────────────────
+    async function connectToSession(name) {
+      currentSessionName = name;
+      const displayName = name.replace(/^cc-/, '');
+
+      // View-Manager kümmert sich um DOM-Toggle, History-Eintrag und
+      // Polling-Stopp. connectToSession ist jetzt reiner Data-Setter +
+      // Terminal-Attach, kein DOM-Switcher mehr.
+      setView('terminal', { sessionName: name });
+      document.getElementById('terminal-session-name').textContent = displayName;
+
+      // Setup terminal
+      const container = document.getElementById('terminal-container');
+      container.innerHTML = '';
+
+      // Font MUSS geladen sein, bevor xterm seine Char-Width misst,
+      // sonst rendert es mit Fallback-Maßen und alles sitzt schief.
+      try {
+        // ASCII + Umlaute (ä) für JBM regular/bold + die problematischen
+        // Sonderzeichen ⏺ ⎿ ✻ ⠀ für die beiden Symbol-Fallback-Fonts.
+        // Ohne explizites Probe-Zeichen lädt der Browser unicode-range-Fonts
+        // erst on-demand — und xterm cached dann den ersten Render mit Boxen.
+        await Promise.all([
+          document.fonts.load('13px "JetBrains Mono"', 'Aäß'),
+          document.fonts.load('bold 13px "JetBrains Mono"', 'Aäß'),
+          document.fonts.load('13px "CC Symbols Fallback"', '\u23fa\u23bf\u273b\u2800'),
+        ]);
+        await document.fonts.ready;
+      } catch { /* safe */ }
+
+      const term = new Terminal({
+        // Bewusst KEINE System-Font-Namen wie Menlo/Consolas/Cascadia Mono mehr
+        // — Firefox mit resistFingerprinting / font-visibility ≤ 2 blockt die
+        // (Konsolenwarnung "blocked at visibility level 2") und kann dabei den
+        // gesamten Fallback-Chain verwerfen. Nur lokale Webfonts + monospace.
+        fontFamily: "'JetBrains Mono', 'CC Symbols Fallback', monospace",
+        fontSize: 13,
+        lineHeight: 1.0,
+        letterSpacing: 0,
+        cursorStyle: 'bar',
+        cursorBlink: true,
+        allowProposedApi: true,
+        scrollback: 5000,
+        fastScrollModifier: 'shift',
+        macOptionIsMeta: true,
+        theme: buildXtermTheme(),
+      });
+
+      const fitAddon = new FitAddon.FitAddon();
+      const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+      term.loadAddon(fitAddon);
+      term.loadAddon(webLinksAddon);
+      term.open(container);
+
+      // Paste-Handling: xterms eingebauter Paste-Pfad hängt am Fokus des
+      // `.xterm-helper-textarea`, der nicht immer stabil ist (besonders
+      // in Safari/iOS nach Touch-Events). Wir fangen `paste` selbst am
+      // Container ab und delegieren an `term.paste()` — das ist die
+      // offizielle API und wrapped den Text bei Bedarf mit Bracketed-Paste-
+      // Markern (`\e[200~`...`\e[201~`), wenn die laufende App diese Mode
+      // aktiviert hat. `capture: true` damit wir vor xterms Handler laufen
+      // und kein Doppel-Paste entsteht.
+      container.addEventListener('paste', (e) => {
+        const text = e.clipboardData?.getData('text');
+        if (!text) return;
+        e.preventDefault();
+        e.stopPropagation();
+        term.paste(text);
+      }, { capture: true });
+
+      // Rechtsklick = sofort einfügen (ohne Kontextmenü). In Firefox firet
+      // das Kontextmenü-„Einfügen" kein zuverlässiges paste-Event auf die
+      // xterm-Canvas, weil das Ziel nicht die versteckte Helper-Textarea
+      // ist. iTerm-in-Browser und viele TUI-Terminals machen dasselbe:
+      // right-click pastes direkt. navigator.clipboard.readText() braucht
+      // einen User-Gesture (Rechtsklick zählt) und läuft in sicheren
+      // Kontexten (https / localhost).
+      container.addEventListener('contextmenu', async (e) => {
+        e.preventDefault();
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text) term.paste(text);
+        } catch (err) {
+          showToast('Zwischenablage nicht lesbar — bitte Browser-Permission erlauben', 'error');
+        }
+      });
+
+      // Touch-Scrolling: Claude Code läuft im Alt-Screen-Buffer, da hat
+      // xterm selbst keinen Scrollback — die Historie gehört tmux. Wir
+      // übersetzen vertikale Swipes in SGR-Mouse-Wheel-Escape-Sequenzen
+      // (\x1b[<64;1;1M = wheel up, \x1b[<65;1;1M = wheel down). Tmux läuft
+      // mit `mouse on` und interpretiert sie als echte Scroll-Events,
+      // was sowohl im Alt-Screen als auch im Normal-Screen funktioniert.
+      // Test: scroll_position 0 → 20 → 70 nach 1/5/15 Wheel-Events bestätigt.
+      //
+      // touch-action: none im CSS verhindert, dass iOS die Swipes als
+      // native Page-Scroll abfängt — ohne das landen touchmove-Events
+      // nie in diesem Handler.
+      {
+        touchScrollAbort?.abort();
+        touchScrollAbort = new AbortController();
+        const signal = touchScrollAbort.signal;
+        const PX_PER_LINE = 24;
+        let touchLastY = null;
+        let touchAccum = 0;
+        container.addEventListener('touchstart', (e) => {
+          if (e.touches.length !== 1) { touchLastY = null; return; }
+          touchLastY = e.touches[0].clientY;
+          touchAccum = 0;
+        }, { capture: true, passive: true, signal });
+        container.addEventListener('touchmove', (e) => {
+          if (touchLastY === null || e.touches.length !== 1) return;
+          const y = e.touches[0].clientY;
+          const dy = touchLastY - y;       // >0 = Finger hoch = wheel down
+          touchLastY = y;
+          touchAccum += dy / PX_PER_LINE;
+          const lines = touchAccum > 0 ? Math.floor(touchAccum) : Math.ceil(touchAccum);
+          if (lines !== 0) {
+            touchAccum -= lines;
+            const button = lines < 0 ? 64 : 65;
+            const count = Math.abs(lines);
+            const seq = `\x1b[<${button};1;1M`.repeat(count);
+            if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+              currentWs.send(JSON.stringify({ type: 'input', data: seq }));
+            }
+            e.preventDefault();
+          }
+        }, { capture: true, passive: false, signal });
+        const endTouch = () => { touchLastY = null; };
+        container.addEventListener('touchend', endTouch, { capture: true, passive: true, signal });
+        container.addEventListener('touchcancel', endTouch, { capture: true, passive: true, signal });
+      }
+
+      // Small delay to ensure container is rendered
+      requestAnimationFrame(() => {
+        fitAddon.fit();
+
+        reconnectAttempts = 0;
+        openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/false);
+
+        // Handle resize — Observer wird in disconnectTerminal aufgeräumt.
+        const resizeObserver = new ResizeObserver(() => {
+          fitAddon.fit();
+          if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+            currentWs.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+          }
+        });
+        resizeObserver.observe(container);
+
+        currentTerminal = term;
+        currentResizeObserver = resizeObserver;
+        term.focus();
+      });
+    }
+
+    // ── Connection-Status-UI ─────────────────────────────────────
+    function setConnStatus(state, label) {
+      const el = document.getElementById('conn-status');
+      const lbl = document.getElementById('conn-status-label');
+      el.setAttribute('data-state', state);
+      lbl.textContent = label;
+    }
+
+    // ── WS-Connect mit Auto-Reconnect ────────────────────────────
+    // Getrennt von connectToSession, damit Reconnect ohne UI-Rebuild
+    // funktioniert. terminalRef/fitAddonRef/containerRef bleiben stabil.
+    function openTerminalWebSocket(name, term, fitAddon, container, isReconnect) {
+      const displayName = name.replace(/^cc-/, '');
+      setConnStatus('connecting', isReconnect ? `Reconnect ${reconnectAttempts}/${MAX_RECONNECT}` : 'Verbinde');
+
+      const protocols = AUTH_TOKEN ? [`bearer.${AUTH_TOKEN}`] : [];
+      const ws = new WebSocket(wsUrl(name), protocols);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        reconnectAttempts = 0;
+        setConnStatus('connected', 'Verbunden');
+        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+        if (!isReconnect) showToast(`Verbunden mit ${displayName}`, 'success');
+      };
+
+      ws.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+          term.write(event.data);
+        } else {
+          term.write(new Uint8Array(event.data));
+        }
+      };
+
+      ws.onerror = () => { /* close folgt sowieso */ };
+
+      ws.onclose = (ev) => {
+        // 4001 = Auth failed, 4004 = Session gone → beide NICHT reconnecten
+        if (ev.code === 4001) {
+          setConnStatus('disconnected', 'Auth fehlt');
+          showToast('Auth fehlgeschlagen — Token ungültig', 'error');
+          return;
+        }
+        if (ev.code === 4004) {
+          setConnStatus('disconnected', 'Session weg');
+          showToast('Session existiert nicht mehr', 'error');
+          return;
+        }
+        // User-initiated disconnect (currentWs auf null gesetzt in disconnectTerminal) → ruhe
+        if (currentWs !== ws) return;
+
+        if (reconnectAttempts < MAX_RECONNECT) {
+          reconnectAttempts++;
+          setConnStatus('connecting', `Reconnect in 2s (${reconnectAttempts}/${MAX_RECONNECT})`);
+          term.write(`\r\n\x1b[90m── Verbindung verloren, reconnect ${reconnectAttempts}/${MAX_RECONNECT} ──\x1b[0m\r\n`);
+          clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(() => {
+            // Session existiert noch? Vorher prüfen.
+            openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/true);
+          }, 2000);
+        } else {
+          setConnStatus('disconnected', 'Getrennt');
+          term.write('\r\n\x1b[90m── Verbindung getrennt, Reconnect-Limit erreicht ──\x1b[0m\r\n');
+        }
+      };
+
+      // Terminal input → WebSocket. Wenn sticky-Ctrl von der Touch-Toolbar
+      // aktiv ist, wird der nächste einzelne ASCII-Buchstabe zu Ctrl+<letter>
+      // transformiert (0x61-0x7A → 0x01-0x1A) und der Modifier zurückgesetzt.
+      term.onData(data => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (pendingCtrl && data.length === 1) {
+          const code = data.charCodeAt(0);
+          if (code >= 0x40 && code <= 0x7e) {
+            data = String.fromCharCode(code & 0x1f);
+          }
+          setCtrlSticky(false);
+        }
+        ws.send(JSON.stringify({ type: 'input', data }));
+      });
+
+      currentWs = ws;
+    }
+
+    // ── Touch-Toolbar: Keys → Terminal senden ────────────────────
+    function sendRawInput(data) {
+      if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+        currentWs.send(JSON.stringify({ type: 'input', data }));
+      }
+      if (currentTerminal) currentTerminal.focus();
+    }
+    function setCtrlSticky(active) {
+      pendingCtrl = active;
+      document.querySelectorAll('.touch-key[data-ctrl]').forEach(el => {
+        el.classList.toggle('sticky-active', active);
+      });
+    }
+
+    // VisualViewport → --kb-inset CSS-Variable + Touch-Bar-Position.
+    // iOS `dvh` ignoriert die Tastatur, daher müssen wir den Inset manuell
+    // messen und beide Dinge damit anpassen:
+    //   1. `.terminal-view` verkleinert sich via calc() um den Inset, damit
+    //      die unterste Terminal-Zeile (= aktive Eingabe) über der Tastatur
+    //      bleibt. Der ResizeObserver auf #terminal-container triggert dann
+    //      automatisch fitAddon.fit() + ein resize-Frame ans Backend, sodass
+    //      tmux die neue Pane-Höhe kennt.
+    //   2. `#touch-bar` wird per `bottom:<inset>px` über die Tastatur geschoben.
+    function updateKeyboardInset() {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--kb-inset', `${inset}px`);
+      const bar = document.getElementById('touch-bar');
+      if (bar) bar.style.bottom = inset > 0 ? `${inset}px` : '';
+    }
+
+    // ── Disconnect terminal ──────────────────────────────────────
+    // Reiner Teardown — View-Manager kümmert sich um DOM-Toggle und
+    // Polling-Restart. Wird aufgerufen (a) vom Back-Button (Wrapper der
+    // setView('dashboard') triggert → history.back → popstate) oder (b)
+    // direkt vom popstate-Handler wenn der User per Edge-Swipe kommt.
+    function disconnectTerminal() {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+      reconnectAttempts = 0;
+      if (currentResizeObserver) {
+        currentResizeObserver.disconnect();
+        currentResizeObserver = null;
+      }
+      if (currentWs) {
+        const ws = currentWs;
+        currentWs = null;
+        try { ws.close(); } catch {}
+      }
+      if (currentTerminal) {
+        currentTerminal.dispose();
+        currentTerminal = null;
+      }
+      currentSessionName = null;
+      setCtrlSticky(false);
+      touchScrollAbort?.abort();
+      touchScrollAbort = null;
+    }
+
+    // ── Recovery / Adoption ──────────────────────────────────────
+    async function restoreSession(name) {
+      const displayName = name.replace(/^cc-/, '');
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(name)}/restore`, {
+          method: 'POST',
+          headers: apiHeaders(),
+        });
+        if (res.status === 409) {
+          showToast('Eine Session mit diesem Namen läuft bereits', 'error');
+          return;
+        }
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          showToast(body.error || 'Wiederherstellen fehlgeschlagen', 'error');
+          return;
+        }
+        showToast(`Session "${displayName}" wiederhergestellt`, 'success');
+        refreshSessions();
+      } catch {
+        showToast('Verbindungsfehler beim Wiederherstellen', 'error');
+      }
+    }
+
+    async function forgetSession(name) {
+      const displayName = name.replace(/^cc-/, '');
+      if (!confirm(`Eintrag "${displayName}" aus der Liste entfernen?\n\nDie Session wird nicht gekillt (sie läuft ja nicht mehr). Restore ist danach nicht mehr möglich.`)) return;
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(name)}/known`, {
+          method: 'DELETE',
+          headers: apiHeaders(),
+        });
+        if (!res.ok) throw new Error();
+        showToast(`"${displayName}" vergessen`, 'success');
+        refreshSessions();
+      } catch {
+        showToast('Fehler beim Vergessen', 'error');
+      }
+    }
+
+    async function adoptSession(sourceName, newName) {
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(sourceName)}/adopt`, {
+          method: 'POST',
+          headers: apiHeaders(),
+          body: JSON.stringify({ newName }),
+        });
+        if (res.status === 409) {
+          showToast('Ziel-Name bereits in Benutzung', 'error');
+          return false;
+        }
+        if (res.status === 400) {
+          const body = await res.json().catch(() => ({}));
+          showToast(body.error || 'Ungültiger Name', 'error');
+          return false;
+        }
+        if (!res.ok) throw new Error();
+        showToast(`"${sourceName}" adoptiert als "cc-${newName}"`, 'success');
+        refreshSessions();
+        return true;
+      } catch {
+        showToast('Fehler beim Adoptieren', 'error');
+        return false;
+      }
+    }
+
+    let currentAdoptSource = null;
+
+    function openAdoptModal(sourceName) {
+      currentAdoptSource = sourceName;
+      document.getElementById('adopt-source-name').textContent = sourceName;
+      const input = document.getElementById('adopt-new-name');
+      // Default: source-Name gesäubert (nur erlaubte Zeichen, ohne cc-Prefix)
+      const clean = sourceName.replace(/^cc-/, '').replace(/[^\w\-. ]/g, '-').slice(0, 64);
+      input.value = clean;
+      document.getElementById('adopt-modal').classList.add('open');
+      setTimeout(() => { input.focus(); input.select(); }, 100);
+    }
+
+    function closeAdoptModal() {
+      document.getElementById('adopt-modal').classList.remove('open');
+      currentAdoptSource = null;
+    }
+
+    async function submitAdopt() {
+      if (!currentAdoptSource) return;
+      const newName = document.getElementById('adopt-new-name').value.trim();
+      if (!newName) {
+        showToast('Bitte gib einen Namen ein', 'error');
+        return;
+      }
+      const ok = await adoptSession(currentAdoptSource, newName);
+      if (ok) closeAdoptModal();
+    }
+
+    // Expose für onclick-Handler im Modal-Markup
+    window.closeAdoptModal = closeAdoptModal;
+    window.submitAdopt = submitAdopt;
+
+    // ── Kill session ─────────────────────────────────────────────
+    async function killSession(name) {
+      const displayName = name.replace(/^cc-/, '');
+      if (!confirm(`Session "${displayName}" wirklich beenden?`)) return;
+
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+          headers: apiHeaders(),
+        });
+        if (!res.ok) throw new Error('Failed');
+        showToast(`Session "${displayName}" beendet`, 'success');
+        refreshSessions();
+      } catch {
+        showToast('Fehler beim Beenden der Session', 'error');
+      }
+    }
+
+    function killCurrentSession() {
+      if (!currentSessionName) return;
+      const name = currentSessionName;
+      // Direkt inline statt killSession() aufzurufen, damit wir nicht zwei
+      // refreshSessions() hintereinander triggern (disconnectTerminal ruft
+      // selbst schon refresh auf).
+      const displayName = name.replace(/^cc-/, '');
+      if (!confirm(`Session "${displayName}" wirklich beenden?`)) return;
+      fetch(`/api/sessions/${encodeURIComponent(name)}`, {
+        method: 'DELETE',
+        headers: apiHeaders(),
+      }).then(res => {
+        if (!res.ok) throw new Error();
+        showToast(`Session "${displayName}" beendet`, 'success');
+      }).catch(() => {
+        showToast('Fehler beim Beenden der Session', 'error');
+      }).finally(() => {
+        disconnectTerminal();
+        setView('dashboard');
+      });
+    }
+
+    // ── Directory tree picker ───────────────────────────────────
+    let selectedDir = '';
+
+    async function fetchBrowse(path) {
+      const res = await fetch('/api/browse?path=' + encodeURIComponent(path), {
+        headers: apiHeaders(),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'browse failed');
+      }
+      return res.json();
+    }
+
+    function setSelectedDir(path) {
+      selectedDir = path;
+      document.getElementById('tree-selected').textContent = path;
+    }
+
+    function createTreeNode(entry) {
+      const node = document.createElement('div');
+      node.className = 'tree-node';
+      node.dataset.path = entry.path;
+
+      const row = document.createElement('div');
+      row.className = 'tree-row';
+      row.innerHTML = `
+        <span class="tree-arrow">▸</span>
+        <span class="tree-icon">📁</span>
+        <span class="tree-name"></span>
+      `;
+      row.querySelector('.tree-name').textContent = entry.name;
+
+      row.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        // Select
+        document.querySelectorAll('#tree-root .tree-row.selected')
+          .forEach(el => el.classList.remove('selected'));
+        row.classList.add('selected');
+        setSelectedDir(entry.path);
+
+        // Toggle expand
+        if (node.dataset.loaded === '1') {
+          node.classList.toggle('expanded');
+          return;
+        }
+
+        node.dataset.loaded = '1';
+        node.classList.add('expanded');
+        const children = document.createElement('div');
+        children.className = 'tree-children';
+        children.innerHTML = '<div class="tree-empty">Lädt…</div>';
+        node.appendChild(children);
+
+        try {
+          const data = await fetchBrowse(entry.path);
+          children.innerHTML = '';
+          if (data.entries.length === 0) {
+            children.innerHTML = '<div class="tree-empty">(keine Unterordner)</div>';
+            row.querySelector('.tree-arrow').classList.add('empty');
+          } else {
+            data.entries.forEach(ch => children.appendChild(createTreeNode(ch)));
+          }
+        } catch (err) {
+          children.innerHTML = `<div class="tree-error">${escapeHtml(err.message)}</div>`;
+        }
+      });
+
+      node.appendChild(row);
+      return node;
+    }
+
+    async function initTreePicker() {
+      const root = document.getElementById('tree-root');
+      root.innerHTML = '<div class="tree-empty">Lädt…</div>';
+      try {
+        const data = await fetchBrowse('~');
+        setSelectedDir(data.path);
+        root.innerHTML = '';
+        if (data.entries.length === 0) {
+          root.innerHTML = '<div class="tree-empty">(leer)</div>';
+          return;
+        }
+        data.entries.forEach(entry => root.appendChild(createTreeNode(entry)));
+      } catch (err) {
+        root.innerHTML = `<div class="tree-error">Fehler: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    // ── Create session ───────────────────────────────────────────
+    async function createSession() {
+      const name = document.getElementById('new-session-name').value.trim();
+      const directory = selectedDir;
+      const command = document.getElementById('new-session-cmd').value.trim();
+
+      if (!name) {
+        showToast('Bitte gib einen Session-Namen ein', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: apiHeaders(),
+          body: JSON.stringify({ name, directory: directory || undefined, command: command || undefined }),
+        });
+
+        if (res.status === 409) {
+          showToast('Session mit diesem Namen existiert bereits', 'error');
+          return;
+        }
+        if (!res.ok) throw new Error('Failed');
+
+        showToast(`Session "${name}" gestartet`, 'success');
+        closeNewSessionModal();
+        refreshSessions();
+      } catch {
+        showToast('Fehler beim Erstellen der Session', 'error');
+      }
+    }
+
+    // ── Modal ────────────────────────────────────────────────────
+    function openNewSessionModal() {
+      document.getElementById('new-session-modal').classList.add('open');
+      document.getElementById('new-session-name').value = '';
+      document.getElementById('new-session-cmd').value = 'claude';
+      document.getElementById('new-session-cmd').selectedIndex = 0;
+      setSelectedDir('~');
+      initTreePicker();
+      setTimeout(() => document.getElementById('new-session-name').focus(), 200);
+    }
+
+    function closeNewSessionModal() {
+      document.getElementById('new-session-modal').classList.remove('open');
+    }
+
+    // Close modal on overlay click
+    document.getElementById('new-session-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeNewSessionModal();
+    });
+
+    // Close modal on Escape — aber nur, wenn es auch offen ist.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const modal = document.getElementById('new-session-modal');
+      if (modal.classList.contains('open')) closeNewSessionModal();
+    });
+
+    // ── Toast ────────────────────────────────────────────────────
+    // Sicher gegen HTML-Injection via DOM-API. Max. 5 Toasts gleichzeitig,
+    // damit Dauer-Error-Loops das DOM nicht fluten.
+    const MAX_TOASTS = 5;
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toast-container');
+      while (container.children.length >= MAX_TOASTS) {
+        container.removeChild(container.firstChild);
+      }
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const iconSpan = document.createElement('span');
+      iconSpan.textContent = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+      toast.appendChild(iconSpan);
+      toast.appendChild(document.createTextNode(' ' + msg));
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // ── Utility ──────────────────────────────────────────────────
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function formatAge(timestamp) {
+      const diff = Date.now() - timestamp;
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'Gerade eben';
+      if (mins < 60) return `vor ${mins}m`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `vor ${hours}h`;
+      const days = Math.floor(hours / 24);
+      return `vor ${days}d`;
+    }
+
+    // Relative Zeit aus ISO-String für "zuletzt gesehen" in dormant Cards.
+    function formatRelativeTime(iso) {
+      if (!iso) return 'unbekannt';
+      const then = Date.parse(iso);
+      if (isNaN(then)) return 'unbekannt';
+      const diff = Math.floor((Date.now() - then) / 1000);
+      if (diff < 60) return 'gerade eben';
+      if (diff < 3600) return `vor ${Math.floor(diff / 60)} min`;
+      if (diff < 86400) return `vor ${Math.floor(diff / 3600)} h`;
+      if (diff < 604800) return `vor ${Math.floor(diff / 86400)} Tagen`;
+      return `vor ${Math.floor(diff / 604800)} Wochen`;
+    }
+
+    // ── Wiring: Event-Listener für Buttons + Shortcuts ────────────
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+    document.getElementById('refresh-btn').addEventListener('click', () => refreshSessions());
+    document.getElementById('new-session-btn').addEventListener('click', openNewSessionModal);
+    // Zurück-Button im Terminal-Toolbar → setView('dashboard') wird den
+    // History-Eintrag via history.back() räumen, popstate ruft dann das
+    // Teardown (disconnectTerminal). Kein Direkt-Aufruf von disconnectTerminal
+    // hier, damit die History-Integration konsistent bleibt.
+    document.getElementById('disconnect-btn').addEventListener('click', () => setView('dashboard'));
+    document.getElementById('project-back-btn').addEventListener('click', () => setView('dashboard'));
+
+    // Browser-Back / iOS-Edge-Swipe → Terminal-View schließen.
+    // Generischer popstate-Handler: schaut was JETZT im History-State ist
+    // (nach dem Pop) und routet dorthin. Vorher-View (currentView) bestimmt
+    // welches Teardown wir machen müssen.
+    window.addEventListener('popstate', () => {
+      const target = history.state?.view || 'dashboard';
+      const leavingTerminal = currentView === 'terminal';
+      if (leavingTerminal && target !== 'terminal') disconnectTerminal();
+      setView(target, { fromPopstate: true, ...history.state });
+    });
+
+    // Touch-Toolbar: Button-Handler. data-seq enthält die Escape-Sequenz
+    // als JS-String-Literal (\x1b, \t, …) und wird hier einmal dekodiert.
+    document.querySelectorAll('#touch-bar .touch-key').forEach(btn => {
+      if (btn.dataset.ctrl !== undefined) {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          setCtrlSticky(!pendingCtrl);
+        });
+        return;
+      }
+      const raw = btn.dataset.seq || '';
+      const decoded = raw
+        .replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+        .replace(/\\t/g, '\t')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r');
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        sendRawInput(decoded);
+      });
+    });
+
+    // VisualViewport-Listener: --kb-inset + Touch-Toolbar synchron halten.
+    // `scroll` ist wichtig weil iOS bei Adress-Bar-Collapse die offsetTop ändert.
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateKeyboardInset);
+      window.visualViewport.addEventListener('scroll', updateKeyboardInset);
+    }
+    document.getElementById('kill-current-btn').addEventListener('click', killCurrentSession);
+    document.getElementById('layout-grid-btn').addEventListener('click', () => {
+      setLayout('grid');
+      if (sessions === null) renderSkeleton();
+    });
+    document.getElementById('layout-list-btn').addEventListener('click', () => {
+      setLayout('list');
+      if (sessions === null) renderSkeleton();
+    });
+    document.getElementById('tab-sessions').addEventListener('click', () => setTab('sessions'));
+    document.getElementById('tab-usage').addEventListener('click', () => setTab('usage'));
+    document.getElementById('tab-projects').addEventListener('click', () => setTab('projects'));
+
+    // D3: Such-Filter — läuft clientseitig über das sessions-Array.
+    const searchEl = document.getElementById('session-search');
+    searchEl.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      if (sessions !== null) renderSessions();
+    });
+
+    // D4: Keyboard-Help-Overlay
+    const helpOverlay = document.getElementById('kbd-help-overlay');
+    const helpTrigger = document.getElementById('kbd-help-trigger');
+    function toggleHelp(force) {
+      const open = force !== undefined ? force : !helpOverlay.classList.contains('open');
+      helpOverlay.classList.toggle('open', open);
+    }
+    helpTrigger.addEventListener('click', () => toggleHelp());
+    helpOverlay.addEventListener('click', (e) => {
+      if (e.target === helpOverlay) toggleHelp(false);
+    });
+
+    // D4: Globale Keyboard-Shortcuts. Nur aktiv, wenn kein Input/Textarea
+    // oder der xterm-Hidden-Textarea den Fokus hat.
+    document.addEventListener('keydown', (e) => {
+      const active = document.activeElement;
+      const tag = active && active.tagName;
+      const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || active?.isContentEditable;
+      const inTerminal = currentView === 'terminal';
+      const modalOpen = document.getElementById('new-session-modal').classList.contains('open');
+
+      // Escape: immer handlen — Terminal-View zurück, Modal schließen, Help schließen
+      if (e.key === 'Escape') {
+        if (helpOverlay.classList.contains('open')) { toggleHelp(false); return; }
+        if (modalOpen) { closeNewSessionModal(); return; }
+        if (inTerminal) { e.preventDefault(); setView('dashboard'); return; }
+        return;
+      }
+
+      // Alle anderen Shortcuts nur im Dashboard + nicht in einem Input
+      if (inInput || inTerminal || modalOpen) return;
+
+      switch (e.key) {
+        case 'n': e.preventDefault(); openNewSessionModal(); break;
+        case '/': e.preventDefault(); searchEl.focus(); searchEl.select(); break;
+        case 'r': e.preventDefault(); refreshSessions(); break;
+        case 'g': e.preventDefault(); setLayout('grid'); break;
+        case 'l': e.preventDefault(); setLayout('list'); break;
+        case 't': e.preventDefault(); toggleTheme(); break;
+        case '?': e.preventDefault(); toggleHelp(); break;
+      }
+    });
+
+    // Modal-Submit-Handler (war früher inline onclick)
+    document.querySelector('#new-session-modal .modal-actions .btn-ghost')
+      ?.addEventListener('click', closeNewSessionModal);
+    document.querySelector('#new-session-modal .modal-actions .btn-primary')
+      ?.addEventListener('click', createSession);
+
+    // Login-Form: speichert Token im localStorage, triggert Initial-Fetch.
+    // Echtes <form> + <input type=password> statt prompt(), damit iOS-Autofill
+    // und 1Password den Token vorschlagen können.
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('login-token');
+      const t = (input.value || '').trim();
+      if (!t) return;
+      AUTH_TOKEN = t;
+      localStorage.setItem(TOKEN_KEY, t);
+      input.value = '';
+      hideLoginModal();
+      refreshSessions();
+    });
+
+    // ── Init ─────────────────────────────────────────────────────
+    // setView() zuerst — setzt body[data-current-view] und damit die
+    // Sichtbarkeit aller drei Top-Level-Views. Default: Dashboard.
+    setView('dashboard');
+    setLayout(getLayout());
+    renderSkeleton();
+    // Tab initial setzen — setTab() ruft startSessionPolling() wenn
+    // Sessions-Tab + Dashboard-View aktiv sind, oder renderUsage() bei Usage.
+    setTab(getTab());
+  </script>
+</body>
+</html>

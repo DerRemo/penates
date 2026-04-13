@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Claude Code Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+  <style>
+    :root {
+      --bg-deep: #0a0e14;
+      --bg-surface: #111720;
+      --bg-card: #161d28;
+      --bg-card-hover: #1a2332;
+      --bg-elevated: #1e2738;
+      --border: #1e2a3a;
+      --border-subtle: #152030;
+      --text-primary: #e4e8ee;
+      --text-secondary: #7a8ba0;
+      --text-muted: #4a5a6e;
+      --teal: #2dd4bf;
+      --teal-dim: #1a9e8e;
+      --teal-glow: rgba(45, 212, 191, 0.12);
+      --teal-glow-strong: rgba(45, 212, 191, 0.25);
+      --orange: #f59e0b;
+      --orange-dim: rgba(245, 158, 11, 0.15);
+      --red: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.12);
+      --green: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.12);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-lg: 16px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated background ──────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 10% 20%, rgba(45, 212, 191, 0.04) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Scanline overlay ─────────────────────────────────────────── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.02) 2px,
+        rgba(0, 0, 0, 0.02) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10, 14, 20, 0.85);
+      backdrop-filter: blur(20px) saturate(1.2);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--teal) 0%, #0ea5e9 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--bg-deep);
+      box-shadow: 0 0 20px var(--teal-glow-strong);
+    }
+
+    .logo-text {
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.3px;
+    }
+
+    .logo-text span {
+      color: var(--teal);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2.5s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── View Container ───────────────────────────────────────────── */
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* ── Dashboard View ───────────────────────────────────────────── */
+    .dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+
+    .dashboard-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--teal) 0%, #0ea5e9 100%);
+      color: var(--bg-deep);
+      box-shadow: 0 2px 12px var(--teal-glow-strong);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px var(--teal-glow-strong);
+    }
+
+    .btn-ghost {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
+
+    .btn-danger {
+      background: var(--red-dim);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-sm {
+      padding: 6px 14px;
+      font-size: 13px;
+    }
+
+    .btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ── Session Grid ─────────────────────────────────────────────── */
+    .sessions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 16px;
+    }
+
+    .session-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .session-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--teal), transparent);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .session-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(45, 212, 191, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .session-card:hover::before {
+      opacity: 1;
+    }
+
+    .session-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .session-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .session-name .icon {
+      color: var(--teal);
+      font-size: 13px;
+    }
+
+    .session-status {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    .session-status.active {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .session-status.idle {
+      background: var(--orange-dim);
+      color: var(--orange);
+    }
+
+    .session-preview {
+      background: var(--bg-deep);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      line-height: 1.55;
+      color: var(--text-muted);
+      max-height: 96px;
+      overflow: hidden;
+      white-space: pre;
+      margin-bottom: 14px;
+      border: 1px solid var(--border-subtle);
+      position: relative;
+    }
+
+    .session-preview::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 32px;
+      background: linear-gradient(transparent, var(--bg-deep));
+    }
+
+    .session-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .session-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .session-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .session-actions .btn {
+      flex: 1;
+      justify-content: center;
+    }
+
+    /* ── Empty state ──────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.3;
+    }
+
+    .empty-state h3 {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    /* ── Modal ─────────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      width: 100%;
+      max-width: 480px;
+      transform: scale(0.95) translateY(10px);
+      transition: transform 0.25s ease;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-overlay.open .modal {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .modal p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-input:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px var(--teal-glow);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+
+    /* ── Terminal View ─────────────────────────────────────────────── */
+    .terminal-view {
+      display: none;
+      flex-direction: column;
+      height: calc(100dvh - 64px);
+    }
+
+    .terminal-view.active {
+      display: flex;
+    }
+
+    .terminal-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terminal-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .terminal-session-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--teal);
+    }
+
+    .terminal-container {
+      flex: 1;
+      padding: 8px;
+      background: #0a0e14;
+      overflow: hidden;
+    }
+
+    .terminal-container .xterm {
+      height: 100%;
+    }
+
+    /* ── Dashboard container (toggled with terminal) ──────────────── */
+    .dashboard-view {
+      display: block;
+    }
+
+    .dashboard-view.hidden {
+      display: none;
+    }
+
+    /* ── Loading spinner ──────────────────────────────────────────── */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ─────────────────────────────────────────────────────── */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      font-size: 13px;
+      color: var(--text-primary);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast.error { border-left: 3px solid var(--red); }
+    .toast.success { border-left: 3px solid var(--green); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .container { padding: 20px 16px; }
+      .sessions-grid { grid-template-columns: 1fr; }
+      .header { padding: 0 16px; }
+      .dashboard-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    }
+
+    /* ── Animations ───────────────────────────────────────────────── */
+    .fade-in {
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .session-card { animation: fadeIn 0.4s ease backwards; }
+    .session-card:nth-child(1) { animation-delay: 0.05s; }
+    .session-card:nth-child(2) { animation-delay: 0.1s; }
+    .session-card:nth-child(3) { animation-delay: 0.15s; }
+    .session-card:nth-child(4) { animation-delay: 0.2s; }
+    .session-card:nth-child(5) { animation-delay: 0.25s; }
+    .session-card:nth-child(6) { animation-delay: 0.3s; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ───────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo-mark">&gt;_</div>
+      <div class="logo-text">Claude Code <span>Hub</span></div>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        <div class="status-dot"></div>
+        <span id="session-count">0 Sessions</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Dashboard View ───────────────────────────────────────── -->
+  <div class="dashboard-view" id="dashboard-view">
+    <div class="container">
+      <div class="dashboard-header">
+        <div class="dashboard-title">Aktive Sessions</div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-ghost btn-sm" onclick="refreshSessions()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+            Aktualisieren
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openNewSessionModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Neue Session
+          </button>
+        </div>
+      </div>
+      <div class="sessions-grid" id="sessions-grid">
+        <!-- Sessions will be rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Terminal View ────────────────────────────────────────── -->
+  <div class="terminal-view" id="terminal-view">
+    <div class="terminal-toolbar">
+      <div class="terminal-toolbar-left">
+        <button class="btn btn-ghost btn-sm" onclick="disconnectTerminal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Zurück
+        </button>
+        <span class="terminal-session-name" id="terminal-session-name"></span>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="killCurrentSession()">
+        Session beenden
+      </button>
+    </div>
+    <div class="terminal-container" id="terminal-container"></div>
+  </div>
+
+  <!-- ── New Session Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="new-session-modal">
+    <div class="modal">
+      <h2>Neue Session starten</h2>
+      <p>Starte eine neue Claude Code Session auf deinem Mac mini.</p>
+      <div class="form-group">
+        <label class="form-label">Session Name</label>
+        <input class="form-input" id="new-session-name" placeholder="z.B. kalvo-feature" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Projektverzeichnis</label>
+        <input class="form-input" id="new-session-dir" placeholder="~/Developer/Kalvo" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Startbefehl</label>
+        <input class="form-input" id="new-session-cmd" placeholder="claude (Standard)" value="claude" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeNewSessionModal()">Abbrechen</button>
+        <button class="btn btn-primary" onclick="createSession()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Starten
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast container ──────────────────────────────────────── -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // ── State ─────────────────────────────────────────────────────
+    let sessions = [];
+    let currentTerminal = null;
+    let currentWs = null;
+    let currentSessionName = null;
+    let refreshInterval = null;
+
+    const AUTH_TOKEN = ''; // Set this if you configured one in .env
+
+    // ── API helpers ──────────────────────────────────────────────
+    function apiHeaders() {
+      const h = { 'Content-Type': 'application/json' };
+      if (AUTH_TOKEN) h['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+      return h;
+    }
+
+    function wsUrl(sessionName) {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const tokenParam = AUTH_TOKEN ? `?token=${AUTH_TOKEN}` : '';
+      return `${proto}//${location.host}/api/terminal/${encodeURIComponent(sessionName)}${tokenParam}`;
+    }
+
+    // ── Fetch sessions ───────────────────────────────────────────
+    async function refreshSessions() {
+      try {
+        const res = await fetch('/api/sessions', { headers: apiHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch');
+        sessions = await res.json();
+        renderSessions();
+        document.getElementById('session-count').textContent =
+          `${sessions.length} Session${sessions.length !== 1 ? 's' : ''}`;
+      } catch (err) {
+        showToast('Verbindung zum Server fehlgeschlagen', 'error');
+      }
+    }
+
+    // ── Render sessions ──────────────────────────────────────────
+    function renderSessions() {
+      const grid = document.getElementById('sessions-grid');
+
+      if (sessions.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <div class="empty-state-icon">>_</div>
+            <h3>Keine aktiven Sessions</h3>
+            <p>Starte eine neue Claude Code Session um loszulegen.</p>
+            <button class="btn btn-primary" onclick="openNewSessionModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+              Neue Session
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = sessions.map(s => {
+        const displayName = s.name.replace(/^cc-/, '');
+        const age = formatAge(s.created);
+        const statusClass = s.attached ? 'active' : 'idle';
+        const statusLabel = s.attached ? 'Attached' : 'Idle';
+        const preview = escapeHtml(s.preview || 'Keine Vorschau verfügbar');
+
+        return `
+          <div class="session-card" onclick="connectToSession('${s.name}')">
+            <div class="session-card-header">
+              <div class="session-name">
+                <span class="icon">>_</span>
+                ${escapeHtml(displayName)}
+              </div>
+              <div class="session-status ${statusClass}">
+                <div style="width:5px;height:5px;border-radius:50%;background:currentColor;"></div>
+                ${statusLabel}
+              </div>
+            </div>
+            <div class="session-preview">${preview}</div>
+            <div class="session-meta">
+              <div class="session-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                ${age}
+              </div>
+              <div class="session-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                ${s.windows} Window${s.windows !== 1 ? 's' : ''}
+              </div>
+            </div>
+            <div class="session-actions" onclick="event.stopPropagation()">
+              <button class="btn btn-ghost btn-sm" onclick="connectToSession('${s.name}')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                Verbinden
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="killSession('${s.name}')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                Beenden
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── Connect to terminal ──────────────────────────────────────
+    function connectToSession(name) {
+      currentSessionName = name;
+      const displayName = name.replace(/^cc-/, '');
+
+      // Switch views
+      document.getElementById('dashboard-view').classList.add('hidden');
+      document.getElementById('terminal-view').classList.add('active');
+      document.getElementById('terminal-session-name').textContent = displayName;
+
+      // Stop auto-refresh while in terminal
+      if (refreshInterval) clearInterval(refreshInterval);
+
+      // Setup terminal
+      const container = document.getElementById('terminal-container');
+      container.innerHTML = '';
+
+      const term = new Terminal({
+        fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+        fontSize: 14,
+        lineHeight: 1.4,
+        cursorStyle: 'bar',
+        cursorBlink: true,
+        theme: {
+          background: '#0a0e14',
+          foreground: '#e4e8ee',
+          cursor: '#2dd4bf',
+          cursorAccent: '#0a0e14',
+          selectionBackground: 'rgba(45, 212, 191, 0.25)',
+          black: '#0a0e14',
+          red: '#ef4444',
+          green: '#22c55e',
+          yellow: '#f59e0b',
+          blue: '#3b82f6',
+          magenta: '#a855f7',
+          cyan: '#2dd4bf',
+          white: '#e4e8ee',
+          brightBlack: '#4a5a6e',
+          brightRed: '#f87171',
+          brightGreen: '#4ade80',
+          brightYellow: '#fbbf24',
+          brightBlue: '#60a5fa',
+          brightMagenta: '#c084fc',
+          brightCyan: '#5eead4',
+          brightWhite: '#f8fafc',
+        },
+      });
+
+      const fitAddon = new FitAddon.FitAddon();
+      const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+      term.loadAddon(fitAddon);
+      term.loadAddon(webLinksAddon);
+      term.open(container);
+
+      // Small delay to ensure container is rendered
+      requestAnimationFrame(() => {
+        fitAddon.fit();
+
+        // Connect WebSocket
+        const ws = new WebSocket(wsUrl(name));
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = () => {
+          // Send initial resize
+          ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+          showToast(`Verbunden mit ${displayName}`, 'success');
+        };
+
+        ws.onmessage = (event) => {
+          const data = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data);
+          term.write(data);
+        };
+
+        ws.onerror = () => {
+          showToast('WebSocket Verbindungsfehler', 'error');
+        };
+
+        ws.onclose = () => {
+          term.write('\r\n\x1b[90m── Verbindung getrennt ──\x1b[0m\r\n');
+        };
+
+        // Terminal input → WebSocket
+        term.onData(data => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'input', data }));
+          }
+        });
+
+        // Handle resize
+        const resizeObserver = new ResizeObserver(() => {
+          fitAddon.fit();
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+          }
+        });
+        resizeObserver.observe(container);
+
+        currentTerminal = term;
+        currentWs = ws;
+        term.focus();
+      });
+    }
+
+    // ── Disconnect terminal ──────────────────────────────────────
+    function disconnectTerminal() {
+      if (currentWs) {
+        currentWs.close();
+        currentWs = null;
+      }
+      if (currentTerminal) {
+        currentTerminal.dispose();
+        currentTerminal = null;
+      }
+      currentSessionName = null;
+
+      document.getElementById('terminal-view').classList.remove('active');
+      document.getElementById('dashboard-view').classList.remove('hidden');
+
+      // Resume auto-refresh
+      refreshSessions();
+      refreshInterval = setInterval(refreshSessions, 5000);
+    }
+
+    // ── Kill session ─────────────────────────────────────────────
+    async function killSession(name) {
+      const displayName = name.replace(/^cc-/, '');
+      if (!confirm(`Session "${displayName}" wirklich beenden?`)) return;
+
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+          headers: apiHeaders(),
+        });
+        if (!res.ok) throw new Error('Failed');
+        showToast(`Session "${displayName}" beendet`, 'success');
+        refreshSessions();
+      } catch {
+        showToast('Fehler beim Beenden der Session', 'error');
+      }
+    }
+
+    function killCurrentSession() {
+      if (currentSessionName) {
+        killSession(currentSessionName).then(() => {
+          disconnectTerminal();
+        });
+      }
+    }
+
+    // ── Create session ───────────────────────────────────────────
+    async function createSession() {
+      const name = document.getElementById('new-session-name').value.trim();
+      const directory = document.getElementById('new-session-dir').value.trim();
+      const command = document.getElementById('new-session-cmd').value.trim();
+
+      if (!name) {
+        showToast('Bitte gib einen Session-Namen ein', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: apiHeaders(),
+          body: JSON.stringify({ name, directory: directory || undefined, command: command || undefined }),
+        });
+
+        if (res.status === 409) {
+          showToast('Session mit diesem Namen existiert bereits', 'error');
+          return;
+        }
+        if (!res.ok) throw new Error('Failed');
+
+        showToast(`Session "${name}" gestartet`, 'success');
+        closeNewSessionModal();
+        refreshSessions();
+      } catch {
+        showToast('Fehler beim Erstellen der Session', 'error');
+      }
+    }
+
+    // ── Modal ────────────────────────────────────────────────────
+    function openNewSessionModal() {
+      document.getElementById('new-session-modal').classList.add('open');
+      document.getElementById('new-session-name').value = '';
+      document.getElementById('new-session-dir').value = '';
+      document.getElementById('new-session-cmd').value = 'claude';
+      setTimeout(() => document.getElementById('new-session-name').focus(), 200);
+    }
+
+    function closeNewSessionModal() {
+      document.getElementById('new-session-modal').classList.remove('open');
+    }
+
+    // Close modal on overlay click
+    document.getElementById('new-session-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeNewSessionModal();
+    });
+
+    // Close modal on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeNewSessionModal();
+    });
+
+    // ── Toast ────────────────────────────────────────────────────
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+      toast.innerHTML = `<span>${icon}</span> ${msg}`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // ── Utility ──────────────────────────────────────────────────
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function formatAge(timestamp) {
+      const diff = Date.now() - timestamp;
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'Gerade eben';
+      if (mins < 60) return `vor ${mins}m`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `vor ${hours}h`;
+      const days = Math.floor(hours / 24);
+      return `vor ${days}d`;
+    }
+
+    // ── Init ─────────────────────────────────────────────────────
+    refreshSessions();
+    refreshInterval = setInterval(refreshSessions, 5000);
+  </script>
+</body>
+</html>
