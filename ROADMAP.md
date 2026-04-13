@@ -57,8 +57,7 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [ ] Multi-CLI: CLI-Typ als Session-Metadatum plus Icon im UI {priority: p0, theme: multi-cli}
 - [ ] Multi-CLI: Preset-Profile im New-Session-Modal {priority: p0, theme: multi-cli}
 - [ ] Multi-CLI: Per-CLI-Auth via .env.cli.name oder profiles-Ordner {priority: p0, theme: multi-cli}
-- [ ] Remote-Zugriff: Cloudflare Access oder Tailscale vor dem Tunnel {priority: p0, theme: security}
-- [ ] Remote-Zugriff: Passkey/WebAuthn-Login statt Bearer-Token {priority: p0, theme: security}
+- [ ] Remote-Zugriff: Cloudflare Access (Zero Trust) vor dem Tunnel {priority: p0, theme: security}
 - [ ] Remote-Zugriff: Rate-Limiting auf REST-Endpoints {priority: p0, theme: security}
 - [ ] Remote-Zugriff: Audit-Log wer hat wann welche Session attached {priority: p0, theme: security}
 - [ ] Notifications: Telegram-DM wenn Claude auf Input wartet {priority: p0, theme: notifications}
@@ -90,11 +89,11 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [ ] CSRF-Token auf mutierende Endpoints falls Cookie-Auth kommt {priority: p2, theme: security}
 - [ ] Token-Rotation per Schedule monatlich {priority: p2, theme: security}
 - [ ] /api/browse Allow-List via ENV statt nur HOME {priority: p2, theme: security}
-- [ ] Offene Frage: welche CLIs neben claude reinsollen — gemini/codex/aider/cursor {type: decision}
-- [ ] Offene Frage: Hub single-user oder multi-user {type: decision}
-- [ ] Offene Frage: Notifications-Kanal — Telegram allein oder mit Web-Push/macOS {type: decision}
-- [ ] Offene Frage: Remote-Access-Weg — Cloudflare Access ODER Tailscale {type: decision}
-- [ ] Offene Frage: Token-Auth — Bearer bleiben oder Passkey/WebAuthn {type: decision}
+- [x] Offene Frage: welche CLIs neben claude reinsollen — gemini/codex/aider/cursor {type: decision}
+- [x] Offene Frage: Hub single-user oder multi-user {type: decision}
+- [x] Offene Frage: Notifications-Kanal — Telegram allein oder mit Web-Push/macOS {type: decision}
+- [x] Offene Frage: Remote-Access-Weg — Cloudflare Access ODER Tailscale {type: decision}
+- [x] Offene Frage: Token-Auth — Bearer bleiben oder Passkey/WebAuthn {type: decision}
 - [ ] Item-Auto-Prompt — Klick aufs Roadmap-Item spawnt Session im Projekt-cwd und sendet den Item-Text als ersten Prompt an Claude {theme: session-link}
 
 ## Changelog
