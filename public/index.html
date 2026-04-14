@@ -76,10 +76,14 @@
       unicode-range: U+2300-23FF, U+2600-26FF, U+2700-27BF, U+2800-28FF;
     }
   </style>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css"
+    integrity="sha384-9ftsg11+LSxVUaknegCfeKvlkO9EdIPI2op725RqY87IvhyGjElmpjZlP3LhTQjn" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"
+    integrity="sha384-xjfWUeCWdMtvpAb/SmM6lMzS6pQGcQa0loOl1d97j6Odw0vjK9nW3+dTb/bn/mwH" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"
+    integrity="sha384-dpjGwSSISUTz2taP54Bor7qkyMR20sSO9oe11UVYnGs2/YdUBf7HW30XKQx9PCzn" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"
+    integrity="sha384-iAAiqSZrWZz/YKZSTKOPNaRhVOg9JY14avg2EWEpYNnUsrnATA+Sg8pV7mak84/G" crossorigin="anonymous"></script>
   <style>
     /* Dark-Theme (Default). Alle Farben gehen durch CSS-Variablen, damit
        Light-Theme weiter unten nur die Werte überschreibt. */
@@ -332,6 +336,8 @@
     body:not([data-active-tab="sessions"]) [data-tab-scope="sessions"] { display: none !important; }
     body:not([data-active-tab="usage"]) [data-tab-scope="usage"] { display: none !important; }
     body:not([data-active-tab="projects"]) [data-tab-scope="projects"] { display: none !important; }
+    /* Multi-Tab-Scope: sichtbar auf Sessions UND Projekten (das Such-Input). */
+    body:not([data-active-tab="sessions"]):not([data-active-tab="projects"]) [data-tab-scope="sessions projects"] { display: none !important; }
 
     /* ── Usage-View ────────────────────────────────────────────────── */
     .usage-view { display: flex; flex-direction: column; gap: 24px; }
@@ -567,6 +573,59 @@
     }
 
     /* ── Projects-List ──────────────────────────────────────────────── */
+    /* Roadmap-Search-Results unter der Projekte-Liste. Volltext-Treffer
+       über alle Projekte, pro Treffer ein kompakter Listeneintrag mit
+       Section-Label, Hit-Text (markiert) und Projektname. */
+    .roadmap-search-results {
+      margin-top: 24px;
+      padding: 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .roadmap-search-results h3 {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; opacity: 0.6;
+      margin: 0 0 12px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .roadmap-search-list { list-style: none; margin: 0; padding: 0; }
+    .roadmap-search-hit {
+      display: flex; gap: 10px; align-items: baseline;
+      padding: 8px 12px; border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      cursor: pointer;
+      transition: background 120ms;
+    }
+    .roadmap-search-hit:hover { background: rgba(45,212,191,0.08); }
+    .roadmap-search-hit + .roadmap-search-hit { margin-top: 2px; }
+    .roadmap-search-hit.done { opacity: 0.5; }
+    .roadmap-search-hit.done .hit-text { text-decoration: line-through; }
+    .hit-section {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 2px 7px; border-radius: 10px;
+      background: rgba(148,163,184,0.12);
+      border: 1px solid rgba(148,163,184,0.2);
+      flex-shrink: 0; min-width: 64px; text-align: center;
+    }
+    .hit-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hit-text mark {
+      background: rgba(251,191,36,0.3);
+      color: inherit;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+    .hit-project {
+      font-size: 11px;
+      color: var(--teal);
+      flex-shrink: 0;
+      opacity: 0.8;
+    }
+    .roadmap-search-empty {
+      font-size: 12px; opacity: 0.5; padding: 8px 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
     .project-list {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -633,7 +692,44 @@
     }
     .roadmap-text { flex: 1; }
     .roadmap-meta {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5;
+      display: inline-flex; flex-wrap: wrap; gap: 4px;
+      align-self: center;
+    }
+    .roadmap-pill {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      padding: 2px 7px; border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(248,250,252,0.7);
+      line-height: 1.4; white-space: nowrap;
+    }
+    .roadmap-pill .pill-key { opacity: 0.55; }
+    .roadmap-pill.pill-priority-p0,
+    .roadmap-pill.pill-priority-high {
+      background: rgba(248,113,113,0.1);
+      border-color: rgba(248,113,113,0.35);
+      color: #fca5a5;
+    }
+    .roadmap-pill.pill-priority-p1 {
+      background: rgba(251,191,36,0.1);
+      border-color: rgba(251,191,36,0.3);
+      color: #fcd34d;
+    }
+    .roadmap-pill.pill-priority-p2 {
+      background: rgba(148,163,184,0.1);
+      border-color: rgba(148,163,184,0.25);
+      color: #cbd5e1;
+    }
+    .roadmap-pill.pill-theme {
+      background: rgba(45,212,191,0.1);
+      border-color: rgba(45,212,191,0.3);
+      color: #5eead4;
+    }
+    .roadmap-pill.pill-type-decision {
+      background: rgba(167,139,250,0.12);
+      border-color: rgba(167,139,250,0.35);
+      color: #c4b5fd;
     }
     .roadmap-empty {
       font-family: 'JetBrains Mono', monospace; font-size: 12px;
@@ -675,6 +771,93 @@
     }
     .roadmap-add-btn:hover { background: rgba(45,212,191,0.08); border-color: #2dd4bf; }
 
+    /* Inline-Input fürs Hinzufügen eines neuen Items: ersetzt den
+       Add-Button solange der User tippt. Escape/Blur abbrechen, Enter
+       submittet. Styling bleibt minimal und lehnt sich an .roadmap-item. */
+    .roadmap-inline-input {
+      display: flex; gap: 8px; align-items: center;
+      padding: 6px 12px; margin-top: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .roadmap-inline-input::before {
+      content: '[ ]';
+      color: var(--teal); font-size: 12px; opacity: 0.6; flex-shrink: 0;
+    }
+    .roadmap-inline-input input {
+      flex: 1;
+      background: rgba(45,212,191,0.06);
+      border: 1px solid rgba(45,212,191,0.35);
+      border-radius: 6px;
+      color: inherit; font: inherit; font-size: 14px;
+      padding: 4px 8px; outline: none;
+    }
+    .roadmap-inline-input input:focus {
+      border-color: var(--teal);
+      background: rgba(45,212,191,0.1);
+    }
+    .roadmap-inline-input .inline-hint {
+      font-size: 10px; opacity: 0.45; white-space: nowrap;
+    }
+
+    /* Session-Panel im Projekt-Detail: kompakte Liste offener Sessions
+       im cwd. Running/dormant unterscheiden sich über Farb-Dots. Click
+       auf eine Zeile → connectToSession. */
+    .project-sessions-panel {
+      margin: 0 0 20px;
+      padding: 12px;
+      background: rgba(45, 212, 191, 0.04);
+      border: 1px solid rgba(45, 212, 191, 0.15);
+      border-radius: 8px;
+    }
+    .project-sessions-panel h3 {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; opacity: 0.6;
+      margin: 0 0 8px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .project-sessions-list { list-style: none; margin: 0; padding: 0; }
+    .project-session-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      cursor: pointer;
+      transition: background 120ms;
+    }
+    .project-session-item:hover { background: rgba(45, 212, 191, 0.08); }
+    .project-session-item + .project-session-item { margin-top: 2px; }
+    .project-session-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .project-session-item[data-status="running"] .project-session-dot {
+      background: var(--teal);
+      box-shadow: 0 0 8px rgba(45,212,191,0.5);
+    }
+    .project-session-item[data-status="dormant"] .project-session-dot {
+      background: rgba(148,163,184,0.6);
+    }
+    .project-session-name { font-weight: 600; color: var(--teal); }
+    .project-session-path {
+      opacity: 0.5; font-size: 11px; margin-left: auto;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      max-width: 50%; direction: rtl; text-align: left;
+    }
+    .project-sessions-empty {
+      font-size: 12px; opacity: 0.5; padding: 4px 10px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Delete-Button im Confirm-Pending-State: aus × wird ✓?, kräftiger
+       rot, um den Zwischenschritt klar zu machen. Revert automatisch
+       nach 3s falls nicht bestätigt. */
+    .roadmap-item-delete.confirm-pending {
+      opacity: 1 !important;
+      color: #f87171;
+      background: rgba(248,113,113,0.15);
+      font-size: 11px; font-weight: 700;
+      padding: 2px 6px;
+    }
+
     .project-toast {
       position: fixed; bottom: 24px; left: 50%;
       transform: translateX(-50%) translateY(20px);
@@ -687,6 +870,13 @@
       z-index: 10000;
     }
     .project-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .project-toast.success {
+      border-color: rgba(45,212,191,0.5);
+      box-shadow: 0 0 0 1px rgba(45,212,191,0.15), 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .project-toast.success::before {
+      content: '✓ '; color: var(--teal); font-weight: 600;
+    }
 
     /* ── Project-Detail-View (Phase 0 Shell) ───────────────────────── */
     .detail-view {
@@ -705,6 +895,11 @@
       display: flex;
       align-items: center;
       gap: 12px;
+    }
+    .detail-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .detail-title {
       font-family: 'JetBrains Mono', monospace;
@@ -758,6 +953,12 @@
     }
     .session-project-badge[data-project]:not([data-project=""]) {
       display: inline-flex;
+      cursor: pointer;
+      transition: background 120ms, border-color 120ms;
+    }
+    .session-project-badge[data-project]:not([data-project=""]):hover {
+      background: rgba(45, 212, 191, 0.15);
+      border-color: rgba(45, 212, 191, 0.6);
     }
     .session-project-badge svg {
       width: 10px;
@@ -1280,6 +1481,42 @@
       display: flex;
       align-items: center;
       gap: 12px;
+    }
+    .terminal-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Idea-Capture-Prompt zwischen Toolbar und Terminal-Pane. Wird on-demand
+       eingeblendet, verschiebt den Terminal-Container runter. */
+    .idea-prompt {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 20px;
+      background: rgba(251,191,36,0.06);
+      border-bottom: 1px solid rgba(251,191,36,0.25);
+    }
+    .idea-prompt-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: rgba(251,191,36,0.85);
+      white-space: nowrap;
+    }
+    .idea-prompt-label strong,
+    .idea-prompt-label span#idea-prompt-project {
+      color: #fcd34d; font-weight: 700;
+    }
+    .idea-prompt input {
+      flex: 1;
+      background: var(--bg-deep);
+      border: 1px solid rgba(251,191,36,0.35);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      padding: 6px 10px; outline: none;
+    }
+    .idea-prompt input:focus {
+      border-color: #fcd34d;
     }
 
     .terminal-session-name {
@@ -2032,7 +2269,7 @@
               <span class="dashboard-tab-dot" aria-hidden="true"></span>
             </button>
           </div>
-          <div class="search-wrapper" data-tab-scope="sessions">
+          <div class="search-wrapper" data-tab-scope="sessions projects">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             <input type="search" class="search-input" id="session-search" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
           </div>
@@ -2053,6 +2290,10 @@
           <button class="btn btn-primary btn-sm" id="new-session-btn" type="button" data-tab-scope="sessions">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
             Neue Session
+          </button>
+          <button class="btn btn-primary btn-sm" id="new-project-btn" type="button" data-tab-scope="projects">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Neues Projekt
           </button>
         </div>
       </div>
@@ -2106,6 +2347,16 @@
         </button>
         <span class="detail-title" id="project-detail-title">—</span>
       </div>
+      <div class="detail-toolbar-right">
+        <button class="btn btn-ghost btn-sm" id="project-release-btn" type="button" hidden title="Dev-Items → Released verschieben, Versions bumpen, Changelog schreiben">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          Version abschließen
+        </button>
+        <button class="btn btn-primary btn-sm" id="project-new-session-btn" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Session hier starten
+        </button>
+      </div>
     </div>
     <div class="detail-body">
       <div class="cmd-output-block" role="region" aria-label="Project Detail — Phase 0 Shell">
@@ -2150,9 +2401,21 @@
           <span class="dot"></span><span id="conn-status-label">Verbinde</span>
         </span>
       </div>
-      <button class="btn btn-danger btn-sm" id="kill-current-btn" type="button">
-        Session beenden
-      </button>
+      <div class="terminal-toolbar-right">
+        <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden title="Idee ins Projekt-Backlog notieren">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
+          Idee notieren
+        </button>
+        <button class="btn btn-danger btn-sm" id="kill-current-btn" type="button">
+          Session beenden
+        </button>
+      </div>
+    </div>
+    <!-- Inline-Prompt für Idea-Capture, wird über dem Terminal eingeblendet -->
+    <div class="idea-prompt" id="idea-prompt" hidden>
+      <span class="idea-prompt-label">Idee für <span id="idea-prompt-project"></span> →</span>
+      <input type="text" id="idea-prompt-input" maxlength="500" spellcheck="false" placeholder="Kurze Beschreibung, Enter zum Speichern…">
+      <button class="btn btn-ghost btn-sm" id="idea-prompt-cancel" type="button">Abbruch</button>
     </div>
     <div class="terminal-container" id="terminal-container"></div>
   </div>
@@ -2187,6 +2450,59 @@
           <button class="btn btn-primary" type="submit">Anmelden</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="release-modal" role="dialog" aria-modal="true" aria-labelledby="release-modal-title">
+    <div class="modal">
+      <h2 id="release-modal-title">Version abschließen</h2>
+      <p>Alle Items aus <strong>In Entwicklung</strong> werden nach <strong>Released</strong> verschoben, beide Versions-Header gebumpt, und ein neuer Changelog-Eintrag oben eingefügt. Das ist eine destruktive Aktion — mach vorher einen Git-Commit der ROADMAP.md falls du sie versionierst.</p>
+      <div class="form-group">
+        <label class="form-label" for="release-version-input">Release-Version (wird als <code>## Released: vX</code> gesetzt)</label>
+        <input class="form-input" id="release-version-input" autocomplete="off" spellcheck="false" placeholder="z.B. 0.3.0">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="release-new-dev-input">Neue Dev-Version (wird als <code>## In Entwicklung: vY</code> gesetzt)</label>
+        <input class="form-input" id="release-new-dev-input" autocomplete="off" spellcheck="false" placeholder="z.B. 0.4.0">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="release-narrative-input">Changelog-Narrative (optional, freies Markdown — keine H2)</label>
+        <textarea class="form-input" id="release-narrative-input" rows="6" spellcheck="false" placeholder="Was wurde in dieser Version gebaut? Mehrere Absätze sind ok."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" id="release-cancel">Abbrechen</button>
+        <button class="btn btn-primary" type="button" id="release-submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          Abschließen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="new-project-modal" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
+    <div class="modal">
+      <h2 id="new-project-title">Neues Projekt anlegen</h2>
+      <p>Lege eine neue <code>ROADMAP.md</code> unter einem bestehenden Verzeichnis an. Sie wird als Projekt registriert und taucht sofort im Projekte-Tab auf.</p>
+      <div class="form-group">
+        <label class="form-label">Anzeigename</label>
+        <input class="form-input" id="new-project-name" placeholder="z.B. Kalvo Backend" autocomplete="off" spellcheck="false" maxlength="80">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Projektverzeichnis</label>
+        <div class="tree-picker" id="new-project-tree-picker">
+          <div class="tree-selected" id="new-project-tree-selected" dir="rtl">~</div>
+          <div class="tree-list" id="new-project-tree-root">
+            <div class="tree-empty">Lädt…</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" id="new-project-cancel">Abbrechen</button>
+        <button class="btn btn-primary" type="button" id="new-project-submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Anlegen
+        </button>
+      </div>
     </div>
   </div>
 
@@ -2387,7 +2703,7 @@
       // Project-Detail laden wenn dorthin navigiert wird (direkt oder via popstate).
       if (name === 'project-detail') {
         const id = opts.projectId ?? history.state?.projectId;
-        if (id) renderProjectDetail(id);
+        if (id) { renderProjectDetail(id); openProjectEventsWs(); }
         else setView('dashboard');
       }
 
@@ -2396,6 +2712,13 @@
         startSessionPolling();
       } else {
         stopSessionPolling();
+      }
+
+      // Beim Zurückkehren aufs Dashboard den Projekte-Tab neu laden — sonst
+      // sieht der User nach dem Create-Flow oder nach Toggle/Add im Detail
+      // die alte Liste.
+      if (name === 'dashboard' && getTab() === 'projects') {
+        renderProjects();
       }
     }
 
@@ -2434,7 +2757,7 @@
         stopSessionPolling();
       }
       if (tab === 'usage') renderUsage();
-      if (tab === 'projects') renderProjects();
+      if (tab === 'projects') { renderProjectsWithSearch(searchQuery); openProjectEventsWs(); }
     }
 
     // ── Token-Formatter ────────────────────────────────────────────
@@ -2490,6 +2813,57 @@
           <span class="cmd-cursor" aria-hidden="true">▊</span>
         </div>
       </div>`;
+
+    // Sucht (falls Query nicht leer) über /api/projects/search und
+    // rendert die Treffer-Liste UNTER der normalen Projekte-Liste.
+    // Bei leerer Query = normaler Render-Pfad.
+    async function renderProjectsWithSearch(query) {
+      await renderProjects();
+      const view = document.getElementById('projects-view');
+      // Alte Treffer-Liste entfernen falls Query gewechselt hat
+      view.querySelector('.roadmap-search-results')?.remove();
+      const q = (query || '').trim();
+      if (!q) return;
+      if (q.length < 2) return; // zu kurz — würde alles matchen
+      try {
+        const res = await fetch('/api/projects/search?q=' + encodeURIComponent(q), {
+          headers: apiHeaders(),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const matches = data.matches || [];
+        const block = document.createElement('div');
+        block.className = 'roadmap-search-results';
+        const header = `<h3>Roadmap-Treffer für „${escapeHtml(q)}" (${matches.length}${data.truncated ? '+' : ''})</h3>`;
+        if (matches.length === 0) {
+          block.innerHTML = header + '<div class="roadmap-search-empty">Keine passenden Items gefunden.</div>';
+        } else {
+          const items = matches.map(m => `
+            <li class="roadmap-search-hit${m.done ? ' done' : ''}" data-project="${escapeHtml(m.projectId)}" data-line="${m.line}">
+              <span class="hit-section">${m.section}</span>
+              <span class="hit-text">${highlightMatch(m.text, q)}</span>
+              <span class="hit-project">${escapeHtml(m.projectName)}</span>
+            </li>
+          `).join('');
+          block.innerHTML = header + `<ul class="roadmap-search-list">${items}</ul>`;
+        }
+        view.appendChild(block);
+        block.querySelectorAll('.roadmap-search-hit').forEach(el => {
+          el.addEventListener('click', () => {
+            setView('project-detail', { projectId: el.dataset.project });
+          });
+        });
+      } catch { /* silent */ }
+    }
+
+    // Markiert die Query-Substrings im Text mit <mark>. Escape gegen XSS
+    // vor dem Ersetzen; Query-Input wird via case-insensitive Suche matched.
+    function highlightMatch(text, query) {
+      const safe = escapeHtml(text);
+      if (!query) return safe;
+      const qRe = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+      return safe.replace(qRe, '<mark>$1</mark>');
+    }
 
     async function renderProjects() {
       const view = document.getElementById('projects-view');
@@ -2549,6 +2923,76 @@
       }
     }
 
+    // ── Project-Events WebSocket ───────────────────────────────────
+    // Eine persistente Verbindung für fs.watch-basierte Live-Sync.
+    // Öffnet on-demand wenn der erste Projekt-View (Liste oder Detail)
+    // sichtbar wird, schließt nie aktiv — Hub lebt in einem Tab, Reconnect
+    // mit exponential backoff falls die Verbindung wegbricht.
+    let projectEventsWs = null;
+    let projectEventsReconnectTimer = null;
+    let projectEventsBackoff = 500;
+    const projectEventLastSeq = new Map(); // id → seq (nur zum Drop stale)
+
+    function openProjectEventsWs() {
+      if (projectEventsWs && (projectEventsWs.readyState === 0 || projectEventsWs.readyState === 1)) return;
+      if (!AUTH_TOKEN) return;
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const url = `${proto}//${location.host}/api/projects/events`;
+      try {
+        const ws = new WebSocket(url, [`bearer.${AUTH_TOKEN}`]);
+        projectEventsWs = ws;
+        ws.addEventListener('open', () => {
+          projectEventsBackoff = 500;
+        });
+        ws.addEventListener('message', (ev) => {
+          let msg;
+          try { msg = JSON.parse(ev.data); } catch { return; }
+          if (msg.type !== 'project-changed') return;
+          const prev = projectEventLastSeq.get(msg.id) || 0;
+          if (msg.seq <= prev) return;
+          projectEventLastSeq.set(msg.id, msg.seq);
+          onProjectChanged(msg.id, msg.seq);
+        });
+        ws.addEventListener('close', () => {
+          projectEventsWs = null;
+          // Reconnect mit exponential backoff (capped) — Hub wird typisch
+          // lange in einem Tab offen gehalten, Verbindungsabbrüche sollen
+          // silently recovered werden.
+          if (projectEventsReconnectTimer) return;
+          projectEventsReconnectTimer = setTimeout(() => {
+            projectEventsReconnectTimer = null;
+            projectEventsBackoff = Math.min(projectEventsBackoff * 2, 30_000);
+            openProjectEventsWs();
+          }, projectEventsBackoff);
+        });
+        ws.addEventListener('error', () => { /* close handler fires next */ });
+      } catch (e) {
+        console.warn('[project-events] open failed:', e);
+      }
+    }
+
+    // Callback bei eingehendem project-changed. Wenn die Detail-View gerade
+    // dieses Projekt zeigt: re-rendern — es sei denn, der User tippt gerade
+    // in einem Inline-Input. Wenn der Projekte-Tab die Liste zeigt:
+    // komplette Liste neu laden (Zahlen pro Card könnten sich geändert haben).
+    function onProjectChanged(id /*, seq */) {
+      // Projects-Cache stale markieren — Session-Badges könnten sich
+      // ändern wenn der User ein Projekt angelegt/umbenannt hat.
+      invalidateProjectsCache();
+      if (currentView === 'project-detail' && history.state?.projectId === id) {
+        const body = document.querySelector('#project-detail-view .detail-body');
+        // User tippt gerade → Re-Render unterdrücken, sonst klobbern wir
+        // seinen Input. Der nächste Render nach Commit/Cancel holt den
+        // externen Change ohnehin nach.
+        if (body?.querySelector('.roadmap-inline-input')) return;
+        renderProjectDetail(id);
+        return;
+      }
+      if (currentView === 'dashboard' && getTab() === 'projects') {
+        renderProjects();
+      }
+    }
+
     // ── patchItem ──────────────────────────────────────────────────
     // Zentraler Helper für PATCH /api/projects/:id/items. Wirft Error
     // mit .status, damit Aufrufer zwischen 401/409/400/500 unterscheiden
@@ -2572,20 +3016,117 @@
       return res.json();
     }
 
-    // Simple inline toast — auto-dismiss nach 3s. Wird für Fehler- und
-    // Konflikt-Meldungen im Projekt-Detail-View benutzt.
-    function showProjectToast(msg) {
+    // Simple inline toast — auto-dismiss nach 3s. Wird für Fehler-,
+    // Konflikt- und Success-Meldungen im Projekt-Detail-View benutzt.
+    // variant: 'error' (default) | 'success'
+    function showProjectToast(msg, variant = 'error') {
       let toast = document.getElementById('project-toast');
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'project-toast';
-        toast.className = 'project-toast';
         document.body.appendChild(toast);
       }
+      toast.className = 'project-toast' + (variant === 'success' ? ' success' : '');
       toast.textContent = msg;
+      // force reflow damit nach className-Reset die transition greift
+      void toast.offsetWidth;
       toast.classList.add('show');
       clearTimeout(toast._hideTimer);
       toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Rendert {key: value}-Meta-Einträge als farbige Pills. Priority und
+    // theme bekommen eigene Farb-Variants, alles andere bleibt neutral.
+    // Bools/Zahlen werden zu String konvertiert; null/undefined überspringen.
+    function renderMetaPills(meta) {
+      if (!meta || typeof meta !== 'object') return '';
+      const pills = [];
+      for (const [key, value] of Object.entries(meta)) {
+        if (value === null || value === undefined) continue;
+        const val = String(value);
+        const variant =
+          key === 'priority' ? ` pill-priority-${val}` :
+          key === 'theme'    ? ' pill-theme' :
+          key === 'type' && val === 'decision' ? ' pill-type-decision' :
+          '';
+        pills.push(
+          `<span class="roadmap-pill${variant}">` +
+          `<span class="pill-key">${escapeHtml(key)}:</span>` +
+          `${escapeHtml(val)}` +
+          `</span>`
+        );
+      }
+      return pills.length ? `<span class="roadmap-meta">${pills.join('')}</span>` : '';
+    }
+
+    // ── Idea-Capture im Terminal-View ───────────────────────────
+    // Findet das zum aktuellen Session-cwd passende Projekt und enabled
+    // den "Idee notieren"-Button. Speichert Projekt-ID/Name am Button,
+    // damit submitIdea() sie direkt ablesen kann.
+    function updateIdeaCaptureButton(sessionName) {
+      const btn = document.getElementById('idea-capture-btn');
+      if (!btn) return;
+      const session = Array.isArray(sessions) ? sessions.find(s => s.name === sessionName) : null;
+      if (!session) { btn.hidden = true; return; }
+      const match = Array.isArray(projectsCache)
+        ? findMatchingProject(session.path, projectsCache)
+        : null;
+      if (!match) {
+        btn.hidden = true;
+        return;
+      }
+      btn.hidden = false;
+      btn.dataset.projectId = match.id;
+      btn.dataset.projectName = match.displayName;
+    }
+
+    function showIdeaPrompt() {
+      const btn = document.getElementById('idea-capture-btn');
+      if (btn.hidden) return;
+      const prompt = document.getElementById('idea-prompt');
+      document.getElementById('idea-prompt-project').textContent = btn.dataset.projectName || '';
+      prompt.hidden = false;
+      const input = document.getElementById('idea-prompt-input');
+      input.value = '';
+      setTimeout(() => input.focus(), 50);
+    }
+    function hideIdeaPrompt() {
+      document.getElementById('idea-prompt').hidden = true;
+    }
+
+    async function submitIdea() {
+      const btn = document.getElementById('idea-capture-btn');
+      const input = document.getElementById('idea-prompt-input');
+      const text = input.value.trim();
+      const projectId = btn.dataset.projectId;
+      if (!text || !projectId) return;
+      input.disabled = true;
+      try {
+        await patchItem(projectId, { action: 'add', section: 'backlog', text });
+        showToast('Idee ins Backlog geschrieben', 'success');
+        hideIdeaPrompt();
+      } catch (e) {
+        if (e.status !== 401) showToast('Fehler: ' + e.message, 'error');
+      } finally {
+        input.disabled = false;
+      }
+    }
+    document.getElementById('idea-capture-btn').addEventListener('click', showIdeaPrompt);
+    document.getElementById('idea-prompt-cancel').addEventListener('click', hideIdeaPrompt);
+    document.getElementById('idea-prompt-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); submitIdea(); }
+      else if (e.key === 'Escape') { e.preventDefault(); hideIdeaPrompt(); }
+    });
+
+    // Sessions deren cwd unter dem Projektpfad liegt. Pfad-Grenze wie
+    // im Session-Card-Badge: exakte oder Unterverzeichnis-Matches,
+    // kein Prefix-String-Match auf Namensebene.
+    function sessionsInProject(projectPath) {
+      if (!projectPath || !Array.isArray(sessions)) return [];
+      return sessions.filter(s => {
+        if (!s.path) return false;
+        return s.path === projectPath || s.path.startsWith(projectPath + '/');
+      });
     }
 
     // ── Project-Detail-View ────────────────────────────────────────
@@ -2597,8 +3138,33 @@
 
       const reqId = ++projectDetailReq;
 
+      // Scroll-Position und Focus-Target merken. Mit Live-Sync + Toggle-
+      // Clicks re-rendert die View jetzt häufiger; ohne Preservation
+      // springt man bei jedem Event nach oben und verliert seinen
+      // Platz in einer langen Liste.
+      const prevScroll = body.scrollTop;
+      const focused = document.activeElement;
+      let focusedKey = null;
+      if (focused && body.contains(focused)) {
+        const li = focused.closest('.roadmap-item');
+        if (li) {
+          focusedKey = {
+            section: li.getAttribute('data-section'),
+            line: li.getAttribute('data-line'),
+            tag: focused.classList.contains('roadmap-checkbox') ? 'checkbox'
+               : focused.classList.contains('roadmap-item-delete') ? 'delete'
+               : null,
+          };
+        }
+      }
+
       title.textContent = '…';
       body.innerHTML = '<div class="usage-empty">Lade Projekt…</div>';
+      // Buttons default hidden — werden nach erfolgreichem Load wieder aktiviert.
+      const startBtnEl = document.getElementById('project-new-session-btn');
+      if (startBtnEl) startBtnEl.hidden = true;
+      const releaseBtnEl = document.getElementById('project-release-btn');
+      if (releaseBtnEl) releaseBtnEl.hidden = true;
 
       try {
         const res = await fetch('/api/projects/' + encodeURIComponent(id), { headers: apiHeaders() });
@@ -2650,9 +3216,7 @@
           <li class="roadmap-item${it.done ? ' done' : ''}" data-section="${sectionKey}" data-line="${it.line}">
             <button class="roadmap-checkbox" type="button" aria-label="${it.done ? 'Als offen markieren' : 'Als erledigt markieren'}">${it.done ? '[x]' : '[ ]'}</button>
             <span class="roadmap-text">${escapeHtml(it.text)}</span>
-            ${Object.keys(it.meta || {}).length
-              ? `<span class="roadmap-meta">${escapeHtml(JSON.stringify(it.meta))}</span>`
-              : ''}
+            ${renderMetaPills(it.meta)}
             <button class="roadmap-item-delete" type="button" aria-label="Item löschen" title="Löschen">×</button>
           </li>`;
 
@@ -2665,14 +3229,101 @@
             <button class="roadmap-add-btn" type="button" data-section="${sectionKey}">+ Item</button>
           </section>`;
 
+        // Sessions im cwd — wird aus globalem sessions-Cache gerendert.
+        // Wenn noch nichts geladen ist, zeigen wir einen Lade-Hint und
+        // kicken einen refreshSessions() an, der per re-render nachzieht.
+        const linkedSessions = sessionsInProject(p.path);
+        const renderSessionItem = (s) => {
+          const displayName = s.name.replace(/^cc-/, '');
+          const relPath = s.path === p.path ? '.' : s.path.slice(p.path.length + 1);
+          const statusLabel = s.status === 'dormant' ? 'ruhend' : 'läuft';
+          return `
+            <li class="project-session-item" data-status="${s.status || 'running'}" data-name="${escapeHtml(s.name)}">
+              <span class="project-session-dot" title="${statusLabel}"></span>
+              <span class="project-session-name">${escapeHtml(displayName)}</span>
+              <span class="project-session-path" title="${escapeHtml(s.path)}">${escapeHtml(relPath)}</span>
+            </li>`;
+        };
+        const sessionsPanelHtml = `
+          <div class="project-sessions-panel">
+            <h3>Offene Sessions (${linkedSessions.length})</h3>
+            ${linkedSessions.length
+              ? `<ul class="project-sessions-list">${linkedSessions.map(renderSessionItem).join('')}</ul>`
+              : sessions === null
+                ? '<div class="project-sessions-empty">Lade Sessions…</div>'
+                : '<div class="project-sessions-empty">Keine Session läuft in diesem Verzeichnis.</div>'}
+          </div>`;
+
+        // Toolbar-Button für "Session hier starten" aktivieren + Pfad
+        // am Button hinterlegen (click-Handler wird einmal global gebunden).
+        const startBtn = document.getElementById('project-new-session-btn');
+        if (startBtn) {
+          startBtn.hidden = false;
+          startBtn.dataset.projectPath = p.path;
+        }
+        // Release-Button: nur anzeigen wenn die Roadmap mindestens ein
+        // Dev-Item hat und Dev-Version + Released-Version gesetzt sind.
+        // Alles andere wäre ein No-Op-Release.
+        const releaseBtn = document.getElementById('project-release-btn');
+        if (releaseBtn) {
+          const devCount = (p.dev?.items || []).length;
+          const hasVersions = !!(p.dev?.version && p.released?.version);
+          if (devCount > 0 && hasVersions) {
+            releaseBtn.hidden = false;
+            releaseBtn.dataset.projectId = p.id;
+            releaseBtn.dataset.currentDev = p.dev.version;
+            releaseBtn.dataset.currentReleased = p.released.version;
+          } else {
+            releaseBtn.hidden = true;
+          }
+        }
+
         body.innerHTML = `
           <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
+          ${sessionsPanelHtml}
           ${section('Released',       p.released?.version, p.released?.items || [], 'released')}
           ${section('In Entwicklung', p.dev?.version,      p.dev?.items      || [], 'dev')}
           ${section('Backlog / Ideen', null,               p.backlog         || [], 'backlog')}
           ${p.changelog
             ? `<section class="roadmap-section"><h3>Changelog</h3><pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre></section>`
             : ''}`;
+
+        // Click-Delegation für die Session-Items
+        body.querySelectorAll('.project-session-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const name = item.dataset.name;
+            const status = item.dataset.status;
+            if (status === 'dormant') {
+              restoreSession(name);
+            } else {
+              connectToSession(name);
+            }
+          });
+        });
+
+        // Wenn noch nichts geladen ist, im Hintergrund nachziehen —
+        // der resultierende Re-Render des Detail-Views kommt von
+        // refreshSessions → renderProjectDetail via onProjectChanged?
+        // Nein, sessions-Refresh hat keinen eigenen Rerender-Hook fürs
+        // Detail. Also hier selbst nachrendern.
+        if (sessions === null) {
+          refreshSessions().then(() => {
+            if (reqId === projectDetailReq) renderProjectDetail(id);
+          });
+        }
+
+        // Scroll + Focus restaurieren. rAF sorgt dafür, dass Layout
+        // bereits steht wenn wir scrollTop setzen — sonst clampt der
+        // Browser auf die alte (noch nicht resizete) Scroll-Höhe.
+        requestAnimationFrame(() => {
+          body.scrollTop = prevScroll;
+          if (focusedKey && focusedKey.tag) {
+            const sel = `.roadmap-item[data-section="${focusedKey.section}"][data-line="${focusedKey.line}"] `
+              + (focusedKey.tag === 'checkbox' ? '.roadmap-checkbox' : '.roadmap-item-delete');
+            const el = body.querySelector(sel);
+            if (el) el.focus();
+          }
+        });
 
         // ── Interaktivität (Step 2a) ──────────────────────────────
         // Alle drei Mutation-Actions re-rendern bei Erfolg die komplette
@@ -2716,7 +3367,22 @@
           });
         });
 
+        // Delete: 2-Klick-Bestätigung. Erster Klick primt den Button
+        // (× → ✓?), zweiter Klick committed. Auto-Revert nach 3s falls
+        // der User abdriftet. Vermeidet den browser-confirm()-Dialog
+        // (auf iOS besonders störend) und bleibt dennoch idempotent
+        // gegen Misclicks.
+        const CONFIRM_REVERT_MS = 3000;
         body.querySelectorAll('.roadmap-item-delete').forEach(btn => {
+          let revertTimer = null;
+
+          const resetPending = () => {
+            btn.classList.remove('confirm-pending');
+            btn.textContent = '×';
+            btn.setAttribute('aria-label', 'Item löschen');
+            if (revertTimer) { clearTimeout(revertTimer); revertTimer = null; }
+          };
+
           btn.addEventListener('click', async (ev) => {
             ev.stopPropagation();
             const li = btn.closest('.roadmap-item');
@@ -2726,9 +3392,16 @@
             if (!sectionKey || !Number.isInteger(line)) return;
             if (btn.disabled) return;
 
-            const text = li.querySelector('.roadmap-text')?.textContent || '';
-            if (!confirm(`Item löschen?\n\n${text}`)) return;
+            if (!btn.classList.contains('confirm-pending')) {
+              btn.classList.add('confirm-pending');
+              btn.textContent = '✓?';
+              btn.setAttribute('aria-label', 'Löschen bestätigen');
+              revertTimer = setTimeout(resetPending, CONFIRM_REVERT_MS);
+              return;
+            }
 
+            // Zweiter Klick → committen
+            if (revertTimer) { clearTimeout(revertTimer); revertTimer = null; }
             btn.disabled = true;
             li.style.opacity = '0.4';
             try {
@@ -2737,6 +3410,7 @@
             } catch (err) {
               li.style.opacity = '';
               btn.disabled = false;
+              resetPending();
               if (err.status === 409) {
                 showProjectToast('Konflikt — lade neu…');
                 renderProjectDetail(p.id);
@@ -2748,33 +3422,77 @@
         });
 
         body.querySelectorAll('.roadmap-add-btn').forEach(btn => {
-          btn.addEventListener('click', async () => {
+          btn.addEventListener('click', () => {
             const sectionKey = btn.getAttribute('data-section');
             if (!sectionKey) return;
             if (btn.disabled) return;
-            // Disable BEFORE prompt() — sonst kann der User in der Zeit,
-            // während der modale Dialog sichtbar ist, den Button nochmal
-            // aktivieren (z.B. durch Enter-Keypress vom Vor-Click).
-            btn.disabled = true;
+            // Wenn in dieser Section schon ein Input offen ist: dem fokussieren.
+            const section = btn.closest('.roadmap-section');
+            const existing = section?.querySelector('.roadmap-inline-input input');
+            if (existing) { existing.focus(); return; }
+            openInlineAdd(btn, sectionKey);
+          });
+        });
+
+        // Inline-Add: ersetzt den Add-Button durch ein Input-Feld. Enter
+        // committed, Escape/Blur ohne Wert cancelt. Watcher-Events während
+        // des Tippens werden in onProjectChanged unterdrückt.
+        function openInlineAdd(btn, sectionKey) {
+          btn.disabled = true;
+          btn.hidden = true;
+          const wrap = document.createElement('div');
+          wrap.className = 'roadmap-inline-input';
+          wrap.innerHTML = `
+            <input type="text" placeholder="Neues Item…" maxlength="500" spellcheck="false">
+            <span class="inline-hint">Enter = speichern · Esc = abbrechen</span>
+          `;
+          btn.parentNode.insertBefore(wrap, btn);
+          const input = wrap.querySelector('input');
+          input.focus();
+
+          let committing = false;
+          const cleanup = () => {
+            wrap.remove();
+            btn.hidden = false;
+            btn.disabled = false;
+          };
+
+          const commit = async () => {
+            if (committing) return;
+            const text = input.value.trim();
+            if (!text) { cleanup(); return; }
+            committing = true;
+            input.disabled = true;
             try {
-              const text = prompt('Neues Item — Text:');
-              if (!text || !text.trim()) return;
-              await patchItem(p.id, { action: 'add', section: sectionKey, text: text.trim() });
+              await patchItem(p.id, { action: 'add', section: sectionKey, text });
+              showProjectToast('Item hinzugefügt', 'success');
               renderProjectDetail(p.id);
             } catch (err) {
+              committing = false;
+              input.disabled = false;
               if (err.status === 409) {
                 showProjectToast('Konflikt — lade neu…');
                 renderProjectDetail(p.id);
               } else if (err.status !== 401) {
                 showProjectToast('Fehler: ' + err.message);
+                input.focus();
               }
-            } finally {
-              // Auf Cancel (return) ODER Error re-enablen. Success-Pfad
-              // re-rendert via renderProjectDetail → neuer Button.
-              btn.disabled = false;
             }
+          };
+
+          input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+            else if (ev.key === 'Escape') { ev.preventDefault(); cleanup(); }
           });
-        });
+          // Blur ohne Input-Value → abbrechen. Mit Text: offen lassen,
+          // damit der User außerhalb klicken und wiederkommen kann.
+          input.addEventListener('blur', () => {
+            setTimeout(() => {
+              if (committing) return;
+              if (!input.value.trim()) cleanup();
+            }, 0);
+          });
+        }
       } catch (e) {
         body.innerHTML = `<div class="usage-empty">Fehler: ${escapeHtml(e.message)}</div>`;
       }
@@ -2886,6 +3604,74 @@
       return `${proto}//${location.host}/api/terminal/${encodeURIComponent(sessionName)}`;
     }
 
+    // ── Tab-Titel-Badge ──────────────────────────────────────────
+    // Zählt Sessions mit activity === 'waiting' (Claude wartet auf Input)
+    // und prefixt den document.title mit "(N) ". Ohne wartende Sessions
+    // wird der Basis-Titel wiederhergestellt. Das Signal kommt aus
+    // detectActivity() im Server und wird bei jedem Polling aktualisiert.
+    const BASE_TITLE = 'Claude Code Hub';
+    function updateTabBadge() {
+      const waiting = Array.isArray(sessions)
+        ? sessions.filter(s => s.activity === 'waiting').length
+        : 0;
+      document.title = waiting > 0 ? `(${waiting}) ${BASE_TITLE}` : BASE_TITLE;
+    }
+
+    // ── Projects-Cache für Session-Linking ──────────────────────
+    // Sessions werden im Frontend mit passenden Projekten ausgezeichnet
+    // (cwd-Prefix-Match, längster Pfad gewinnt). Die Liste wird einmal
+    // geladen und bei WS-Events invalidiert — so vermeiden wir, dass das
+    // 5s-Session-Polling ständig /api/projects aufruft.
+    let projectsCache = null;
+    let projectsCachePromise = null;
+    function invalidateProjectsCache() { projectsCache = null; }
+    async function ensureProjectsLoaded() {
+      if (Array.isArray(projectsCache)) return projectsCache;
+      if (projectsCachePromise) return projectsCachePromise;
+      projectsCachePromise = fetch('/api/projects', { headers: apiHeaders() })
+        .then(r => r.ok ? r.json() : { projects: [] })
+        .then(d => {
+          projectsCache = d.projects || [];
+          projectsCachePromise = null;
+          return projectsCache;
+        })
+        .catch(() => { projectsCachePromise = null; return []; });
+      return projectsCachePromise;
+    }
+
+    // cwd-Prefix-Match mit Pfad-Grenze: /foo/bar matcht nur /foo/bar und
+    // /foo/bar/*, nicht /foo/barbaz. Längster passender Projektpfad gewinnt,
+    // damit verschachtelte Projekte sauber aufgelöst werden.
+    function findMatchingProject(sessionPath, projects) {
+      if (!sessionPath || !Array.isArray(projects)) return null;
+      let best = null;
+      let bestLen = 0;
+      for (const p of projects) {
+        if (!p.path) continue;
+        if (sessionPath === p.path || sessionPath.startsWith(p.path + '/')) {
+          if (p.path.length > bestLen) { best = p; bestLen = p.path.length; }
+        }
+      }
+      return best;
+    }
+
+    // Enrich sessions in-place mit projectId/projectName aus dem Cache.
+    // Wird vor jedem Render aufgerufen; wenn Cache leer ist fehlt das Badge
+    // einmalig und kommt beim nächsten Poll nach ensureProjectsLoaded.
+    function enrichSessionsWithProjects() {
+      if (!Array.isArray(sessions) || !Array.isArray(projectsCache)) return;
+      for (const s of sessions) {
+        const match = findMatchingProject(s.path, projectsCache);
+        if (match) {
+          s.projectId = match.id;
+          s.projectName = match.displayName;
+        } else {
+          s.projectId = '';
+          s.projectName = '';
+        }
+      }
+    }
+
     // ── Fetch sessions ───────────────────────────────────────────
     async function refreshSessions() {
       if (!ensureToken()) return; // Nutzer hat Prompt abgebrochen
@@ -2901,7 +3687,22 @@
         }
         if (!res.ok) throw new Error('Failed to fetch');
         sessions = await res.json();
+        enrichSessionsWithProjects();
         renderSessions();
+        // Erst-Load vom Projects-Cache: falls cold, noch einmal rendern
+        // sobald die Daten da sind. Folge-Polls treffen den warmen Cache
+        // und rendern nur einmal.
+        if (!projectsCache) {
+          ensureProjectsLoaded().then(() => {
+            enrichSessionsWithProjects();
+            renderSessions();
+            // Falls der Terminal-View bereits offen ist, Idea-Capture
+            // nachträglich aktivieren sobald der Projekte-Cache warm ist.
+            if (currentView === 'terminal' && currentSessionName) {
+              updateIdeaCaptureButton(currentSessionName);
+            }
+          });
+        }
         const total = sessions.length;
         const attached = sessions.filter(s => s.attached).length;
         const label = total === 0
@@ -2910,6 +3711,7 @@
             ? `${total} Session${total !== 1 ? 's' : ''} · ${attached} aktiv`
             : `${total} Session${total !== 1 ? 's' : ''}`;
         document.getElementById('session-count').textContent = label;
+        updateTabBadge();
       } catch (err) {
         if (sessions === null) sessions = []; // erster Fetch fehlgeschlagen → nicht ewig Skeleton zeigen
         renderSessions();
@@ -3119,9 +3921,21 @@
       grid.querySelectorAll('.session-card').forEach(card => {
         const name = card.dataset.name;
         const status = card.dataset.status;
+
+        // Projekt-Badge: Klick → Detail-View des verknüpften Projekts.
+        // stopPropagation verhindert, dass dieselbe Klick-Geste die
+        // darunterliegende Session-Card zum Verbinden auslöst.
+        card.querySelector('.session-project-badge[data-project]:not([data-project=""])')
+          ?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const pid = e.currentTarget.getAttribute('data-project');
+            if (pid) setView('project-detail', { projectId: pid });
+          });
+
         if (status === 'running') {
           card.addEventListener('click', (e) => {
             if (e.target.closest('[data-stop-propagation]')) return;
+            if (e.target.closest('.session-project-badge')) return;
             connectToSession(name);
           });
           card.querySelector('[data-action="connect"]')?.addEventListener('click', (e) => {
@@ -3164,6 +3978,13 @@
       // Terminal-Attach, kein DOM-Switcher mehr.
       setView('terminal', { sessionName: name });
       document.getElementById('terminal-session-name').textContent = displayName;
+      // Idea-Capture-Button: aktivieren wenn die Session zu einem Projekt
+      // gehört. Match kommt aus dem Projects-Cache, der evtl. noch cold ist
+      // — in dem Fall block wir nicht, sondern hängen den Reveal an einen
+      // Folge-Refresh. Session-Info für den Match kommt aus dem bereits
+      // geladenen sessions-Array.
+      updateIdeaCaptureButton(name);
+      hideIdeaPrompt();
 
       // Setup terminal
       const container = document.getElementById('terminal-container');
@@ -3593,7 +4414,11 @@
     }
 
     // ── Directory tree picker ───────────────────────────────────
-    let selectedDir = '';
+    // Factory-Pattern: jeder Picker bekommt seinen eigenen State
+    // (selectedDir), damit Session- und Projekt-Modal unabhängig
+    // verwendet werden können. Das Session-Modal hat einen singleton-
+    // Picker als Alias (siehe unten), damit die bestehenden Call-Sites
+    // unverändert bleiben.
 
     async function fetchBrowse(path) {
       const res = await fetch('/api/browse?path=' + encodeURIComponent(path), {
@@ -3606,85 +4431,106 @@
       return res.json();
     }
 
-    function setSelectedDir(path) {
-      selectedDir = path;
-      document.getElementById('tree-selected').textContent = path;
-    }
+    function createTreePicker({ rootElId, selectedElId }) {
+      const rootEl = () => document.getElementById(rootElId);
+      const selEl  = () => document.getElementById(selectedElId);
+      const state  = { selectedDir: '' };
 
-    function createTreeNode(entry) {
-      const node = document.createElement('div');
-      node.className = 'tree-node';
-      node.dataset.path = entry.path;
-
-      const row = document.createElement('div');
-      row.className = 'tree-row';
-      row.innerHTML = `
-        <span class="tree-arrow">▸</span>
-        <span class="tree-icon">📁</span>
-        <span class="tree-name"></span>
-      `;
-      row.querySelector('.tree-name').textContent = entry.name;
-
-      row.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        // Select
-        document.querySelectorAll('#tree-root .tree-row.selected')
-          .forEach(el => el.classList.remove('selected'));
-        row.classList.add('selected');
-        setSelectedDir(entry.path);
-
-        // Toggle expand
-        if (node.dataset.loaded === '1') {
-          node.classList.toggle('expanded');
-          return;
-        }
-
-        node.dataset.loaded = '1';
-        node.classList.add('expanded');
-        const children = document.createElement('div');
-        children.className = 'tree-children';
-        children.innerHTML = '<div class="tree-empty">Lädt…</div>';
-        node.appendChild(children);
-
-        try {
-          const data = await fetchBrowse(entry.path);
-          children.innerHTML = '';
-          if (data.entries.length === 0) {
-            children.innerHTML = '<div class="tree-empty">(keine Unterordner)</div>';
-            row.querySelector('.tree-arrow').classList.add('empty');
-          } else {
-            data.entries.forEach(ch => children.appendChild(createTreeNode(ch)));
-          }
-        } catch (err) {
-          children.innerHTML = `<div class="tree-error">${escapeHtml(err.message)}</div>`;
-        }
-      });
-
-      node.appendChild(row);
-      return node;
-    }
-
-    async function initTreePicker() {
-      const root = document.getElementById('tree-root');
-      root.innerHTML = '<div class="tree-empty">Lädt…</div>';
-      try {
-        const data = await fetchBrowse('~');
-        setSelectedDir(data.path);
-        root.innerHTML = '';
-        if (data.entries.length === 0) {
-          root.innerHTML = '<div class="tree-empty">(leer)</div>';
-          return;
-        }
-        data.entries.forEach(entry => root.appendChild(createTreeNode(entry)));
-      } catch (err) {
-        root.innerHTML = `<div class="tree-error">Fehler: ${escapeHtml(err.message)}</div>`;
+      function setSelected(path) {
+        state.selectedDir = path;
+        const el = selEl();
+        if (el) el.textContent = path;
       }
+
+      function createNode(entry) {
+        const node = document.createElement('div');
+        node.className = 'tree-node';
+        node.dataset.path = entry.path;
+
+        const row = document.createElement('div');
+        row.className = 'tree-row';
+        row.innerHTML = `
+          <span class="tree-arrow">▸</span>
+          <span class="tree-icon">📁</span>
+          <span class="tree-name"></span>
+        `;
+        row.querySelector('.tree-name').textContent = entry.name;
+
+        row.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          rootEl().querySelectorAll('.tree-row.selected')
+            .forEach(el => el.classList.remove('selected'));
+          row.classList.add('selected');
+          setSelected(entry.path);
+
+          if (node.dataset.loaded === '1') {
+            node.classList.toggle('expanded');
+            return;
+          }
+
+          node.dataset.loaded = '1';
+          node.classList.add('expanded');
+          const children = document.createElement('div');
+          children.className = 'tree-children';
+          children.innerHTML = '<div class="tree-empty">Lädt…</div>';
+          node.appendChild(children);
+
+          try {
+            const data = await fetchBrowse(entry.path);
+            children.innerHTML = '';
+            if (data.entries.length === 0) {
+              children.innerHTML = '<div class="tree-empty">(keine Unterordner)</div>';
+              row.querySelector('.tree-arrow').classList.add('empty');
+            } else {
+              data.entries.forEach(ch => children.appendChild(createNode(ch)));
+            }
+          } catch (err) {
+            children.innerHTML = `<div class="tree-error">${escapeHtml(err.message)}</div>`;
+          }
+        });
+
+        node.appendChild(row);
+        return node;
+      }
+
+      async function init() {
+        const root = rootEl();
+        if (!root) return;
+        root.innerHTML = '<div class="tree-empty">Lädt…</div>';
+        try {
+          const data = await fetchBrowse('~');
+          setSelected(data.path);
+          root.innerHTML = '';
+          if (data.entries.length === 0) {
+            root.innerHTML = '<div class="tree-empty">(leer)</div>';
+            return;
+          }
+          data.entries.forEach(entry => root.appendChild(createNode(entry)));
+        } catch (err) {
+          root.innerHTML = `<div class="tree-error">Fehler: ${escapeHtml(err.message)}</div>`;
+        }
+      }
+
+      return {
+        init,
+        getSelected: () => state.selectedDir,
+        setSelected, // erlaubt pre-fill von außen, bevor init() fertig ist
+      };
     }
+
+    // Session-Modal Picker. Der Alias `initTreePicker()` bleibt für die
+    // Call-Site in openNewSessionModal() bestehen.
+    const sessionTreePicker = createTreePicker({ rootElId: 'tree-root', selectedElId: 'tree-selected' });
+    async function initTreePicker() { return sessionTreePicker.init(); }
+
+    // Projekt-Modal Picker wird beim ersten Öffnen des New-Project-Modals
+    // initialisiert (siehe openNewProjectModal() unten).
+    const projectTreePicker = createTreePicker({ rootElId: 'new-project-tree-root', selectedElId: 'new-project-tree-selected' });
 
     // ── Create session ───────────────────────────────────────────
     async function createSession() {
       const name = document.getElementById('new-session-name').value.trim();
-      const directory = selectedDir;
+      const directory = sessionTreePicker.getSelected();
       const command = document.getElementById('new-session-cmd').value.trim();
 
       if (!name) {
@@ -3714,13 +4560,17 @@
     }
 
     // ── Modal ────────────────────────────────────────────────────
-    function openNewSessionModal() {
+    function openNewSessionModal(prefillPath = null) {
       document.getElementById('new-session-modal').classList.add('open');
       document.getElementById('new-session-name').value = '';
       document.getElementById('new-session-cmd').value = 'claude';
       document.getElementById('new-session-cmd').selectedIndex = 0;
-      setSelectedDir('~');
+      document.getElementById('tree-selected').textContent = prefillPath || '~';
       initTreePicker();
+      // Prefill zählt als Selection, sodass „Starten" ohne Tree-Klick
+      // direkt im gewünschten Ordner landet. Wird vom Tree-Picker-Init
+      // überschrieben, falls der User noch einen anderen Ordner wählt.
+      if (prefillPath) sessionTreePicker.setSelected(prefillPath);
       setTimeout(() => document.getElementById('new-session-name').focus(), 200);
     }
 
@@ -3733,11 +4583,75 @@
       if (e.target === e.currentTarget) closeNewSessionModal();
     });
 
-    // Close modal on Escape — aber nur, wenn es auch offen ist.
+    // ── New-Project Modal ───────────────────────────────────────
+    function openNewProjectModal() {
+      document.getElementById('new-project-modal').classList.add('open');
+      document.getElementById('new-project-name').value = '';
+      document.getElementById('new-project-tree-selected').textContent = '~';
+      projectTreePicker.init();
+      setTimeout(() => document.getElementById('new-project-name').focus(), 200);
+    }
+    function closeNewProjectModal() {
+      document.getElementById('new-project-modal').classList.remove('open');
+    }
+    document.getElementById('new-project-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeNewProjectModal();
+    });
+    document.getElementById('new-project-cancel').addEventListener('click', closeNewProjectModal);
+    document.getElementById('new-project-btn').addEventListener('click', openNewProjectModal);
+
+    async function submitNewProject() {
+      const btn = document.getElementById('new-project-submit');
+      const displayName = document.getElementById('new-project-name').value.trim();
+      const path = projectTreePicker.getSelected();
+      if (!displayName) {
+        showToast('Bitte Anzeigenamen eingeben', 'error');
+        return;
+      }
+      if (!path) {
+        showToast('Bitte Projektverzeichnis auswählen', 'error');
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayName, path }),
+        });
+        if (res.status === 401) {
+          clearToken(); showLoginModal(); return;
+        }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        const created = await res.json();
+        closeNewProjectModal();
+        showToast(`Projekt "${displayName}" angelegt`, 'success');
+        // Direkt in die Detail-View springen — Registry ist schon aktualisiert,
+        // der Projekt-Detail-Fetch trifft sofort.
+        setView('project-detail', { projectId: created.id });
+      } catch (e) {
+        showToast('Fehler: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    document.getElementById('new-project-submit').addEventListener('click', submitNewProject);
+    document.getElementById('new-project-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitNewProject();
+    });
+
+    // Close modal on Escape — aber nur, wenn eins auch offen ist.
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      const modal = document.getElementById('new-session-modal');
-      if (modal.classList.contains('open')) closeNewSessionModal();
+      const rModal = document.getElementById('release-modal');
+      if (rModal.classList.contains('open')) { closeReleaseModal(); return; }
+      const sModal = document.getElementById('new-session-modal');
+      if (sModal.classList.contains('open')) { closeNewSessionModal(); return; }
+      const pModal = document.getElementById('new-project-modal');
+      if (pModal.classList.contains('open')) closeNewProjectModal();
     });
 
     // ── Toast ────────────────────────────────────────────────────
@@ -3805,6 +4719,81 @@
     // hier, damit die History-Integration konsistent bleibt.
     document.getElementById('disconnect-btn').addEventListener('click', () => setView('dashboard'));
     document.getElementById('project-back-btn').addEventListener('click', () => setView('dashboard'));
+    document.getElementById('project-new-session-btn').addEventListener('click', (e) => {
+      const path = e.currentTarget.dataset.projectPath;
+      if (path) openNewSessionModal(path);
+    });
+
+    // ── Release-Modal ───────────────────────────────────────────────
+    function openReleaseModal({ projectId, currentDev, currentReleased }) {
+      const modal = document.getElementById('release-modal');
+      modal.classList.add('open');
+      modal.dataset.projectId = projectId;
+      // Prefill: Release-Version = aktuelle Dev-Version, neue Dev-Version =
+      // +patch (best-effort; User kann übersteuern).
+      const relInput = document.getElementById('release-version-input');
+      const devInput = document.getElementById('release-new-dev-input');
+      const narrative = document.getElementById('release-narrative-input');
+      relInput.value = currentDev || '';
+      devInput.value = bumpPatch(currentDev) || '';
+      narrative.value = '';
+      setTimeout(() => relInput.focus(), 150);
+    }
+    function closeReleaseModal() {
+      document.getElementById('release-modal').classList.remove('open');
+    }
+    function bumpPatch(v) {
+      if (!v) return '';
+      const m = /^(\d+)\.(\d+)\.(\d+)(.*)$/.exec(v);
+      if (!m) return v;
+      return `${m[1]}.${m[2]}.${parseInt(m[3], 10) + 1}${m[4]}`;
+    }
+    document.getElementById('release-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeReleaseModal();
+    });
+    document.getElementById('release-cancel').addEventListener('click', closeReleaseModal);
+    document.getElementById('project-release-btn').addEventListener('click', () => {
+      const btn = document.getElementById('project-release-btn');
+      openReleaseModal({
+        projectId: btn.dataset.projectId,
+        currentDev: btn.dataset.currentDev,
+        currentReleased: btn.dataset.currentReleased,
+      });
+    });
+
+    async function submitRelease() {
+      const modal = document.getElementById('release-modal');
+      const projectId = modal.dataset.projectId;
+      const releaseVersion = document.getElementById('release-version-input').value.trim();
+      const newDevVersion  = document.getElementById('release-new-dev-input').value.trim();
+      const narrative      = document.getElementById('release-narrative-input').value;
+      if (!projectId || !releaseVersion || !newDevVersion) {
+        showToast('Release- und Dev-Version müssen gesetzt sein', 'error');
+        return;
+      }
+      const btn = document.getElementById('release-submit');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/release', {
+          method: 'POST',
+          headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ releaseVersion, newDevVersion, narrative }),
+        });
+        if (res.status === 401) { clearToken(); showLoginModal(); return; }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || err.error || `HTTP ${res.status}`);
+        }
+        closeReleaseModal();
+        showProjectToast(`v${releaseVersion} abgeschlossen`, 'success');
+        renderProjectDetail(projectId);
+      } catch (e) {
+        showToast('Release fehlgeschlagen: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    document.getElementById('release-submit').addEventListener('click', submitRelease);
 
     // Browser-Back / iOS-Edge-Swipe → Terminal-View schließen.
     // Generischer popstate-Handler: schaut was JETZT im History-State ist
@@ -3858,11 +4847,19 @@
     document.getElementById('tab-usage').addEventListener('click', () => setTab('usage'));
     document.getElementById('tab-projects').addEventListener('click', () => setTab('projects'));
 
-    // D3: Such-Filter — läuft clientseitig über das sessions-Array.
+    // D3: Such-Filter — läuft clientseitig über das sessions-Array und
+    // serverseitig über /api/projects/search für Roadmap-Items.
     const searchEl = document.getElementById('session-search');
+    let projectSearchTimer = null;
     searchEl.addEventListener('input', (e) => {
       searchQuery = e.target.value;
       if (sessions !== null) renderSessions();
+      // Projects-Search ist debounced (200ms) damit schnelles Tippen
+      // nicht N Requests an den Server feuert.
+      if (getTab() === 'projects') {
+        clearTimeout(projectSearchTimer);
+        projectSearchTimer = setTimeout(() => renderProjectsWithSearch(searchQuery), 200);
+      }
     });
 
     // D4: Keyboard-Help-Overlay

@@ -9,7 +9,8 @@ import { homedir } from 'os';
 import dotenv from 'dotenv';
 import { getCurrentContext, getDailyUsage } from './lib/usage.js';
 import * as knownSessions from './lib/known-sessions.js';
-import { discoverProjects, listProjects, getProject, patchProject } from './lib/projects.js';
+import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry } from './lib/projects.js';
+import * as projectWatcher from './lib/project-watcher.js';
 
 dotenv.config();
 
@@ -55,12 +56,56 @@ expressWs(app, null, {
 
 app.use(express.json());
 
+// Security-Header. CSP ist bewusst mit `'unsafe-inline'` für script/style,
+// weil das Frontend eine Single-File-SPA mit inline-JS/CSS ist — Hashes
+// oder Nonces wären aufwendig zu pflegen ohne Build-Step. Externe Ressourcen
+// sind strikt auf die bekannten CDNs begrenzt, damit XSS-Folgeschäden
+// (externe Script-Injection, Daten-Exfil) gedeckelt sind. `connect-src`
+// erlaubt ws/wss zum eigenen Host für den Terminal-WebSocket.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self' ws: wss:",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+app.use((_req, res, next) => {
+  res.setHeader('Content-Security-Policy', CSP);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
+
+// Healthcheck für Cloudflare-Tunnel-Monitoring und zukünftige Uptime-Checks.
+// Bewusst außerhalb von `/api` und vor dem auth-middleware registriert, damit
+// er ohne Token erreichbar ist. Liefert aktuellen Zustand als JSON plus
+// Basis-Metriken, die als Startpunkt für das spätere Metrics-Feature dienen.
+const START_TIME = Date.now();
+app.get('/healthz', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    status: 'ok',
+    uptimeSeconds: Math.floor((Date.now() - START_TIME) / 1000),
+    sessions: getTmuxSessions().length,
+    activePtys: activePtys.size,
+    version: process.env.npm_package_version || null,
+  });
+});
+
 // Request-Logger: nur HTTP, keine WS (die kommen über upgrade und matchen
 // diesen Middleware nicht). Pfad ohne Query, damit der ?token= Fallback
-// nicht in den Logs landet.
+// nicht in den Logs landet. /healthz wird übersprungen, damit Monitoring-
+// Polls die Logs nicht fluten.
 app.use((req, _res, next) => {
   const path = req.url.split('?')[0];
-  console.log(`${new Date().toISOString()} ${req.method} ${path}`);
+  if (path !== '/healthz') {
+    console.log(`${new Date().toISOString()} ${req.method} ${path}`);
+  }
   next();
 });
 
@@ -280,15 +325,88 @@ app.get('/api/usage/history', async (req, res) => {
   }
 });
 
-// ── Projekt-Verwaltung (Phase 1 Step 1, read-only) ─────────────────────
+// ── Projekt-Verwaltung (Phase 1 Step 2b) ──────────────────────────────
 // Quelle: ~/.claude-code-hub/projects.json + ROADMAP.md pro Projekt.
-// Mutations (POST/PATCH) und File-Watcher kommen in Step 2.
+// Registry ist ein Long-Lived-Singleton in lib/projects.js. Writes gehen
+// durch mutateRegistry (withFileLock + Clone+Swap), Mutationen an einzelnen
+// ROADMAP.md-Dateien durch mutateRoadmap (withFileLock, fresh inside-lock).
+//
+// Discovery-on-read: GET /api/projects scannt bei Bedarf die konfigurierten
+// Roots nach. Throttle via DISCOVERY_TTL_MS, damit Dashboard-Polling
+// (alle 5s beim aktiven Tab) nicht jeden Mal die Disk anrasselt.
+const DISCOVERY_TTL_MS = 30_000;
+let lastDiscoveryAt = 0;
+let discoveryInflight = null;
+async function maybeRediscover() {
+  if (Date.now() - lastDiscoveryAt < DISCOVERY_TTL_MS) return;
+  if (discoveryInflight) return discoveryInflight; // dedupe
+  discoveryInflight = discoverProjects(projectRoots)
+    .then(async (r) => {
+      lastDiscoveryAt = Date.now();
+      if (r.added > 0) {
+        console.log(`[projects] rediscovery: +${r.added}, total=${r.total}`);
+        const reg = await loadRegistry();
+        projectWatcher.syncWatchers(reg);
+      }
+      return r;
+    })
+    .catch(e => console.error('[projects] rediscovery failed:', e.message))
+    .finally(() => { discoveryInflight = null; });
+  return discoveryInflight;
+}
+
 app.get('/api/projects', async (_req, res) => {
   try {
+    // Best-effort Re-Scan: Fehler blockieren den Read nicht.
+    await maybeRediscover();
     const projects = await listProjects();
     res.json({ projects });
   } catch (e) {
     res.status(500).json({ error: 'Failed to list projects', detail: e.message });
+  }
+});
+
+// Neues Projekt anlegen: schreibt ROADMAP.md mit Template und registriert.
+// Body: { displayName: string, path: string }. Path-Allowlist: unter HOME.
+app.post('/api/projects', async (req, res) => {
+  const { displayName, path: projectPath } = req.body || {};
+  if (typeof projectPath !== 'string' || !projectPath) {
+    return res.status(400).json({ error: 'path required' });
+  }
+  // Pfad-Gate: nur unter $HOME erlauben, konsistent mit /api/browse.
+  // Hier bewusst kein `~`-Expand — Frontend liefert absolute Pfade.
+  const absPath = resolve(projectPath);
+  if (!isUnderHome(absPath)) {
+    return res.status(403).json({ error: 'path must be under home directory' });
+  }
+  try {
+    const entry = await createProject({ displayName, path: absPath });
+    // Watcher direkt anziehen, damit spätere Edits in diesem Projekt ohne
+    // Verzögerung live synchronisiert werden.
+    projectWatcher.syncWatchers(await loadRegistry());
+    res.status(201).json(entry);
+  } catch (e) {
+    if (e.code === 'bad-body') {
+      return res.status(400).json({ error: 'Bad request', detail: e.detail || e.message });
+    }
+    if (e.code === 'path-exists' || e.code === 'path-conflict') {
+      return res.status(409).json({ error: e.detail || e.message });
+    }
+    console.error('[projects] create failed:', e);
+    res.status(500).json({ error: 'Failed to create project', detail: e.message });
+  }
+});
+
+// Volltext-Suche über Roadmap-Items aller Projekte. `q` ist case-insensitive,
+// Frontend ruft debounced auf. Limit defaultet auf 50.
+app.get('/api/projects/search', async (req, res) => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const result = await searchItems(q, { limit });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: 'Search failed', detail: e.message });
   }
 });
 
@@ -299,6 +417,31 @@ app.get('/api/projects/:id', async (req, res) => {
     res.json(project);
   } catch (e) {
     res.status(500).json({ error: 'Failed to load project', detail: e.message });
+  }
+});
+
+// Release abschließen: Dev-Items → Released, Versions bumpen, Changelog-
+// Eintrag erzeugen. Destruktiv (Dev wird geleert), Frontend confirmt.
+app.post('/api/projects/:id/release', async (req, res) => {
+  try {
+    const fresh = await releaseProject(req.params.id, req.body || {});
+    res.json(fresh);
+  } catch (e) {
+    const code = e.code;
+    if (code === 'unknown-id' || code === 'missing-roadmap') {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    if (code === 'bad-body') {
+      return res.status(400).json({ error: 'Bad request', detail: e.detail || e.message });
+    }
+    if (code === 'section-missing') {
+      return res.status(400).json({ error: 'ROADMAP.md structure incomplete', detail: e.detail || e.message });
+    }
+    if (code === 'section-order') {
+      return res.status(400).json({ error: 'Unsupported section order', detail: 'Need Released → In Entwicklung → Changelog' });
+    }
+    console.error('[projects] release failed:', e);
+    res.status(500).json({ error: 'Failed to finalize release', detail: e.message });
   }
 });
 
@@ -315,7 +458,11 @@ app.patch('/api/projects/:id/items', async (req, res) => {
       return res.status(409).json({ error: 'Stale line offset', detail: 'Line does not contain a checkbox item anymore' });
     }
     if (code === 'section-not-found') {
-      return res.status(400).json({ error: 'Section not found in ROADMAP.md' });
+      // 409 statt 400: die Section ist beim Write-Back verschwunden, während
+      // der Client noch die alte Struktur anzeigte — das ist ein Konflikt-
+      // Szenario wie `stale`, kein Bad-Request. Der Client triggert dann
+      // einen Refresh statt nur einen Error-Toast.
+      return res.status(409).json({ error: 'Section not found in ROADMAP.md' });
     }
     if (code === 'bad-action' || code === 'bad-body') {
       return res.status(400).json({ error: 'Bad request', detail: e.detail || e.message });
@@ -522,6 +669,35 @@ app.delete('/api/sessions/:name/known', async (req, res) => {
   res.json({ success: true });
 });
 
+// ── WebSocket: Projekt-Events ────────────────────────────────────────────────
+// Fan-out für fs.watch-Events aus lib/project-watcher.js. Clients abonnieren
+// den Endpoint wenn sie den Projekte-Tab oder eine Detail-View offen haben;
+// der Server broadcastet JEDES Projekt-Event an alle verbundenen Clients, die
+// selbst filtern anhand der aktuell angezeigten Projekt-ID.
+//
+// Pattern: zentrale Subscriber-Set, einen einzelnen Watcher-Listener, keine
+// per-Client-Registry-Pfade. Skaliert für den Single-User-Hub gut genug.
+const projectEventClients = new Set();
+projectWatcher.subscribe((event) => {
+  const payload = JSON.stringify(event);
+  for (const ws of projectEventClients) {
+    if (ws.readyState === 1) {
+      try { ws.send(payload); } catch {}
+    }
+  }
+});
+
+app.ws('/api/projects/events', (ws, req) => {
+  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
+    ws.close(4001, 'Unauthorized');
+    return;
+  }
+  projectEventClients.add(ws);
+  try { ws.send(JSON.stringify({ type: 'hello' })); } catch {}
+  ws.on('close', () => projectEventClients.delete(ws));
+  ws.on('error', () => projectEventClients.delete(ws));
+});
+
 // ── WebSocket terminal ──────────────────────────────────────────────────────
 // Tracking aller aktiven PTYs für Graceful Shutdown.
 const activePtys = new Set();
@@ -659,6 +835,7 @@ function shutdown(signal) {
   console.log(`\n  ${signal} received — killing ${activePtys.size} active PTY(s) and shutting down`);
   clearInterval(heartbeatTimer);
   for (const p of activePtys) { try { p.kill(); } catch {} }
+  projectWatcher.closeAll();
   server.close(() => process.exit(0));
   // Force-Exit falls server.close() hängt.
   setTimeout(() => process.exit(1), 5000).unref();
@@ -668,9 +845,15 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 // Projekt-Discovery einmalig beim Startup. Scan-Roots sind konfigurierbar
 // via PROJECT_ROOTS (comma-separated), Default: ~/Projects.
+// Nach Discovery werden die fs.watch-Watcher angezogen.
 const projectRoots = (process.env.PROJECT_ROOTS || join(HOME, 'Projects'))
   .split(',').map(s => s.trim()).filter(Boolean)
   .map(p => (p === '~' || p.startsWith('~/')) ? join(HOME, p.slice(1)) : p);
 discoverProjects(projectRoots)
-  .then(r => console.log(`[projects] discovery: +${r.added}, total=${r.total}`))
+  .then(async (r) => {
+    console.log(`[projects] discovery: +${r.added}, total=${r.total}`);
+    const reg = await loadRegistry();
+    projectWatcher.syncWatchers(reg);
+    console.log(`[projects] watchers: ${projectWatcher._debugState().watching.length} active`);
+  })
   .catch(e => console.error('[projects] discovery failed:', e.message));
