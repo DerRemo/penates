@@ -5248,6 +5248,15 @@
         currentTerminal = term;
         currentResizeObserver = resizeObserver;
         term.focus();
+
+        // Einmaliger Hint: Shift+Drag zum Markieren ist nicht intuitiv, weil
+        // Claude/tmux Mouse-Tracking aktivieren und damit die normale
+        // Client-Selection unterdrücken. Nur zeigen wenn der User den Hint
+        // noch nie gesehen hat.
+        if (!localStorage.getItem('cchub_hint_copy_seen')) {
+          showToast('Tipp: Shift+Drag zum Markieren, Cmd+C kopiert', 'info');
+          localStorage.setItem('cchub_hint_copy_seen', '1');
+        }
       });
     }
 
