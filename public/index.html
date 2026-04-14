@@ -5117,6 +5117,26 @@
       const webLinksAddon = new WebLinksAddon.WebLinksAddon();
       term.loadAddon(fitAddon);
       term.loadAddon(webLinksAddon);
+
+      // Copy-Handling: xterm.js-Selection ist KEINE echte Browser-Selection
+      // (wird per Canvas/DOM-Overlay gerendert), darum weiß der Browser nichts
+      // davon und Cmd+C/Ctrl+C wäre ohne diesen Handler ein No-Op. Wir fangen
+      // das Key-Event nur ab, wenn eine Selection existiert — ohne Selection
+      // muss Ctrl+C als SIGINT an den PTY durchgehen, sonst ist das Terminal
+      // kaputt (kein Prozess mehr abbrechbar).
+      term.attachCustomKeyEventHandler((ev) => {
+        if (ev.type !== 'keydown') return true;
+        const isCopyCombo = (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey && ev.key === 'c';
+        if (!isCopyCombo) return true;
+        if (!term.hasSelection()) return true;   // Ctrl+C ohne Selection → SIGINT
+        const text = term.getSelection();
+        if (!text) return true;
+        navigator.clipboard.writeText(text).catch(() => {
+          showToast('Kopieren fehlgeschlagen — Zwischenablage nicht beschreibbar', 'error');
+        });
+        return false;   // Keystroke NICHT an PTY weitergeben
+      });
+
       term.open(container);
 
       // Paste-Handling: xterms eingebauter Paste-Pfad hängt am Fokus des
