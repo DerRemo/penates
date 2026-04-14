@@ -11,6 +11,10 @@ import { getCurrentContext, getDailyUsage } from './lib/usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry } from './lib/projects.js';
 import * as projectWatcher from './lib/project-watcher.js';
+import * as attention from './lib/attention.js';
+import { loadVapid } from './lib/vapid.js';
+import * as pushSubs from './lib/push-subscriptions.js';
+import webpush from 'web-push';
 
 dotenv.config();
 
@@ -31,12 +35,16 @@ process.env.PATH = [...new Set([...EXTRA_PATHS, ...(process.env.PATH || '').spli
 // Mouse-Mode global in tmux aktivieren, sodass Wheel-Events im xterm.js-Client
 // als Scroll-Back funktionieren. Ohne das sieht der attached Client keine
 // Scroll-Events und die Terminal-View scheint eingefroren, sobald Output länger
-// als die Pane-Höhe wird. Silently ignorieren wenn noch kein tmux-Server läuft.
-try {
-  execFileSync(TMUX, ['set-option', '-g', 'mouse', 'on'], {
-    encoding: 'utf-8', timeout: 2000, stdio: 'pipe',
-  });
-} catch { /* tmux-Server evtl. noch nicht da — dann greift es beim ersten set */ }
+// als die Pane-Höhe wird. Race-Condition: Server startet evtl. bevor tmux läuft
+// → Aufruf scheitert still. Deshalb auch nach jeder Session-Erstellung gerufen.
+function ensureMouseOn() {
+  try {
+    execFileSync(TMUX, ['set-option', '-g', 'mouse', 'on'], {
+      encoding: 'utf-8', timeout: 2000, stdio: 'pipe',
+    });
+  } catch { /* tmux-Server noch nicht da */ }
+}
+ensureMouseOn();
 
 const app = express();
 expressWs(app, null, {
@@ -54,7 +62,15 @@ expressWs(app, null, {
   },
 });
 
-app.use(express.json());
+// express.json() für alles außer /api/hooks — Claude liefert dort
+// gelegentlich syntaktisch kaputtes JSON und der Parser würde mit 400
+// abbrechen, bevor unser Handler läuft. Hook-Route hat ihren eigenen
+// Raw-Body-Parser mit try/catch.
+const jsonParser = express.json();
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/hooks/')) return next();
+  return jsonParser(req, res, next);
+});
 
 // Security-Header. CSP ist bewusst mit `'unsafe-inline'` für script/style,
 // weil das Frontend eine Single-File-SPA mit inline-JS/CSS ist — Hashes
@@ -68,7 +84,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data:",
-  "connect-src 'self' ws: wss:",
+  "connect-src 'self' ws: wss: https:",
   "manifest-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -109,6 +125,16 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Service Worker: dedizierte Route damit der `Service-Worker-Allowed`-Header
+// gesetzt wird. Ohne diesen Header darf der SW nur den Sub-Pfad von seiner
+// URL kontrollieren (/sw.js wäre leer) — mit '/' kontrolliert er den ganzen Hub.
+app.get('/sw.js', (_req, res) => {
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(join(__dirname, 'public', 'sw.js'));
+});
+
 app.use(express.static(join(__dirname, 'public')));
 
 // ── Auth middleware ──────────────────────────────────────────────────────────
@@ -135,6 +161,14 @@ function authMiddleware(req, res, next) {
   if (token === AUTH_TOKEN) return next();
   res.status(401).json({ error: 'Unauthorized' });
 }
+// VAPID-Public-Key ist öffentlich — kein Auth. Browser brauchen ihn vor dem
+// pushManager.subscribe() Call, also vor jeglicher Token-Interaktion.
+app.get('/api/push/vapid-public-key', (_req, res) => {
+  const key = process.env.VAPID_PUBLIC_KEY || '';
+  if (!key) return res.status(503).json({ error: 'VAPID not configured' });
+  res.json({ publicKey: key });
+});
+
 app.use('/api', authMiddleware);
 
 // ── Validation ───────────────────────────────────────────────────────────────
@@ -181,13 +215,18 @@ const previewCache = new Map();
 const PREVIEW_TTL_MS = 2000;
 
 function getSessionPreview(sessionName, lines = 8) {
-  const cached = previewCache.get(sessionName);
+  // Cache-Key inkludiert `lines`, sonst würden Calls mit verschiedenen
+  // Buffer-Größen (Hash-Vergleich vs Card-Preview) sich gegenseitig
+  // überschreiben — oder schlimmer: eine kleinere Anfrage bekommt die
+  // größere zurück und vice versa.
+  const key = `${sessionName}|${lines}`;
+  const cached = previewCache.get(key);
   if (cached && Date.now() - cached.ts < PREVIEW_TTL_MS) return cached.value;
   try {
     const output = execFileSync(TMUX, [
       'capture-pane', '-t', sessionName, '-p', '-S', `-${lines}`,
     ], { encoding: 'utf-8', timeout: 3000 }).trim();
-    previewCache.set(sessionName, { value: output, ts: Date.now() });
+    previewCache.set(key, { value: output, ts: Date.now() });
     return output;
   } catch {
     return '';
@@ -195,7 +234,10 @@ function getSessionPreview(sessionName, lines = 8) {
 }
 
 function invalidatePreview(name) {
-  previewCache.delete(name);
+  // Alle Cache-Einträge für diese Session (egal welche line-Count) entfernen.
+  for (const key of Array.from(previewCache.keys())) {
+    if (key === name || key.startsWith(name + '|')) previewCache.delete(key);
+  }
 }
 
 // ── Usage-Limit-Parsing ──────────────────────────────────────────────────────
@@ -209,22 +251,34 @@ function parseUsagePct5h(preview) {
   return m ? parseInt(m[1], 10) : null;
 }
 
-// ── Activity-Detection ───────────────────────────────────────────────────────
-// Parse das letzte Pane-Content und leite daraus Claudes Zustand ab.
-// Bewusst konservativ: im Zweifel `unknown`, lieber als false positive.
-// Wird später vom Notifications-Feature als Signal-Quelle verwendet.
-function detectActivity(preview) {
-  if (!preview) return 'unknown';
-  // Working: "esc to interrupt"-Hinweis oder aktiver Spinner mit Zeit-Counter
-  if (/\besc to interrupt\b/i.test(preview)) return 'working';
-  if (/[✻✢⏿⏳][^\n]*\(\d+[ms]/.test(preview)) return 'working';
-  // Waiting: nummerierter Menü-Cursor oder Konfirm-Prompt
-  if (/❯\s+\d+\./.test(preview)) return 'waiting';
-  if (/\bDo you want to\b/i.test(preview)) return 'waiting';
-  if (/\bPress Enter to\b/i.test(preview)) return 'waiting';
-  // Ready: Claude-Input-Footer sichtbar ("⏵⏵ bypass/accept permissions")
-  if (/⏵⏵\s+(bypass|accept)/i.test(preview)) return 'idle';
-  return 'unknown';
+// ── Hub-Env für Claude-Hooks ─────────────────────────────────────────────────
+// Injiziert beim tmux new-session Variablen, damit der Claude-Hook (in
+// ~/.claude/settings.json) per curl an /api/hooks/:event POSTen kann.
+// Fehlende Werte werden weggelassen — der Hook-curl fällt dann auf `|| true`.
+// CC_HUB_SESSION wird im Claude-Child-Prozess beim tmux new-session gesetzt
+// und bleibt auch nach einem späteren tmux rename-session auf dem Original-
+// namen. Diese Map mappt die vom Hook gemeldete Env-ID auf den aktuell in
+// tmux sichtbaren Namen — sonst würden Hook-Events ins Leere laufen.
+const hookAlias = new Map();
+function resolveHookSession(envName) {
+  return hookAlias.get(envName) || envName;
+}
+function aliasOnRename(oldName, newName) {
+  // Alle bestehenden Aliase, die auf oldName zeigten, nachziehen.
+  for (const [k, v] of hookAlias.entries()) {
+    if (v === oldName) hookAlias.set(k, newName);
+  }
+  // oldName selbst → newName.
+  if (oldName !== newName) hookAlias.set(oldName, newName);
+}
+
+function hubEnvArgs(sessionName) {
+  const args = [
+    '-e', `CC_HUB_SESSION=${sessionName}`,
+    '-e', `CC_HUB_URL=http://127.0.0.1:${PORT}`,
+  ];
+  if (AUTH_TOKEN) args.push('-e', `CC_HUB_TOKEN=${AUTH_TOKEN}`);
+  return args;
 }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -271,19 +325,24 @@ app.get('/api/sessions', (req, res) => {
       status: 'dormant',
     }));
 
-  // Enrichment: Activity + Context nur für running/foreign (dormant hat
-  // keine Pane). Context-Lookup ist ebenfalls fürs Dormant-cwd sinnvoll,
-  // damit der User beim Restore einen Hinweis auf den zuletzt bekannten
-  // Token-Stand hat — getCurrentContext liest aus den JSONL-Logs, nicht
-  // aus der Pane.
+  // Enrichment: Activity kommt ausschließlich aus dem Hook-State. Preview
+  // wird nur noch für parseUsagePct5h gezogen (5h-Quota aus der Status-
+  // Line). Sessions ohne frischen Hook zeigen activity:`unknown` → Label
+  // "Aktiv" im Dashboard.
   const enrich = (s) => {
     let preview = null;
     if (withActivity && s.status !== 'dormant') {
       preview = getSessionPreview(s.name);
     }
-    const base = preview !== null
-      ? { ...s, activity: detectActivity(preview), usagePct5h: parseUsagePct5h(preview) }
-      : { ...s, usagePct5h: null };
+    const hookActivity = attention.getHookActivity(s.name);
+    const base = {
+      ...s,
+      activity: hookActivity || 'unknown',
+      usagePct5h: preview !== null ? parseUsagePct5h(preview) : null,
+    };
+    // attached an den Attention-Engine zurückmelden, damit der nächste
+    // Hook-Event weiß, ob der User zuschaut (→ kein session-attention).
+    if (s.status !== 'dormant') attention.setAttached(s.name, !!s.attached);
     try {
       const ctx = getCurrentContext(s.path);
       base.contextTokens = ctx.tokens;
@@ -296,6 +355,7 @@ app.get('/api/sessions', (req, res) => {
       base.contextLimit = null;
       base.contextPct = null;
     }
+    base.muted = knownSessions.isMuted(s.name);
     return base;
   };
 
@@ -514,7 +574,7 @@ app.post('/api/sessions', async (req, res) => {
     // `/bin/sh -c` weiter — dadurch funktionieren Commands mit Spaces wie
     // `claude --dangerously-skip-permissions` ohne dass wir selbst eine
     // Shell anwerfen.
-    execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, '-c', dir, cmd], {
+    execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...hubEnvArgs(sessionName), '-c', dir, cmd], {
       encoding: 'utf-8', timeout: 5000,
     });
   } catch (err) {
@@ -537,6 +597,9 @@ app.post('/api/sessions', async (req, res) => {
       } catch (e) {
         console.error('[known-sessions] add failed:', e);
       }
+      // Mouse-Mode sicherstellen: falls beim Server-Start tmux noch nicht
+      // lief, konnte ensureMouseOn() nicht greifen — jetzt läuft tmux sicher.
+      ensureMouseOn();
       return res.status(201).json({ ...created, preview: getSessionPreview(sessionName) });
     }
   }
@@ -554,6 +617,11 @@ app.delete('/api/sessions/:name', (req, res) => {
   try {
     execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
     invalidatePreview(name);
+    attention.forget(name);
+    // Alias-Einträge aufräumen, die auf diese Session zeigten.
+    for (const [k, v] of hookAlias.entries()) {
+      if (v === name || k === name) hookAlias.delete(k);
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -574,6 +642,8 @@ app.patch('/api/sessions/:name', async (req, res) => {
   try {
     execFileSync(TMUX, ['rename-session', '-t', name, fullNewName], { encoding: 'utf-8', timeout: 5000 });
     invalidatePreview(name);
+    attention.rename(name, fullNewName);
+    aliasOnRename(name, fullNewName);
     // known-sessions mitziehen, damit Restore nach Rename den neuen Namen findet.
     try { await knownSessions.rename(name, fullNewName); } catch (e) { console.error('[known-sessions] rename failed:', e); }
     res.json({ success: true, name: fullNewName });
@@ -597,7 +667,7 @@ app.post('/api/sessions/:name/restore', async (req, res) => {
     return res.status(409).json({ error: 'Session with this name is already running' });
   }
   try {
-    execFileSync(TMUX, ['new-session', '-d', '-s', name, '-c', entry.directory, entry.command], {
+    execFileSync(TMUX, ['new-session', '-d', '-s', name, ...hubEnvArgs(name), '-c', entry.directory, entry.command], {
       encoding: 'utf-8', timeout: 5000,
     });
   } catch (err) {
@@ -696,6 +766,138 @@ app.ws('/api/projects/events', (ws, req) => {
   try { ws.send(JSON.stringify({ type: 'hello' })); } catch {}
   ws.on('close', () => projectEventClients.delete(ws));
   ws.on('error', () => projectEventClients.delete(ws));
+});
+
+// ── Web Push: Broadcast bei session-attention ────────────────────────────────
+// Sendet native Push-Notifications an alle registrierten Subscriptions wenn
+// eine Session nach Stop/Notification unattached und nicht muted ist.
+// 410 Gone = Subscription abgelaufen → automatisch löschen.
+async function sendPushToAll(event) {
+  const subs = pushSubs.allSubs();
+  if (!subs.length) return;
+  const displayName = (event.name || '').replace(/^cc-/, '');
+  const activityLabels = { idle: 'Bereit', waiting: 'Braucht Input', working: 'Arbeitet' };
+  const actLabel = activityLabels[event.activity] || 'Aktiv';
+  const payload = JSON.stringify({
+    title: `${displayName} — ${actLabel}`,
+    body:  `Session "${displayName}" hat Output und wartet auf dich.`,
+    name:  event.name,
+    activity: event.activity,
+  });
+  const opts = { TTL: 60, urgency: 'normal' };
+  await Promise.allSettled(subs.map(async (sub) => {
+    try {
+      await webpush.sendNotification(sub, payload, opts);
+    } catch (err) {
+      if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 401) {
+        // Subscription abgelaufen oder ungültig — aus der Liste entfernen.
+        await pushSubs.removeSub(sub.endpoint).catch(() => {});
+        console.log(`[push] Subscription entfernt (${err.statusCode}): ${sub.endpoint.slice(0, 60)}…`);
+      } else {
+        console.warn('[push] sendNotification failed:', err.statusCode, err.message, err.body?.slice?.(0, 200));
+      }
+    }
+  }));
+}
+
+// ── WebSocket: Notifications ─────────────────────────────────────────────────
+// Attention-Events (session-attention) aus lib/attention.js an alle
+// verbundenen Clients fan-outen. Eigener Channel statt Reuse von
+// /api/projects/events, damit die beiden Domänen unabhängig bleiben.
+const notificationClients = new Set();
+attention.subscribe((event) => {
+  const payload = JSON.stringify(event);
+  for (const ws of notificationClients) {
+    if (ws.readyState === 1) {
+      try { ws.send(payload); } catch {}
+    }
+  }
+  // Web-Push: nur bei echten Attention-Events (nicht bei activity-only Updates).
+  if (event.type === 'session-attention') {
+    sendPushToAll(event).catch((e) => console.error('[push] broadcast error:', e));
+  }
+});
+
+app.ws('/api/notifications/events', (ws, req) => {
+  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
+    ws.close(4001, 'Unauthorized');
+    return;
+  }
+  notificationClients.add(ws);
+  try { ws.send(JSON.stringify({ type: 'hello' })); } catch {}
+  ws.on('close', () => notificationClients.delete(ws));
+  ws.on('error', () => notificationClients.delete(ws));
+});
+
+// ── Web Push API ─────────────────────────────────────────────────────────────
+
+// Subscription speichern. Body: { subscription: PushSubscriptionJSON }
+app.post('/api/push/subscribe', async (req, res) => {
+  const sub = req.body?.subscription;
+  if (!sub || !sub.endpoint) {
+    return res.status(400).json({ error: 'Missing subscription' });
+  }
+  try {
+    await pushSubs.saveSub(sub);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Subscription entfernen. Body: { endpoint: string }
+app.delete('/api/push/subscribe', async (req, res) => {
+  const endpoint = req.body?.endpoint;
+  if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
+  const removed = await pushSubs.removeSub(endpoint);
+  res.json({ ok: true, removed });
+});
+
+// Mute/Unmute einer Session für Notifications. Body: { muted: bool }.
+// Muted-Flag persistiert in known-sessions.json; Fremd-Sessions ohne
+// known-Eintrag werden abgelehnt (404), weil wir nichts zu persistieren
+// haben und bewusst keine Auto-Adoption triggern wollen.
+app.post('/api/sessions/:name/mute', async (req, res) => {
+  const { name } = req.params;
+  if (!SESSION_NAME_RE.test(name)) {
+    return res.status(400).json({ error: 'Invalid session name' });
+  }
+  const muted = !!(req.body && req.body.muted);
+  const ok = await knownSessions.setMuted(name, muted);
+  if (!ok) return res.status(404).json({ error: 'Session not in known-sessions' });
+  res.json({ success: true, name, muted });
+});
+
+// ── Claude-Code Hooks ────────────────────────────────────────────────────────
+// Claude feuert in ~/.claude/settings.json konfigurierte Hooks für Events
+// wie Stop/Notification/UserPromptSubmit. Jedes Hook-Script POSTet hier
+// hin mit X-CC-Hub-Session (aus tmux-env CC_HUB_SESSION). Ergebnis: <100ms
+// State-Update ohne Regex-Parsing. Auth läuft über die /api-Middleware.
+const HOOK_EVENTS = new Set([
+  'UserPromptSubmit', 'Stop', 'SubagentStop', 'Notification',
+  'SessionStart', 'SessionEnd',
+]);
+// Eigener Body-Parser für Hook-Route: Claude's Hook-Stdin-JSON ist
+// gelegentlich syntaktisch kaputt (z.B. `"line":}`), was express.json()
+// mit 400 abbricht — unser Handler würde nie laufen und der State-Update
+// wäre verloren. Wir nehmen Raw-Bytes, versuchen optimistisch zu parsen,
+// und fallen bei Fehlern auf ein leeres Objekt zurück. Payload wird eh
+// nicht ausgewertet, nur durchgereicht.
+const hookBody = express.raw({ type: '*/*', limit: '1mb' });
+app.post('/api/hooks/:event', hookBody, (req, res) => {
+  const { event } = req.params;
+  const envName = req.get('X-CC-Hub-Session');
+  if (!envName || !SESSION_NAME_RE.test(envName)) {
+    return res.status(400).json({ error: 'Missing or invalid X-CC-Hub-Session' });
+  }
+  if (!HOOK_EVENTS.has(event)) return res.status(204).end();
+  let payload = {};
+  if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+    try { payload = JSON.parse(req.body.toString('utf8')); } catch { /* tolerant */ }
+  }
+  const sessionName = resolveHookSession(envName);
+  attention.reportHookEvent(sessionName, event, payload);
+  res.json({ ok: true, name: sessionName, event });
 });
 
 // ── WebSocket terminal ──────────────────────────────────────────────────────
@@ -813,6 +1015,26 @@ const server = app.listen(PORT, async () => {
   } catch (err) {
     console.error('[known-sessions] load failed:', err);
   }
+
+  // Attention-Engine: Mute-Checker registrieren. Zustand wird
+  // ausschließlich aus ~/.claude/settings.json-Hooks gespeist, kein
+  // eigener Poll-Loop mehr.
+  attention.setMuteChecker((name) => knownSessions.isMuted(name));
+  console.log('  ▸ attention-engine: hook-only');
+
+  // Web Push: VAPID-Keys laden (ggf. generieren) + Subscriptions laden.
+  try {
+    await loadVapid();
+    console.log('  ▸ web-push: VAPID-Keys geladen');
+  } catch (e) {
+    console.error('[vapid] load failed:', e.message);
+  }
+  try {
+    await pushSubs.loadSubs();
+    console.log(`  ▸ web-push: ${pushSubs.allSubs().length} Subscription(s) geladen`);
+  } catch (e) {
+    console.error('[push-subs] load failed:', e.message);
+  }
 });
 
 // Heartbeat: alle 60s lastSeenAt für laufende bekannte Sessions updaten.
@@ -836,6 +1058,7 @@ function shutdown(signal) {
   clearInterval(heartbeatTimer);
   for (const p of activePtys) { try { p.kill(); } catch {} }
   projectWatcher.closeAll();
+  attention.stop();
   server.close(() => process.exit(0));
   // Force-Exit falls server.close() hängt.
   setTimeout(() => process.exit(1), 5000).unref();

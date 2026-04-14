@@ -16,7 +16,7 @@ echo -e "${DIM}  ─────────────────────
 echo ""
 
 # 1. Check prerequisites
-echo -e "${BOLD}[1/5]${RESET} Prüfe Voraussetzungen..."
+echo -e "${BOLD}[1/6]${RESET} Prüfe Voraussetzungen..."
 
 if ! command -v node &> /dev/null; then
   echo "  ✕ Node.js nicht gefunden. Installiere mit: brew install node"
@@ -32,12 +32,12 @@ echo "  ✓ tmux $(tmux -V)"
 
 # 2. Install dependencies
 echo ""
-echo -e "${BOLD}[2/5]${RESET} Installiere Abhängigkeiten..."
+echo -e "${BOLD}[2/6]${RESET} Installiere Abhängigkeiten..."
 npm install
 
 # 3. Configure .env
 echo ""
-echo -e "${BOLD}[3/5]${RESET} Konfiguration..."
+echo -e "${BOLD}[3/6]${RESET} Konfiguration..."
 
 if [ ! -f .env ]; then
   TOKEN=$(openssl rand -hex 32)
@@ -55,7 +55,7 @@ fi
 
 # 4. Create LaunchAgent for auto-start
 echo ""
-echo -e "${BOLD}[4/5]${RESET} LaunchAgent einrichten..."
+echo -e "${BOLD}[4/6]${RESET} LaunchAgent einrichten..."
 
 PLIST_DIR="$HOME/Library/LaunchAgents"
 PLIST_FILE="$PLIST_DIR/com.derremo.claude-code-hub.plist"
@@ -115,9 +115,55 @@ mkdir -p "${APP_DIR}/logs"
 
 echo "  ✓ LaunchAgent erstellt: $PLIST_FILE"
 
-# 5. Load and start
+# 5. Claude-Code Hook-Installation
 echo ""
-echo -e "${BOLD}[5/5]${RESET} Starte Claude Code Hub..."
+echo -e "${BOLD}[5/6]${RESET} Claude-Code Hooks installieren..."
+
+SETTINGS_FILE="$HOME/.claude/settings.json"
+if ! command -v jq &> /dev/null; then
+  echo -e "  ${DIM}⚠ jq nicht gefunden — überspringe Hook-Install.${RESET}"
+  echo -e "  ${DIM}  Installiere jq und re-run setup.sh, oder pflege die Hooks manuell.${RESET}"
+  echo -e "  ${DIM}  (siehe README.md → Notifications / Hook-Setup)${RESET}"
+else
+  mkdir -p "$HOME/.claude"
+  [ -f "$SETTINGS_FILE" ] || echo "{}" > "$SETTINGS_FILE"
+
+  # Events die der Hub konsumiert. Jeder Event bekommt denselben curl-
+  # Payload: POST an /api/hooks/:event mit Auth + Session-Header.
+  HOOK_EVENTS=(UserPromptSubmit Stop SubagentStop Notification SessionStart SessionEnd)
+
+  # Sentinel-Marker pro Entry, damit Re-Runs nur Hub-Einträge ersetzen
+  # und niemals User-eigene Hooks löschen.
+  HOOK_CMD='curl -fsS -m 2 -X POST "$CC_HUB_URL/api/hooks/EVENT_NAME" -H "Authorization: Bearer $CC_HUB_TOKEN" -H "X-CC-Hub-Session: $CC_HUB_SESSION" -H "Content-Type: application/json" --data-binary @- >/dev/null 2>&1 || true'
+
+  TMP=$(mktemp)
+  cp "$SETTINGS_FILE" "$TMP"
+
+  for evt in "${HOOK_EVENTS[@]}"; do
+    cmd="${HOOK_CMD//EVENT_NAME/$evt}"
+    jq --arg evt "$evt" --arg cmd "$cmd" '
+      .hooks //= {}
+      | .hooks[$evt] //= []
+      # Bestehende Hub-Einträge (_owner:"claude-code-hub") entfernen
+      | .hooks[$evt] |= map(select(
+          (.hooks // [] | map(._owner // "") | any(. == "claude-code-hub")) | not
+        ))
+      # Neuen Eintrag anhängen
+      | .hooks[$evt] += [{
+          matcher: "",
+          hooks: [{ type: "command", command: $cmd, _owner: "claude-code-hub" }]
+        }]
+    ' "$TMP" > "$TMP.new" && mv "$TMP.new" "$TMP"
+  done
+
+  mv "$TMP" "$SETTINGS_FILE"
+  echo "  ✓ Hooks geschrieben nach $SETTINGS_FILE"
+  echo -e "  ${DIM}  (${#HOOK_EVENTS[@]} Events: ${HOOK_EVENTS[*]})${RESET}"
+fi
+
+# 6. Load and start
+echo ""
+echo -e "${BOLD}[6/6]${RESET} Starte Claude Code Hub..."
 
 launchctl bootout gui/$(id -u) "$PLIST_FILE" 2>/dev/null || true
 launchctl bootstrap gui/$(id -u) "$PLIST_FILE"

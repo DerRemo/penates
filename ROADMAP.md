@@ -36,6 +36,17 @@ Creation, dann Watcher, dann Session-Verknüpfung.
 
 ## In Entwicklung: v0.4.0
 
+Notifications-Theme: Attention-Detection, Sound + Visual, Web-Push,
+Telegram — aus dem p0-Backlog nach oben gezogen.
+
+- [x] Notifications: Attention-Detection via tmux capture-pane Parser {priority: p0, theme: notifications}
+- [x] Notifications: Hook-basierte State-Detection ersetzt Regex-Parser {priority: p0, theme: notifications}
+- [x] Notifications: Regex-Parser-Fallback komplett entfernt Hook-only {priority: p0, theme: notifications}
+- [x] Notifications: Per-Session Stummschalten {priority: p0, theme: notifications}
+- [x] Notifications: Sound-Alert in der Terminal-View {priority: p0, theme: notifications}
+- [x] Web-Push API als zweiter Notification-Kanal neben Telegram {priority: p1, theme: notifications}
+- [ ] Notifications: Telegram-DM wenn Claude auf Input wartet {priority: p0, theme: notifications}
+
 ## Backlog / Ideen
 
 Alles was bis 2026-04-13 in der alten `todo.md` unter P0/P1/P2 stand und
@@ -47,11 +58,7 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [ ] Remote-Zugriff: Cloudflare Access (Zero Trust) vor dem Tunnel {priority: p0, theme: security}
 - [ ] Remote-Zugriff: Rate-Limiting auf REST-Endpoints {priority: p0, theme: security}
 - [ ] Remote-Zugriff: Audit-Log wer hat wann welche Session attached {priority: p0, theme: security}
-- [ ] Notifications: Telegram-DM wenn Claude auf Input wartet {priority: p0, theme: notifications}
-- [ ] Notifications: Attention-Detection via tmux capture-pane Parser {priority: p0, theme: notifications}
 - [x] Notifications: Badge-Count im Browser-Tab-Titel {priority: p0, theme: notifications}
-- [ ] Notifications: Per-Session Stummschalten {priority: p0, theme: notifications}
-- [ ] Notifications: Sound-Alert in der Terminal-View {priority: p0, theme: notifications}
 - [ ] Session-Templates / Favoriten mit vorausgefülltem cwd und Command {priority: p1, theme: sessions}
 - [ ] Bulk-Actions: alle idle- oder unattached-Sessions beenden {priority: p1, theme: sessions}
 - [ ] Session-Pinning für wichtige Sessions oben sortiert {priority: p1, theme: sessions}
@@ -67,7 +74,6 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [ ] Structured Logging via pino statt console.log {priority: p1, theme: observability}
 - [ ] Basic Metrics: aktive Sessions, Uptime, Reconnect-Count {priority: p1, theme: observability}
 - [ ] Web-Client Auto-Reload nach Server-Restart {priority: p1, theme: observability}
-- [ ] Web-Push API als zweiter Notification-Kanal neben Telegram {priority: p1, theme: notifications}
 - [ ] E2E-Tests als Dauer-Setup mit Playwright {priority: p2, theme: dev-x}
 - [ ] ESLint und Prettier auf server.js und inline-JS {priority: p2, theme: dev-x}
 - [ ] Docker-Image für Linux/NAS weg von Mac-only {priority: p2, theme: dev-x}
@@ -84,6 +90,10 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [x] Offene Frage: Remote-Access-Weg — Cloudflare Access ODER Tailscale {type: decision}
 - [x] Offene Frage: Token-Auth — Bearer bleiben oder Passkey/WebAuthn {type: decision}
 - [ ] Item-Auto-Prompt — Klick aufs Roadmap-Item spawnt Session im Projekt-cwd und sendet den Item-Text als ersten Prompt an Claude {theme: session-link}
+- [x] Terminal Kontrast in Lightmode nicht gut (weißert text auf weißen hintergrund)
+- [x] Ideenfeld leert sich nicht nach senden
+- [x] Session übersicht flasht beim aktualisieren
+- [ ] iOS App
 
 ## Changelog
 

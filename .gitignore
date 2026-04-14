@@ -10,3 +10,12 @@ logs/
 
 # macOS
 .DS_Store
+
+# Playwright
+tests/.auth-state.json
+tests/layout.spec.js-snapshots/
+test-results/
+playwright-report/
+
+# Superpowers brainstorming artefacts
+.superpowers/
