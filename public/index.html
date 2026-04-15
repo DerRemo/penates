@@ -5673,13 +5673,23 @@
     //      automatisch fitAddon.fit() + ein resize-Frame ans Backend, sodass
     //      tmux die neue Pane-Höhe kennt.
     //   2. `#touch-bar` wird per `bottom:<inset>px` über die Tastatur geschoben.
+    // iOS feuert während der Keyboard-Animation ~5-10 visualViewport.resize-
+    // Events mit Zwischen-Heights. Wir rAF-throttlen, damit sie sich pro
+    // Frame bündeln. Position wird per translate3d (GPU-compositor) statt
+    // `bottom`-Layout gesetzt → smooth statt Jitter.
+    let kbRafPending = false;
     function updateKeyboardInset() {
-      const vv = window.visualViewport;
-      if (!vv) return;
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      document.documentElement.style.setProperty('--kb-inset', `${inset}px`);
-      const bar = document.getElementById('touch-bar');
-      if (bar) bar.style.bottom = inset > 0 ? `${inset}px` : '';
+      if (kbRafPending) return;
+      kbRafPending = true;
+      requestAnimationFrame(() => {
+        kbRafPending = false;
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        document.documentElement.style.setProperty('--kb-inset', `${inset}px`);
+        const bar = document.getElementById('touch-bar');
+        if (bar) bar.style.transform = inset > 0 ? `translate3d(0,-${inset}px,0)` : '';
+      });
     }
 
     // ── Disconnect terminal ──────────────────────────────────────
