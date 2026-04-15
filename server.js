@@ -179,9 +179,28 @@ const validSessionName = (n) => typeof n === 'string' && SESSION_NAME_RE.test(n)
 
 // Browse auf den Home-Ordner eingrenzen — verhindert `?path=/etc/passwd`.
 const HOME = homedir();
-function isUnderHome(p) {
+
+// Allow-List für /api/browse und POST /api/projects. Default: nur $HOME.
+// Override via BROWSE_ROOTS-Env als `:`-getrennte Liste absoluter Pfade,
+// `~` wird zu $HOME expandiert. Beispiel:
+//   BROWSE_ROOTS=~/Projects:/Volumes/SSD/code
+// Pfade werden beim Start einmal resolved — kein Hot-Reload. Leere oder
+// nicht-existente Pfade im Env werden wortlos übersprungen, damit ein
+// vertipptes Segment nicht die ganze Allow-List kippt.
+const BROWSE_ROOTS = (() => {
+  const raw = (process.env.BROWSE_ROOTS || '').trim();
+  if (!raw) return [HOME];
+  const roots = raw
+    .split(':')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => (s === '~' || s.startsWith('~/')) ? join(HOME, s.slice(1)) : s)
+    .map(s => resolve(s));
+  return roots.length ? roots : [HOME];
+})();
+function isUnderAllowedRoot(p) {
   const r = resolve(p);
-  return r === HOME || r.startsWith(HOME + sep);
+  return BROWSE_ROOTS.some(root => r === root || r.startsWith(root + sep));
 }
 
 // ── Helper: tmux list-sessions ───────────────────────────────────────────────
@@ -433,11 +452,12 @@ app.post('/api/projects', async (req, res) => {
   if (typeof projectPath !== 'string' || !projectPath) {
     return res.status(400).json({ error: 'path required' });
   }
-  // Pfad-Gate: nur unter $HOME erlauben, konsistent mit /api/browse.
-  // Hier bewusst kein `~`-Expand — Frontend liefert absolute Pfade.
+  // Pfad-Gate: Allow-List aus BROWSE_ROOTS (Default $HOME), konsistent
+  // mit /api/browse. Hier bewusst kein `~`-Expand — Frontend liefert
+  // absolute Pfade.
   const absPath = resolve(projectPath);
-  if (!isUnderHome(absPath)) {
-    return res.status(403).json({ error: 'path must be under home directory' });
+  if (!isUnderAllowedRoot(absPath)) {
+    return res.status(403).json({ error: 'path outside allowed roots' });
   }
   try {
     const entry = await createProject({ displayName, path: absPath });
@@ -532,13 +552,14 @@ app.patch('/api/projects/:id/items', async (req, res) => {
   }
 });
 
-// Browse directories (for tree picker in UI). Path-Allowlist: nur unter Home.
+// Browse directories (for tree picker in UI). Path-Allowlist aus
+// BROWSE_ROOTS (Default $HOME), siehe isUnderAllowedRoot oben.
 app.get('/api/browse', (req, res) => {
   let p = req.query.path || process.env.DEFAULT_PROJECT_DIR || '~';
   if (p === '~' || p.startsWith('~/')) p = join(HOME, p.slice(1));
   p = resolve(p);
-  if (!isUnderHome(p)) {
-    return res.status(403).json({ error: 'Access denied: path outside home directory', path: p });
+  if (!isUnderAllowedRoot(p)) {
+    return res.status(403).json({ error: 'Access denied: path outside allowed roots', path: p });
   }
   const showHidden = req.query.hidden === '1';
   try {
