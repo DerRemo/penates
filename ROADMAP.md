@@ -22,6 +22,14 @@ Telegram — aus dem p0-Backlog nach oben gezogen.
 
 ## In Entwicklung: v0.5.0
 
+Remote-Zugriff-Härtung: der Hub hängt am öffentlichen Cloudflare-
+Tunnel und hat aktuell nur Bearer-Token-Auth. Drei Layer sollen drauf —
+aus dem p0-Backlog nach oben gezogen.
+
+- [ ] Remote-Zugriff: Cloudflare Access (Zero Trust) vor dem Tunnel {priority: p0, theme: security}
+- [ ] Remote-Zugriff: Rate-Limiting auf REST-Endpoints {priority: p0, theme: security}
+- [ ] Remote-Zugriff: Audit-Log wer hat wann welche Session attached {priority: p0, theme: security}
+
 ## Backlog / Ideen
 
 Alles was bis 2026-04-13 in der alten `todo.md` unter P0/P1/P2 stand und
@@ -30,9 +38,6 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [ ] Multi-CLI: CLI-Typ als Session-Metadatum plus Icon im UI {priority: p0, theme: multi-cli}
 - [ ] Multi-CLI: Preset-Profile im New-Session-Modal {priority: p0, theme: multi-cli}
 - [ ] Multi-CLI: Per-CLI-Auth via .env.cli.name oder profiles-Ordner {priority: p0, theme: multi-cli}
-- [ ] Remote-Zugriff: Cloudflare Access (Zero Trust) vor dem Tunnel {priority: p0, theme: security}
-- [ ] Remote-Zugriff: Rate-Limiting auf REST-Endpoints {priority: p0, theme: security}
-- [ ] Remote-Zugriff: Audit-Log wer hat wann welche Session attached {priority: p0, theme: security}
 - [x] Notifications: Badge-Count im Browser-Tab-Titel {priority: p0, theme: notifications}
 - [ ] Notifications: Telegram-DM wenn Claude auf Input wartet {priority: p0, theme: notifications}
 - [ ] Session-Templates / Favoriten mit vorausgefülltem cwd und Command {priority: p1, theme: sessions}
