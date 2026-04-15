@@ -48,6 +48,7 @@ Telegram — aus dem p0-Backlog nach oben gezogen.
 - [x] Web-Push Zuverlässigkeits-Fix — Per-Device-Presence statt tmux-attached, VAPID-APNs-Stabilisierung, Diagnose-Logging {priority: p0, theme: notifications}
 - [ ] Notifications: Telegram-DM wenn Claude auf Input wartet {priority: p0, theme: notifications}
 - [x] Terminal Desktop Copy/Paste — Shift/Alt+Drag kopiert automatisch, Cmd/Ctrl+V fügt ein cross-browser cross-platform {priority: p0, theme: terminal-ux}
+- [x] iOS Native-Feel Polish — Terminal-Scroll proportional zur echten Cell-Height, autocorrect/QuickType-Bar auf xterm-Textarea weg, Touch-Bar rAF-throttled, Pfeiltasten-Repeat, Ctrl-Sticky Touch-Bar+Keyboard-Sync mit 4s Auto-Release und Glow, App-Header in Mobile-Terminal-View versteckt {priority: p0, theme: mobile-ux}
 
 ## Backlog / Ideen
 
