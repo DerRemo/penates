@@ -5682,6 +5682,23 @@
         currentWs = null;
         try { ws.close(); } catch {}
       }
+      // Detach touch listeners BEFORE we touch .xterm-screen styles,
+      // damit kein in-flight touchmove das Transform wieder setzt.
+      touchScrollAbort?.abort();
+      touchScrollAbort = null;
+      // Stale Transform / Transition auf .xterm-screen wegräumen, bevor
+      // currentTerminal.dispose() den Node entfernt. Wenn der User mitten
+      // im Drag disconnected, würde sonst ein stale Transform zurückbleiben
+      // (relevant bei Reconnect der denselben DOM reused).
+      {
+        const container = document.getElementById('terminal-container');
+        const staleScreen = container?.querySelector('.xterm-screen');
+        if (staleScreen) {
+          staleScreen.style.transform = '';
+          staleScreen.style.transition = '';
+        }
+      }
+
       if (currentTerminal) {
         currentTerminal.dispose();
         currentTerminal = null;
@@ -5689,18 +5706,6 @@
       currentSessionName = null;
       sendPresence();
       setCtrlSticky(false);
-      touchScrollAbort?.abort();
-      touchScrollAbort = null;
-      // Nach dem Abort ist der .xterm-screen vielleicht noch mit einem
-      // stale Transform / Transition behaftet, falls der User mitten im
-      // Drag disconnected. term.dispose() räumt den Node zwar sowieso
-      // raus, aber wir lösen die accidental-ordering-Abhängigkeit auf.
-      const container = document.getElementById('terminal-container');
-      const staleScreen = container?.querySelector('.xterm-screen');
-      if (staleScreen) {
-        staleScreen.style.transform = '';
-        staleScreen.style.transition = '';
-      }
       clipboardAbort?.abort();
       clipboardAbort = null;
     }
