@@ -237,6 +237,31 @@ app.get('/api/push/vapid-public-key', (_req, res) => {
 
 app.use('/api', secureMiddleware);
 
+// ── Rate-Limiting ────────────────────────────────────────────────────────────
+// Zwei Buckets via createRateLimiter: Read (GET/HEAD) und Write (sonst).
+// Hooks sind exempt weil Claude-Code bei heißen Sessions viele
+// UserPromptSubmit-Events pro Minute feuern kann und legitime Events
+// sonst gedroppt würden. /healthz liegt außerhalb von /api/* und ist
+// schon dadurch ausgenommen.
+//
+// onExceeded-Callback feuert rate-limit.exceeded ins audit-log.
+const rlOnExceeded = (req, info) => {
+  auditLog.record('rate-limit.exceeded', {
+    ...auditLog.extractRequestMeta(req),
+    bucket: info.bucket,
+    max: info.max,
+    windowMs: info.windowMs,
+  });
+};
+const readLimiter  = createRateLimiter({ bucket: 'read',  max: 300, windowMs: 60_000, onExceeded: rlOnExceeded });
+const writeLimiter = createRateLimiter({ bucket: 'write', max:  60, windowMs: 60_000, onExceeded: rlOnExceeded });
+
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/hooks/')) return next();
+  if (req.method === 'GET' || req.method === 'HEAD') return readLimiter(req, res, next);
+  return writeLimiter(req, res, next);
+});
+
 // ── Validation ───────────────────────────────────────────────────────────────
 // Erlaubte Zeichen im Session-Namen: Buchstaben, Zahlen, _, -, ., Leerzeichen.
 // Explizit verboten: Quotes, Backslash, Shell-Metachars, Control-Chars.
