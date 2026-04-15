@@ -832,6 +832,35 @@ async function sendPushToAll(event) {
 // Attention-Events (session-attention) aus lib/attention.js an alle
 // verbundenen Clients fan-outen. Eigener Channel statt Reuse von
 // /api/projects/events, damit die beiden Domänen unabhängig bleiben.
+// Per-Device-Presence. Key: deviceId (aus localStorage des Clients).
+// Wert: { session: aktuell sichtbare Session oder null, visible, lastSeenAt }.
+// Wird über den Notifications-WebSocket gepflegt (Client sendet JSON-Frames).
+const PRESENCE_STALE_MS = 60_000;  // iOS PWA im Hintergrund throttled aggressiv — großzügig.
+const presence = new Map();
+
+function updatePresence(deviceId, { session, visible }) {
+  if (!deviceId) return;
+  presence.set(deviceId, {
+    session: session ?? null,
+    visible: !!visible,
+    lastSeenAt: Date.now(),
+  });
+}
+
+function dropPresence(deviceId) {
+  if (deviceId) presence.delete(deviceId);
+}
+
+// true wenn dieses Gerät gerade EXAKT diese Session im Vordergrund hat
+// und die Presence-Info frisch ist. False sonst (inkl. stale/unbekannt).
+function isDeviceFocused(deviceId, sessionName) {
+  if (!deviceId || !sessionName) return false;
+  const p = presence.get(deviceId);
+  if (!p) return false;
+  if (Date.now() - p.lastSeenAt > PRESENCE_STALE_MS) return false;
+  return p.visible && p.session === sessionName;
+}
+
 const notificationClients = new Set();
 attention.subscribe((event) => {
   const payload = JSON.stringify(event);
@@ -852,9 +881,36 @@ app.ws('/api/notifications/events', (ws, req) => {
     return;
   }
   notificationClients.add(ws);
+  let wsDeviceId = null;
   try { ws.send(JSON.stringify({ type: 'hello' })); } catch {}
-  ws.on('close', () => notificationClients.delete(ws));
-  ws.on('error', () => notificationClients.delete(ws));
+
+  ws.on('message', (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw.toString()); } catch { return; }
+    if (!msg || msg.type !== 'presence') return;
+    if (typeof msg.deviceId !== 'string' || msg.deviceId.length === 0 || msg.deviceId.length > 128) return;
+    wsDeviceId = msg.deviceId;
+    const session = typeof msg.session === 'string' ? msg.session : null;
+    updatePresence(msg.deviceId, { session, visible: !!msg.visible });
+  });
+
+  ws.on('close', () => {
+    notificationClients.delete(ws);
+    dropPresence(wsDeviceId);
+  });
+  ws.on('error', () => {
+    notificationClients.delete(ws);
+    dropPresence(wsDeviceId);
+  });
+});
+
+// Debug: Snapshot der aktuellen Presence-Map loggen. Auth-geschützt.
+app.get('/api/push/presence', (_req, res) => {
+  const out = [];
+  for (const [deviceId, p] of presence.entries()) {
+    out.push({ deviceId, ...p, ageMs: Date.now() - p.lastSeenAt });
+  }
+  res.json({ presence: out });
 });
 
 // ── Web Push API ─────────────────────────────────────────────────────────────
