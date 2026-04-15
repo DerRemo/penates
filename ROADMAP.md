@@ -5,20 +5,22 @@ im Hub selbst. Struktur folgt dem `lib/roadmap.js`-Parser:
 H2-Sections Released / In Entwicklung / Backlog / Changelog,
 Top-Level-Checkboxen mit optionalem `{key: value}`-Meta-Suffix.
 
-## Released: v0.4.0
+## Released: v0.5.0
 
-Notifications-Theme: Attention-Detection, Sound + Visual, Web-Push,
-Telegram — aus dem p0-Backlog nach oben gezogen.
+Remote-Zugriff-Härtung plus Housekeeping-Quick-Wins. Haupt-Theme ist
+die öffentliche Tunnel-Seite des Hubs (Zero-Trust-Auth, Rate-Limiting,
+Audit-Log), nebenher ziehen fünf kleine, sofort nützliche Items aus
+dem Backlog mit rein — Bulk-Actions, Session-Pinning, browse-Allowlist,
+Auto-Reload nach Server-Restart, Git-Status pro Session-Card.
 
-- [x] Notifications: Attention-Detection via tmux capture-pane Parser {priority: p0, theme: notifications}
-- [x] Notifications: Hook-basierte State-Detection ersetzt Regex-Parser {priority: p0, theme: notifications}
-- [x] Notifications: Regex-Parser-Fallback komplett entfernt Hook-only {priority: p0, theme: notifications}
-- [x] Notifications: Per-Session Stummschalten {priority: p0, theme: notifications}
-- [x] Notifications: Sound-Alert in der Terminal-View {priority: p0, theme: notifications}
-- [x] Web-Push API als zweiter Notification-Kanal neben Telegram {priority: p1, theme: notifications}
-- [x] Web-Push Zuverlässigkeits-Fix — Per-Device-Presence statt tmux-attached, VAPID-APNs-Stabilisierung, Diagnose-Logging {priority: p0, theme: notifications}
-- [x] Terminal Desktop Copy/Paste — Shift/Alt+Drag kopiert automatisch, Cmd/Ctrl+V fügt ein cross-browser cross-platform {priority: p0, theme: terminal-ux}
-- [x] iOS Native-Feel Polish — Terminal-Scroll proportional zur echten Cell-Height, autocorrect/QuickType-Bar auf xterm-Textarea weg, Touch-Bar rAF-throttled, Pfeiltasten-Repeat, Ctrl-Sticky Touch-Bar+Keyboard-Sync mit 4s Auto-Release und Glow, App-Header in Mobile-Terminal-View versteckt {priority: p0, theme: mobile-ux}
+- [x] Remote-Zugriff: Cloudflare Access (Zero Trust) vor dem Tunnel {priority: p0, theme: security}
+- [x] Remote-Zugriff: Rate-Limiting auf REST-Endpoints {priority: p0, theme: security}
+- [x] Remote-Zugriff: Audit-Log wer hat wann welche Session attached {priority: p0, theme: security}
+- [x] Bulk-Actions: alle idle- oder unattached-Sessions beenden {priority: p1, theme: sessions}
+- [x] Session-Pinning für wichtige Sessions oben sortiert {priority: p1, theme: sessions}
+- [x] /api/browse Allow-List via ENV statt nur HOME {priority: p2, theme: security}
+- [x] Web-Client Auto-Reload nach Server-Restart {priority: p1, theme: observability}
+- [x] Git-Status-Widget pro Session — Branch, Dirty, Ahead/Behind {priority: p1, theme: productivity}
 
 ## Archiv: v0.3.0
 
@@ -37,22 +39,7 @@ die Items sind hier reine Markdown-Dokumentation.
 - [x] Offene Frage: Hub single-user oder multi-user
 - [x] Offene Frage: Token-Auth — Bearer bleiben oder Passkey/WebAuthn
 
-## In Entwicklung: v0.5.0
-
-Remote-Zugriff-Härtung plus Housekeeping-Quick-Wins. Haupt-Theme ist
-die öffentliche Tunnel-Seite des Hubs (Zero-Trust-Auth, Rate-Limiting,
-Audit-Log), nebenher ziehen fünf kleine, sofort nützliche Items aus
-dem Backlog mit rein — Bulk-Actions, Session-Pinning, browse-Allowlist,
-Auto-Reload nach Server-Restart, Git-Status pro Session-Card.
-
-- [x] Remote-Zugriff: Cloudflare Access (Zero Trust) vor dem Tunnel {priority: p0, theme: security}
-- [x] Remote-Zugriff: Rate-Limiting auf REST-Endpoints {priority: p0, theme: security}
-- [x] Remote-Zugriff: Audit-Log wer hat wann welche Session attached {priority: p0, theme: security}
-- [x] Bulk-Actions: alle idle- oder unattached-Sessions beenden {priority: p1, theme: sessions}
-- [x] Session-Pinning für wichtige Sessions oben sortiert {priority: p1, theme: sessions}
-- [x] /api/browse Allow-List via ENV statt nur HOME {priority: p2, theme: security}
-- [x] Web-Client Auto-Reload nach Server-Restart {priority: p1, theme: observability}
-- [x] Git-Status-Widget pro Session — Branch, Dirty, Ahead/Behind {priority: p1, theme: productivity}
+## In Entwicklung: v0.6.0
 
 ## Backlog / Ideen
 
@@ -86,6 +73,17 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [ ] iOS App
 
 ## Changelog
+
+### v0.5.0 — 2026-04-15
+
+**Cloudflare Access (Zero Trust).** Neue optionale Auth-Schicht vor dem Tunnel. Wenn `CF_ACCESS_TEAM_DOMAIN` und `CF_ACCESS_AUD` in der `.env` gesetzt sind, fordert der aufgebohrte `secureMiddleware` für Tunnel-Requests zusätzlich ein gültiges `Cf-Access-Jwt-Assertion`-Header. JWT-Validation läuft via `jose` gegen Cloudflare's JWKS mit 1h-Cache — Signatur, Audience, Issuer und Expiry werden geprüft, die User-Email aus dem JWT wird als Identity extrahiert. Tunnel-vs-Localhost-Unterscheidung über das `Cf-Ray`-Header: cloudflared strippt eingehende `Cf-*`-Header am Ingress und setzt eigene, damit ist der Marker nicht spoofbar. Claude-Code-Hooks auf localhost bleiben unbetroffen — sie passieren nie den Tunnel, brauchen weiterhin nur den Bearer. Beide Env-Variablen leer = Dev-Mode, alter Bearer-only-Flow läuft unverändert, Zero-Regression für lokale Entwicklung. Der erste JWT einer neuen Access-Session wird einmal als `auth.login` geloggt (per in-memory `lastSeenIat`-Map).
+
+**Rate-Limiting plus Audit-Log.** Zwei weitere Schichten im selben Request-Einstiegsbereich. **Rate-Limiting**: in-memory Fixed-Window-Counter pro IP mit zwei Buckets — 300 Read-Requests und 60 Write-Requests pro 60 Sekunden. Dispatcher routed nach HTTP-Methode, `/api/hooks/*` ist exempt (Claude-Code-Hooks haben hohe Event-Raten). 429 mit `Retry-After`-Header bei Überschreitung. Hand-rolled in ~40 Zeilen statt `express-rate-limit`, konsistent mit dem minimal-Dependencies-Ansatz des Projekts. **Audit-Log**: append-only JSONL unter `~/.claude-code-hub/audit.log`, size-basierte Rotation (10 MB × 3 Archive), write-serialisiert via `saveQueue`-Promise-Chain, crash-safe durch atomare `fs.appendFile`. Acht Event-Typen: `auth.login`/`auth.fail` (mit machine-readable `reason`-Codes wie `bad-jwt:no-jwt`, `bad-aud`, `bad-iss`, `expired`, `bad-bearer`), `session.create`/`delete`/`rename`/`attach`/`detach` an den Lifecycle-Sites, `rate-limit.exceeded` aus dem Limiter. Security-Events werden awaited (Crash-Safety), Lifecycle-Events fire-and-forget. `session.detach` wird über ein dedupliziertes Dual-Trigger-Pattern (`pty.onExit` plus `ws.on('close')`) genau einmal pro Session geschrieben, mit `durationMs`.
+
+**Housekeeping Quick Wins.** Fünf kleine, eigenständig nützliche Features aus dem Backlog nebenbei gezogen. **Bulk-Actions**: neuer „Bulk beenden"-Button in der Dashboard-Toolbar killt alle Sessions die weder attached noch working/waiting sind, mit Confirm-Modal und parallelen DELETEs. **Session-Pinning**: `pinned`-Flag in `known-sessions.json` (mirror des `muted`-Musters), Pin-Button auf jeder Running/Dormant-Card, Sort-Comparator zieht gepinnte Sessions innerhalb ihrer Partition nach oben. **`/api/browse` Allow-List**: neue `BROWSE_ROOTS`-Env-Variable als `:`-getrennte Liste absoluter Pfade mit `~`-Expand — der Tree-Picker kann jetzt explizit freigegebene externe Volumes öffnen, default bleibt `$HOME`. **Web-Client Auto-Reload**: Server setzt `X-CCH-Boot`-Header auf jeder Response (Millisekunden-Boot-Zeit), Client vergleicht in `refreshSessions()` gegen den zuletzt gesehenen Wert und reloaded per `location.reload()` bei Mismatch — 3s-Cooldown schützt vor Reload-Schleifen. **Git-Status-Widget**: Backend liest pro Session-cwd ein `git status --porcelain=v2 --branch -z` mit 2s-TTL-Cache und 1.5s-Timeout, parsed Branch plus dirty-Flag plus ahead/behind. Frontend rendert einen Branch-Namen plus dirty-Dot plus ↑n/↓n als neues session-meta-item; Sessions ohne git-Repo bekommen kein Widget.
+
+**Fixes.** Zwei Nebengeleise-Corrections während der Implementierung: **Pin-Button Overlap** — der neue Pin-Icon überlappte in manchen Card-Varianten mit der Status-Pill; die Session-Card-Header reserviert jetzt 76px rechts auf Running/Dormant-Cards, Foreign-Cards bleiben unbetroffen. **`dotenv` Hoisting** — `cf-access.js` las `process.env.CF_ACCESS_*` beim Module-Load, aber `dotenv.config()` lief erst nach den Imports (ES-Module-Hoisting), dadurch blieb `isEnabled()` dauerhaft false und der JWT-Check war in der Staging-Phase inaktiv. Fix via `import 'dotenv/config'` als Side-Effect-Import ganz oben in `server.js`.
+
 
 ### v0.4.0 — 2026-04-15
 
