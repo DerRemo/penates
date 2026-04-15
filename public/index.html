@@ -5442,13 +5442,19 @@
       // mit `mouse on` und interpretiert sie als echte Scroll-Events,
       // was sowohl im Alt-Screen als auch im Normal-Screen funktioniert.
       //
-      // Sub-Line-Smoothness: Während des Drags wird .xterm-screen per
-      // translateY in Echtzeit mit dem Finger mitgeschoben — auch innerhalb
-      // einer Zeile. Sobald eine Zeilengrenze überschritten wird, feuern
-      // wir ein Wheel-Event an tmux und reduzieren die Translation um
-      // genau eine Zeilenhöhe. Tmux-Redraw ersetzt dann die visuelle
-      // Translation durch echtes Scrolling. Pixelgenaues Gefühl ohne
-      // Architektur-Änderung.
+      // PX_PER_LINE kommt dynamisch aus der aktuellen xterm-Cell-Height,
+      // damit Finger-Delta und Content-Delta 1:1 übereinstimmen — auch
+      // nach Font-Resize, Rotation oder Zoom.
+      //
+      // Eine frühere Variante hat zusätzlich versucht, .xterm-screen per
+      // translate3d pixelgenau mit dem Finger mitzuschieben und den
+      // Transform beim Zeilensprung auf 0 zu resetten. Das hat während
+      // des Swipes sichtbar gezuckelt: der Reset passiert sofort, aber
+      // der tmux-Redraw erst nach dem WebSocket-Roundtrip (~10-50ms) —
+      // dazwischen springt der Content hoch, dann zurück. Ohne echten
+      // Hook auf den Redraw-Zeitpunkt ist das nicht fixbar, daher
+      // bleiben wir zeilenbasiert. Proportional statt pixelgenau, aber
+      // konsistent.
       //
       // touch-action: none im CSS verhindert, dass iOS die Swipes als
       // native Page-Scroll abfängt.
@@ -5470,39 +5476,15 @@
           return 24; // Fallback
         };
 
-        const screen = container.querySelector('.xterm-screen');
         let cellH = 24;
         let touchLastY = null;
-        let touchAccumPx = 0;   // Rest-Pixel in Sub-Line-Range
-        let snapResetTimer = 0;
-
-        const setScreenTransform = (px) => {
-          if (!screen) return;
-          screen.style.transform = px ? `translate3d(0,${px}px,0)` : '';
-        };
-
-        const snapBack = () => {
-          // Sanft auf 0 zurück via CSS-Transition. Kein JS-Loop.
-          if (!screen) return;
-          screen.style.transition = 'transform 150ms ease-out';
-          screen.style.transform = '';
-          // Transition nach Ablauf wieder entfernen, damit nächster Drag
-          // ohne Lag reagiert.
-          clearTimeout(snapResetTimer);
-          snapResetTimer = setTimeout(() => {
-            if (screen) screen.style.transition = '';
-          }, 170);
-        };
+        let touchAccumPx = 0;
 
         container.addEventListener('touchstart', (e) => {
           if (e.touches.length !== 1) { touchLastY = null; return; }
-          // Falls noch eine Snap-Back-Transition läuft → abbrechen.
-          if (screen) screen.style.transition = '';
-          clearTimeout(snapResetTimer);
           cellH = getCellHeight();
           touchLastY = e.touches[0].clientY;
           touchAccumPx = 0;
-          setScreenTransform(0);
         }, { capture: true, passive: true, signal });
 
         container.addEventListener('touchmove', (e) => {
@@ -5512,7 +5494,6 @@
           touchLastY = y;
           touchAccumPx += dy;
 
-          // Wie viele komplette Zeilen sind abgedeckt?
           const linesSigned = touchAccumPx > 0
             ? Math.floor(touchAccumPx / cellH)
             : Math.ceil(touchAccumPx / cellH);
@@ -5526,32 +5507,10 @@
               currentWs.send(JSON.stringify({ type: 'input', data: seq }));
             }
           }
-
-          // Sub-Line-Smoothness: Rest-Pixel visuell mitnehmen.
-          // Vorzeichen: Finger hoch (dy > 0) → Content soll hoch gleiten
-          // (wheel down). touchAccumPx ist positiv → translateY negativ.
-          setScreenTransform(-touchAccumPx);
           e.preventDefault();
         }, { capture: true, passive: false, signal });
 
-        const endTouch = () => {
-          if (touchLastY === null) return;
-          touchLastY = null;
-
-          // Threshold-Finish: wenn der Rest mehr als eine halbe Zeile
-          // beträgt, ein zusätzliches Wheel-Event feuern — fühlt sich
-          // besser an als immer zurück zu snappen.
-          if (Math.abs(touchAccumPx) > cellH / 2) {
-            const linesSigned = touchAccumPx > 0 ? 1 : -1;
-            const button = linesSigned < 0 ? 64 : 65;
-            const seq = `\x1b[<${button};1;1M`;
-            if (currentWs && currentWs.readyState === WebSocket.OPEN) {
-              currentWs.send(JSON.stringify({ type: 'input', data: seq }));
-            }
-          }
-          touchAccumPx = 0;
-          snapBack();
-        };
+        const endTouch = () => { touchLastY = null; touchAccumPx = 0; };
         container.addEventListener('touchend', endTouch, { capture: true, passive: true, signal });
         container.addEventListener('touchcancel', endTouch, { capture: true, passive: true, signal });
       }
@@ -5752,23 +5711,8 @@
         currentWs = null;
         try { ws.close(); } catch {}
       }
-      // Detach touch listeners BEFORE we touch .xterm-screen styles,
-      // damit kein in-flight touchmove das Transform wieder setzt.
       touchScrollAbort?.abort();
       touchScrollAbort = null;
-      // Stale Transform / Transition auf .xterm-screen wegräumen, bevor
-      // currentTerminal.dispose() den Node entfernt. Wenn der User mitten
-      // im Drag disconnected, würde sonst ein stale Transform zurückbleiben
-      // (relevant bei Reconnect der denselben DOM reused).
-      {
-        const container = document.getElementById('terminal-container');
-        const staleScreen = container?.querySelector('.xterm-screen');
-        if (staleScreen) {
-          staleScreen.style.transform = '';
-          staleScreen.style.transition = '';
-        }
-      }
-
       if (currentTerminal) {
         currentTerminal.dispose();
         currentTerminal = null;
