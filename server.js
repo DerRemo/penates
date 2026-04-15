@@ -340,9 +340,8 @@ app.get('/api/sessions', (req, res) => {
       activity: hookActivity || 'unknown',
       usagePct5h: preview !== null ? parseUsagePct5h(preview) : null,
     };
-    // attached an den Attention-Engine zurückmelden, damit der nächste
-    // Hook-Event weiß, ob der User zuschaut (→ kein session-attention).
-    if (s.status !== 'dormant') attention.setAttached(s.name, !!s.attached);
+    // attached-Flag bleibt in s.attached (UI-Anzeige), wird aber nicht mehr
+    // zur Attention-Suppression verwendet — siehe Device-Presence in der Push-Schicht.
     try {
       const ctx = getCurrentContext(s.path);
       base.contextTokens = ctx.tokens;
