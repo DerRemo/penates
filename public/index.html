@@ -1304,6 +1304,36 @@
     }
     .session-mute-btn svg { width: 14px; height: 14px; }
 
+    /* Pin-Button — direkt links neben dem Mute-Button. Gleiche Geometrie,
+       nur right um 36px verschoben damit die beiden Buttons nicht überlappen. */
+    .session-pin-btn {
+      position: absolute;
+      top: var(--space-3);
+      right: calc(var(--space-3) + 36px);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-muted);
+      opacity: 0.55;
+      transition: opacity 120ms, color 120ms, background 120ms;
+      z-index: 2;
+    }
+    .session-pin-btn:hover {
+      opacity: 1;
+      background: var(--bg-card-hover);
+    }
+    .session-pin-btn[data-pinned="true"] {
+      color: var(--teal);
+      opacity: 0.9;
+    }
+    .session-pin-btn svg { width: 14px; height: 14px; }
+
     /* ── Session-Card Projekt-Badge-Slot (Phase 0 versteckt) ───────── */
     .session-project-badge {
       display: none;
@@ -4836,6 +4866,17 @@
         if (byStatus[key]) byStatus[key].push(s);
       }
 
+      // Gepinnte Sessions innerhalb ihrer Partition nach oben sortieren.
+      // Array.sort ist in modernen Engines stabil — die relative Reihenfolge
+      // gleichartiger (pinned/unpinned) Sessions bleibt erhalten.
+      for (const key of Object.keys(byStatus)) {
+        byStatus[key].sort((a, b) => {
+          const ap = a.pinned ? 1 : 0;
+          const bp = b.pinned ? 1 : 0;
+          return bp - ap; // pinned first
+        });
+      }
+
       const activityMap = {
         working: { cls: 'working', label: 'Arbeitet',       title: 'Claude arbeitet gerade (ESC im Terminal zum Abbrechen)' },
         waiting: { cls: 'waiting', label: 'Braucht Input',  title: 'Claude wartet auf deinen Input' },
@@ -4851,6 +4892,14 @@
           }
         </button>`;
 
+      // Pin-Button für running/dormant-Cards. Foreign-Sessions werden hier
+      // nicht gerendert — sie haben keinen known-sessions-Eintrag und können
+      // daher nicht persistiert werden (setPinned gibt 404).
+      const renderPinButton = (pinned) => `
+        <button class="session-pin-btn" type="button" data-action="pin" data-pinned="${pinned ? 'true' : 'false'}" data-stop-propagation aria-label="${pinned ? 'Angepinnt — klicken zum Loslösen' : 'Anpinnen'}" title="${pinned ? 'Angepinnt — klicken zum Loslösen' : 'Anpinnen — Session ans Listenende ziehen'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </button>`;
+
       const renderRunningCard = (s) => {
         const displayName = s.name.replace(/^cc-/, '');
         const age = formatAge(s.created);
@@ -4861,6 +4910,7 @@
         return `
           <div class="session-card${unreadCls}" data-status="running" data-name="${safeName}" data-attached="${s.attached}">
             ${renderMuteButton(s.muted)}
+            ${renderPinButton(s.pinned)}
             <div class="session-card-header">
               <div class="session-name">
                 <span class="icon">&gt;_</span>
@@ -4909,6 +4959,7 @@
         return `
           <div class="session-card${unreadCls}" data-status="dormant" data-name="${safeName}">
             ${renderMuteButton(s.muted)}
+            ${renderPinButton(s.pinned)}
             <div class="session-card-header">
               <div class="session-name">
                 <span class="icon">&gt;_</span>
@@ -5158,6 +5209,38 @@
             showToast('Mute fehlgeschlagen', 'error');
           } finally {
             muteBtn.disabled = false;
+          }
+          return;
+        }
+
+        // Pin-Toggle
+        const pinBtn = e.target.closest('[data-action="pin"]');
+        if (pinBtn) {
+          e.stopPropagation();
+          if (pinBtn.disabled) return;
+          const currentlyPinned = pinBtn.dataset.pinned === 'true';
+          const next = !currentlyPinned;
+          pinBtn.disabled = true;
+          try {
+            const res = await fetch('/api/sessions/' + encodeURIComponent(name) + '/pin', {
+              method: 'POST',
+              headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pinned: next }),
+            });
+            if (res.status === 404) {
+              showToast('Nur bekannte Sessions können gepinnt werden', 'error');
+              return;
+            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            pinBtn.dataset.pinned = String(next);
+            const cached = sessions?.find(s => s.name === name);
+            if (cached) cached.pinned = next;
+            showToast(next ? 'Session angepinnt' : 'Session losgelöst', 'info');
+            refreshSessions(); // neu sortieren
+          } catch {
+            showToast('Pinning fehlgeschlagen', 'error');
+          } finally {
+            pinBtn.disabled = false;
           }
           return;
         }

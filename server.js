@@ -355,6 +355,7 @@ app.get('/api/sessions', (req, res) => {
       base.contextPct = null;
     }
     base.muted = knownSessions.isMuted(s.name);
+    base.pinned = knownSessions.isPinned(s.name);
     return base;
   };
 
@@ -978,6 +979,19 @@ app.post('/api/sessions/:name/mute', async (req, res) => {
   const ok = await knownSessions.setMuted(name, muted);
   if (!ok) return res.status(404).json({ error: 'Session not in known-sessions' });
   res.json({ success: true, name, muted });
+});
+
+// Pin/Unpin einer Session. Body: { pinned: bool }. Fremd-Sessions ohne
+// known-Eintrag werden mit 404 abgelehnt (keine Auto-Adoption).
+app.post('/api/sessions/:name/pin', async (req, res) => {
+  const { name } = req.params;
+  if (!SESSION_NAME_RE.test(name)) {
+    return res.status(400).json({ error: 'Invalid session name' });
+  }
+  const pinned = !!(req.body && req.body.pinned);
+  const ok = await knownSessions.setPinned(name, pinned);
+  if (!ok) return res.status(404).json({ error: 'Session not in known-sessions' });
+  res.json({ success: true, name, pinned });
 });
 
 // ── Claude-Code Hooks ────────────────────────────────────────────────────────
