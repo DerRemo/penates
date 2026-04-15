@@ -1496,6 +1496,13 @@
       flex-wrap: wrap;
       min-width: 0;
     }
+    /* Running/dormant-Cards haben Mute + Pin absolut oben rechts
+       positioniert (28px + 28px + 8px Gap + 12px Edge = ~76px Zone).
+       Reserviere den Platz, damit die session-status-Pill nicht
+       drunter läuft. Foreign-Cards haben keine Buttons → kein padding. */
+    .session-card:not([data-status="foreign"]) .session-card-header {
+      padding-right: 76px;
+    }
 
     .session-name {
       font-family: var(--font-mono);
