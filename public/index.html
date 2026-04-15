@@ -1923,6 +1923,18 @@
          durchgängig für dunkle Backgrounds designt sind. */
       background: #0a0e14;
       overflow: hidden;
+      /* Browser-native Text-Selection unterdrücken: xterm nutzt den DOM-
+         Renderer (echte <span>s), Shift+Drag würde ohne das die DOM-Spans
+         nativ markieren (blaue Default-Selection) zusätzlich zu unserem
+         Shift-Drag-Handler (teal Overlay). Doppel-Highlight vermeiden. */
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .terminal-container .xterm-helper-textarea {
+      /* Die helper-textarea muss editierbar bleiben, damit Tipp-Eingabe
+         + native Paste-Events funktionieren. */
+      user-select: auto;
+      -webkit-user-select: auto;
     }
 
     .terminal-container .xterm {
@@ -5136,6 +5148,9 @@
       });
 
       term.open(container);
+      // Test-Hook für Playwright (tests/copy.spec.js). Single-User-App,
+      // kein Security-Risiko — ein Angreifer mit JS-Kontext hat ohnehin
+      // schon alles was er braucht.
       window.__cchubTerm = term;
 
       // ── Manuelle Shift/Alt+Drag-Selection ───────────────────────────
@@ -5256,34 +5271,25 @@
         term.paste(text);
       }, { capture: true });
 
-      // Cmd+V / Ctrl+V-Fallback am document: wenn der helper-textarea nicht
-      // im Fokus ist (z.B. direkt nach dem Shift+Drag), feuert kein native
-      // paste-Event. Wir lesen dann via Clipboard-API und rufen term.paste().
-      // Firefox skippt das — dort würde readText() eine Permission-Bubble
-      // zeigen; statt dessen zwingt der Fallback den Fokus zurück und re-
-      // triggert das native Verhalten, sodass Firefox' eigene Paste-UX läuft.
-      const isFirefoxKb = navigator.userAgent.includes('Firefox');
-      const pasteFallback = async (ev) => {
+      // Cmd+V / Ctrl+V am document abfangen BEVOR xterm's Keyboard-Handler
+      // es als ^V (\x16 SYN) zum PTY schickt. Sonst feuert Firefox kein
+      // natives paste-Event, weil der Keystroke schon beim ersten Handler
+      // konsumiert wurde. Wir stopImmediatePropagation am capture-top,
+      // lesen selbst aus dem Clipboard und rufen term.paste().
+      const pasteIntercept = async (ev) => {
         const isPasteCombo = (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey && (ev.key === 'v' || ev.key === 'V');
         if (!isPasteCombo) return;
         if (document.body.dataset.currentView !== 'terminal') return;
-        const active = document.activeElement;
-        if (active && active.classList?.contains('xterm-helper-textarea')) return;
-        if (isFirefoxKb) {
-          // In Firefox einfach Fokus herstellen — das reicht nicht mehr für
-          // DIESEN Key-Event (der ist schon am document angekommen), aber die
-          // nächste Paste-Aktion landet dann wieder auf der helper-textarea.
-          term.focus();
-          return;
-        }
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
         try {
           const text = await navigator.clipboard.readText();
-          if (text) term.paste(text);
+          if (text) { term.focus(); term.paste(text); }
         } catch {
-          showToast('Einfügen fehlgeschlagen — Zwischenablage nicht lesbar', 'error');
+          showToast('Einfügen fehlgeschlagen — Zwischenablage nicht lesbar. Firefox: Permission erlauben.', 'error');
         }
       };
-      document.addEventListener('keydown', pasteFallback, { capture: true, signal: clipboardAbort.signal });
+      document.addEventListener('keydown', pasteIntercept, { capture: true, signal: clipboardAbort.signal });
 
       // Rechtsklick = sofort einfügen (ohne Kontextmenü). In Firefox firet
       // das Kontextmenü-„Einfügen" kein zuverlässiges paste-Event auf die
