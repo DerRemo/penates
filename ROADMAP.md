@@ -28,14 +28,14 @@ Audit-Log), nebenher ziehen fünf kleine, sofort nützliche Items aus
 dem Backlog mit rein — Bulk-Actions, Session-Pinning, browse-Allowlist,
 Auto-Reload nach Server-Restart, Git-Status pro Session-Card.
 
-- [ ] Remote-Zugriff: Cloudflare Access (Zero Trust) vor dem Tunnel {priority: p0, theme: security}
-- [ ] Remote-Zugriff: Rate-Limiting auf REST-Endpoints {priority: p0, theme: security}
-- [ ] Remote-Zugriff: Audit-Log wer hat wann welche Session attached {priority: p0, theme: security}
-- [ ] Bulk-Actions: alle idle- oder unattached-Sessions beenden {priority: p1, theme: sessions}
-- [ ] Session-Pinning für wichtige Sessions oben sortiert {priority: p1, theme: sessions}
-- [ ] /api/browse Allow-List via ENV statt nur HOME {priority: p2, theme: security}
-- [ ] Web-Client Auto-Reload nach Server-Restart {priority: p1, theme: observability}
-- [ ] Git-Status-Widget pro Session — Branch, Dirty, Ahead/Behind {priority: p1, theme: productivity}
+- [x] Remote-Zugriff: Cloudflare Access (Zero Trust) vor dem Tunnel {priority: p0, theme: security}
+- [x] Remote-Zugriff: Rate-Limiting auf REST-Endpoints {priority: p0, theme: security}
+- [x] Remote-Zugriff: Audit-Log wer hat wann welche Session attached {priority: p0, theme: security}
+- [x] Bulk-Actions: alle idle- oder unattached-Sessions beenden {priority: p1, theme: sessions}
+- [x] Session-Pinning für wichtige Sessions oben sortiert {priority: p1, theme: sessions}
+- [x] /api/browse Allow-List via ENV statt nur HOME {priority: p2, theme: security}
+- [x] Web-Client Auto-Reload nach Server-Restart {priority: p1, theme: observability}
+- [x] Git-Status-Widget pro Session — Branch, Dirty, Ahead/Behind {priority: p1, theme: productivity}
 
 ## Backlog / Ideen
 
