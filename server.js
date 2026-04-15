@@ -831,14 +831,18 @@ app.ws('/api/notifications/events', (ws, req) => {
 
 // ── Web Push API ─────────────────────────────────────────────────────────────
 
-// Subscription speichern. Body: { subscription: PushSubscriptionJSON }
+// Subscription speichern. Body: { subscription: PushSubscriptionJSON, deviceId: string }
 app.post('/api/push/subscribe', async (req, res) => {
   const sub = req.body?.subscription;
+  const deviceId = req.body?.deviceId;
   if (!sub || !sub.endpoint) {
     return res.status(400).json({ error: 'Missing subscription' });
   }
+  if (!deviceId || typeof deviceId !== 'string' || deviceId.length > 128) {
+    return res.status(400).json({ error: 'Missing or invalid deviceId' });
+  }
   try {
-    await pushSubs.saveSub(sub);
+    await pushSubs.saveSub({ ...sub, deviceId });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
