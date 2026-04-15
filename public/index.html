@@ -5435,7 +5435,7 @@
         let cellH = 24;
         let touchLastY = null;
         let touchAccumPx = 0;   // Rest-Pixel in Sub-Line-Range
-        let snapRafId = 0;
+        let snapResetTimer = 0;
 
         const setScreenTransform = (px) => {
           if (!screen) return;
@@ -5449,8 +5449,8 @@
           screen.style.transform = '';
           // Transition nach Ablauf wieder entfernen, damit nächster Drag
           // ohne Lag reagiert.
-          clearTimeout(snapRafId);
-          snapRafId = setTimeout(() => {
+          clearTimeout(snapResetTimer);
+          snapResetTimer = setTimeout(() => {
             if (screen) screen.style.transition = '';
           }, 170);
         };
@@ -5459,7 +5459,7 @@
           if (e.touches.length !== 1) { touchLastY = null; return; }
           // Falls noch eine Snap-Back-Transition läuft → abbrechen.
           if (screen) screen.style.transition = '';
-          clearTimeout(snapRafId);
+          clearTimeout(snapResetTimer);
           cellH = getCellHeight();
           touchLastY = e.touches[0].clientY;
           touchAccumPx = 0;
@@ -5691,6 +5691,16 @@
       setCtrlSticky(false);
       touchScrollAbort?.abort();
       touchScrollAbort = null;
+      // Nach dem Abort ist der .xterm-screen vielleicht noch mit einem
+      // stale Transform / Transition behaftet, falls der User mitten im
+      // Drag disconnected. term.dispose() räumt den Node zwar sowieso
+      // raus, aber wir lösen die accidental-ordering-Abhängigkeit auf.
+      const container = document.getElementById('terminal-container');
+      const staleScreen = container?.querySelector('.xterm-screen');
+      if (staleScreen) {
+        staleScreen.style.transform = '';
+        staleScreen.style.transition = '';
+      }
       clipboardAbort?.abort();
       clipboardAbort = null;
     }
