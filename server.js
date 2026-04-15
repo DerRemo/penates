@@ -785,17 +785,45 @@ async function sendPushToAll(event) {
     activity: event.activity,
   });
   const opts = { TTL: 60, urgency: 'normal' };
+  const now = Date.now();
+
   await Promise.allSettled(subs.map(async (sub) => {
+    const host = (() => {
+      try { return new URL(sub.endpoint).host; } catch { return 'unknown'; }
+    })();
+    const ageH = sub.createdAt ? ((now - sub.createdAt) / 3_600_000).toFixed(1) : '?';
+    const tag = `${host} dev=${sub.deviceId} age=${ageH}h`;
+
     try {
       await webpush.sendNotification(sub, payload, opts);
+      console.log(`[push] delivered: ${tag} session=${event.name}`);
+      await pushSubs.resetFailure(sub.endpoint).catch(() => {});
     } catch (err) {
-      if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 401) {
-        // Subscription abgelaufen oder ungültig — aus der Liste entfernen.
+      const status = err.statusCode ?? 0;
+      let reason = null;
+      try {
+        const body = typeof err.body === 'string' ? err.body : '';
+        const m = body.match(/"reason"\s*:\s*"([^"]+)"/);
+        if (m) reason = m[1];
+      } catch {}
+
+      if (status === 410 || status === 404) {
         await pushSubs.removeSub(sub.endpoint).catch(() => {});
-        console.log(`[push] Subscription entfernt (${err.statusCode}): ${sub.endpoint.slice(0, 60)}…`);
-      } else {
-        console.warn('[push] sendNotification failed:', err.statusCode, err.message, err.body?.slice?.(0, 200));
+        console.log(`[push] gone, removed: ${tag} status=${status}`);
+        return;
       }
+      if (status === 401) {
+        await pushSubs.removeSub(sub.endpoint).catch(() => {});
+        console.log(`[push] unauthorized, removed: ${tag} status=401`);
+        return;
+      }
+      if (status === 403) {
+        await pushSubs.incrementFailure(sub.endpoint, { statusCode: 403, reason }).catch(() => {});
+        console.warn(`[push] 403 ${reason || 'Forbidden'} (not removing): ${tag}`);
+        return;
+      }
+      await pushSubs.incrementFailure(sub.endpoint, { statusCode: status, reason }).catch(() => {});
+      console.warn(`[push] send failed: ${tag} status=${status} reason=${reason || '-'} msg=${err.message}`);
     }
   }));
 }
