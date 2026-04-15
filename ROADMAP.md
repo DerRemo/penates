@@ -5,36 +5,7 @@ im Hub selbst. Struktur folgt dem `lib/roadmap.js`-Parser:
 H2-Sections Released / In Entwicklung / Backlog / Changelog,
 Top-Level-Checkboxen mit optionalem `{key: value}`-Meta-Suffix.
 
-## Released: v0.3.0
-
-Projekt-Verwaltung Step 2b (Project-Creation + Live-Sync) und Step 3
-(Session-Linking + Release-Flow). Reihenfolge: Prereqs zuerst, dann
-Creation, dann Watcher, dann Session-Verknüpfung.
-
-- [x] Re-Read inside mutateRoadmap lock — Prereq fürs Watcher-Race {priority: high, step: 2b}
-- [x] mutateRoadmap liefert fresh Roadmap inside-lock zurück {step: 2b}
-- [x] Registry als Long-Lived-Singleton refactoren {step: 2b}
-- [x] POST /api/projects mit Template-ROADMAP.md {step: 2b}
-- [x] Tree-Picker-Integration im New-Project-Modal {step: 2b}
-- [x] Discovery-on-Read in GET /api/projects {step: 2b}
-- [x] listProjects mit Concurrency-Cap für große Setups {step: 2b}
-- [x] fs.watch pro registrierter ROADMAP.md {step: 2b}
-- [x] Watcher-Debounce 50-100ms plus Sequenz-IDs {step: 2b}
-- [x] WebSocket-Broadcast an offene Detail-Views {step: 2b}
-- [x] Registry-Write-Mutex via withFileLock {step: 2b}
-- [x] section-not-found sollte 409 statt 400 sein {step: 2b}
-- [x] Scroll- und Focus-Preservation beim Re-Render {step: 2b}
-- [x] Meta-Pills statt JSON.stringify im Frontend {step: 2b}
-- [x] Inline-Input statt prompt und confirm für Add/Delete {step: 2b}
-- [x] Themed Success-Variante für project-toast {step: 2b}
-- [x] Session-Badge via cwd-Prefix-Match auf Session-Cards {step: 3}
-- [x] Projekt-Detail listet offene Sessions im cwd {step: 3}
-- [x] Button Session hier starten im Projekt-Detail {step: 3}
-- [x] Version-abschliessen-Flow mit Release-Notes-Generator {step: 3}
-- [x] Terminal-Quick-Action Idee zu Backlog {step: 3}
-- [x] Dashboard-Search matcht auch Roadmap-Items {step: 3}
-
-## In Entwicklung: v0.4.0
+## Released: v0.4.0
 
 Notifications-Theme: Attention-Detection, Sound + Visual, Web-Push,
 Telegram — aus dem p0-Backlog nach oben gezogen.
@@ -48,6 +19,8 @@ Telegram — aus dem p0-Backlog nach oben gezogen.
 - [x] Web-Push Zuverlässigkeits-Fix — Per-Device-Presence statt tmux-attached, VAPID-APNs-Stabilisierung, Diagnose-Logging {priority: p0, theme: notifications}
 - [x] Terminal Desktop Copy/Paste — Shift/Alt+Drag kopiert automatisch, Cmd/Ctrl+V fügt ein cross-browser cross-platform {priority: p0, theme: terminal-ux}
 - [x] iOS Native-Feel Polish — Terminal-Scroll proportional zur echten Cell-Height, autocorrect/QuickType-Bar auf xterm-Textarea weg, Touch-Bar rAF-throttled, Pfeiltasten-Repeat, Ctrl-Sticky Touch-Bar+Keyboard-Sync mit 4s Auto-Release und Glow, App-Header in Mobile-Terminal-View versteckt {priority: p0, theme: mobile-ux}
+
+## In Entwicklung: v0.5.0
 
 ## Backlog / Ideen
 
@@ -99,6 +72,17 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [ ] iOS App
 
 ## Changelog
+
+### v0.4.0 — 2026-04-15
+
+**Notifications-Theme.** Zentrales v0.4.0-Feature: der Hub meldet jetzt zuverlässig wenn eine Session Aufmerksamkeit braucht. Attention-Detection läuft rein über Claude-Code-Hooks — `Stop`, `Notification`, `UserPromptSubmit`, `SubagentStop`, `SessionStart`, `SessionEnd` feuern per curl an `POST /api/hooks/:event`, der Hub hält Session-Activity-State in `lib/attention.js` mit 60s-Frische-Window und 10s-Cool-Down zum Entrauschen. Die vorherige Regex-basierte `tmux capture-pane`-Parser-Variante war als Fallback dabei und wurde im Lauf von v0.4.0 komplett entfernt (Hook-only). `setup.sh` installiert den Hook-Block idempotent in `~/.claude/settings.json` per `jq`-Merge mit `_owner`-Sentinel, damit Re-Runs User-Hooks nicht überschreiben. Env-Injection via `tmux new-session -e` vererbt `CC_HUB_SESSION`, `CC_HUB_URL`, `CC_HUB_TOKEN` an den Claude-Kindprozess; ein Rename-Alias-Map im Server sorgt dafür dass Hook-Posts auch nach `tmux rename-session` noch zur richtigen Session finden.
+
+**Notification-Kanäle.** Notifications werden auf mehreren Kanälen ausgegeben: **Sound-Alert** in der Terminal-View (Web-Audio-Beep, togglebar), **visuelle Card-Flash plus Unread-Badge** im Dashboard, **Per-Session-Stummschalten** über eine Mute-Toggle auf der Session-Card, und **Web-Push API** als zweiter persistenter Kanal neben den In-App-Signalen (Service-Worker + VAPID, Subscription-Registry unter `~/.claude-code-hub/push-subscriptions.json`). Eine separate Zuverlässigkeits-Welle hat iOS-APNs-Quirks gefixt (Subject-Format, BadJwtToken), den Attention-Gate von tmux-attached auf echte **Per-Device-Presence** umgestellt (Frontend meldet via WS welche Sessions es gerade sieht), und doppelte VAPID-Loader-Loads gehärtet. In-App-Notifications werden supprimiert wenn die Session im Foreground ist, damit keine Lärm-Duplikate durch parallele Kanäle entstehen.
+
+**Terminal Desktop Copy/Paste.** `Shift+Drag` und `Alt+Drag` markieren im Terminal und kopieren das Ergebnis sofort in die Zwischenablage — cross-browser cross-platform. Der Selection-Handler fängt Shift/Alt+Drag direkt am `terminal-container` ab und `stopPropagation()` verhindert dass xterms `CoreMouseService` (der wegen tmux-Mouse-Mode vorher dran ist) die Events sieht. Ein eigenes Teal-Overlay rendert die Markierung, Pixel-zu-Zellen-Math berechnet die tatsächlichen Grid-Koordinaten. Paste funktioniert via `Cmd/Ctrl+V` auf Desktop und Rechtsklick-sofort-einfügen außerhalb Firefox (Firefox zeigt sonst Doppel-UI durch die Permission-Bubble, deshalb Handler-Skip).
+
+**iOS Native-Feel Polish.** Sechs chirurgische Fixes für die Mobile-Terminal-UX. Terminal-Scroll nutzt jetzt die echte xterm-Cell-Height (nicht mehr hardcoded 24px), damit Finger und Content proportional laufen — eine versuchte Sub-Pixel-Smoothness-Variante per `translate3d` hatte Timing-Probleme mit dem tmux-WebSocket-Roundtrip und wurde verworfen. Die `.xterm-helper-textarea` bekommt `autocorrect/autocapitalize/autocomplete=off` und `spellcheck=false`, was das iOS-Composition-Layer-Zeichenverschlucken eliminiert und gleichzeitig die QuickType-Predictive-Bar versteckt (~40-45px vertikaler Platz zurück). Die Touch-Bar über der Tastatur wird rAF-throttled positioniert damit sie sauber mit der Keyboard-Animation mitgleitet. Die vier Pfeiltasten repeaten jetzt bei gedrücktem Finger (400ms Delay → 50ms Interval) via `data-repeat`-Attribut + `pointerdown`-Loop. Ctrl-Sticky wurde gehärtet: ein shared `applyPendingCtrl`-Helper wird von `term.onData` (iOS-Keyboard-Input) und `sendRawInput` (Touch-Bar-Keys) aufgerufen — vorher ignorierten die Touch-Bar-Pfade das Ctrl-Flag, jetzt funktioniert `Ctrl+|` auch via Touch-Bar. 4s-Auto-Release und ein pulsierender teal-Glow machen stale Sticky-States sichtbar. Der globale App-Header wird in Mobile-Terminal-View versteckt (`@media (pointer: coarse)`), weil Back-Nav und Session-Name schon in der `terminal-toolbar` stehen und Settings-Toggles während Terminal-Arbeit nicht gebraucht werden — ~108px vertikaler Platz zurückgewonnen auf iPhones mit Notch, die Terminal-Toolbar übernimmt dafür die `safe-area-inset-top`-Reservierung.
+
 
 ### v0.3.0 — 2026-04-14
 
