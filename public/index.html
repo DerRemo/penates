@@ -5402,42 +5402,117 @@
       // (\x1b[<64;1;1M = wheel up, \x1b[<65;1;1M = wheel down). Tmux läuft
       // mit `mouse on` und interpretiert sie als echte Scroll-Events,
       // was sowohl im Alt-Screen als auch im Normal-Screen funktioniert.
-      // Test: scroll_position 0 → 20 → 70 nach 1/5/15 Wheel-Events bestätigt.
+      //
+      // Sub-Line-Smoothness: Während des Drags wird .xterm-screen per
+      // translateY in Echtzeit mit dem Finger mitgeschoben — auch innerhalb
+      // einer Zeile. Sobald eine Zeilengrenze überschritten wird, feuern
+      // wir ein Wheel-Event an tmux und reduzieren die Translation um
+      // genau eine Zeilenhöhe. Tmux-Redraw ersetzt dann die visuelle
+      // Translation durch echtes Scrolling. Pixelgenaues Gefühl ohne
+      // Architektur-Änderung.
       //
       // touch-action: none im CSS verhindert, dass iOS die Swipes als
-      // native Page-Scroll abfängt — ohne das landen touchmove-Events
-      // nie in diesem Handler.
+      // native Page-Scroll abfängt.
       {
         touchScrollAbort?.abort();
         touchScrollAbort = new AbortController();
         const signal = touchScrollAbort.signal;
-        const PX_PER_LINE = 24;
+
+        // Dynamische Cell-Height — wird bei jedem touchstart neu gelesen
+        // (Font-Resize, Rotation, Zoom können sie ändern).
+        const getCellHeight = () => {
+          try {
+            const h = term?._core?._renderService?.dimensions?.css?.cell?.height;
+            if (h && h > 0) return h;
+          } catch {}
+          const row = container.querySelector('.xterm-rows > div');
+          const rect = row?.getBoundingClientRect();
+          if (rect && rect.height > 0) return rect.height;
+          return 24; // Fallback
+        };
+
+        const screen = container.querySelector('.xterm-screen');
+        let cellH = 24;
         let touchLastY = null;
-        let touchAccum = 0;
+        let touchAccumPx = 0;   // Rest-Pixel in Sub-Line-Range
+        let snapRafId = 0;
+
+        const setScreenTransform = (px) => {
+          if (!screen) return;
+          screen.style.transform = px ? `translate3d(0,${px}px,0)` : '';
+        };
+
+        const snapBack = () => {
+          // Sanft auf 0 zurück via CSS-Transition. Kein JS-Loop.
+          if (!screen) return;
+          screen.style.transition = 'transform 150ms ease-out';
+          screen.style.transform = '';
+          // Transition nach Ablauf wieder entfernen, damit nächster Drag
+          // ohne Lag reagiert.
+          clearTimeout(snapRafId);
+          snapRafId = setTimeout(() => {
+            if (screen) screen.style.transition = '';
+          }, 170);
+        };
+
         container.addEventListener('touchstart', (e) => {
           if (e.touches.length !== 1) { touchLastY = null; return; }
+          // Falls noch eine Snap-Back-Transition läuft → abbrechen.
+          if (screen) screen.style.transition = '';
+          clearTimeout(snapRafId);
+          cellH = getCellHeight();
           touchLastY = e.touches[0].clientY;
-          touchAccum = 0;
+          touchAccumPx = 0;
+          setScreenTransform(0);
         }, { capture: true, passive: true, signal });
+
         container.addEventListener('touchmove', (e) => {
           if (touchLastY === null || e.touches.length !== 1) return;
           const y = e.touches[0].clientY;
-          const dy = touchLastY - y;       // >0 = Finger hoch = wheel down
+          const dy = touchLastY - y;   // >0 = Finger hoch = wheel down
           touchLastY = y;
-          touchAccum += dy / PX_PER_LINE;
-          const lines = touchAccum > 0 ? Math.floor(touchAccum) : Math.ceil(touchAccum);
-          if (lines !== 0) {
-            touchAccum -= lines;
-            const button = lines < 0 ? 64 : 65;
-            const count = Math.abs(lines);
+          touchAccumPx += dy;
+
+          // Wie viele komplette Zeilen sind abgedeckt?
+          const linesSigned = touchAccumPx > 0
+            ? Math.floor(touchAccumPx / cellH)
+            : Math.ceil(touchAccumPx / cellH);
+
+          if (linesSigned !== 0) {
+            touchAccumPx -= linesSigned * cellH;
+            const button = linesSigned < 0 ? 64 : 65;
+            const count = Math.abs(linesSigned);
             const seq = `\x1b[<${button};1;1M`.repeat(count);
             if (currentWs && currentWs.readyState === WebSocket.OPEN) {
               currentWs.send(JSON.stringify({ type: 'input', data: seq }));
             }
-            e.preventDefault();
           }
+
+          // Sub-Line-Smoothness: Rest-Pixel visuell mitnehmen.
+          // Vorzeichen: Finger hoch (dy > 0) → Content soll hoch gleiten
+          // (wheel down). touchAccumPx ist positiv → translateY negativ.
+          setScreenTransform(-touchAccumPx);
+          e.preventDefault();
         }, { capture: true, passive: false, signal });
-        const endTouch = () => { touchLastY = null; };
+
+        const endTouch = () => {
+          if (touchLastY === null) return;
+          touchLastY = null;
+
+          // Threshold-Finish: wenn der Rest mehr als eine halbe Zeile
+          // beträgt, ein zusätzliches Wheel-Event feuern — fühlt sich
+          // besser an als immer zurück zu snappen.
+          if (Math.abs(touchAccumPx) > cellH / 2) {
+            const linesSigned = touchAccumPx > 0 ? 1 : -1;
+            const button = linesSigned < 0 ? 64 : 65;
+            const seq = `\x1b[<${button};1;1M`;
+            if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+              currentWs.send(JSON.stringify({ type: 'input', data: seq }));
+            }
+          }
+          touchAccumPx = 0;
+          snapBack();
+        };
         container.addEventListener('touchend', endTouch, { capture: true, passive: true, signal });
         container.addEventListener('touchcancel', endTouch, { capture: true, passive: true, signal });
       }
