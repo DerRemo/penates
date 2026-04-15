@@ -1951,9 +1951,10 @@
 
     /* ── Touch-Toolbar über iOS-Tastatur ──────────────────────────
        - Nur sichtbar auf Touch-Geräten mit aktiver Terminal-View
-       - Position wird per visualViewport-JS über der Tastatur gehalten
-       - `--touch-bar-h` wird von JS gesetzt, damit .terminal-view Platz
-         darunter freilässt */
+       - Position wird per visualViewport-JS (translate3d) über der
+         Tastatur gehalten
+       - .terminal-view bekommt auf Mobile padding-bottom für die Bar,
+         siehe @media (pointer: coarse) weiter unten */
     .touch-bar {
       display: none;
       position: fixed;
@@ -1978,6 +1979,21 @@
       body[data-current-view="terminal"] .touch-bar { display: flex; }
       body[data-current-view="terminal"] .terminal-view {
         padding-bottom: calc(44px + env(safe-area-inset-bottom));
+      }
+      /* App-Header in Terminal-View auf Mobile verstecken — Back-Button
+         und Session-Name sind bereits in der .terminal-toolbar.
+         ~108px vertikaler Platz zurückgewonnen auf iPhone mit Notch.
+         Trade-off: Push/Sound/Theme-Toggles + Kbd-Help nicht erreichbar
+         während Terminal-View. Im Dashboard-View bleibt der Header da. */
+      body[data-current-view="terminal"] .header { display: none; }
+      body[data-current-view="terminal"] .terminal-view {
+        height: calc(100dvh - var(--kb-inset, 0px));
+      }
+      /* Ohne den globalen Header muss die terminal-toolbar selbst die
+         safe-area-top reservieren — sonst rendert sie in Standalone-PWA
+         auf iPhone mit Notch unter der Status-Bar. */
+      body[data-current-view="terminal"] .terminal-toolbar {
+        padding-top: max(var(--space-3), env(safe-area-inset-top));
       }
     }
 
@@ -2007,10 +2023,15 @@
       transform: scale(0.94);
     }
     .touch-key--wide { min-width: 64px; }
+    @keyframes touch-key-sticky-pulse {
+      0%, 100% { box-shadow: 0 0 0 2px var(--teal), 0 0 8px rgba(45, 212, 191, 0.35); }
+      50%      { box-shadow: 0 0 0 2px var(--teal), 0 0 16px rgba(45, 212, 191, 0.65); }
+    }
     .touch-key.sticky-active {
       background: var(--teal);
       color: var(--bg-deep);
       border-color: var(--teal);
+      animation: touch-key-sticky-pulse 1.2s ease-in-out infinite;
     }
 
     /* ── Dashboard container — Sichtbarkeit via body[data-current-view] ──
@@ -2958,10 +2979,10 @@
     <button class="touch-key" type="button" data-seq="\x1b">Esc</button>
     <button class="touch-key" type="button" data-seq="\t">Tab</button>
     <button class="touch-key" type="button" data-ctrl>Ctrl</button>
-    <button class="touch-key" type="button" data-seq="\x1b[A">↑</button>
-    <button class="touch-key" type="button" data-seq="\x1b[B">↓</button>
-    <button class="touch-key" type="button" data-seq="\x1b[D">←</button>
-    <button class="touch-key" type="button" data-seq="\x1b[C">→</button>
+    <button class="touch-key" type="button" data-seq="\x1b[A" data-repeat>↑</button>
+    <button class="touch-key" type="button" data-seq="\x1b[B" data-repeat>↓</button>
+    <button class="touch-key" type="button" data-seq="\x1b[D" data-repeat>←</button>
+    <button class="touch-key" type="button" data-seq="\x1b[C" data-repeat>→</button>
     <button class="touch-key" type="button" data-seq="|">|</button>
     <button class="touch-key" type="button" data-seq="~">~</button>
     <button class="touch-key" type="button" data-seq="/">/</button>
@@ -5225,6 +5246,24 @@
       });
 
       term.open(container);
+
+      // iOS-Input-Hardening: xterm.js' Helper-Textarea ist ein unsichtbares
+      // <textarea>, das alle Tipp-Events einfängt. Ohne diese Attribute
+      // routet iOS Eingaben durch den Composition-Layer (autocorrect),
+      // verschluckt/verzögert Zeichen und zeigt die QuickType-Predictive-
+      // Bar über der Tastatur. Jedes Attribut killt eine dieser Plagen.
+      // Muss nach term.open() passieren, weil die Textarea vorher nicht
+      // existiert. Idempotent — läuft bei jedem connectTerminal().
+      {
+        const ta = container.querySelector('.xterm-helper-textarea');
+        if (ta) {
+          ta.setAttribute('autocorrect', 'off');
+          ta.setAttribute('autocapitalize', 'off');
+          ta.setAttribute('autocomplete', 'off');
+          ta.setAttribute('spellcheck', 'false');
+        }
+      }
+
       // Test-Hook für Playwright (tests/copy.spec.js). Single-User-App,
       // kein Security-Risiko — ein Angreifer mit JS-Kontext hat ohnehin
       // schon alles was er braucht.
@@ -5402,42 +5441,76 @@
       // (\x1b[<64;1;1M = wheel up, \x1b[<65;1;1M = wheel down). Tmux läuft
       // mit `mouse on` und interpretiert sie als echte Scroll-Events,
       // was sowohl im Alt-Screen als auch im Normal-Screen funktioniert.
-      // Test: scroll_position 0 → 20 → 70 nach 1/5/15 Wheel-Events bestätigt.
+      //
+      // PX_PER_LINE kommt dynamisch aus der aktuellen xterm-Cell-Height,
+      // damit Finger-Delta und Content-Delta 1:1 übereinstimmen — auch
+      // nach Font-Resize, Rotation oder Zoom.
+      //
+      // Eine frühere Variante hat zusätzlich versucht, .xterm-screen per
+      // translate3d pixelgenau mit dem Finger mitzuschieben und den
+      // Transform beim Zeilensprung auf 0 zu resetten. Das hat während
+      // des Swipes sichtbar gezuckelt: der Reset passiert sofort, aber
+      // der tmux-Redraw erst nach dem WebSocket-Roundtrip (~10-50ms) —
+      // dazwischen springt der Content hoch, dann zurück. Ohne echten
+      // Hook auf den Redraw-Zeitpunkt ist das nicht fixbar, daher
+      // bleiben wir zeilenbasiert. Proportional statt pixelgenau, aber
+      // konsistent.
       //
       // touch-action: none im CSS verhindert, dass iOS die Swipes als
-      // native Page-Scroll abfängt — ohne das landen touchmove-Events
-      // nie in diesem Handler.
+      // native Page-Scroll abfängt.
       {
         touchScrollAbort?.abort();
         touchScrollAbort = new AbortController();
         const signal = touchScrollAbort.signal;
-        const PX_PER_LINE = 24;
+
+        // Dynamische Cell-Height — wird bei jedem touchstart neu gelesen
+        // (Font-Resize, Rotation, Zoom können sie ändern).
+        const getCellHeight = () => {
+          try {
+            const h = term?._core?._renderService?.dimensions?.css?.cell?.height;
+            if (h && h > 0) return h;
+          } catch {}
+          const row = container.querySelector('.xterm-rows > div');
+          const rect = row?.getBoundingClientRect();
+          if (rect && rect.height > 0) return rect.height;
+          return 24; // Fallback
+        };
+
+        let cellH = 24;
         let touchLastY = null;
-        let touchAccum = 0;
+        let touchAccumPx = 0;
+
         container.addEventListener('touchstart', (e) => {
           if (e.touches.length !== 1) { touchLastY = null; return; }
+          cellH = getCellHeight();
           touchLastY = e.touches[0].clientY;
-          touchAccum = 0;
+          touchAccumPx = 0;
         }, { capture: true, passive: true, signal });
+
         container.addEventListener('touchmove', (e) => {
           if (touchLastY === null || e.touches.length !== 1) return;
           const y = e.touches[0].clientY;
-          const dy = touchLastY - y;       // >0 = Finger hoch = wheel down
+          const dy = touchLastY - y;   // >0 = Finger hoch = wheel down
           touchLastY = y;
-          touchAccum += dy / PX_PER_LINE;
-          const lines = touchAccum > 0 ? Math.floor(touchAccum) : Math.ceil(touchAccum);
-          if (lines !== 0) {
-            touchAccum -= lines;
-            const button = lines < 0 ? 64 : 65;
-            const count = Math.abs(lines);
+          touchAccumPx += dy;
+
+          const linesSigned = touchAccumPx > 0
+            ? Math.floor(touchAccumPx / cellH)
+            : Math.ceil(touchAccumPx / cellH);
+
+          if (linesSigned !== 0) {
+            touchAccumPx -= linesSigned * cellH;
+            const button = linesSigned < 0 ? 64 : 65;
+            const count = Math.abs(linesSigned);
             const seq = `\x1b[<${button};1;1M`.repeat(count);
             if (currentWs && currentWs.readyState === WebSocket.OPEN) {
               currentWs.send(JSON.stringify({ type: 'input', data: seq }));
             }
-            e.preventDefault();
           }
+          e.preventDefault();
         }, { capture: true, passive: false, signal });
-        const endTouch = () => { touchLastY = null; };
+
+        const endTouch = () => { touchLastY = null; touchAccumPx = 0; };
         container.addEventListener('touchend', endTouch, { capture: true, passive: true, signal });
         container.addEventListener('touchcancel', endTouch, { capture: true, passive: true, signal });
       }
@@ -5544,31 +5617,51 @@
       // transformiert (0x61-0x7A → 0x01-0x1A) und der Modifier zurückgesetzt.
       term.onData(data => {
         if (ws.readyState !== WebSocket.OPEN) return;
-        if (pendingCtrl && data.length === 1) {
-          const code = data.charCodeAt(0);
-          if (code >= 0x40 && code <= 0x7e) {
-            data = String.fromCharCode(code & 0x1f);
-          }
-          setCtrlSticky(false);
-        }
-        ws.send(JSON.stringify({ type: 'input', data }));
+        const out = applyPendingCtrl(data);
+        ws.send(JSON.stringify({ type: 'input', data: out }));
       });
 
       currentWs = ws;
     }
 
     // ── Touch-Toolbar: Keys → Terminal senden ────────────────────
+    // Shared Ctrl-Transform: 0x40-0x7E ASCII → Ctrl+letter (0x00-0x1F
+    // via `& 0x1F`). Wird sowohl von term.onData (iOS-Keyboard-Input)
+    // als auch von sendRawInput (Touch-Bar-Tasten) genutzt, damit
+    // pendingCtrl in beiden Pfaden konsistent wirkt.
+    function applyPendingCtrl(data) {
+      if (!pendingCtrl || data.length !== 1) return data;
+      const code = data.charCodeAt(0);
+      if (code >= 0x40 && code <= 0x7e) {
+        setCtrlSticky(false);
+        return String.fromCharCode(code & 0x1f);
+      }
+      return data;
+    }
+
     function sendRawInput(data) {
+      const out = applyPendingCtrl(data);
       if (currentWs && currentWs.readyState === WebSocket.OPEN) {
-        currentWs.send(JSON.stringify({ type: 'input', data }));
+        currentWs.send(JSON.stringify({ type: 'input', data: out }));
       }
       if (currentTerminal) currentTerminal.focus();
     }
+
+    // setCtrlSticky managed Sticky-State + 4s Auto-Release. Wenn Ctrl
+    // aktiviert wird und keine Folge-Taste innerhalb 4s kommt,
+    // deaktiviert sich der Modifier selbst → kein stale State mehr.
+    let ctrlStickyTimer = 0;
     function setCtrlSticky(active) {
       pendingCtrl = active;
       document.querySelectorAll('.touch-key[data-ctrl]').forEach(el => {
         el.classList.toggle('sticky-active', active);
       });
+      clearTimeout(ctrlStickyTimer);
+      if (active) {
+        ctrlStickyTimer = setTimeout(() => {
+          setCtrlSticky(false);
+        }, 4000);
+      }
     }
 
     // VisualViewport → --kb-inset CSS-Variable + Touch-Bar-Position.
@@ -5579,14 +5672,29 @@
     //      bleibt. Der ResizeObserver auf #terminal-container triggert dann
     //      automatisch fitAddon.fit() + ein resize-Frame ans Backend, sodass
     //      tmux die neue Pane-Höhe kennt.
-    //   2. `#touch-bar` wird per `bottom:<inset>px` über die Tastatur geschoben.
+    //   2. `#touch-bar` bekommt inline `bottom: <inset>px` (überschreibt
+    //      die CSS-`bottom: env(safe-area-inset-bottom)`) und sitzt damit
+    //      exakt auf der Tastatur-Oberkante.
+    // iOS feuert während der Keyboard-Animation ~5-10 visualViewport.resize-
+    // Events mit Zwischen-Heights. Wir rAF-throttlen, damit sie sich pro
+    // Frame bündeln und setzen `bar.style.bottom = <inset>px` inline —
+    // das überschreibt die CSS-`bottom: env(safe-area-inset-bottom)`
+    // direkt und es gibt keinen Gap zwischen Bar und Tastatur. Ein
+    // vorheriger translate3d-Ansatz hatte das Safe-Area-Padding doppelt
+    // drin, was auf iPhones einen grauen Streifen unter der Bar ergab.
+    let kbRafPending = false;
     function updateKeyboardInset() {
-      const vv = window.visualViewport;
-      if (!vv) return;
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      document.documentElement.style.setProperty('--kb-inset', `${inset}px`);
-      const bar = document.getElementById('touch-bar');
-      if (bar) bar.style.bottom = inset > 0 ? `${inset}px` : '';
+      if (kbRafPending) return;
+      kbRafPending = true;
+      requestAnimationFrame(() => {
+        kbRafPending = false;
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        document.documentElement.style.setProperty('--kb-inset', `${inset}px`);
+        const bar = document.getElementById('touch-bar');
+        if (bar) bar.style.bottom = inset > 0 ? `${inset}px` : '';
+      });
     }
 
     // ── Disconnect terminal ──────────────────────────────────────
@@ -5607,6 +5715,8 @@
         currentWs = null;
         try { ws.close(); } catch {}
       }
+      touchScrollAbort?.abort();
+      touchScrollAbort = null;
       if (currentTerminal) {
         currentTerminal.dispose();
         currentTerminal = null;
@@ -5614,8 +5724,6 @@
       currentSessionName = null;
       sendPresence();
       setCtrlSticky(false);
-      touchScrollAbort?.abort();
-      touchScrollAbort = null;
       clipboardAbort?.abort();
       clipboardAbort = null;
     }
@@ -6154,6 +6262,9 @@
 
     // Touch-Toolbar: Button-Handler. data-seq enthält die Escape-Sequenz
     // als JS-String-Literal (\x1b, \t, …) und wird hier einmal dekodiert.
+    // Tasten mit data-repeat (die vier Pfeile) bekommen Key-Repeat:
+    // pointerdown → sofort Send → 400ms Delay → Interval 50ms, bis
+    // pointerup/cancel/leave.
     document.querySelectorAll('#touch-bar .touch-key').forEach(btn => {
       if (btn.dataset.ctrl !== undefined) {
         btn.addEventListener('click', (e) => {
@@ -6168,10 +6279,34 @@
         .replace(/\\t/g, '\t')
         .replace(/\\n/g, '\n')
         .replace(/\\r/g, '\r');
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        sendRawInput(decoded);
-      });
+
+      if (btn.dataset.repeat !== undefined) {
+        // Key-Repeat-Pfad: pointerdown startet Repeat-Loop, Up/Cancel/
+        // Leave stoppt ihn. Pro-Button-lokaler State (in Closure), kein
+        // globaler Mutex.
+        let delayId = 0;
+        let intervalId = 0;
+        const stop = () => {
+          clearTimeout(delayId); delayId = 0;
+          clearInterval(intervalId); intervalId = 0;
+        };
+        btn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          sendRawInput(decoded);
+          stop(); // falls ein alter Repeat noch läuft
+          delayId = setTimeout(() => {
+            intervalId = setInterval(() => sendRawInput(decoded), 50);
+          }, 400);
+        });
+        btn.addEventListener('pointerup', stop);
+        btn.addEventListener('pointercancel', stop);
+        btn.addEventListener('pointerleave', stop);
+      } else {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          sendRawInput(decoded);
+        });
+      }
     });
 
     // VisualViewport-Listener: --kb-inset + Touch-Toolbar synchron halten.
