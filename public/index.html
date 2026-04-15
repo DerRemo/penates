@@ -2007,10 +2007,15 @@
       transform: scale(0.94);
     }
     .touch-key--wide { min-width: 64px; }
+    @keyframes touch-key-sticky-pulse {
+      0%, 100% { box-shadow: 0 0 0 2px var(--teal), 0 0 8px rgba(45, 212, 191, 0.35); }
+      50%      { box-shadow: 0 0 0 2px var(--teal), 0 0 16px rgba(45, 212, 191, 0.65); }
+    }
     .touch-key.sticky-active {
       background: var(--teal);
       color: var(--bg-deep);
       border-color: var(--teal);
+      animation: touch-key-sticky-pulse 1.2s ease-in-out infinite;
     }
 
     /* ── Dashboard container — Sichtbarkeit via body[data-current-view] ──
@@ -5637,31 +5642,51 @@
       // transformiert (0x61-0x7A → 0x01-0x1A) und der Modifier zurückgesetzt.
       term.onData(data => {
         if (ws.readyState !== WebSocket.OPEN) return;
-        if (pendingCtrl && data.length === 1) {
-          const code = data.charCodeAt(0);
-          if (code >= 0x40 && code <= 0x7e) {
-            data = String.fromCharCode(code & 0x1f);
-          }
-          setCtrlSticky(false);
-        }
-        ws.send(JSON.stringify({ type: 'input', data }));
+        const out = applyPendingCtrl(data);
+        ws.send(JSON.stringify({ type: 'input', data: out }));
       });
 
       currentWs = ws;
     }
 
     // ── Touch-Toolbar: Keys → Terminal senden ────────────────────
+    // Shared Ctrl-Transform: 0x40-0x7E ASCII → Ctrl+letter (0x00-0x1F
+    // via `& 0x1F`). Wird sowohl von term.onData (iOS-Keyboard-Input)
+    // als auch von sendRawInput (Touch-Bar-Tasten) genutzt, damit
+    // pendingCtrl in beiden Pfaden konsistent wirkt.
+    function applyPendingCtrl(data) {
+      if (!pendingCtrl || data.length !== 1) return data;
+      const code = data.charCodeAt(0);
+      if (code >= 0x40 && code <= 0x7e) {
+        setCtrlSticky(false);
+        return String.fromCharCode(code & 0x1f);
+      }
+      return data;
+    }
+
     function sendRawInput(data) {
+      const out = applyPendingCtrl(data);
       if (currentWs && currentWs.readyState === WebSocket.OPEN) {
-        currentWs.send(JSON.stringify({ type: 'input', data }));
+        currentWs.send(JSON.stringify({ type: 'input', data: out }));
       }
       if (currentTerminal) currentTerminal.focus();
     }
+
+    // setCtrlSticky managed Sticky-State + 4s Auto-Release. Wenn Ctrl
+    // aktiviert wird und keine Folge-Taste innerhalb 4s kommt,
+    // deaktiviert sich der Modifier selbst → kein stale State mehr.
+    let ctrlStickyTimer = 0;
     function setCtrlSticky(active) {
       pendingCtrl = active;
       document.querySelectorAll('.touch-key[data-ctrl]').forEach(el => {
         el.classList.toggle('sticky-active', active);
       });
+      clearTimeout(ctrlStickyTimer);
+      if (active) {
+        ctrlStickyTimer = setTimeout(() => {
+          setCtrlSticky(false);
+        }, 4000);
+      }
     }
 
     // VisualViewport → --kb-inset CSS-Variable + Touch-Bar-Position.
