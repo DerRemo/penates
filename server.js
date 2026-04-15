@@ -340,9 +340,8 @@ app.get('/api/sessions', (req, res) => {
       activity: hookActivity || 'unknown',
       usagePct5h: preview !== null ? parseUsagePct5h(preview) : null,
     };
-    // attached an den Attention-Engine zurückmelden, damit der nächste
-    // Hook-Event weiß, ob der User zuschaut (→ kein session-attention).
-    if (s.status !== 'dormant') attention.setAttached(s.name, !!s.attached);
+    // attached-Flag bleibt in s.attached (UI-Anzeige), wird aber nicht mehr
+    // zur Attention-Suppression verwendet — siehe Device-Presence in der Push-Schicht.
     try {
       const ctx = getCurrentContext(s.path);
       base.contextTokens = ctx.tokens;
@@ -772,7 +771,7 @@ app.ws('/api/projects/events', (ws, req) => {
 // Sendet native Push-Notifications an alle registrierten Subscriptions wenn
 // eine Session nach Stop/Notification unattached und nicht muted ist.
 // 410 Gone = Subscription abgelaufen → automatisch löschen.
-async function sendPushToAll(event) {
+async function sendPushForAttention(event) {
   const subs = pushSubs.allSubs();
   if (!subs.length) return;
   const displayName = (event.name || '').replace(/^cc-/, '');
@@ -785,17 +784,54 @@ async function sendPushToAll(event) {
     activity: event.activity,
   });
   const opts = { TTL: 60, urgency: 'normal' };
+  const now = Date.now();
+
   await Promise.allSettled(subs.map(async (sub) => {
+    const host = (() => {
+      try { return new URL(sub.endpoint).host; } catch { return 'unknown'; }
+    })();
+    const ageH = sub.createdAt ? ((now - sub.createdAt) / 3_600_000).toFixed(1) : '?';
+    const tag = `${host} dev=${sub.deviceId} age=${ageH}h`;
+
+    if (pushSubs.isBroken(sub)) {
+      console.log(`[push] skipped (broken): ${tag}`);
+      return;
+    }
+    if (isDeviceFocused(sub.deviceId, event.name)) {
+      console.log(`[push] skipped (device focused): ${tag} session=${event.name}`);
+      return;
+    }
+
     try {
       await webpush.sendNotification(sub, payload, opts);
+      console.log(`[push] delivered: ${tag} session=${event.name}`);
+      await pushSubs.resetFailure(sub.endpoint).catch(() => {});
     } catch (err) {
-      if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 401) {
-        // Subscription abgelaufen oder ungültig — aus der Liste entfernen.
+      const status = err.statusCode ?? 0;
+      let reason = null;
+      try {
+        const body = typeof err.body === 'string' ? err.body : '';
+        const m = body.match(/"reason"\s*:\s*"([^"]+)"/);
+        if (m) reason = m[1];
+      } catch {}
+
+      if (status === 410 || status === 404) {
         await pushSubs.removeSub(sub.endpoint).catch(() => {});
-        console.log(`[push] Subscription entfernt (${err.statusCode}): ${sub.endpoint.slice(0, 60)}…`);
-      } else {
-        console.warn('[push] sendNotification failed:', err.statusCode, err.message, err.body?.slice?.(0, 200));
+        console.log(`[push] gone, removed: ${tag} status=${status}`);
+        return;
       }
+      if (status === 401) {
+        await pushSubs.removeSub(sub.endpoint).catch(() => {});
+        console.log(`[push] unauthorized, removed: ${tag} status=401`);
+        return;
+      }
+      if (status === 403) {
+        await pushSubs.incrementFailure(sub.endpoint, { statusCode: 403, reason }).catch(() => {});
+        console.warn(`[push] 403 ${reason || 'Forbidden'} (not removing): ${tag}`);
+        return;
+      }
+      await pushSubs.incrementFailure(sub.endpoint, { statusCode: status, reason }).catch(() => {});
+      console.warn(`[push] send failed: ${tag} status=${status} reason=${reason || '-'} msg=${err.message}`);
     }
   }));
 }
@@ -804,6 +840,35 @@ async function sendPushToAll(event) {
 // Attention-Events (session-attention) aus lib/attention.js an alle
 // verbundenen Clients fan-outen. Eigener Channel statt Reuse von
 // /api/projects/events, damit die beiden Domänen unabhängig bleiben.
+// Per-Device-Presence. Key: deviceId (aus localStorage des Clients).
+// Wert: { session: aktuell sichtbare Session oder null, visible, lastSeenAt }.
+// Wird über den Notifications-WebSocket gepflegt (Client sendet JSON-Frames).
+const PRESENCE_STALE_MS = 60_000;  // iOS PWA im Hintergrund throttled aggressiv — großzügig.
+const presence = new Map();
+
+function updatePresence(deviceId, { session, visible }) {
+  if (!deviceId) return;
+  presence.set(deviceId, {
+    session: session ?? null,
+    visible: !!visible,
+    lastSeenAt: Date.now(),
+  });
+}
+
+function dropPresence(deviceId) {
+  if (deviceId) presence.delete(deviceId);
+}
+
+// true wenn dieses Gerät gerade EXAKT diese Session im Vordergrund hat
+// und die Presence-Info frisch ist. False sonst (inkl. stale/unbekannt).
+function isDeviceFocused(deviceId, sessionName) {
+  if (!deviceId || !sessionName) return false;
+  const p = presence.get(deviceId);
+  if (!p) return false;
+  if (Date.now() - p.lastSeenAt > PRESENCE_STALE_MS) return false;
+  return p.visible && p.session === sessionName;
+}
+
 const notificationClients = new Set();
 attention.subscribe((event) => {
   const payload = JSON.stringify(event);
@@ -814,7 +879,7 @@ attention.subscribe((event) => {
   }
   // Web-Push: nur bei echten Attention-Events (nicht bei activity-only Updates).
   if (event.type === 'session-attention') {
-    sendPushToAll(event).catch((e) => console.error('[push] broadcast error:', e));
+    sendPushForAttention(event).catch((e) => console.error('[push] broadcast error:', e));
   }
 });
 
@@ -824,21 +889,52 @@ app.ws('/api/notifications/events', (ws, req) => {
     return;
   }
   notificationClients.add(ws);
+  let wsDeviceId = null;
   try { ws.send(JSON.stringify({ type: 'hello' })); } catch {}
-  ws.on('close', () => notificationClients.delete(ws));
-  ws.on('error', () => notificationClients.delete(ws));
+
+  ws.on('message', (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw.toString()); } catch { return; }
+    if (!msg || msg.type !== 'presence') return;
+    if (typeof msg.deviceId !== 'string' || msg.deviceId.length === 0 || msg.deviceId.length > 128) return;
+    wsDeviceId = msg.deviceId;
+    const session = typeof msg.session === 'string' ? msg.session : null;
+    updatePresence(msg.deviceId, { session, visible: !!msg.visible });
+  });
+
+  ws.on('close', () => {
+    notificationClients.delete(ws);
+    dropPresence(wsDeviceId);
+  });
+  ws.on('error', () => {
+    notificationClients.delete(ws);
+    dropPresence(wsDeviceId);
+  });
+});
+
+// Debug: Snapshot der aktuellen Presence-Map loggen. Auth-geschützt.
+app.get('/api/push/presence', (_req, res) => {
+  const out = [];
+  for (const [deviceId, p] of presence.entries()) {
+    out.push({ deviceId, ...p, ageMs: Date.now() - p.lastSeenAt });
+  }
+  res.json({ presence: out });
 });
 
 // ── Web Push API ─────────────────────────────────────────────────────────────
 
-// Subscription speichern. Body: { subscription: PushSubscriptionJSON }
+// Subscription speichern. Body: { subscription: PushSubscriptionJSON, deviceId: string }
 app.post('/api/push/subscribe', async (req, res) => {
   const sub = req.body?.subscription;
+  const deviceId = req.body?.deviceId;
   if (!sub || !sub.endpoint) {
     return res.status(400).json({ error: 'Missing subscription' });
   }
+  if (!deviceId || typeof deviceId !== 'string' || deviceId.length > 128) {
+    return res.status(400).json({ error: 'Missing or invalid deviceId' });
+  }
   try {
-    await pushSubs.saveSub(sub);
+    await pushSubs.saveSub({ ...sub, deviceId });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -851,6 +947,22 @@ app.delete('/api/push/subscribe', async (req, res) => {
   if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
   const removed = await pushSubs.removeSub(endpoint);
   res.json({ ok: true, removed });
+});
+
+// Smoke-Test: an alle registrierten Subscriptions eine Dummy-Notification senden.
+// Primäre Nutzung: UI-Button "Push-Test" + Debugging nach VAPID/Library-Changes.
+app.post('/api/push/test', async (_req, res) => {
+  const subs = pushSubs.allSubs();
+  if (!subs.length) {
+    return res.json({ ok: true, sent: 0, note: 'no subscriptions' });
+  }
+  await sendPushForAttention({
+    type: 'session-attention',
+    name: 'cc-test',
+    activity: 'waiting',
+    at: Date.now(),
+  });
+  res.json({ ok: true, sent: subs.length });
 });
 
 // Mute/Unmute einer Session für Notifications. Body: { muted: bool }.

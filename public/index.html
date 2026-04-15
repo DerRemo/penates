@@ -3503,7 +3503,11 @@
       try {
         const ws = new WebSocket(url, [`bearer.${AUTH_TOKEN}`]);
         notifyWs = ws;
-        ws.addEventListener('open', () => { notifyBackoff = 500; });
+        ws.addEventListener('open', () => {
+          notifyBackoff = 500;
+          sendPresence();
+          startPresenceHeartbeat();
+        });
         ws.addEventListener('message', (ev) => {
           let msg;
           try { msg = JSON.parse(ev.data); } catch { return; }
@@ -3513,10 +3517,18 @@
           }
           if (msg.type !== 'session-attention') return;
           if (msg.activity) patchActivityBadge(msg.name, msg.activity);
+          // Suppression: Wenn der User gerade GENAU diese Session im Vordergrund
+          // hat und der Tab sichtbar ist, ist die In-App-Notification sinnlos —
+          // er sieht den Output ja schon live. Badge-Patch (oben) bleibt
+          // trotzdem ausgeführt, damit Activity-Label konsistent ist.
+          if (document.visibilityState === 'visible' && currentFocusedSession() === msg.name) {
+            return;
+          }
           onSessionAttention(msg.name);
         });
         ws.addEventListener('close', () => {
           notifyWs = null;
+          stopPresenceHeartbeat();
           if (notifyReconnectTimer) return;
           notifyReconnectTimer = setTimeout(() => {
             notifyReconnectTimer = null;
@@ -3527,6 +3539,57 @@
         ws.addEventListener('error', () => { /* close folgt */ });
       } catch (e) { console.warn('[notify] open failed:', e); }
     }
+
+    // ── Presence: Device-ID + sichtbare Session an Server melden ────────────
+    // Server filtert damit Push-Delivery: skippt Push-an-Gerät wenn dieses
+    // Gerät gerade genau diese Session im Vordergrund hat. Triggert bei
+    // WS-open, Visibility-Wechsel, Session-Navigation, 20s-Heartbeat.
+    let presenceHeartbeatTimer = null;
+
+    function currentFocusedSession() {
+      // Wenn der User gerade im Terminal-View einer Session ist, liefern wir
+      // den Namen. Sonst null (Dashboard, Projekte, andere Views).
+      if (typeof currentView !== 'undefined' && currentView === 'terminal' && currentSessionName) {
+        return currentSessionName;
+      }
+      return null;
+    }
+
+    function sendPresence() {
+      if (!notifyWs || notifyWs.readyState !== 1) return;
+      try {
+        notifyWs.send(JSON.stringify({
+          type: 'presence',
+          deviceId: getDeviceId(),
+          session: currentFocusedSession(),
+          visible: document.visibilityState === 'visible',
+        }));
+      } catch {}
+    }
+
+    function startPresenceHeartbeat() {
+      stopPresenceHeartbeat();
+      presenceHeartbeatTimer = setInterval(sendPresence, 20_000);
+    }
+    function stopPresenceHeartbeat() {
+      if (presenceHeartbeatTimer) clearInterval(presenceHeartbeatTimer);
+      presenceHeartbeatTimer = null;
+    }
+
+    document.addEventListener('visibilitychange', sendPresence);
+    window.addEventListener('pagehide', () => {
+      // Letzte Chance um "nicht sichtbar" zu melden. Best-effort.
+      if (notifyWs && notifyWs.readyState === 1) {
+        try {
+          notifyWs.send(JSON.stringify({
+            type: 'presence',
+            deviceId: getDeviceId(),
+            session: null,
+            visible: false,
+          }));
+        } catch {}
+      }
+    });
 
     // ── Sound-Alert via WebAudio ──────────────────────────────────
     // Default AN (per User-Entscheidung). Browser-Autoplay blockiert
@@ -3720,6 +3783,19 @@
       btn.title = on ? 'Push-Benachrichtigungen deaktivieren' : 'Push-Benachrichtigungen aktivieren (auch bei geschlossenem Tab)';
     }
 
+    // Persistente Device-ID pro Browser-Installation. Wird beim ersten Laden
+    // generiert, dann unverändert in localStorage gehalten. Server nutzt sie,
+    // um Push-Subscriptions einer Browser-Instanz zuzuordnen und Presence zu filtern.
+    const DEVICE_ID_KEY = 'cchub_device_id';
+    function getDeviceId() {
+      let id = localStorage.getItem(DEVICE_ID_KEY);
+      if (!id) {
+        id = (crypto?.randomUUID?.() ?? `dev-${Math.random().toString(36).slice(2)}-${Date.now()}`);
+        localStorage.setItem(DEVICE_ID_KEY, id);
+      }
+      return id;
+    }
+
     // Service Worker registrieren + VAPID-Key fetchen. Setzt den Button sichtbar.
     async function initPush() {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -3747,7 +3823,7 @@
         await fetch('/api/push/subscribe', {
           method: 'POST',
           headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subscription: existingSub.toJSON() }),
+          body: JSON.stringify({ subscription: existingSub.toJSON(), deviceId: getDeviceId() }),
         }).catch(() => {});
         localStorage.setItem(PUSH_KEY, '1');
       } else if (pushEnabled()) {
@@ -3782,7 +3858,7 @@
         const r = await fetch('/api/push/subscribe', {
           method: 'POST',
           headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subscription: sub.toJSON() }),
+          body: JSON.stringify({ subscription: sub.toJSON(), deviceId: getDeviceId() }),
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         localStorage.setItem(PUSH_KEY, '1');
@@ -5071,6 +5147,7 @@
     // ── Connect to terminal ──────────────────────────────────────
     async function connectToSession(name) {
       currentSessionName = name;
+      sendPresence();
       // Beim Öffnen den Unread-State klären — der User sieht jetzt
       // den Output direkt im Terminal.
       clearUnread(name);
@@ -5535,6 +5612,7 @@
         currentTerminal = null;
       }
       currentSessionName = null;
+      sendPresence();
       setCtrlSticky(false);
       touchScrollAbort?.abort();
       touchScrollAbort = null;
