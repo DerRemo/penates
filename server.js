@@ -772,7 +772,7 @@ app.ws('/api/projects/events', (ws, req) => {
 // Sendet native Push-Notifications an alle registrierten Subscriptions wenn
 // eine Session nach Stop/Notification unattached und nicht muted ist.
 // 410 Gone = Subscription abgelaufen → automatisch löschen.
-async function sendPushToAll(event) {
+async function sendPushForAttention(event) {
   const subs = pushSubs.allSubs();
   if (!subs.length) return;
   const displayName = (event.name || '').replace(/^cc-/, '');
@@ -793,6 +793,15 @@ async function sendPushToAll(event) {
     })();
     const ageH = sub.createdAt ? ((now - sub.createdAt) / 3_600_000).toFixed(1) : '?';
     const tag = `${host} dev=${sub.deviceId} age=${ageH}h`;
+
+    if (pushSubs.isBroken(sub)) {
+      console.log(`[push] skipped (broken): ${tag}`);
+      return;
+    }
+    if (isDeviceFocused(sub.deviceId, event.name)) {
+      console.log(`[push] skipped (device focused): ${tag} session=${event.name}`);
+      return;
+    }
 
     try {
       await webpush.sendNotification(sub, payload, opts);
@@ -871,7 +880,7 @@ attention.subscribe((event) => {
   }
   // Web-Push: nur bei echten Attention-Events (nicht bei activity-only Updates).
   if (event.type === 'session-attention') {
-    sendPushToAll(event).catch((e) => console.error('[push] broadcast error:', e));
+    sendPushForAttention(event).catch((e) => console.error('[push] broadcast error:', e));
   }
 });
 
@@ -948,7 +957,7 @@ app.post('/api/push/test', async (_req, res) => {
   if (!subs.length) {
     return res.json({ ok: true, sent: 0, note: 'no subscriptions' });
   }
-  await sendPushToAll({
+  await sendPushForAttention({
     type: 'session-attention',
     name: 'cc-test',
     activity: 'waiting',
