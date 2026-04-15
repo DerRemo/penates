@@ -5225,6 +5225,24 @@
       });
 
       term.open(container);
+
+      // iOS-Input-Hardening: xterm.js' Helper-Textarea ist ein unsichtbares
+      // <textarea>, das alle Tipp-Events einfängt. Ohne diese Attribute
+      // routet iOS Eingaben durch den Composition-Layer (autocorrect),
+      // verschluckt/verzögert Zeichen und zeigt die QuickType-Predictive-
+      // Bar über der Tastatur. Jedes Attribut killt eine dieser Plagen.
+      // Muss nach term.open() passieren, weil die Textarea vorher nicht
+      // existiert. Idempotent — läuft bei jedem connectTerminal().
+      {
+        const ta = container.querySelector('.xterm-helper-textarea');
+        if (ta) {
+          ta.setAttribute('autocorrect', 'off');
+          ta.setAttribute('autocapitalize', 'off');
+          ta.setAttribute('autocomplete', 'off');
+          ta.setAttribute('spellcheck', 'false');
+        }
+      }
+
       // Test-Hook für Playwright (tests/copy.spec.js). Single-User-App,
       // kein Security-Risiko — ein Angreifer mit JS-Kontext hat ohnehin
       // schon alles was er braucht.
