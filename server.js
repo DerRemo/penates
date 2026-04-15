@@ -267,6 +267,59 @@ function invalidatePreview(name) {
   }
 }
 
+// ── Helper: git-status pro Session-cwd mit TTL-Cache ─────────────────────────
+// Gleiches Cache-TTL wie pane-preview (2s) — jeder Dashboard-Poll löst
+// sonst einen execFile pro Session aus. Wenn der cwd kein git-Repo ist
+// oder git fehlt, liefern wir null und die Card zeigt keinen Widget.
+const gitStatusCache = new Map();
+const GIT_STATUS_TTL_MS = 2000;
+
+function getGitStatus(cwd) {
+  if (!cwd) return null;
+  const cached = gitStatusCache.get(cwd);
+  if (cached && Date.now() - cached.ts < GIT_STATUS_TTL_MS) return cached.value;
+  let value = null;
+  try {
+    const out = execFileSync('git', ['-C', cwd, 'status', '--porcelain=v2', '--branch', '-z'], {
+      encoding: 'utf-8',
+      timeout: 1500,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    value = parseGitStatus(out);
+  } catch {
+    value = null;
+  }
+  gitStatusCache.set(cwd, { value, ts: Date.now() });
+  return value;
+}
+
+function parseGitStatus(raw) {
+  // --porcelain=v2 -z liefert NUL-getrennte Records. Header-Zeilen (`# ...`)
+  // sind am Anfang, gefolgt von File-Change-Records.
+  // Wir brauchen: branch.head, branch.ab, sowie die reine Existenz einer
+  // non-header-Zeile als dirty-Flag.
+  const records = raw.split('\0');
+  let branch = null;
+  let ahead = null;
+  let behind = null;
+  let dirty = false;
+  for (const rec of records) {
+    if (!rec) continue;
+    if (rec.startsWith('# branch.head ')) {
+      branch = rec.slice('# branch.head '.length);
+    } else if (rec.startsWith('# branch.ab ')) {
+      // Format: `# branch.ab +<ahead> -<behind>`
+      const m = rec.match(/\+(\d+)\s+-(\d+)/);
+      if (m) { ahead = parseInt(m[1], 10); behind = parseInt(m[2], 10); }
+    } else if (!rec.startsWith('# ')) {
+      dirty = true;
+    }
+  }
+  if (!branch) return null;  // keine gültige git-Ausgabe
+  // `(detached)` wird von git genau so geliefert bei HEAD-losem Repo.
+  return { branch, dirty, ahead, behind };
+}
+
 // ── Usage-Limit-Parsing ──────────────────────────────────────────────────────
 // Extrahiert den 5h-Nutzungsanteil aus der Claude Code Status-Line.
 // Format in der letzten Terminalzeile: "5h ####- 77%"
@@ -383,6 +436,7 @@ app.get('/api/sessions', (req, res) => {
     }
     base.muted = knownSessions.isMuted(s.name);
     base.pinned = knownSessions.isPinned(s.name);
+    base.git = getGitStatus(s.path);
     return base;
   };
 

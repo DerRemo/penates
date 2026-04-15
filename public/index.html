@@ -1586,6 +1586,23 @@
       white-space: nowrap;
     }
 
+    .git-badge { gap: 4px; }
+    .git-badge .git-branch { font-family: var(--font-mono); font-size: 0.85em; }
+    .git-dirty-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--amber, #f59e0b);
+      margin-left: 2px;
+    }
+    .git-ab {
+      font-family: var(--font-mono);
+      font-size: 0.8em;
+      color: var(--text-muted, #9ca3af);
+      margin-left: 4px;
+    }
+
     .usage-5h-badge {
       font-weight: 600;
       font-variant-numeric: tabular-nums;
@@ -3416,6 +3433,21 @@
       const model = s.contextModel || '?';
       return `${tok} / ${lim} tokens · ${model}`;
     }
+    function renderGitBadge(git) {
+      if (!git) return '';
+      const { branch, dirty, ahead, behind } = git;
+      const dirtyDot = dirty ? '<span class="git-dirty-dot" title="Ungestagede Änderungen" aria-label="dirty"></span>' : '';
+      // ahead/behind nur zeigen wenn Upstream existiert UND Wert != 0
+      const abParts = [];
+      if (ahead !== null && ahead > 0) abParts.push(`↑${ahead}`);
+      if (behind !== null && behind > 0) abParts.push(`↓${behind}`);
+      const ab = abParts.length ? `<span class="git-ab">${abParts.join(' ')}</span>` : '';
+      return `
+        <div class="session-meta-item git-badge" title="Git-Status">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>
+          <span class="git-branch">${escapeHtml(branch)}</span>${dirtyDot}${ab}
+        </div>`;
+    }
     function formatTokensCompact(n) {
       if (!n) return '0';
       if (n < 1000) return String(n);
@@ -4955,6 +4987,7 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                 5h ${formatUsage5h(s.usagePct5h)}
               </div>` : ''}
+              ${renderGitBadge(s.git)}
             </div>
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-ghost btn-sm" data-action="connect">
@@ -4991,6 +5024,7 @@
               <div>$ ${escapeHtml(s.command || 'claude')}</div>
               <div>Zuletzt gesehen: ${escapeHtml(lastSeen)}</div>
             </div>
+            ${s.git ? `<div class="session-meta" style="padding-top: var(--space-2)">${renderGitBadge(s.git)}</div>` : ''}
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-primary btn-sm" data-action="restore">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
