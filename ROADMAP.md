@@ -22,13 +22,20 @@ Telegram — aus dem p0-Backlog nach oben gezogen.
 
 ## In Entwicklung: v0.5.0
 
-Remote-Zugriff-Härtung: der Hub hängt am öffentlichen Cloudflare-
-Tunnel und hat aktuell nur Bearer-Token-Auth. Drei Layer sollen drauf —
-aus dem p0-Backlog nach oben gezogen.
+Remote-Zugriff-Härtung plus Housekeeping-Quick-Wins. Haupt-Theme ist
+die öffentliche Tunnel-Seite des Hubs (Zero-Trust-Auth, Rate-Limiting,
+Audit-Log), nebenher ziehen fünf kleine, sofort nützliche Items aus
+dem Backlog mit rein — Bulk-Actions, Session-Pinning, browse-Allowlist,
+Auto-Reload nach Server-Restart, Git-Status pro Session-Card.
 
 - [ ] Remote-Zugriff: Cloudflare Access (Zero Trust) vor dem Tunnel {priority: p0, theme: security}
 - [ ] Remote-Zugriff: Rate-Limiting auf REST-Endpoints {priority: p0, theme: security}
 - [ ] Remote-Zugriff: Audit-Log wer hat wann welche Session attached {priority: p0, theme: security}
+- [ ] Bulk-Actions: alle idle- oder unattached-Sessions beenden {priority: p1, theme: sessions}
+- [ ] Session-Pinning für wichtige Sessions oben sortiert {priority: p1, theme: sessions}
+- [ ] /api/browse Allow-List via ENV statt nur HOME {priority: p2, theme: security}
+- [ ] Web-Client Auto-Reload nach Server-Restart {priority: p1, theme: observability}
+- [ ] Git-Status-Widget pro Session — Branch, Dirty, Ahead/Behind {priority: p1, theme: productivity}
 
 ## Backlog / Ideen
 
@@ -41,12 +48,9 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [x] Notifications: Badge-Count im Browser-Tab-Titel {priority: p0, theme: notifications}
 - [ ] Notifications: Telegram-DM wenn Claude auf Input wartet {priority: p0, theme: notifications}
 - [ ] Session-Templates / Favoriten mit vorausgefülltem cwd und Command {priority: p1, theme: sessions}
-- [ ] Bulk-Actions: alle idle- oder unattached-Sessions beenden {priority: p1, theme: sessions}
-- [ ] Session-Pinning für wichtige Sessions oben sortiert {priority: p1, theme: sessions}
 - [ ] Split-View mit zwei Terminals nebeneinander für große Screens {priority: p1, theme: sessions}
 - [ ] asciinema-Style Recording plus Replay als cast-Export {priority: p1, theme: sessions}
 - [ ] Read-only-Share-Link mit kurzlebigem Token für Live-Debugging {priority: p1, theme: sessions}
-- [ ] Git-Status-Widget pro Session — Branch, Dirty, Ahead/Behind {priority: p1, theme: productivity}
 - [ ] Filebrowser pro Projekt — Tree-View plus Preview lesen/löschen/kopieren/verschieben/umbenennen {priority: p0, theme: productivity}
 - [ ] Offene Frage Filebrowser — Scope (Projekt-cwd oder ganzes HOME), Preview-Formate und Größen-Limit, Löschen via Trash oder rm, Cross-Projekt-Copy, Live-Refresh via fs.watch {type: decision}
 - [ ] Datei-Upload per Drag und Drop ins Terminal {priority: p1, theme: productivity}
@@ -54,7 +58,6 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [x] /healthz-Endpoint für Cloudflare Tunnel-Monitoring {priority: p1, theme: observability}
 - [ ] Structured Logging via pino statt console.log {priority: p1, theme: observability}
 - [ ] Basic Metrics: aktive Sessions, Uptime, Reconnect-Count {priority: p1, theme: observability}
-- [ ] Web-Client Auto-Reload nach Server-Restart {priority: p1, theme: observability}
 - [ ] E2E-Tests als Dauer-Setup mit Playwright {priority: p2, theme: dev-x}
 - [ ] ESLint und Prettier auf server.js und inline-JS {priority: p2, theme: dev-x}
 - [ ] Docker-Image für Linux/NAS weg von Mac-only {priority: p2, theme: dev-x}
@@ -64,7 +67,6 @@ noch nicht shipped ist. Nach ursprünglicher Priorität und Thema gruppiert.
 - [x] Subresource-Integrity für xterm.js-CDN-Scripts {priority: p2, theme: security}
 - [ ] CSRF-Token auf mutierende Endpoints falls Cookie-Auth kommt {priority: p2, theme: security}
 - [ ] Token-Rotation per Schedule monatlich {priority: p2, theme: security}
-- [ ] /api/browse Allow-List via ENV statt nur HOME {priority: p2, theme: security}
 - [x] Offene Frage: welche CLIs neben claude reinsollen — gemini/codex/aider/cursor {type: decision}
 - [x] Offene Frage: Hub single-user oder multi-user {type: decision}
 - [x] Offene Frage: Notifications-Kanal — Telegram allein oder mit Web-Push/macOS {type: decision}
