@@ -5672,7 +5672,8 @@
     //      bleibt. Der ResizeObserver auf #terminal-container triggert dann
     //      automatisch fitAddon.fit() + ein resize-Frame ans Backend, sodass
     //      tmux die neue Pane-Höhe kennt.
-    //   2. `#touch-bar` wird per `bottom:<inset>px` über die Tastatur geschoben.
+    //   2. `#touch-bar` wird per `transform: translate3d(0,-<inset>px,0)`
+    //      über die Tastatur geschoben (GPU-compositor, kein Layout).
     // iOS feuert während der Keyboard-Animation ~5-10 visualViewport.resize-
     // Events mit Zwischen-Heights. Wir rAF-throttlen, damit sie sich pro
     // Frame bündeln. Position wird per translate3d (GPU-compositor) statt
