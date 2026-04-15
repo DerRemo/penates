@@ -1,3 +1,9 @@
+// dotenv MUSS als Side-Effect-Import ganz oben stehen. ES-Module-Hoisting
+// führt alle `import`-Statements aus bevor Top-Level-Statements laufen —
+// wenn wir dotenv.config() erst nach den Imports riefen, hätten Module
+// wie lib/cf-access.js, die Env-Variablen beim Load lesen, nur leere
+// Werte gesehen.
+import 'dotenv/config';
 import express from 'express';
 import expressWs from 'express-ws';
 import { spawn } from 'node-pty';
@@ -6,7 +12,6 @@ import { fileURLToPath } from 'url';
 import { dirname, join, resolve, sep } from 'path';
 import { readdirSync } from 'fs';
 import { homedir } from 'os';
-import dotenv from 'dotenv';
 import { getCurrentContext, getDailyUsage } from './lib/usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -18,8 +23,6 @@ import * as attention from './lib/attention.js';
 import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
