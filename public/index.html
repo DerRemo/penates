@@ -5678,7 +5678,23 @@
     // Events mit Zwischen-Heights. Wir rAF-throttlen, damit sie sich pro
     // Frame bündeln. Position wird per translate3d (GPU-compositor) statt
     // `bottom`-Layout gesetzt → smooth statt Jitter.
+    //
+    // Safe-area-Kompensation: Das CSS positioniert die Touch-Bar mit
+    // `bottom: env(safe-area-inset-bottom)` (Home-Indicator-Padding im
+    // Default-State). Wenn die Tastatur auftaucht, deckt sie diesen
+    // Bereich ohnehin ab — wir dürfen also nicht den vollen Inset nach
+    // oben shiften, sonst bleibt ein grauer Streifen zwischen Bar und
+    // Tastatur (= die safe-area-Höhe). Stattdessen ziehen wir die
+    // gemessene safe-area-bottom vom Inset ab.
     let kbRafPending = false;
+    let safeAreaBottomPx = 0;
+    function measureSafeAreaBottom() {
+      const probe = document.createElement('div');
+      probe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none';
+      document.body.appendChild(probe);
+      safeAreaBottomPx = probe.getBoundingClientRect().height;
+      probe.remove();
+    }
     function updateKeyboardInset() {
       if (kbRafPending) return;
       kbRafPending = true;
@@ -5689,7 +5705,9 @@
         const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
         document.documentElement.style.setProperty('--kb-inset', `${inset}px`);
         const bar = document.getElementById('touch-bar');
-        if (bar) bar.style.transform = inset > 0 ? `translate3d(0,-${inset}px,0)` : '';
+        if (!bar) return;
+        const translateY = inset > 0 ? Math.max(0, inset - safeAreaBottomPx) : 0;
+        bar.style.transform = translateY > 0 ? `translate3d(0,-${translateY}px,0)` : '';
       });
     }
 
@@ -6307,6 +6325,10 @@
 
     // VisualViewport-Listener: --kb-inset + Touch-Toolbar synchron halten.
     // `scroll` ist wichtig weil iOS bei Adress-Bar-Collapse die offsetTop ändert.
+    // Safe-area-bottom einmal jetzt messen + auf Rotation neu messen, damit
+    // updateKeyboardInset den Home-Indicator-Bereich korrekt kompensiert.
+    measureSafeAreaBottom();
+    window.addEventListener('orientationchange', measureSafeAreaBottom);
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', updateKeyboardInset);
       window.visualViewport.addEventListener('scroll', updateKeyboardInset);
