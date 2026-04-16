@@ -5,35 +5,25 @@ im Hub selbst. Struktur folgt dem `lib/roadmap.js`-Parser:
 H2-Sections Released / In Development / Backlog / Changelog,
 Top-Level-Checkboxen mit optionalem `{key: value}`-Meta-Suffix.
 
-## Released: v0.6.0
+## Released: v0.7.0
 
-Filebrowser-Theme: Tree-View pro Projekt mit Preview, CRUD-Operationen
-(lesen, löschen, kopieren, verschieben, umbenennen), Live-Refresh via
-fs.watch, und Datei-Upload per Drag und Drop — sowohl in den Tree-View
-(Drop auf Ordner) als auch in die Terminal-View (Drop irgendwo im
-Terminal landet im Projekt-cwd). Dazu E2E-Tests und Portability-Fixes.
+Usage Dashboard with extended statistics, live limit tracking and
+cost overview. StatusLine JSON as new data source replaces tmux
+capture-pane parsing. Full English UI translation.
 
-- [x] Filebrowser pro Projekt — Tree-View plus Preview lesen/löschen/kopieren/verschieben/umbenennen {priority: p0, theme: productivity}
-- [x] Offene Frage Filebrowser — Scope (Projekt-cwd oder ganzes HOME), Preview-Formate und Größen-Limit, Löschen via Trash oder rm, Cross-Projekt-Copy, Live-Refresh via fs.watch {type: decision}
-- [x] Datei-Upload per Drag und Drop — im Filebrowser-Tree und in der Terminal-View (Ziel: Projekt-cwd bzw Session-cwd) {priority: p1, theme: productivity}
-- [x] E2E-Tests als Dauer-Setup mit Playwright {priority: p2, theme: dev-x}
-- [x] Kompletter Playwright E2E-Test — 62 Tests x 5 Viewports, alle Buttons und Flows {priority: p2, theme: dev-x}
-- [x] tmux-Pfad Auto-Detection via which statt hardcoded /opt/homebrew/bin/tmux {priority: p2, theme: dev-x}
+- [x] Usage Dashboard: Summary cards (cost, sessions, cache rate, autonomous) {priority: p0, theme: observability}
+- [x] Usage Dashboard: Limit status with live countdown and sparklines {priority: p0, theme: observability}
+- [x] Usage Dashboard: Time-of-day heatmap (7x24) {priority: p1, theme: observability}
+- [x] Usage Dashboard: Top projects by token usage {priority: p1, theme: observability}
+- [x] Usage Dashboard: Tool usage top-10 and work style {priority: p1, theme: observability}
+- [x] Usage Dashboard: Productivity (lines added/removed, API time) {priority: p1, theme: observability}
+- [x] StatusLine hook: Limit and cost data from Claude Code status line JSON {priority: p0, theme: observability}
+- [x] Session cards: 5h + 7d limit with reset countdown replacing capture-pane parsing {priority: p0, theme: observability}
+- [x] English-only UI: Translate all German user-facing strings to English {priority: p1, theme: i18n}
+- [x] Roadmap section headers: Rename In Entwicklung/Backlog Ideen to In Development/Backlog Ideas {priority: p1, theme: i18n}
+- [x] Fix: Round usage percentages on session cards and usage dashboard {priority: p2, theme: observability}
 
-## In Development: v0.7.0
-
-Usage-Dashboard-Theme: Erweiterte Statistiken, Live-Limit-Tracking und
-Kosten-Übersicht. StatusLine-JSON als neue Datenquelle ersetzt das
-tmux-capture-pane-Parsing.
-
-- [x] Usage-Dashboard: Summary-Cards (Kosten, Sessions, Cache-Rate, Autonom) {priority: p0, theme: observability}
-- [x] Usage-Dashboard: Limit-Status mit Live-Countdown und Sparklines {priority: p0, theme: observability}
-- [x] Usage-Dashboard: Tageszeit-Heatmap (7x24) {priority: p1, theme: observability}
-- [x] Usage-Dashboard: Top-Projekte nach Token-Verbrauch {priority: p1, theme: observability}
-- [x] Usage-Dashboard: Tool-Nutzung Top-10 und Arbeitsweise {priority: p1, theme: observability}
-- [x] Usage-Dashboard: Produktivität (Lines Added/Removed, API-Zeit) {priority: p1, theme: observability}
-- [x] StatusLine-Hook: Limit- und Kostendaten aus Claude Code Status-Line-JSON {priority: p0, theme: observability}
-- [x] Session-Cards: 5h + 7d Limit mit Reset-Countdown statt capture-pane-Parsing {priority: p0, theme: observability}
+## In Development: v0.8.0
 
 ## Archiv: v0.3.0
 
@@ -111,6 +101,13 @@ Spec: docs/superpowers/specs/2026-04-16-ios-app-design.md
 - [ ] iOS App: Settings, Onboarding, Server-Konfiguration {priority: p1, theme: ios, paket: f}
 
 ## Changelog
+
+### v0.7.0 — 2026-04-16
+
+**Usage Dashboard (lib/usage.js + lib/usage-limits.js + frontend).** Full usage analytics dashboard with six data views: Summary cards (monthly cost, sessions, cache rate, autonomous tool chains), limit status with live countdown bars and reset timers, time-of-day activity heatmap (7x24 grid), top projects by token usage, tool usage top-10 with work style breakdown (autonomous chains vs direct answers), and productivity metrics (lines added/removed, API duration). Two data pipelines feed the dashboard: StatusLine JSON from Claude Code hooks delivers live limit percentages with reset countdowns, session costs, and context metrics via POST /api/hooks/statusline; JSONL analysis reads ~/.claude/projects/ session logs for historical aggregation. Session cards show 5h + 7d usage limits with color-coded badges and reset countdown tooltips, replacing the old tmux capture-pane parsing.
+
+**English-only UI.** Complete translation of all German user-facing strings to English across the entire frontend — buttons, labels, tooltips, aria-labels, toast notifications, modal dialogs, form placeholders, status badges, keyboard shortcut overlay, usage dashboard labels, project detail view, and file browser. Roadmap section headers renamed from In Entwicklung/Backlog Ideen to In Development/Backlog Ideas, with parser regex, writer output, project template, and all 54 tests updated. Usage percentages on session cards and dashboard rounded to whole numbers.
+
 
 ### v0.6.0 — 2026-04-15
 
