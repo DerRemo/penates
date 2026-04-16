@@ -6801,13 +6801,13 @@
         return node;
       }
 
-      async function init() {
+      async function init(skipSelect) {
         const root = rootEl();
         if (!root) return;
         root.innerHTML = '<div class="tree-empty">Loading…</div>';
         try {
           const data = await fetchBrowse('~');
-          setSelected(data.path);
+          if (!skipSelect) setSelected(data.path);
           root.innerHTML = '';
           if (data.entries.length === 0) {
             root.innerHTML = '<div class="tree-empty">(empty)</div>';
@@ -6874,11 +6874,11 @@
       document.getElementById('new-session-cmd').value = 'claude';
       document.getElementById('new-session-cmd').selectedIndex = 0;
       document.getElementById('tree-selected').textContent = prefillPath || '~';
-      initTreePicker();
       // Prefill zählt als Selection, sodass „Starten" ohne Tree-Klick
-      // direkt im gewünschten Ordner landet. Wird vom Tree-Picker-Init
-      // überschrieben, falls der User noch einen anderen Ordner wählt.
+      // direkt im gewünschten Ordner landet. skipSelect verhindert dass
+      // init() den prefill nach dem async fetchBrowse überschreibt.
       if (prefillPath) sessionTreePicker.setSelected(prefillPath);
+      sessionTreePicker.init(!!prefillPath);
       setTimeout(() => document.getElementById('new-session-name').focus(), 200);
     }
 
