@@ -1,0 +1,26 @@
+{
+  "name": "claude-code-hub",
+  "version": "1.0.0",
+  "description": "Web interface to manage Claude Code sessions on a remote Mac mini",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:screenshots": "playwright test --update-snapshots"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-ws": "^5.0.2",
+    "jose": "^6.2.2",
+    "node-pty": "^1.0.0",
+    "web-push": "^3.6.7"
+  }
+}

@@ -1,0 +1,36 @@
+# Secrets
+.env
+
+# Dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# macOS
+.DS_Store
+
+# Playwright
+tests/.auth-state.json
+tests/layout.spec.js-snapshots/
+test-results/
+playwright-report/
+
+# E2E test leftovers
+e2e-delete-*/
+e2e-rename-*/
+
+# Debug artefacts
+tmp-debug/
+
+# Internal dev plans/specs (local only)
+docs/
+
+# Superpowers brainstorming artefacts
+.superpowers/
+
+# Git worktrees
+.worktrees/
+ROADMAP.md
+claude-code-hub-preview.html
