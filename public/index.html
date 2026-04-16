@@ -3911,8 +3911,8 @@
       if (!limits || limits.pct5h == null) return '';
       const c5 = limitColorClass(limits.pct5h);
       const c7 = limitColorClass(limits.pct7d ?? 0);
-      let html = `5h <span class="usage-limit-badge ${c5}">${limits.pct5h}%</span>`;
-      if (limits.pct7d != null) html += ` · 7d <span class="usage-limit-badge ${c7}">${limits.pct7d}%</span>`;
+      let html = `5h <span class="usage-limit-badge ${c5}">${Math.round(limits.pct5h)}%</span>`;
+      if (limits.pct7d != null) html += ` · 7d <span class="usage-limit-badge ${c7}">${Math.round(limits.pct7d)}%</span>`;
       return html;
     }
     function formatLimitsTooltip(limits) {
@@ -3920,7 +3920,7 @@
       const parts = [];
       if (limits.resets5h) parts.push('5h Reset ' + formatResetCountdown(limits.resets5h));
       if (limits.resets7d) parts.push('7d Reset ' + formatResetCountdown(limits.resets7d));
-      return parts.join(' · ') || 'Nutzungslimits';
+      return parts.join(' · ') || 'Usage limits';
     }
     function formatContextTooltip(s) {
       if (s.contextTokens == null) return 'No Claude Code data in cwd yet';
@@ -5123,16 +5123,16 @@
               <div class="usage-limit-row">
                 <span class="usage-limit-label">5h</span>
                 <div class="usage-limit-bar"><div class="usage-limit-fill ${c5}" style="width:${Math.min(cur.pct5h ?? 0, 100)}%"></div></div>
-                <span class="usage-limit-pct ${c5}">${cur.pct5h ?? 0}%</span>
+                <span class="usage-limit-pct ${c5}">${Math.round(cur.pct5h ?? 0)}%</span>
                 <span class="usage-limit-reset ${c5}${urgent5}" data-reset-ts="${cur.resets5h || ''}">Reset ${formatResetCountdown(cur.resets5h)}</span>
               </div>
               <div class="usage-limit-row">
                 <span class="usage-limit-label">7d</span>
                 <div class="usage-limit-bar"><div class="usage-limit-fill ${c7}" style="width:${Math.min(cur.pct7d ?? 0, 100)}%"></div></div>
-                <span class="usage-limit-pct ${c7}">${cur.pct7d ?? 0}%</span>
+                <span class="usage-limit-pct ${c7}">${Math.round(cur.pct7d ?? 0)}%</span>
                 <span class="usage-limit-reset ${c7}${urgent7}" data-reset-ts="${cur.resets7d || ''}">Reset ${formatResetCountdown(cur.resets7d)}</span>
               </div>
-              ${(lim.peaks5h || lim.peaks7d) ? `<div class="usage-limit-peaks">Letzte 7 Tage: ${lim.peaks5h ?? 0}x &gt;90% (5h) · ${lim.peaks7d ?? 0}x &gt;90% (7d)</div>` : ''}
+              ${(lim.peaks5h || lim.peaks7d) ? `<div class="usage-limit-peaks">Last 7 days: ${lim.peaks5h ?? 0}x &gt;90% (5h) · ${lim.peaks7d ?? 0}x &gt;90% (7d)</div>` : ''}
             </div>`;
         } else {
           limitHtml = `<div class="usage-limit-card"><div class="ulc-title">Limit Status</div><div style="color:var(--text-muted);font-size:13px">No limit data available</div></div>`;
