@@ -3934,14 +3934,14 @@
     function renderGitBadge(git) {
       if (!git) return '';
       const { branch, dirty, ahead, behind } = git;
-      const dirtyDot = dirty ? '<span class="git-dirty-dot" title="Ungestagede Änderungen" aria-label="dirty"></span>' : '';
+      const dirtyDot = dirty ? '<span class="git-dirty-dot" title="Unstaged changes" aria-label="dirty"></span>' : '';
       // ahead/behind nur zeigen wenn Upstream existiert UND Wert != 0
       const abParts = [];
       if (ahead !== null && ahead > 0) abParts.push(`↑${ahead}`);
       if (behind !== null && behind > 0) abParts.push(`↓${behind}`);
       const ab = abParts.length ? `<span class="git-ab">${abParts.join(' ')}</span>` : '';
       return `
-        <div class="session-meta-item git-badge" title="Git-Status">
+        <div class="session-meta-item git-badge" title="Git status">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>
           <span class="git-branch">${escapeHtml(branch)}</span>${dirtyDot}${ab}
         </div>`;
@@ -4250,10 +4250,10 @@
     // mitliefert. Spiegelt `activityMap` aus dem Card-Renderer — bei
     // Label-Änderungen dort unbedingt auch hier synchron halten.
     const ACTIVITY_BADGE = {
-      working: { cls: 'working', label: 'Arbeitet',      title: 'Claude arbeitet gerade (ESC im Terminal zum Abbrechen)' },
-      waiting: { cls: 'waiting', label: 'Braucht Input', title: 'Claude wartet auf deinen Input' },
-      idle:    { cls: 'ready',   label: 'Bereit',        title: 'Claude ist bereit für den nächsten Auftrag' },
-      unknown: { cls: 'unknown', label: 'Aktiv',         title: 'Session läuft, Zustand nicht erkennbar' },
+      working: { cls: 'working', label: 'Working',      title: 'Claude is currently working (ESC in terminal to cancel)' },
+      waiting: { cls: 'waiting', label: 'Needs Input', title: 'Claude is waiting for your input' },
+      idle:    { cls: 'ready',   label: 'Ready',        title: 'Claude is ready for the next task' },
+      unknown: { cls: 'unknown', label: 'Active',         title: 'Session running, state unknown' },
     };
     function patchActivityBadge(name, activity) {
       const card = document.querySelector(`.session-card[data-name="${CSS.escape(name)}"]`);
@@ -4280,7 +4280,7 @@
       const list = document.getElementById('sidebar-sessions');
       if (!list) return;
       if (!Array.isArray(sessions) || sessions.length === 0) {
-        list.innerHTML = '<div class="sidebar__empty">Keine aktiven Sessions</div>';
+        list.innerHTML = '<div class="sidebar__empty">No active sessions</div>';
       } else {
         // Reihenfolge: attached zuerst (optisch markiert über active-class),
         // danach nach created desc. Namen als data-session für patchActivityBadge.
@@ -5503,8 +5503,8 @@
         } else {
           empty.innerHTML = `
             <div class="empty-state-icon">&gt;_</div>
-            <h3>Keine aktiven Sessions</h3>
-            <p>Starte eine neue Claude Code Session um loszulegen.</p>
+            <h3>No active sessions</h3>
+            <p>Start a new Claude Code session to get started.</p>
             <button class="btn btn-primary" data-action="new-session">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
               Neue Session
@@ -5536,14 +5536,14 @@
       }
 
       const activityMap = {
-        working: { cls: 'working', label: 'Arbeitet',       title: 'Claude arbeitet gerade (ESC im Terminal zum Abbrechen)' },
-        waiting: { cls: 'waiting', label: 'Braucht Input',  title: 'Claude wartet auf deinen Input' },
-        idle:    { cls: 'ready',   label: 'Bereit',         title: 'Claude ist bereit für den nächsten Auftrag' },
-        unknown: { cls: 'unknown', label: 'Aktiv',          title: 'Session läuft, Zustand nicht erkennbar' },
+        working: { cls: 'working', label: 'Working',       title: 'Claude is currently working (ESC in terminal to cancel)' },
+        waiting: { cls: 'waiting', label: 'Needs Input',  title: 'Claude is waiting for your input' },
+        idle:    { cls: 'ready',   label: 'Ready',         title: 'Claude is ready for the next task' },
+        unknown: { cls: 'unknown', label: 'Active',          title: 'Session running, state unknown' },
       };
 
       const renderMuteButton = (muted) => `
-        <button class="session-mute-btn" type="button" data-action="mute" data-muted="${muted ? 'true' : 'false'}" data-stop-propagation aria-label="${muted ? 'Benachrichtigungen aktivieren' : 'Stummschalten'}" title="${muted ? 'Stummgeschaltet — klicken um zu aktivieren' : 'Notifications an — klicken zum Stummschalten'}">
+        <button class="session-mute-btn" type="button" data-action="mute" data-muted="${muted ? 'true' : 'false'}" data-stop-propagation aria-label="${muted ? 'Enable notifications' : 'Mute'}" title="${muted ? 'Muted — click to enable' : 'Notifications on — click to mute'}">
           ${muted
             ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
             : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
@@ -5554,7 +5554,7 @@
       // nicht gerendert — sie haben keinen known-sessions-Eintrag und können
       // daher nicht persistiert werden (setPinned gibt 404).
       const renderPinButton = (pinned) => `
-        <button class="session-pin-btn" type="button" data-action="pin" data-pinned="${pinned ? 'true' : 'false'}" data-stop-propagation aria-label="${pinned ? 'Angepinnt — klicken zum Loslösen' : 'Anpinnen'}" title="${pinned ? 'Angepinnt — klicken zum Loslösen' : 'Anpinnen — Session ans Listenende ziehen'}">
+        <button class="session-pin-btn" type="button" data-action="pin" data-pinned="${pinned ? 'true' : 'false'}" data-stop-propagation aria-label="${pinned ? 'Pinned — click to unpin' : 'Pin'}" title="${pinned ? 'Pinned — click to unpin' : 'Pin — drag session to end of list'}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </button>`;
 
@@ -5563,7 +5563,7 @@
         const age = formatAge(s.created);
         const safeName = escapeHtml(s.name);
         const act = activityMap[s.activity] || activityMap.unknown;
-        const label = s.activity === 'unknown' && !s.attached ? 'Leerlauf' : act.label;
+        const label = s.activity === 'unknown' && !s.attached ? 'Dormant' : act.label;
         const unreadCls = unreadSessions.has(s.name) ? ' unread' : '';
         return `
           <div class="session-card${unreadCls}" data-status="running" data-name="${safeName}" data-attached="${s.attached}">
@@ -5624,7 +5624,7 @@
                 <span class="icon">&gt;_</span>
                 ${escapeHtml(displayName)}
               </div>
-              <div class="session-status" title="Session ist nicht in tmux aktiv, kann wiederhergestellt werden">Ruhend</div>
+              <div class="session-status" title="Session is not active in tmux, can be restored">Dormant</div>
             </div>
             <div class="dormant-stub">
               <div class="path">${escapeHtml(s.path || '')}</div>
@@ -5695,8 +5695,8 @@
       // Flash.
       const newOrder = [];
       const sectionSpecs = [
-        ['Aktiv', byStatus.running, renderRunningCard],
-        ['Ruhend', byStatus.dormant, renderDormantCard],
+        ['Active', byStatus.running, renderRunningCard],
+        ['Dormant', byStatus.dormant, renderDormantCard],
         ['Fremd', byStatus.foreign, renderForeignCard],
       ];
       for (const [label, items, renderer] of sectionSpecs) {
