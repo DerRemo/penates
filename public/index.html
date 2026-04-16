@@ -3359,7 +3359,7 @@
         <!-- renderUsage() injected -->
       </div>
       <div class="projects-view" id="projects-view" data-tab-panel="projects" hidden>
-        <div class="cmd-output-block" role="region" aria-label="Projekte — Phase 0 Empty State">
+        <div class="cmd-output-block" role="region" aria-label="Projects — Phase 0 Empty State">
           <div class="cmd-line cmd-line--prompt">
             <span class="cmd-prompt">$</span>
             <span class="cmd-command">hub projects list</span>
@@ -3923,7 +3923,7 @@
       return parts.join(' · ') || 'Nutzungslimits';
     }
     function formatContextTooltip(s) {
-      if (s.contextTokens == null) return 'Noch keine Claude-Code-Daten im cwd';
+      if (s.contextTokens == null) return 'No Claude Code data in cwd yet';
       const tok = formatContextTokens(s.contextTokens).replace(' ctx', '');
       const lim = s.contextLimit >= 1_000_000
         ? `${(s.contextLimit / 1_000_000).toFixed(0)}M`
@@ -3955,7 +3955,7 @@
 
     // ── Projects-View ──────────────────────────────────────────────
     const PROJECTS_EMPTY_HTML = `
-      <div class="cmd-output-block" role="region" aria-label="Projekte — leer">
+      <div class="cmd-output-block" role="region" aria-label="Projects — empty">
         <div class="cmd-line cmd-line--prompt">
           <span class="cmd-prompt">$</span>
           <span class="cmd-command">hub projects list</span>
@@ -4034,7 +4034,7 @@
         if (res.status === 401) {
           clearToken();
           showLoginModal();
-          view.innerHTML = '<div class="usage-empty">Auth abgelaufen.</div>';
+          view.innerHTML = '<div class="usage-empty">Auth expired.</div>';
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -4205,7 +4205,7 @@
       const btn = document.getElementById('sound-toggle');
       if (!btn) return;
       btn.setAttribute('data-sound', soundEnabled() ? 'on' : 'off');
-      btn.title = soundEnabled() ? 'Sound-Alerts AUS schalten' : 'Sound-Alerts AN schalten';
+      btn.title = soundEnabled() ? 'Turn sound alerts OFF' : 'Turn sound alerts ON';
     }
     let audioCtx = null;
     function ensureAudioCtx() {
@@ -4746,7 +4746,7 @@
         if (res.status === 401) {
           clearToken();
           showLoginModal();
-          body.innerHTML = '<div class="usage-empty">Auth abgelaufen.</div>';
+          body.innerHTML = '<div class="usage-empty">Auth expired.</div>';
           return;
         }
         if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
@@ -5018,8 +5018,8 @@
           const wrap = document.createElement('div');
           wrap.className = 'roadmap-inline-input';
           wrap.innerHTML = `
-            <input type="text" placeholder="Neues Item…" maxlength="500" spellcheck="false">
-            <span class="inline-hint">Enter = speichern · Esc = abbrechen</span>
+            <input type="text" placeholder="New item…" maxlength="500" spellcheck="false">
+            <span class="inline-hint">Enter = save · Esc = cancel</span>
           `;
           btn.parentNode.insertBefore(wrap, btn);
           const input = wrap.querySelector('input');
@@ -5088,7 +5088,7 @@
         ]);
         if (histRes.status === 401) {
           clearToken(); showLoginModal();
-          view.innerHTML = '<div class="usage-empty">Auth abgelaufen.</div>';
+          view.innerHTML = '<div class="usage-empty">Auth expired.</div>';
           return;
         }
         if (!histRes.ok) throw new Error(`HTTP ${histRes.status}`);
@@ -5097,7 +5097,7 @@
         const costs = costRes && costRes.ok ? await costRes.json() : null;
 
         if (!hist.monthTotal && hist.days.every(d => !d.input && !d.output) && !costs) {
-          view.innerHTML = '<div class="usage-empty">Noch keine Daten vorhanden — Claude Code war diesen Monat noch nicht aktiv.</div>';
+          view.innerHTML = '<div class="usage-empty">No data available — Claude Code was not active this month.</div>';
           return;
         }
 
@@ -6329,9 +6329,9 @@
 
       ws.onopen = () => {
         reconnectAttempts = 0;
-        setConnStatus('connected', 'Verbunden');
+        setConnStatus('connected', 'Connected');
         ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-        if (!isReconnect) showToast(`Verbunden mit ${displayName}`, 'success');
+        if (!isReconnect) showToast(`Connected to ${displayName}`, 'success');
       };
 
       ws.onmessage = (event) => {
@@ -6347,7 +6347,7 @@
       ws.onclose = (ev) => {
         // 4001 = Auth failed, 4004 = Session gone → beide NICHT reconnecten
         if (ev.code === 4001) {
-          setConnStatus('disconnected', 'Auth fehlt');
+          setConnStatus('disconnected', 'Auth missing');
           showToast('Auth failed — invalid token', 'error');
           return;
         }
@@ -6641,7 +6641,7 @@
       if (candidates.length > 10) {
         const li = document.createElement('li');
         li.style.opacity = '0.6';
-        li.textContent = `und ${candidates.length - 10} weitere…`;
+        li.textContent = `and ${candidates.length - 10} more…`;
         ul.appendChild(li);
       }
       body.appendChild(ul);
@@ -6787,7 +6787,7 @@
             const data = await fetchBrowse(entry.path);
             children.innerHTML = '';
             if (data.entries.length === 0) {
-              children.innerHTML = '<div class="tree-empty">(keine Unterordner)</div>';
+              children.innerHTML = '<div class="tree-empty">(no subdirectories)</div>';
               row.querySelector('.tree-arrow').classList.add('empty');
             } else {
               data.entries.forEach(ch => children.appendChild(createNode(ch)));
@@ -6815,7 +6815,7 @@
           }
           data.entries.forEach(entry => root.appendChild(createNode(entry)));
         } catch (err) {
-          root.innerHTML = `<div class="tree-error">Fehler: ${escapeHtml(err.message)}</div>`;
+          root.innerHTML = `<div class="tree-error">Error: ${escapeHtml(err.message)}</div>`;
         }
       }
 
@@ -7421,7 +7421,7 @@
           if (entries.length === 0) {
             const empty = document.createElement('div');
             empty.style.cssText = 'padding:4px 8px;color:var(--text-muted,#666);font-size:11px;font-style:italic;';
-            empty.textContent = 'Leer';
+            empty.textContent = 'Empty';
             wrap.appendChild(empty);
           } else {
             for (const entry of entries) wrap.appendChild(renderRow(entry, relPath));
@@ -8012,7 +8012,7 @@
           body: { op, from: relPath, to },
         });
         if (!res.ok) {
-          notify(`${label.toLowerCase()} fehlgeschlagen`, 'error');
+          notify(`${label.toLowerCase()} failed`, 'error');
           return;
         }
         const refreshBtn = document.getElementById('files-refresh');
@@ -8138,7 +8138,7 @@
           xhr.addEventListener('load', () => {
             if (xhr.status >= 200 && xhr.status < 300) {
               toast.querySelector('.bar-fill').style.width = '100%';
-              toast.querySelector('.status').textContent = 'fertig';
+              toast.querySelector('.status').textContent = 'done';
               setTimeout(() => toast.remove(), 2000);
             } else if (xhr.status === 409) {
               toast.classList.add('error');
@@ -8156,7 +8156,7 @@
           });
           xhr.addEventListener('error', () => {
             toast.classList.add('error');
-            toast.querySelector('.status').textContent = 'Netzwerkfehler';
+            toast.querySelector('.status').textContent = 'Network error';
             setTimeout(() => toast.remove(), 5000);
             resolve();
           });
@@ -8188,7 +8188,7 @@
           xhr.addEventListener('load', () => {
             if (xhr.status >= 200 && xhr.status < 300) {
               toast.classList.remove('error');
-              toast.querySelector('.status').textContent = 'fertig';
+              toast.querySelector('.status').textContent = 'done';
               setTimeout(() => toast.remove(), 2000);
             } else {
               toast.querySelector('.status').textContent = `Error ${xhr.status}`;
