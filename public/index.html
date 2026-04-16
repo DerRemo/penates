@@ -3518,7 +3518,7 @@
           <input class="form-input" id="login-token" name="password" type="password" autocomplete="current-password" required spellcheck="false" autocapitalize="off">
         </div>
         <div class="modal-actions">
-          <button class="btn btn-primary" type="submit">Anmelden</button>
+          <button class="btn btn-primary" type="submit">Login</button>
         </div>
       </form>
     </div>
@@ -4377,7 +4377,7 @@
       }
       const on = overrideState !== undefined ? overrideState : pushEnabled();
       btn.setAttribute('data-push', on ? 'on' : 'off');
-      btn.title = on ? 'Push-Benachrichtigungen deaktivieren' : 'Push-Benachrichtigungen aktivieren (auch bei geschlossenem Tab)';
+      btn.title = on ? 'Disable push notifications' : 'Enable push notifications (works with tab closed)';
     }
 
     // Persistente Device-ID pro Browser-Installation. Wird beim ersten Laden
@@ -4789,7 +4789,7 @@
 
         const renderItem = (it, sectionKey) => `
           <li class="roadmap-item${it.done ? ' done' : ''}" data-section="${sectionKey}" data-line="${it.line}">
-            <button class="roadmap-checkbox" type="button" aria-label="${it.done ? 'Als offen markieren' : 'Als erledigt markieren'}">${it.done ? '[x]' : '[ ]'}</button>
+            <button class="roadmap-checkbox" type="button" aria-label="${it.done ? 'Mark as open' : 'Mark as done'}">${it.done ? '[x]' : '[ ]'}</button>
             <span class="roadmap-text">${escapeHtml(it.text)}</span>
             ${renderMetaPills(it.meta)}
             <button class="roadmap-item-delete" type="button" aria-label="Delete item" title="Delete">×</button>
@@ -4858,7 +4858,7 @@
           ${sessionsPanelHtml}
           ${section('Released',       p.released?.version, p.released?.items || [], 'released')}
           ${section('In Entwicklung', p.dev?.version,      p.dev?.items      || [], 'dev')}
-          ${section('Backlog / Ideen', null,               p.backlog         || [], 'backlog')}
+          ${section('Backlog / Ideas', null,               p.backlog         || [], 'backlog')}
           ${p.changelog
             ? `<section class="roadmap-section"><h3>Changelog</h3><pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre></section>`
             : ''}`;
