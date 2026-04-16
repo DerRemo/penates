@@ -3527,13 +3527,13 @@
   <div class="modal-overlay" id="release-modal" role="dialog" aria-modal="true" aria-labelledby="release-modal-title">
     <div class="modal">
       <h2 id="release-modal-title">Finalize version</h2>
-      <p>All items from <strong>In Entwicklung</strong> will be moved to <strong>Released</strong>, both version headers bumped, and a new changelog entry inserted at the top. This is a destructive action — make a git commit of ROADMAP.md first if you version it.</p>
+      <p>All items from <strong>In Development</strong> will be moved to <strong>Released</strong>, both version headers bumped, and a new changelog entry inserted at the top. This is a destructive action — make a git commit of ROADMAP.md first if you version it.</p>
       <div class="form-group">
         <label class="form-label" for="release-version-input">Release Version (sets <code>## Released: vX</code>)</label>
         <input class="form-input" id="release-version-input" autocomplete="off" spellcheck="false" placeholder="e.g. 0.3.0">
       </div>
       <div class="form-group">
-        <label class="form-label" for="release-new-dev-input">New Dev Version (sets <code>## In Entwicklung: vY</code>)</label>
+        <label class="form-label" for="release-new-dev-input">New Dev Version (sets <code>## In Development: vY</code>)</label>
         <input class="form-input" id="release-new-dev-input" autocomplete="off" spellcheck="false" placeholder="e.g. 0.4.0">
       </div>
       <div class="form-group">
@@ -4857,7 +4857,7 @@
           <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
           ${sessionsPanelHtml}
           ${section('Released',       p.released?.version, p.released?.items || [], 'released')}
-          ${section('In Entwicklung', p.dev?.version,      p.dev?.items      || [], 'dev')}
+          ${section('In Development', p.dev?.version,      p.dev?.items      || [], 'dev')}
           ${section('Backlog / Ideas', null,               p.backlog         || [], 'backlog')}
           ${p.changelog
             ? `<section class="roadmap-section"><h3>Changelog</h3><pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre></section>`

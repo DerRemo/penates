@@ -687,7 +687,7 @@ app.post('/api/projects/:id/release', async (req, res) => {
       return res.status(400).json({ error: 'ROADMAP.md structure incomplete', detail: e.detail || e.message });
     }
     if (code === 'section-order') {
-      return res.status(400).json({ error: 'Unsupported section order', detail: 'Need Released → In Entwicklung → Changelog' });
+      return res.status(400).json({ error: 'Unsupported section order', detail: 'Need Released → In Development → Changelog' });
     }
     console.error('[projects] release failed:', e);
     res.status(500).json({ error: 'Failed to finalize release', detail: e.message });

@@ -2,7 +2,7 @@
 
 Stand: 2026-04-13. Lebendes Dokument, gepflegt über die Projekt-Verwaltung
 im Hub selbst. Struktur folgt dem `lib/roadmap.js`-Parser:
-H2-Sections Released / In Entwicklung / Backlog / Changelog,
+H2-Sections Released / In Development / Backlog / Changelog,
 Top-Level-Checkboxen mit optionalem `{key: value}`-Meta-Suffix.
 
 ## Released: v0.6.0
@@ -20,7 +20,7 @@ Terminal landet im Projekt-cwd). Dazu E2E-Tests und Portability-Fixes.
 - [x] Kompletter Playwright E2E-Test — 62 Tests x 5 Viewports, alle Buttons und Flows {priority: p2, theme: dev-x}
 - [x] tmux-Pfad Auto-Detection via which statt hardcoded /opt/homebrew/bin/tmux {priority: p2, theme: dev-x}
 
-## In Entwicklung: v0.7.0
+## In Development: v0.7.0
 
 Usage-Dashboard-Theme: Erweiterte Statistiken, Live-Limit-Tracking und
 Kosten-Übersicht. StatusLine-JSON als neue Datenquelle ersetzt das
@@ -52,7 +52,7 @@ die Items sind hier reine Markdown-Dokumentation.
 - [x] Offene Frage: Hub single-user oder multi-user
 - [x] Offene Frage: Token-Auth — Bearer bleiben oder Passkey/WebAuthn
 
-## Backlog / Ideen
+## Backlog / Ideas
 
 Pakete bündeln thematisch zusammengehörige Items. Jedes Paket kann als
 geschlossenes Release (vX.Y.0) oder als Teil eines Mixed-Release umgesetzt werden.
@@ -95,10 +95,20 @@ Logging, Metrics und Auth-Härtung.
 - [ ] CSRF-Token auf mutierende Endpoints falls Cookie-Auth kommt {priority: p2, theme: security, paket: e}
 - [ ] Token-Rotation per Schedule monatlich {priority: p2, theme: security, paket: e}
 
-### Ungruppiert
+### Paket F: Native iOS App
+SwiftUI-Client mit Feature-Parity zum Web-Frontend. Terminal via SwiftTerm,
+APNs statt Web Push, gleicher Node.js-Server als Backend.
+Spec: docs/superpowers/specs/2026-04-16-ios-app-design.md
 
-- [ ] Notifications: Telegram-DM wenn Claude auf Input wartet {priority: p0, theme: notifications}
-- [ ] iOS App
+- [ ] iOS App: Projekt-Setup, SwiftUI-Architektur, MVVM-Grundgerüst {priority: p0, theme: ios, paket: f}
+- [ ] iOS App: Netzwerk-Layer mit APIClient, WebSocket-Channels, Keychain-Auth {priority: p0, theme: ios, paket: f}
+- [ ] iOS App: Terminal-View mit SwiftTerm und nativer Accessory-Bar {priority: p0, theme: ios, paket: f}
+- [ ] iOS App: Dashboard mit Session-Cards, Polling, Suche, Bulk-Actions {priority: p0, theme: ios, paket: f}
+- [ ] iOS App: Filebrowser mit Tree, Quick Look Preview, Upload {priority: p1, theme: ios, paket: f}
+- [ ] iOS App: Projekt-Verwaltung mit Roadmap-Detail und Live-Sync {priority: p1, theme: ios, paket: f}
+- [ ] iOS App: Usage-Dashboard mit Swift Charts {priority: p1, theme: ios, paket: f}
+- [ ] iOS App: APNs Push-Notifications mit Backend-Erweiterung {priority: p0, theme: ios, paket: f}
+- [ ] iOS App: Settings, Onboarding, Server-Konfiguration {priority: p1, theme: ios, paket: f}
 
 ## Changelog
 
