@@ -1444,6 +1444,12 @@ app.ws('/api/terminal/:name', (ws, req) => {
   const cols = parseInt(req.query.cols) || 120;
   const rows = parseInt(req.query.rows) || 40;
 
+  // Mouse-Mode idempotent vor jedem Attach sicherstellen. Scroll-Wheel
+  // in xterm.js funktioniert nur, wenn tmux Mouse-Events forwarded — und
+  // die globale Option überlebt keinen tmux-Server-Neustart, keine Reboots
+  // und keine Pre-Hook-Legacy-Sessions, die vor dem Hub-Update entstanden.
+  ensureMouseOn();
+
   let pty;
   try {
     // `-u` zwingt den tmux-Client in den UTF-8-Modus unabhängig vom Locale.
