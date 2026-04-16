@@ -26,14 +26,14 @@ Usage-Dashboard-Theme: Erweiterte Statistiken, Live-Limit-Tracking und
 Kosten-Übersicht. StatusLine-JSON als neue Datenquelle ersetzt das
 tmux-capture-pane-Parsing.
 
-- [ ] Usage-Dashboard: Summary-Cards (Kosten, Sessions, Cache-Rate, Autonom) {priority: p0, theme: observability}
-- [ ] Usage-Dashboard: Limit-Status mit Live-Countdown und Sparklines {priority: p0, theme: observability}
-- [ ] Usage-Dashboard: Tageszeit-Heatmap (7x24) {priority: p1, theme: observability}
-- [ ] Usage-Dashboard: Top-Projekte nach Token-Verbrauch {priority: p1, theme: observability}
-- [ ] Usage-Dashboard: Tool-Nutzung Top-10 und Arbeitsweise {priority: p1, theme: observability}
-- [ ] Usage-Dashboard: Produktivität (Lines Added/Removed, API-Zeit) {priority: p1, theme: observability}
-- [ ] StatusLine-Hook: Limit- und Kostendaten aus Claude Code Status-Line-JSON {priority: p0, theme: observability}
-- [ ] Session-Cards: 5h + 7d Limit mit Reset-Countdown statt capture-pane-Parsing {priority: p0, theme: observability}
+- [x] Usage-Dashboard: Summary-Cards (Kosten, Sessions, Cache-Rate, Autonom) {priority: p0, theme: observability}
+- [x] Usage-Dashboard: Limit-Status mit Live-Countdown und Sparklines {priority: p0, theme: observability}
+- [x] Usage-Dashboard: Tageszeit-Heatmap (7x24) {priority: p1, theme: observability}
+- [x] Usage-Dashboard: Top-Projekte nach Token-Verbrauch {priority: p1, theme: observability}
+- [x] Usage-Dashboard: Tool-Nutzung Top-10 und Arbeitsweise {priority: p1, theme: observability}
+- [x] Usage-Dashboard: Produktivität (Lines Added/Removed, API-Zeit) {priority: p1, theme: observability}
+- [x] StatusLine-Hook: Limit- und Kostendaten aus Claude Code Status-Line-JSON {priority: p0, theme: observability}
+- [x] Session-Cards: 5h + 7d Limit mit Reset-Countdown statt capture-pane-Parsing {priority: p0, theme: observability}
 
 ## Archiv: v0.3.0
 
