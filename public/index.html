@@ -4800,7 +4800,7 @@
             <h3>${label}${version ? ` · <span class="roadmap-version">v${escapeHtml(version)}</span>` : ''}</h3>
             ${items.length
               ? `<ul class="roadmap-list">${items.map(it => renderItem(it, sectionKey)).join('')}</ul>`
-              : '<p class="roadmap-empty">— leer —</p>'}
+              : '<p class="roadmap-empty">— empty —</p>'}
             <button class="roadmap-add-btn" type="button" data-section="${sectionKey}">+ Item</button>
           </section>`;
 
@@ -5697,7 +5697,7 @@
       const sectionSpecs = [
         ['Active', byStatus.running, renderRunningCard],
         ['Dormant', byStatus.dormant, renderDormantCard],
-        ['Fremd', byStatus.foreign, renderForeignCard],
+        ['Foreign', byStatus.foreign, renderForeignCard],
       ];
       for (const [label, items, renderer] of sectionSpecs) {
         if (!items.length) continue;
@@ -6810,7 +6810,7 @@
           setSelected(data.path);
           root.innerHTML = '';
           if (data.entries.length === 0) {
-            root.innerHTML = '<div class="tree-empty">(leer)</div>';
+            root.innerHTML = '<div class="tree-empty">(empty)</div>';
             return;
           }
           data.entries.forEach(entry => root.appendChild(createNode(entry)));
