@@ -3963,7 +3963,7 @@
         <hr class="cmd-rule">
         <div class="cmd-line cmd-line--lead">
           <span class="cmd-marker">›</span>
-          <span>keine ROADMAP.md-Dateien gefunden.</span>
+          <span>No ROADMAP.md files found.</span>
         </div>
         <div class="cmd-block">
           <p>Lege eine <span class="cmd-path">ROADMAP.md</span> in einem Projekt unter <span class="cmd-path">~/Projects/*</span> an — beim nächsten Server-Start wird sie automatisch registriert.</p>
@@ -3997,7 +3997,7 @@
         block.className = 'roadmap-search-results';
         const header = `<h3>Roadmap-Treffer für „${escapeHtml(q)}" (${matches.length}${data.truncated ? '+' : ''})</h3>`;
         if (matches.length === 0) {
-          block.innerHTML = header + '<div class="roadmap-search-empty">Keine passenden Items gefunden.</div>';
+          block.innerHTML = header + '<div class="roadmap-search-empty">No matching items found.</div>';
         } else {
           const items = matches.map(m => `
             <li class="roadmap-search-hit${m.done ? ' done' : ''}" data-project="${escapeHtml(m.projectId)}" data-line="${m.line}">
@@ -4433,11 +4433,11 @@
 
     // Push aktivieren: Permission → Subscribe → Server.
     async function enablePush() {
-      if (!vapidPublicKey) { showToast('VAPID-Key nicht geladen', 'error'); return; }
+      if (!vapidPublicKey) { showToast('VAPID key not loaded', 'error'); return; }
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         updatePushToggleUi(false);
-        if (permission === 'denied') showToast('Push blockiert — bitte in Browser-Einstellungen erlauben', 'error');
+        if (permission === 'denied') showToast('Push blocked — please allow in browser settings', 'error');
         return;
       }
       const reg = await navigator.serviceWorker.ready;
@@ -4448,7 +4448,7 @@
           applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
         });
       } catch (e) {
-        showToast('Push-Subscription fehlgeschlagen: ' + e.message, 'error');
+        showToast('Push subscription failed: ' + e.message, 'error');
         return;
       }
       try {
@@ -4460,10 +4460,10 @@
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         localStorage.setItem(PUSH_KEY, '1');
         updatePushToggleUi(true);
-        showToast('Push-Benachrichtigungen aktiviert', 'info');
+        showToast('Push notifications enabled', 'info');
       } catch (e) {
         await sub.unsubscribe().catch(() => {});
-        showToast('Subscription konnte nicht gespeichert werden: ' + e.message, 'error');
+        showToast('Subscription could not be saved: ' + e.message, 'error');
       }
     }
 
@@ -4482,7 +4482,7 @@
       }
       localStorage.setItem(PUSH_KEY, '0');
       updatePushToggleUi(false);
-      showToast('Push-Benachrichtigungen deaktiviert', 'info');
+      showToast('Push notifications disabled', 'info');
     }
 
     // ── Project-Events WebSocket ───────────────────────────────────
@@ -4670,12 +4670,12 @@
       input.disabled = true;
       try {
         await patchItem(projectId, { action: 'add', section: 'backlog', text });
-        showToast('Idee ins Backlog geschrieben', 'success');
+        showToast('Idea added to backlog', 'success');
         // Rapid-Fire: Input leeren und offen halten, damit mehrere Ideen
         // am Stück erfasst werden können. Schließen via Escape/Button.
         input.value = '';
       } catch (e) {
-        if (e.status !== 401) showToast('Fehler: ' + e.message, 'error');
+        if (e.status !== 401) showToast('Error: ' + e.message, 'error');
       } finally {
         input.disabled = false;
         input.focus();
@@ -4756,7 +4756,7 @@
 
         if (res.status === 404) {
           title.textContent = id;
-          body.innerHTML = '<div class="usage-empty">Projekt nicht gefunden.</div>';
+          body.innerHTML = '<div class="usage-empty">Project not found.</div>';
           return;
         }
 
@@ -5415,7 +5415,7 @@
           clearToken();
           sessions = [];
           renderSessions();
-          showToast('Token ungültig — bitte neu eingeben', 'error');
+          showToast('Invalid token — please re-enter', 'error');
           showLoginModal();
           return;
         }
@@ -5450,7 +5450,7 @@
       } catch (err) {
         if (sessions === null) sessions = []; // erster Fetch fehlgeschlagen → nicht ewig Skeleton zeigen
         renderSessions();
-        showToast('Verbindung zum Server fehlgeschlagen', 'error');
+        showToast('Connection to server failed', 'error');
       }
     }
 
@@ -5864,9 +5864,9 @@
             muteBtn.dataset.muted = String(next);
             const cached = sessions?.find(s => s.name === name);
             if (cached) cached.muted = next;
-            showToast(next ? 'Notifications stumm' : 'Notifications aktiv', 'info');
+            showToast(next ? 'Notifications muted' : 'Notifications active', 'info');
           } catch {
-            showToast('Mute fehlgeschlagen', 'error');
+            showToast('Mute failed', 'error');
           } finally {
             muteBtn.disabled = false;
           }
@@ -5888,17 +5888,17 @@
               body: JSON.stringify({ pinned: next }),
             });
             if (res.status === 404) {
-              showToast('Nur bekannte Sessions können gepinnt werden', 'error');
+              showToast('Only known sessions can be pinned', 'error');
               return;
             }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             pinBtn.dataset.pinned = String(next);
             const cached = sessions?.find(s => s.name === name);
             if (cached) cached.pinned = next;
-            showToast(next ? 'Session angepinnt' : 'Session losgelöst', 'info');
+            showToast(next ? 'Session pinned' : 'Session unpinned', 'info');
             refreshSessions(); // neu sortieren
           } catch {
-            showToast('Pinning fehlgeschlagen', 'error');
+            showToast('Pin failed', 'error');
           } finally {
             pinBtn.disabled = false;
           }
@@ -6002,7 +6002,7 @@
         const text = term.getSelection();
         if (!text) return true;
         navigator.clipboard.writeText(text).catch(() => {
-          showToast('Kopieren fehlgeschlagen — Zwischenablage nicht beschreibbar', 'error');
+          showToast('Copy failed — clipboard not writable', 'error');
         });
         return false;
       });
@@ -6122,9 +6122,9 @@
           term.focus();
           if (!text.trim()) return;
           navigator.clipboard.writeText(text).then(() => {
-            showToast(`Kopiert (${text.length} Zeichen)`, 'success');
+            showToast(`Copied (${text.length} chars)`, 'success');
           }).catch(() => {
-            showToast('Kopieren fehlgeschlagen — Zwischenablage nicht beschreibbar', 'error');
+            showToast('Copy failed — clipboard not writable', 'error');
           });
         };
         clipboardAbort?.abort();
@@ -6164,7 +6164,7 @@
           const text = await navigator.clipboard.readText();
           if (text) { term.focus(); term.paste(text); }
         } catch {
-          showToast('Einfügen fehlgeschlagen — Zwischenablage nicht lesbar. Firefox: Permission erlauben.', 'error');
+          showToast('Paste failed — clipboard not readable. Firefox: allow permission.', 'error');
         }
       };
       document.addEventListener('keydown', pasteIntercept, { capture: true, signal: clipboardAbort.signal });
@@ -6192,7 +6192,7 @@
             const text = await navigator.clipboard.readText();
             if (text) term.paste(text);
           } catch (err) {
-            showToast('Zwischenablage nicht lesbar — bitte Browser-Permission erlauben', 'error');
+            showToast('Clipboard not readable — please allow browser permission', 'error');
           }
         });
       }
@@ -6302,7 +6302,7 @@
         // Client-Selection unterdrücken. Nur zeigen wenn der User den Hint
         // noch nie gesehen hat.
         if (!localStorage.getItem('cchub_hint_copy_seen')) {
-          showToast('Tipp: Shift+Drag oder Alt+Drag markiert und kopiert sofort', 'info');
+          showToast('Tip: Shift+Drag or Alt+Drag selects and copies instantly', 'info');
           localStorage.setItem('cchub_hint_copy_seen', '1');
         }
       });
@@ -6348,12 +6348,12 @@
         // 4001 = Auth failed, 4004 = Session gone → beide NICHT reconnecten
         if (ev.code === 4001) {
           setConnStatus('disconnected', 'Auth fehlt');
-          showToast('Auth fehlgeschlagen — Token ungültig', 'error');
+          showToast('Auth failed — invalid token', 'error');
           return;
         }
         if (ev.code === 4004) {
           setConnStatus('disconnected', 'Session weg');
-          showToast('Session existiert nicht mehr', 'error');
+          showToast('Session no longer exists', 'error');
           return;
         }
         // User-initiated disconnect (currentWs auf null gesetzt in disconnectTerminal) → ruhe
@@ -6504,34 +6504,34 @@
           headers: apiHeaders(),
         });
         if (res.status === 409) {
-          showToast('Eine Session mit diesem Namen läuft bereits', 'error');
+          showToast('A session with this name already exists', 'error');
           return;
         }
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          showToast(body.error || 'Wiederherstellen fehlgeschlagen', 'error');
+          showToast(body.error || 'Restore failed', 'error');
           return;
         }
-        showToast(`Session "${displayName}" wiederhergestellt`, 'success');
+        showToast(`Session "${displayName}" restored`, 'success');
         refreshSessions();
       } catch {
-        showToast('Verbindungsfehler beim Wiederherstellen', 'error');
+        showToast('Connection error during restore', 'error');
       }
     }
 
     async function forgetSession(name) {
       const displayName = name.replace(/^cc-/, '');
-      if (!confirm(`Eintrag "${displayName}" aus der Liste entfernen?\n\nDie Session wird nicht gekillt (sie läuft ja nicht mehr). Restore ist danach nicht mehr möglich.`)) return;
+      if (!confirm(`Remove entry "${displayName}" from the list?\n\nThe session will not be killed (it is no longer running). Restore will no longer be possible.`)) return;
       try {
         const res = await fetch(`/api/sessions/${encodeURIComponent(name)}/known`, {
           method: 'DELETE',
           headers: apiHeaders(),
         });
         if (!res.ok) throw new Error();
-        showToast(`"${displayName}" vergessen`, 'success');
+        showToast(`"${displayName}" forgotten`, 'success');
         refreshSessions();
       } catch {
-        showToast('Fehler beim Vergessen', 'error');
+        showToast('Forget failed', 'error');
       }
     }
 
@@ -6543,20 +6543,20 @@
           body: JSON.stringify({ newName }),
         });
         if (res.status === 409) {
-          showToast('Ziel-Name bereits in Benutzung', 'error');
+          showToast('Target name already in use', 'error');
           return false;
         }
         if (res.status === 400) {
           const body = await res.json().catch(() => ({}));
-          showToast(body.error || 'Ungültiger Name', 'error');
+          showToast(body.error || 'Invalid name', 'error');
           return false;
         }
         if (!res.ok) throw new Error();
-        showToast(`"${sourceName}" adoptiert als "cc-${newName}"`, 'success');
+        showToast(`"${sourceName}" adopted as "cc-${newName}"`, 'success');
         refreshSessions();
         return true;
       } catch {
-        showToast('Fehler beim Adoptieren', 'error');
+        showToast('Adopt failed', 'error');
         return false;
       }
     }
@@ -6583,7 +6583,7 @@
       if (!currentAdoptSource) return;
       const newName = document.getElementById('adopt-new-name').value.trim();
       if (!newName) {
-        showToast('Bitte gib einen Namen ein', 'error');
+        showToast('Please enter a name', 'error');
         return;
       }
       const ok = await adoptSession(currentAdoptSource, newName);
@@ -6597,7 +6597,7 @@
     // ── Kill session ─────────────────────────────────────────────
     async function killSession(name) {
       const displayName = name.replace(/^cc-/, '');
-      if (!confirm(`Session "${displayName}" wirklich beenden?`)) return;
+      if (!confirm(`Really kill session "${displayName}"?`)) return;
 
       try {
         const res = await fetch(`/api/sessions/${encodeURIComponent(name)}`, {
@@ -6605,10 +6605,10 @@
           headers: apiHeaders(),
         });
         if (!res.ok) throw new Error('Failed');
-        showToast(`Session "${displayName}" beendet`, 'success');
+        showToast(`Session "${displayName}" killed`, 'success');
         refreshSessions();
       } catch {
-        showToast('Fehler beim Beenden der Session', 'error');
+        showToast('Failed to kill session', 'error');
       }
     }
 
@@ -6618,7 +6618,7 @@
         !s.attached && s.activity !== 'working' && s.activity !== 'waiting'
       );
       if (candidates.length === 0) {
-        showToast('Keine idle Sessions zum Beenden', 'info');
+        showToast('No idle sessions to kill', 'info');
         return;
       }
 
@@ -6692,9 +6692,9 @@
       cancelBtn.disabled = false;
 
       if (failed === 0) {
-        showToast(`${succeeded} Session${succeeded === 1 ? '' : 's'} beendet`, 'success');
+        showToast(`${succeeded} session${succeeded === 1 ? '' : 's'} killed`, 'success');
       } else {
-        showToast(`${succeeded} beendet, ${failed} fehlgeschlagen`, 'error');
+        showToast(`${succeeded} killed, ${failed} failed`, 'error');
       }
       refreshSessions();
     });
@@ -6706,15 +6706,15 @@
       // refreshSessions() hintereinander triggern (disconnectTerminal ruft
       // selbst schon refresh auf).
       const displayName = name.replace(/^cc-/, '');
-      if (!confirm(`Session "${displayName}" wirklich beenden?`)) return;
+      if (!confirm(`Really kill session "${displayName}"?`)) return;
       fetch(`/api/sessions/${encodeURIComponent(name)}`, {
         method: 'DELETE',
         headers: apiHeaders(),
       }).then(res => {
         if (!res.ok) throw new Error();
-        showToast(`Session "${displayName}" beendet`, 'success');
+        showToast(`Session "${displayName}" killed`, 'success');
       }).catch(() => {
-        showToast('Fehler beim Beenden der Session', 'error');
+        showToast('Failed to kill session', 'error');
       }).finally(() => {
         disconnectTerminal();
         setView('dashboard');
@@ -6842,7 +6842,7 @@
       const command = document.getElementById('new-session-cmd').value.trim();
 
       if (!name) {
-        showToast('Bitte gib einen Session-Namen ein', 'error');
+        showToast('Please enter a session name', 'error');
         return;
       }
 
@@ -6854,16 +6854,16 @@
         });
 
         if (res.status === 409) {
-          showToast('Session mit diesem Namen existiert bereits', 'error');
+          showToast('Session with this name already exists', 'error');
           return;
         }
         if (!res.ok) throw new Error('Failed');
 
-        showToast(`Session "${name}" gestartet`, 'success');
+        showToast(`Session "${name}" started`, 'success');
         closeNewSessionModal();
         refreshSessions();
       } catch {
-        showToast('Fehler beim Erstellen der Session', 'error');
+        showToast('Failed to create session', 'error');
       }
     }
 
@@ -6936,12 +6936,12 @@
         }
         const created = await res.json();
         closeNewProjectModal();
-        showToast(`Projekt "${displayName}" angelegt`, 'success');
+        showToast(`Project "${displayName}" created`, 'success');
         // Direkt in die Detail-View springen — Registry ist schon aktualisiert,
         // der Projekt-Detail-Fetch trifft sofort.
         setView('project-detail', { projectId: created.id });
       } catch (e) {
-        showToast('Fehler: ' + e.message, 'error');
+        showToast('Error: ' + e.message, 'error');
       } finally {
         btn.disabled = false;
       }
@@ -7076,7 +7076,7 @@
       const newDevVersion  = document.getElementById('release-new-dev-input').value.trim();
       const narrative      = document.getElementById('release-narrative-input').value;
       if (!projectId || !releaseVersion || !newDevVersion) {
-        showToast('Release- und Dev-Version müssen gesetzt sein', 'error');
+        showToast('Release and dev version must be set', 'error');
         return;
       }
       const btn = document.getElementById('release-submit');
@@ -7096,7 +7096,7 @@
         showProjectToast(`v${releaseVersion} abgeschlossen`, 'success');
         renderProjectDetail(projectId);
       } catch (e) {
-        showToast('Release fehlgeschlagen: ' + e.message, 'error');
+        showToast('Release failed: ' + e.message, 'error');
       } finally {
         btn.disabled = false;
       }
@@ -7185,7 +7185,7 @@
 
     document.getElementById('push-toggle').addEventListener('click', async () => {
       if (Notification.permission === 'denied') {
-        showToast('Push blockiert — bitte in Browser-Einstellungen erlauben', 'error');
+        showToast('Push blocked — please allow in browser settings', 'error');
         return;
       }
       if (pushEnabled()) {
