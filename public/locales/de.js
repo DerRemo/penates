@@ -449,4 +449,5 @@ window.__I18N_BUNDLES.de = {
   'settings.about.latestVersion': 'Neuestes Release',
   'settings.about.viewRelease': 'Release anzeigen',
   'settings.about.uptimeLabel': 'Server-Uptime',
+  'settings.about.newAvailable': '(neue Version verfügbar)',
 };

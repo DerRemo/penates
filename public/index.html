@@ -7239,6 +7239,75 @@
       return div.innerHTML;
     }
 
+    // ── Markdown-mini renderer ────────────────────────────────────
+    // Duplicate of lib/markdown-mini.js (tested there). Keep in sync if either copy changes.
+    (function () {
+      function mdEscapeHtml(s) {
+        return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+      }
+      function mdRenderInline(text) {
+        const parts = [];
+        let rest = text;
+        const codeRe = /`([^`]+)`/;
+        let m;
+        while ((m = rest.match(codeRe))) {
+          parts.push({ type: 'text', value: rest.slice(0, m.index) });
+          parts.push({ type: 'code', value: m[1] });
+          rest = rest.slice(m.index + m[0].length);
+        }
+        parts.push({ type: 'text', value: rest });
+        return parts.map(p => {
+          if (p.type === 'code') return `<code>${mdEscapeHtml(p.value)}</code>`;
+          let s = mdEscapeHtml(p.value);
+          s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, url) =>
+            `<a href="${url}" target="_blank" rel="noopener">${label}</a>`);
+          s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+          s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+          s = s.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>');
+          return s;
+        }).join('');
+      }
+      function mdRenderBlock(b) {
+        switch (b.kind) {
+          case 'h3': return `<h3>${mdRenderInline(b.text)}</h3>`;
+          case 'h4': return `<h4>${mdRenderInline(b.text)}</h4>`;
+          case 'ul': return `<ul>${b.items.map(i => `<li>${mdRenderInline(i)}</li>`).join('')}</ul>`;
+          case 'para': return `<p>${mdRenderInline(b.text).replace(/\n/g, '<br>')}</p>`;
+          default: return '';
+        }
+      }
+      function renderMarkdownMini(src) {
+        if (!src || typeof src !== 'string') return '';
+        const lines = src.replace(/\r\n?/g, '\n').split('\n');
+        const blocks = [];
+        let buffer = [];
+        let mode = null;
+        const flushBuffer = () => {
+          if (buffer.length === 0) return;
+          if (mode === 'ul') blocks.push({ kind: 'ul', items: buffer.map(l => l.replace(/^[-*]\s+/, '')) });
+          else if (mode === 'para') blocks.push({ kind: 'para', text: buffer.join('\n') });
+          buffer = [];
+          mode = null;
+        };
+        for (const raw of lines) {
+          const h2 = raw.match(/^##\s+(.*)$/);
+          const h3 = raw.match(/^###\s+(.*)$/);
+          const li = raw.match(/^[-*]\s+.+$/);
+          const blank = /^\s*$/.test(raw);
+          if (h3) { flushBuffer(); blocks.push({ kind: 'h4', text: h3[1] }); continue; }
+          if (h2) { flushBuffer(); blocks.push({ kind: 'h3', text: h2[1] }); continue; }
+          if (li) { if (mode !== 'ul') flushBuffer(); mode = 'ul'; buffer.push(raw); continue; }
+          if (blank) { flushBuffer(); continue; }
+          if (mode !== 'para') flushBuffer();
+          mode = 'para';
+          buffer.push(raw);
+        }
+        flushBuffer();
+        return blocks.map(mdRenderBlock).join('\n');
+      }
+      window.renderMarkdownMini = renderMarkdownMini;
+    })();
+
     function formatAge(timestamp) {
       const diff = Date.now() - timestamp;
       const mins = Math.floor(diff / 60000);
@@ -7695,6 +7764,59 @@
       }
     }
 
+    // ── Settings: Update Check ────────────────────────────────────
+    // Fetches /api/version once at boot. On success, caches to window.__versionInfo,
+    // shows the dot on the sidebar Settings entry when a newer version is available,
+    // and populates the About panel with latest version + release link + changelog.
+    async function initUpdateCheck() {
+      try {
+        const res = await fetch('/api/version', {
+          headers: apiHeaders(),
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+        const info = await res.json();
+        window.__versionInfo = info;
+        renderUpdateDot(info);
+        renderAboutPanel(info);
+      } catch {
+        // Silent — no dot shown, About panel keeps '—' defaults.
+      }
+    }
+
+    function renderUpdateDot(info) {
+      const dot = document.getElementById('sidebar-settings-dot');
+      if (!dot) return;
+      if (info && info.isNewer) dot.removeAttribute('hidden');
+      else dot.setAttribute('hidden', '');
+    }
+
+    function renderAboutPanel(info) {
+      const latestEl = document.getElementById('settings-latest-version');
+      const linkEl = document.getElementById('settings-release-link');
+      const changelogEl = document.getElementById('settings-about-changelog');
+      if (!latestEl || !linkEl || !changelogEl) return;
+
+      if (!info || !info.latest) {
+        latestEl.textContent = '—';
+        linkEl.setAttribute('hidden', '');
+        changelogEl.innerHTML = '';
+        return;
+      }
+
+      const suffix = info.isNewer ? ' ' + window.t('settings.about.newAvailable') : '';
+      latestEl.textContent = 'v' + info.latest + suffix;
+
+      if (info.url) {
+        linkEl.href = info.url;
+        linkEl.removeAttribute('hidden');
+      } else {
+        linkEl.setAttribute('hidden', '');
+      }
+
+      changelogEl.innerHTML = window.renderMarkdownMini(info.changelogMd || '');
+    }
+
     // ── Init ─────────────────────────────────────────────────────
     // setView() zuerst — setzt body[data-current-view] und damit die
     // Sichtbarkeit aller drei Top-Level-Views. Default: Dashboard.
@@ -7717,6 +7839,7 @@
     initSettingsPush();
     initSettingsHelp();
     initSettingsAbout(); // async, fire-and-forget
+    initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────
     window.FileBrowser = (() => {
