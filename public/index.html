@@ -3249,7 +3249,8 @@
     (function () {
       const bundles = window.__I18N_BUNDLES || { en: {}, de: {} };
       const DEFAULT_LANG = 'en';
-      let currentLang = localStorage.getItem('cchub_lang') || DEFAULT_LANG;
+      let currentLang = DEFAULT_LANG;
+      try { currentLang = localStorage.getItem('cchub_lang') || DEFAULT_LANG; } catch (_) {}
       if (currentLang !== 'en' && currentLang !== 'de') currentLang = DEFAULT_LANG;
 
       function t(key, vars) {
@@ -3265,10 +3266,14 @@
         getLang() { return currentLang; },
         setLang(lang) {
           if (lang !== 'en' && lang !== 'de') return;
-          localStorage.setItem('cchub_lang', lang);
+          try { localStorage.setItem('cchub_lang', lang); } catch (_) {}
           currentLang = lang;
+          document.documentElement.lang = lang;
+          // Task 8 callers should either reload the page (intended switch flow) or
+          // call window.applyI18nToDom(document) afterwards to re-render in-place.
         },
       };
+      document.documentElement.lang = currentLang;
     })();
   </script>
 </head>
