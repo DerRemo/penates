@@ -4281,8 +4281,8 @@
     }
 
     // Inline-Patch des Session-Card-Badges wenn ein Hook-Event die activity
-    // mitliefert. Spiegelt `activityMap` aus dem Card-Renderer — bei
-    // Label-Änderungen dort unbedingt auch hier synchron halten.
+    // mitliefert. Mirrors `activityMap` from the card renderer; both share the same t() keys
+    // (sessionCard.status.*) so they can't drift.
     const ACTIVITY_BADGE = {
       working: { cls: 'working', get label() { return t('sessionCard.status.working'); },      get title() { return t('sessionCard.status.workingTitle'); } },
       waiting: { cls: 'waiting', get label() { return t('sessionCard.status.needsInput'); },   get title() { return t('sessionCard.status.needsInputTitle'); } },
