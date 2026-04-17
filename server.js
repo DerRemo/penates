@@ -10,7 +10,8 @@ import { spawn } from 'node-pty';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve, sep } from 'path';
-import { readdirSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
+import { createChecker } from './lib/update-check.js';
 import { mkdir as fsMkdir } from 'fs/promises';
 import { homedir } from 'os';
 import { getCurrentContext, getDailyUsageV2 } from './lib/usage.js';
@@ -45,6 +46,9 @@ import webpush from 'web-push';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const pkgJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+const updateChecker = createChecker({ current: pkgJson.version });
 
 const PORT = process.env.PORT || 3333;
 const AUTH_TOKEN = process.env.AUTH_TOKEN || '';
@@ -267,6 +271,11 @@ app.get('/api/push/vapid-public-key', (_req, res) => {
 });
 
 app.use('/api', secureMiddleware);
+
+// Update-Check: zeigt aktuelle + neueste Version.
+app.get('/api/version', (_req, res) => {
+  res.json(updateChecker.getState());
+});
 
 // ── Rate-Limiting ────────────────────────────────────────────────────────────
 // Zwei Buckets via createRateLimiter: Read (GET/HEAD) und Write (sonst).
@@ -1564,6 +1573,11 @@ app.ws('/api/files/events', (ws, req) => {
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'index.html'));
 });
+
+// Update-Check: einmal beim Start (non-blocking), danach alle 12h.
+// .unref() verhindert dass das Interval den Prozess beim Shutdown am Leben hält.
+setImmediate(() => updateChecker.check());
+setInterval(() => updateChecker.check(), 12 * 60 * 60 * 1000).unref();
 
 // ── Start + Graceful Shutdown ───────────────────────────────────────────────
 const server = app.listen(PORT, async () => {
