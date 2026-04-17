@@ -3282,26 +3282,26 @@
   <!-- ── Header ───────────────────────────────────────────────── -->
   <header class="header">
     <div class="header-left">
-      <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+      <button class="sidebar-toggle" id="sidebar-toggle" type="button" data-i18n-attr="aria-label:header.sidebarToggleAria" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
         <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
       <div class="logo-mark">&gt;_</div>
-      <div class="logo-text">Claude Code <span>Hub</span></div>
+      <div class="logo-text"><span data-i18n="header.logoProduct">Claude Code</span> <span>Hub</span></div>
     </div>
     <div class="header-right">
-      <button class="theme-toggle" id="push-toggle" type="button" aria-label="Toggle push notifications" title="Push notifications (works with tab closed)">
+      <button class="theme-toggle" id="push-toggle" type="button" data-i18n-attr="aria-label:header.pushToggleAria;title:header.pushToggleTitle" aria-label="Toggle push notifications" title="Push notifications (works with tab closed)">
         <svg class="icon-push-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><circle cx="12" cy="2" r="1" fill="currentColor" stroke="none"/></svg>
         <svg class="icon-push-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
-      <button class="theme-toggle" id="sound-toggle" type="button" aria-label="Toggle sound alerts" title="Toggle sound alerts">
+      <button class="theme-toggle" id="sound-toggle" type="button" data-i18n-attr="aria-label:header.soundToggleAria;title:header.soundToggleTitle" aria-label="Toggle sound alerts" title="Toggle sound alerts">
         <svg class="icon-sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
         <svg class="icon-sound-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
       </button>
-      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme (t)">
+      <button class="theme-toggle" id="theme-toggle" type="button" data-i18n-attr="aria-label:header.themeToggleAria;title:header.themeToggleTitle" aria-label="Toggle theme" title="Toggle theme (t)">
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
-      <button class="kbd-help-trigger" id="kbd-help-trigger" type="button" aria-label="Show keyboard shortcuts" title="Keyboard shortcuts (?)">?</button>
+      <button class="kbd-help-trigger" id="kbd-help-trigger" type="button" data-i18n-attr="aria-label:header.kbdHelpAria;title:header.kbdHelpTitle" aria-label="Show keyboard shortcuts" title="Keyboard shortcuts (?)">?</button>
     </div>
   </header>
 
@@ -3309,31 +3309,31 @@
   <div class="app-layout">
 
     <aside class="sidebar" id="sidebar" aria-label="Navigation">
-      <div class="sidebar__label">Sessions</div>
+      <div class="sidebar__label" data-i18n="sidebar.sessionsLabel">Sessions</div>
       <div id="sidebar-sessions">
-        <div class="sidebar__empty">Loading…</div>
+        <div class="sidebar__empty" data-i18n="sidebar.loading">Loading…</div>
       </div>
 
       <div class="sidebar__divider"></div>
 
-      <div class="sidebar__label">Navigation</div>
+      <div class="sidebar__label" data-i18n="sidebar.navigationLabel">Navigation</div>
       <button class="sidebar__item" type="button" data-sidebar-nav="sessions">
         <span class="sidebar__nav-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         </span>
-        <span class="sidebar__nav-label">Overview</span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.overview">Overview</span>
       </button>
       <button class="sidebar__item" type="button" data-sidebar-nav="projects">
         <span class="sidebar__nav-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
         </span>
-        <span class="sidebar__nav-label">Projects</span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.projects">Projects</span>
       </button>
       <button class="sidebar__item" type="button" data-sidebar-nav="usage">
         <span class="sidebar__nav-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
         </span>
-        <span class="sidebar__nav-label">Usage</span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.usage">Usage</span>
       </button>
     </aside>
 
@@ -3346,43 +3346,43 @@
     <div class="container">
       <div class="dashboard-header">
         <div class="dashboard-header-left">
-          <div class="dashboard-tabs" role="tablist" aria-label="Dashboard-Tabs">
-            <button class="dashboard-tab" id="tab-sessions" data-tab="sessions" type="button" role="tab">Sessions</button>
-            <button class="dashboard-tab" id="tab-usage" data-tab="usage" type="button" role="tab">Usage</button>
+          <div class="dashboard-tabs" role="tablist" data-i18n-attr="aria-label:dashboard.tablistAria" aria-label="Dashboard tabs">
+            <button class="dashboard-tab" id="tab-sessions" data-tab="sessions" type="button" role="tab" data-i18n="dashboard.tab.sessions">Sessions</button>
+            <button class="dashboard-tab" id="tab-usage" data-tab="usage" type="button" role="tab" data-i18n="dashboard.tab.usage">Usage</button>
             <button class="dashboard-tab dashboard-tab--new" id="tab-projects" data-tab="projects" type="button" role="tab" title="Project management (Phase 1 Step 2a — Mutations)">
-              Projects
+              <span data-i18n="dashboard.tab.projects">Projects</span>
               <span class="dashboard-tab-dot" aria-hidden="true"></span>
             </button>
           </div>
           <div class="search-wrapper" data-tab-scope="sessions projects">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="search" class="search-input" id="session-search" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
+            <input type="search" class="search-input" id="session-search" data-i18n-attr="placeholder:dashboard.filterPlaceholder" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
           </div>
         </div>
         <div class="dashboard-header-right" style="display: flex; gap: 8px; align-items: center;">
-          <div class="layout-toggle" role="group" aria-label="Layout" data-tab-scope="sessions">
-            <button class="layout-toggle-btn" id="layout-grid-btn" type="button" aria-label="Grid view" title="Grid (g)">
+          <div class="layout-toggle" role="group" data-i18n-attr="aria-label:dashboard.layoutAria" aria-label="Layout" data-tab-scope="sessions">
+            <button class="layout-toggle-btn" id="layout-grid-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.gridAria;title:dashboard.layout.gridTitle" aria-label="Grid view" title="Grid (g)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             </button>
-            <button class="layout-toggle-btn" id="layout-list-btn" type="button" aria-label="List view" title="Liste (l)">
+            <button class="layout-toggle-btn" id="layout-list-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.listAria;title:dashboard.layout.listTitle" aria-label="List view" title="List (l)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
             </button>
           </div>
           <button class="btn btn-ghost btn-sm" id="refresh-btn" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-            Refresh
+            <span data-i18n="dashboard.refresh">Refresh</span>
           </button>
           <button class="btn btn-ghost btn-sm" id="bulk-kill-btn" type="button" data-tab-scope="sessions">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            Bulk Kill
+            <span data-i18n="dashboard.bulkKill">Bulk Kill</span>
           </button>
           <button class="btn btn-primary btn-sm" id="new-session-btn" type="button" data-tab-scope="sessions">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            New Session
+            <span data-i18n="dashboard.newSession">New Session</span>
           </button>
           <button class="btn btn-primary btn-sm" id="new-project-btn" type="button" data-tab-scope="projects">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            New Project
+            <span data-i18n="dashboard.newProject">New Project</span>
           </button>
         </div>
       </div>
@@ -4284,10 +4284,10 @@
     // mitliefert. Spiegelt `activityMap` aus dem Card-Renderer — bei
     // Label-Änderungen dort unbedingt auch hier synchron halten.
     const ACTIVITY_BADGE = {
-      working: { cls: 'working', label: 'Working',      title: 'Claude is currently working (ESC in terminal to cancel)' },
-      waiting: { cls: 'waiting', label: 'Needs Input', title: 'Claude is waiting for your input' },
-      idle:    { cls: 'ready',   label: 'Ready',        title: 'Claude is ready for the next task' },
-      unknown: { cls: 'unknown', label: 'Active',         title: 'Session running, state unknown' },
+      working: { cls: 'working', get label() { return t('sessionCard.status.working'); },      get title() { return t('sessionCard.status.workingTitle'); } },
+      waiting: { cls: 'waiting', get label() { return t('sessionCard.status.needsInput'); },   get title() { return t('sessionCard.status.needsInputTitle'); } },
+      idle:    { cls: 'ready',   get label() { return t('sessionCard.status.ready'); },        get title() { return t('sessionCard.status.readyTitle'); } },
+      unknown: { cls: 'unknown', get label() { return t('sessionCard.status.active'); },       get title() { return t('sessionCard.status.activeTitle'); } },
     };
     function patchActivityBadge(name, activity) {
       const card = document.querySelector(`.session-card[data-name="${CSS.escape(name)}"]`);
@@ -4314,7 +4314,7 @@
       const list = document.getElementById('sidebar-sessions');
       if (!list) return;
       if (!Array.isArray(sessions) || sessions.length === 0) {
-        list.innerHTML = '<div class="sidebar__empty">No active sessions</div>';
+        list.innerHTML = `<div class="sidebar__empty">${t('sidebar.noActiveSessions')}</div>`;
       } else {
         // Reihenfolge: attached zuerst (optisch markiert über active-class),
         // danach nach created desc. Namen als data-session für patchActivityBadge.
@@ -5531,17 +5531,17 @@
         if (sessions.length > 0 && q) {
           empty.innerHTML = `
             <div class="empty-state-icon">⌕</div>
-            <h3>No matches</h3>
-            <p>No session name or preview matches "${escapeHtml(q)}".</p>
+            <h3>${t('dashboard.emptyNoMatchesHeading')}</h3>
+            <p>${t('dashboard.emptyNoMatchesBody', { q: escapeHtml(q) })}</p>
           `;
         } else {
           empty.innerHTML = `
             <div class="empty-state-icon">&gt;_</div>
-            <h3>No active sessions</h3>
-            <p>Start a new Claude Code session to get started.</p>
+            <h3>${t('dashboard.emptyHeading')}</h3>
+            <p>${t('dashboard.emptyBody')}</p>
             <button class="btn btn-primary" data-action="new-session">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
-              New Session
+              ${t('dashboard.newSession')}
             </button>
           `;
         }
@@ -5570,14 +5570,14 @@
       }
 
       const activityMap = {
-        working: { cls: 'working', label: 'Working',       title: 'Claude is currently working (ESC in terminal to cancel)' },
-        waiting: { cls: 'waiting', label: 'Needs Input',  title: 'Claude is waiting for your input' },
-        idle:    { cls: 'ready',   label: 'Ready',         title: 'Claude is ready for the next task' },
-        unknown: { cls: 'unknown', label: 'Active',          title: 'Session running, state unknown' },
+        working: { cls: 'working', get label() { return t('sessionCard.status.working'); },      get title() { return t('sessionCard.status.workingTitle'); } },
+        waiting: { cls: 'waiting', get label() { return t('sessionCard.status.needsInput'); },   get title() { return t('sessionCard.status.needsInputTitle'); } },
+        idle:    { cls: 'ready',   get label() { return t('sessionCard.status.ready'); },        get title() { return t('sessionCard.status.readyTitle'); } },
+        unknown: { cls: 'unknown', get label() { return t('sessionCard.status.active'); },       get title() { return t('sessionCard.status.activeTitle'); } },
       };
 
       const renderMuteButton = (muted) => `
-        <button class="session-mute-btn" type="button" data-action="mute" data-muted="${muted ? 'true' : 'false'}" data-stop-propagation aria-label="${muted ? 'Enable notifications' : 'Mute'}" title="${muted ? 'Muted — click to enable' : 'Notifications on — click to mute'}">
+        <button class="session-mute-btn" type="button" data-action="mute" data-muted="${muted ? 'true' : 'false'}" data-stop-propagation aria-label="${muted ? t('sessionCard.mute.enableAria') : t('sessionCard.mute.muteAria')}" title="${muted ? t('sessionCard.mute.mutedTitle') : t('sessionCard.mute.enabledTitle')}">
           ${muted
             ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
             : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
@@ -5588,7 +5588,7 @@
       // nicht gerendert — sie haben keinen known-sessions-Eintrag und können
       // daher nicht persistiert werden (setPinned gibt 404).
       const renderPinButton = (pinned) => `
-        <button class="session-pin-btn" type="button" data-action="pin" data-pinned="${pinned ? 'true' : 'false'}" data-stop-propagation aria-label="${pinned ? 'Pinned — click to unpin' : 'Pin'}" title="${pinned ? 'Pinned — click to unpin' : 'Pin — drag session to end of list'}">
+        <button class="session-pin-btn" type="button" data-action="pin" data-pinned="${pinned ? 'true' : 'false'}" data-stop-propagation aria-label="${pinned ? t('sessionCard.pin.pinnedAria') : t('sessionCard.pin.pinAria')}" title="${pinned ? t('sessionCard.pin.pinnedTitle') : t('sessionCard.pin.pinTitle')}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </button>`;
 
@@ -5597,7 +5597,7 @@
         const age = formatAge(s.created);
         const safeName = escapeHtml(s.name);
         const act = activityMap[s.activity] || activityMap.unknown;
-        const label = s.activity === 'unknown' && !s.attached ? 'Dormant' : act.label;
+        const label = s.activity === 'unknown' && !s.attached ? t('sessionCard.status.dormant') : act.label;
         const unreadCls = unreadSessions.has(s.name) ? ' unread' : '';
         return `
           <div class="session-card${unreadCls}" data-status="running" data-name="${safeName}" data-attached="${s.attached}">
@@ -5633,11 +5633,11 @@
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-ghost btn-sm" data-action="connect">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                Connect
+                ${t('sessionCard.action.connect')}
               </button>
               <button class="btn btn-danger btn-sm" data-action="kill">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                Kill
+                ${t('sessionCard.action.kill')}
               </button>
             </div>
           </div>
@@ -5658,22 +5658,22 @@
                 <span class="icon">&gt;_</span>
                 ${escapeHtml(displayName)}
               </div>
-              <div class="session-status" title="Session is not active in tmux, can be restored">Dormant</div>
+              <div class="session-status" title="${t('sessionCard.dormantBadgeTitle')}">${t('sessionCard.status.dormant')}</div>
             </div>
             <div class="dormant-stub">
               <div class="path">${escapeHtml(s.path || '')}</div>
               <div>$ ${escapeHtml(s.command || 'claude')}</div>
-              <div>Last seen: ${escapeHtml(lastSeen)}</div>
+              <div>${t('sessionCard.lastSeen', { time: escapeHtml(lastSeen) })}</div>
             </div>
             ${s.git ? `<div class="session-meta" style="padding-top: var(--space-2)">${renderGitBadge(s.git)}</div>` : ''}
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-primary btn-sm" data-action="restore">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Restore
+                ${t('sessionCard.action.restore')}
               </button>
-              <button class="btn btn-ghost btn-sm" data-action="forget" title="Remove from list">
+              <button class="btn btn-ghost btn-sm" data-action="forget" title="${t('sessionCard.action.forgetTitle')}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-                Forget
+                ${t('sessionCard.action.forget')}
               </button>
             </div>
           </div>
@@ -5702,11 +5702,11 @@
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-primary btn-sm" data-action="adopt">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
-                Adopt
+                ${t('sessionCard.action.adopt')}
               </button>
               <button class="btn btn-ghost btn-sm" data-action="connect">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                Connect
+                ${t('sessionCard.action.connect')}
               </button>
             </div>
           </div>
@@ -5729,9 +5729,9 @@
       // Flash.
       const newOrder = [];
       const sectionSpecs = [
-        ['Active', byStatus.running, renderRunningCard],
-        ['Dormant', byStatus.dormant, renderDormantCard],
-        ['Foreign', byStatus.foreign, renderForeignCard],
+        [t('dashboard.section.active'),  byStatus.running, renderRunningCard],
+        [t('dashboard.section.dormant'), byStatus.dormant, renderDormantCard],
+        [t('dashboard.section.foreign'), byStatus.foreign, renderForeignCard],
       ];
       for (const [label, items, renderer] of sectionSpecs) {
         if (!items.length) continue;
