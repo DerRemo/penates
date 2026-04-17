@@ -401,10 +401,10 @@ window.__I18N_BUNDLES.de = {
   'usage.apiTime': 'API-Zeit',
 
   // Usage dashboard — summary cards
-  'usage.card.monthlyCost': 'Kosten\nMonat',
-  'usage.card.monthlySessions': 'Sessions\nMonat',
-  'usage.card.monthlyCacheRate': 'Cache-Rate\nMonat',
-  'usage.card.autonomousChains': 'Autonom\nTool-Ketten',
+  'usage.card.monthlyCost': 'Kosten (Monat)',
+  'usage.card.monthlySessions': 'Sessions (Monat)',
+  'usage.card.monthlyCacheRate': 'Cache-Rate (Monat)',
+  'usage.card.autonomousChains': 'Autonome Tool-Ketten',
 
   // Common / shared
   'common.errorWithMessage': 'Fehler: {message}',
