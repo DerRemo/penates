@@ -269,4 +269,139 @@ window.__I18N_BUNDLES.en = {
 
   // Tree picker (inside modals)
   'treePicker.loading': 'Loading…',
+
+  // Session card — git badge
+  'sessionCard.git.statusTitle': 'Git status',
+  'sessionCard.git.dirtyTitle': 'Unstaged changes',
+
+  // Session card — context tooltip
+  'sessionCard.noClaudeData': 'No Claude Code data in cwd yet',
+
+  // Login modal
+  'login.title': 'Login',
+  'login.hint': 'Auth token from .env — stored once in your browser.',
+  'login.tokenLabel': 'Token',
+  'login.submit': 'Login',
+
+  // Keyboard help modal
+  'kbdHelp.title': 'Keyboard Shortcuts',
+  'kbdHelp.newSession': 'New Session',
+  'kbdHelp.focusFilter': 'Focus filter',
+  'kbdHelp.reload': 'Reload sessions',
+  'kbdHelp.gridLayout': 'Grid layout',
+  'kbdHelp.listLayout': 'List layout',
+  'kbdHelp.toggleTheme': 'Toggle theme',
+  'kbdHelp.backClose': 'Back / Close',
+  'kbdHelp.thisHelp': 'This help',
+
+  // Header — sound toggle (dynamic JS title)
+  'header.soundOffTitle': 'Turn sound alerts OFF',
+  'header.soundOnTitle': 'Turn sound alerts ON',
+
+  // Projects list view
+  'projects.loading': 'Loading projects…',
+  'projects.authExpired': 'Auth expired.',
+  'projects.error': 'Error: {message}',
+  'projects.missingBadge': 'ROADMAP.md missing',
+  'projects.releasedLabel': 'released',
+  'projects.devLabel': 'dev',
+  'projects.progress': '{done}/{total} dev · {backlog} backlog',
+  'projects.emptyNoFiles': 'No ROADMAP.md files found.',
+  'projects.emptyInstruction': 'Create a ROADMAP.md in a project under ~/Projects/* — it will be registered on the next server restart.',
+
+  // Projects search
+  'projects.search.header': 'Roadmap matches for "{q}" ({count})',
+  'projects.search.empty': 'No matching items found.',
+
+  // Project detail view
+  'projects.detail.loading': 'Loading project…',
+  'projects.detail.notFound': 'Project not found.',
+  'projects.detail.roadmapNotReadable': 'ROADMAP.md not readable.',
+  'projects.detail.roadmapMissingInstruction': 'Create a ROADMAP.md in this directory and restart the server.',
+  'projects.detail.openSessions': 'Open Sessions ({n})',
+  'projects.detail.loadingSessions': 'Loading sessions…',
+  'projects.detail.noSessions': 'No session running in this directory.',
+  'projects.detail.sectionReleased': 'Released',
+  'projects.detail.sectionDev': 'In Development',
+  'projects.detail.sectionBacklog': 'Backlog / Ideas',
+  'projects.detail.sectionChangelog': 'Changelog',
+  'projects.detail.sectionEmpty': '— empty —',
+  'projects.detail.addItem': '+ Item',
+  'projects.detail.markAsDone': 'Mark as done',
+  'projects.detail.markAsOpen': 'Mark as open',
+  'projects.detail.deleteItem': 'Delete item',
+  'projects.detail.deleteTitle': 'Delete',
+  'projects.detail.confirmDelete': 'Confirm delete',
+  'projects.detail.newItemPlaceholder': 'New item…',
+  'projects.detail.inlineHint': 'Enter = save · Esc = cancel',
+  'projects.detail.conflict': 'Conflict — reloading…',
+  'projects.detail.itemError': 'Error: {message}',
+  'projects.detail.itemAdded': 'Item added',
+  'projects.detail.finalizeVersion': 'Finalize version',
+  'projects.detail.startSessionHere': 'Start session here',
+
+  // Release modal
+  'projects.release.title': 'Finalize version',
+  'projects.release.description': 'All items from In Development will be moved to Released, both version headers bumped, and a new changelog entry inserted at the top. This is a destructive action — make a git commit of ROADMAP.md first if you version it.',
+  'projects.release.versionLabel': 'Release Version (sets ## Released: vX)',
+  'projects.release.versionPlaceholder': 'e.g. 0.3.0',
+  'projects.release.newDevLabel': 'New Dev Version (sets ## In Development: vY)',
+  'projects.release.newDevPlaceholder': 'e.g. 0.4.0',
+  'projects.release.narrativeLabel': 'Changelog Narrative (optional, free Markdown — no H2)',
+  'projects.release.narrativePlaceholder': 'What was built in this version? Multiple paragraphs are fine.',
+  'projects.release.cancel': 'Cancel',
+  'projects.release.complete': 'Complete',
+  'projects.release.finalized': 'v{version} finalized',
+
+  // Usage dashboard — loading / error states
+  'usage.loading': 'Loading usage data…',
+  'usage.noData': 'No data available — Claude Code was not active this month.',
+  'usage.loadError': 'Load error: {message}',
+
+  // Usage dashboard — limit status card
+  'usage.limitStatus': 'Limit Status',
+  'usage.noLimitData': 'No limit data available',
+  'usage.reset': 'Reset {time}',
+  'usage.resetNow': 'Now',
+  'usage.limitResetBadge': '{window} Reset {time}',
+  'usage.limitPeaks': 'Last 7 days: {peaks5h}x >90% (5h) · {peaks7d}x >90% (7d)',
+
+  // Usage dashboard — heatmap
+  'usage.heatmapTitle': 'Activity (Heatmap)',
+  'usage.day.mon': 'Mon',
+  'usage.day.tue': 'Tue',
+  'usage.day.wed': 'Wed',
+  'usage.day.thu': 'Thu',
+  'usage.day.fri': 'Fri',
+  'usage.day.sat': 'Sat',
+  'usage.day.sun': 'Sun',
+
+  // Usage dashboard — top projects
+  'usage.topProjectsTitle': 'Top Projects',
+
+  // Usage dashboard — 30-day table
+  'usage.tableTitle': '30-Day Table',
+  'usage.table.date': 'Date',
+  'usage.table.total': 'Total',
+  'usage.table.cost': 'Cost',
+
+  // Usage dashboard — tool usage
+  'usage.toolTitle': 'Tool Usage',
+
+  // Usage dashboard — work style
+  'usage.workStyleTitle': 'Work Style',
+  'usage.workStyleToolChains': 'Tool Chains {pct}% ({n})',
+  'usage.workStyleDirectAnswers': 'Direct Answers {pct}% ({n})',
+
+  // Usage dashboard — productivity
+  'usage.productivityTitle': 'Productivity',
+  'usage.linesAdded': 'Lines added',
+  'usage.linesRemoved': 'Lines removed',
+  'usage.apiTime': 'API time',
+
+  // Usage dashboard — summary cards
+  'usage.card.monthlyCost': 'Monthly Cost',
+  'usage.card.monthlySessions': 'Monthly Sessions',
+  'usage.card.monthlyCacheRate': 'Monthly Cache Rate',
+  'usage.card.autonomousChains': 'Autonomous Tool Chains',
 };

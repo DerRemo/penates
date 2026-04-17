@@ -3430,20 +3430,20 @@
   <div class="detail-view" id="project-detail-view" data-view="project-detail">
     <div class="detail-toolbar">
       <div class="detail-toolbar-left">
-        <button class="btn btn-ghost btn-sm" id="project-back-btn" type="button">
+        <button class="btn btn-ghost btn-sm" id="project-back-btn" type="button" data-i18n-attr="aria-label:terminal.toolbar.backAria;title:terminal.toolbar.backTitle" aria-label="Back to dashboard" title="Back">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          Back
+          <span class="btn-label" data-i18n="terminal.toolbar.back">Back</span>
         </button>
         <span class="detail-title" id="project-detail-title">—</span>
       </div>
       <div class="detail-toolbar-right">
         <button class="btn btn-ghost btn-sm" id="project-release-btn" type="button" hidden title="Move dev items to Released, bump versions, write changelog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-          Finalize version
+          <span data-i18n="projects.detail.finalizeVersion">Finalize version</span>
         </button>
         <button class="btn btn-primary btn-sm" id="project-new-session-btn" type="button" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          Start session here
+          <span data-i18n="projects.detail.startSessionHere">Start session here</span>
         </button>
       </div>
     </div>
@@ -3543,16 +3543,16 @@
   <!-- ── New Session Modal ────────────────────────────────────── -->
   <div class="modal-overlay" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
     <div class="modal">
-      <h2 id="login-title">Anmeldung</h2>
-      <p>Auth-Token aus <code>.env</code> — wird einmalig im Browser gespeichert.</p>
+      <h2 id="login-title" data-i18n="login.title">Login</h2>
+      <p data-i18n="login.hint">Auth token from <code>.env</code> — stored once in your browser.</p>
       <form id="login-form" action="/api/login" method="post" autocomplete="on">
         <input type="text" name="username" value="hub" autocomplete="username" style="display:none" tabindex="-1" aria-hidden="true">
         <div class="form-group">
-          <label class="form-label" for="login-token">Token</label>
+          <label class="form-label" for="login-token" data-i18n="login.tokenLabel">Token</label>
           <input class="form-input" id="login-token" name="password" type="password" autocomplete="current-password" required spellcheck="false" autocapitalize="off">
         </div>
         <div class="modal-actions">
-          <button class="btn btn-primary" type="submit">Login</button>
+          <button class="btn btn-primary" type="submit" data-i18n="login.submit">Login</button>
         </div>
       </form>
     </div>
@@ -3560,25 +3560,25 @@
 
   <div class="modal-overlay" id="release-modal" role="dialog" aria-modal="true" aria-labelledby="release-modal-title">
     <div class="modal">
-      <h2 id="release-modal-title">Finalize version</h2>
-      <p>All items from <strong>In Development</strong> will be moved to <strong>Released</strong>, both version headers bumped, and a new changelog entry inserted at the top. This is a destructive action — make a git commit of ROADMAP.md first if you version it.</p>
+      <h2 id="release-modal-title" data-i18n="projects.release.title">Finalize version</h2>
+      <p data-i18n="projects.release.description">All items from <strong>In Development</strong> will be moved to <strong>Released</strong>, both version headers bumped, and a new changelog entry inserted at the top. This is a destructive action — make a git commit of ROADMAP.md first if you version it.</p>
       <div class="form-group">
-        <label class="form-label" for="release-version-input">Release Version (sets <code>## Released: vX</code>)</label>
-        <input class="form-input" id="release-version-input" autocomplete="off" spellcheck="false" placeholder="e.g. 0.3.0">
+        <label class="form-label" for="release-version-input" data-i18n="projects.release.versionLabel">Release Version (sets <code>## Released: vX</code>)</label>
+        <input class="form-input" id="release-version-input" autocomplete="off" spellcheck="false" placeholder="e.g. 0.3.0" data-i18n-attr="placeholder:projects.release.versionPlaceholder">
       </div>
       <div class="form-group">
-        <label class="form-label" for="release-new-dev-input">New Dev Version (sets <code>## In Development: vY</code>)</label>
-        <input class="form-input" id="release-new-dev-input" autocomplete="off" spellcheck="false" placeholder="e.g. 0.4.0">
+        <label class="form-label" for="release-new-dev-input" data-i18n="projects.release.newDevLabel">New Dev Version (sets <code>## In Development: vY</code>)</label>
+        <input class="form-input" id="release-new-dev-input" autocomplete="off" spellcheck="false" placeholder="e.g. 0.4.0" data-i18n-attr="placeholder:projects.release.newDevPlaceholder">
       </div>
       <div class="form-group">
-        <label class="form-label" for="release-narrative-input">Changelog Narrative (optional, free Markdown — no H2)</label>
-        <textarea class="form-input" id="release-narrative-input" rows="6" spellcheck="false" placeholder="What was built in this version? Multiple paragraphs are fine."></textarea>
+        <label class="form-label" for="release-narrative-input" data-i18n="projects.release.narrativeLabel">Changelog Narrative (optional, free Markdown — no H2)</label>
+        <textarea class="form-input" id="release-narrative-input" rows="6" spellcheck="false" placeholder="What was built in this version? Multiple paragraphs are fine." data-i18n-attr="placeholder:projects.release.narrativePlaceholder"></textarea>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" type="button" id="release-cancel">Cancel</button>
+        <button class="btn btn-ghost" type="button" id="release-cancel" data-i18n="projects.release.cancel">Cancel</button>
         <button class="btn btn-primary" type="button" id="release-submit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-          Complete
+          <span data-i18n="projects.release.complete">Complete</span>
         </button>
       </div>
     </div>
@@ -3706,16 +3706,16 @@
        dem Theme-Toggle. Hier nur noch das Overlay. -->
   <div class="kbd-help-overlay" id="kbd-help-overlay" role="dialog" aria-modal="true" aria-labelledby="kbd-help-title">
     <div class="kbd-help-box">
-      <h3 id="kbd-help-title">Keyboard Shortcuts</h3>
+      <h3 id="kbd-help-title" data-i18n="kbdHelp.title">Keyboard Shortcuts</h3>
       <dl>
-        <kbd>n</kbd><dd>New Session</dd>
-        <kbd>/</kbd><dd>Focus filter</dd>
-        <kbd>r</kbd><dd>Reload sessions</dd>
-        <kbd>g</kbd><dd>Grid layout</dd>
-        <kbd>l</kbd><dd>List layout</dd>
-        <kbd>t</kbd><dd>Toggle theme</dd>
-        <kbd>Esc</kbd><dd>Back / Close</dd>
-        <kbd>?</kbd><dd>This help</dd>
+        <kbd>n</kbd><dd data-i18n="kbdHelp.newSession">New Session</dd>
+        <kbd>/</kbd><dd data-i18n="kbdHelp.focusFilter">Focus filter</dd>
+        <kbd>r</kbd><dd data-i18n="kbdHelp.reload">Reload sessions</dd>
+        <kbd>g</kbd><dd data-i18n="kbdHelp.gridLayout">Grid layout</dd>
+        <kbd>l</kbd><dd data-i18n="kbdHelp.listLayout">List layout</dd>
+        <kbd>t</kbd><dd data-i18n="kbdHelp.toggleTheme">Toggle theme</dd>
+        <kbd>Esc</kbd><dd data-i18n="kbdHelp.backClose">Back / Close</dd>
+        <kbd>?</kbd><dd data-i18n="kbdHelp.thisHelp">This help</dd>
       </dl>
     </div>
   </div>
@@ -3925,7 +3925,7 @@
     function formatResetCountdown(unixTs) {
       if (!unixTs) return '';
       const diff = unixTs * 1000 - Date.now();
-      if (diff <= 0) return 'Jetzt';
+      if (diff <= 0) return t('usage.resetNow');
       const hours = Math.floor(diff / 3600000);
       const minutes = Math.floor((diff % 3600000) / 60000);
       if (hours >= 24) {
@@ -3951,12 +3951,12 @@
     function formatLimitsTooltip(limits) {
       if (!limits) return '';
       const parts = [];
-      if (limits.resets5h) parts.push('5h Reset ' + formatResetCountdown(limits.resets5h));
-      if (limits.resets7d) parts.push('7d Reset ' + formatResetCountdown(limits.resets7d));
-      return parts.join(' · ') || 'Usage limits';
+      if (limits.resets5h) parts.push(t('usage.limitResetBadge', { window: '5h', time: formatResetCountdown(limits.resets5h) }));
+      if (limits.resets7d) parts.push(t('usage.limitResetBadge', { window: '7d', time: formatResetCountdown(limits.resets7d) }));
+      return parts.join(' · ') || t('usage.limitStatus');
     }
     function formatContextTooltip(s) {
-      if (s.contextTokens == null) return 'No Claude Code data in cwd yet';
+      if (s.contextTokens == null) return t('sessionCard.noClaudeData');
       const tok = formatContextTokens(s.contextTokens).replace(' ctx', '');
       const lim = s.contextLimit >= 1_000_000
         ? `${(s.contextLimit / 1_000_000).toFixed(0)}M`
@@ -3967,14 +3967,14 @@
     function renderGitBadge(git) {
       if (!git) return '';
       const { branch, dirty, ahead, behind } = git;
-      const dirtyDot = dirty ? '<span class="git-dirty-dot" title="Unstaged changes" aria-label="dirty"></span>' : '';
+      const dirtyDot = dirty ? `<span class="git-dirty-dot" title="${t('sessionCard.git.dirtyTitle')}" aria-label="dirty"></span>` : '';
       // ahead/behind nur zeigen wenn Upstream existiert UND Wert != 0
       const abParts = [];
       if (ahead !== null && ahead > 0) abParts.push(`↑${ahead}`);
       if (behind !== null && behind > 0) abParts.push(`↓${behind}`);
       const ab = abParts.length ? `<span class="git-ab">${abParts.join(' ')}</span>` : '';
       return `
-        <div class="session-meta-item git-badge" title="Git status">
+        <div class="session-meta-item git-badge" title="${t('sessionCard.git.statusTitle')}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>
           <span class="git-branch">${escapeHtml(branch)}</span>${dirtyDot}${ab}
         </div>`;
@@ -3987,7 +3987,8 @@
     }
 
     // ── Projects-View ──────────────────────────────────────────────
-    const PROJECTS_EMPTY_HTML = `
+    function buildProjectsEmptyHtml() {
+      return `
       <div class="cmd-output-block" role="region" aria-label="Projects — empty">
         <div class="cmd-line cmd-line--prompt">
           <span class="cmd-prompt">$</span>
@@ -3996,10 +3997,10 @@
         <hr class="cmd-rule">
         <div class="cmd-line cmd-line--lead">
           <span class="cmd-marker">›</span>
-          <span>No ROADMAP.md files found.</span>
+          <span>${t('projects.emptyNoFiles')}</span>
         </div>
         <div class="cmd-block">
-          <p>Create a <span class="cmd-path">ROADMAP.md</span> in a project under <span class="cmd-path">~/Projects/*</span> — it will be registered on the next server restart.</p>
+          <p>${t('projects.emptyInstruction')}</p>
         </div>
         <hr class="cmd-rule">
         <div class="cmd-status">
@@ -4007,6 +4008,7 @@
           <span class="cmd-cursor" aria-hidden="true">▊</span>
         </div>
       </div>`;
+    }
 
     // Sucht (falls Query nicht leer) über /api/projects/search und
     // rendert die Treffer-Liste UNTER der normalen Projekte-Liste.
@@ -4028,9 +4030,9 @@
         const matches = data.matches || [];
         const block = document.createElement('div');
         block.className = 'roadmap-search-results';
-        const header = `<h3>Roadmap matches for "${escapeHtml(q)}" (${matches.length}${data.truncated ? '+' : ''})</h3>`;
+        const header = `<h3>${t('projects.search.header', { q: escapeHtml(q), count: String(matches.length) + (data.truncated ? '+' : '') })}</h3>`;
         if (matches.length === 0) {
-          block.innerHTML = header + '<div class="roadmap-search-empty">No matching items found.</div>';
+          block.innerHTML = header + `<div class="roadmap-search-empty">${t('projects.search.empty')}</div>`;
         } else {
           const items = matches.map(m => `
             <li class="roadmap-search-hit${m.done ? ' done' : ''}" data-project="${escapeHtml(m.projectId)}" data-line="${m.line}">
@@ -4061,13 +4063,13 @@
 
     async function renderProjects() {
       const view = document.getElementById('projects-view');
-      view.innerHTML = '<div class="usage-empty">Loading projects…</div>';
+      view.innerHTML = `<div class="usage-empty">${t('projects.loading')}</div>`;
       try {
         const res = await fetch('/api/projects', { headers: apiHeaders() });
         if (res.status === 401) {
           clearToken();
           showLoginModal();
-          view.innerHTML = '<div class="usage-empty">Auth expired.</div>';
+          view.innerHTML = `<div class="usage-empty">${t('projects.authExpired')}</div>`;
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -4075,7 +4077,7 @@
         const projects = data.projects || [];
 
         if (projects.length === 0) {
-          view.innerHTML = PROJECTS_EMPTY_HTML;
+          view.innerHTML = buildProjectsEmptyHtml();
           return;
         }
 
@@ -4091,16 +4093,16 @@
             <button class="project-card" type="button" data-project-id="${escapeHtml(p.id)}">
               <div class="project-card-head">
                 <span class="project-card-name">${escapeHtml(p.displayName)}</span>
-                ${p.missing ? '<span class="project-missing">ROADMAP.md missing</span>' : ''}
+                ${p.missing ? `<span class="project-missing">${t('projects.missingBadge')}</span>` : ''}
               </div>
               <div class="project-card-versions">
-                <span>released&nbsp;<strong>${relLabel}</strong></span>
+                <span>${t('projects.releasedLabel')}&nbsp;<strong>${relLabel}</strong></span>
                 <span class="project-card-sep">·</span>
-                <span>dev&nbsp;<strong>${devLabel}</strong></span>
+                <span>${t('projects.devLabel')}&nbsp;<strong>${devLabel}</strong></span>
               </div>
               <div class="project-card-progress">
                 <div class="project-card-progress-bar"><div style="width:${pct}%"></div></div>
-                <span class="project-card-progress-text">${devDone}/${devTotal} dev · ${p.backlogCount ?? 0} backlog</span>
+                <span class="project-card-progress-text">${t('projects.progress', { done: devDone, total: devTotal, backlog: p.backlogCount ?? 0 })}</span>
               </div>
             </button>`;
         }).join('');
@@ -4113,7 +4115,7 @@
           });
         });
       } catch (e) {
-        view.innerHTML = `<div class="usage-empty">Error: ${escapeHtml(e.message)}</div>`;
+        view.innerHTML = `<div class="usage-empty">${t('projects.error', { message: escapeHtml(e.message) })}</div>`;
       }
     }
 
@@ -4238,7 +4240,7 @@
       const btn = document.getElementById('sound-toggle');
       if (!btn) return;
       btn.setAttribute('data-sound', soundEnabled() ? 'on' : 'off');
-      btn.title = soundEnabled() ? 'Turn sound alerts OFF' : 'Turn sound alerts ON';
+      btn.title = soundEnabled() ? t('header.soundOffTitle') : t('header.soundOnTitle');
     }
     let audioCtx = null;
     function ensureAudioCtx() {
@@ -4767,7 +4769,7 @@
       }
 
       title.textContent = '…';
-      body.innerHTML = '<div class="usage-empty">Loading project…</div>';
+      body.innerHTML = `<div class="usage-empty">${t('projects.detail.loading')}</div>`;
       // Buttons default hidden — werden nach erfolgreichem Load wieder aktiviert.
       const startBtnEl = document.getElementById('project-new-session-btn');
       if (startBtnEl) startBtnEl.hidden = true;
@@ -4779,7 +4781,7 @@
         if (res.status === 401) {
           clearToken();
           showLoginModal();
-          body.innerHTML = '<div class="usage-empty">Auth expired.</div>';
+          body.innerHTML = `<div class="usage-empty">${t('projects.authExpired')}</div>`;
           return;
         }
         if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
@@ -4789,7 +4791,7 @@
 
         if (res.status === 404) {
           title.textContent = id;
-          body.innerHTML = '<div class="usage-empty">Project not found.</div>';
+          body.innerHTML = `<div class="usage-empty">${t('projects.detail.notFound')}</div>`;
           return;
         }
 
@@ -4805,11 +4807,11 @@
               <hr class="cmd-rule">
               <div class="cmd-line cmd-line--lead">
                 <span class="cmd-marker">›</span>
-                <span>ROADMAP.md not readable.</span>
+                <span>${t('projects.detail.roadmapNotReadable')}</span>
               </div>
               <div class="cmd-block">
                 <p>Path: <span class="cmd-path">${escapeHtml(p.path)}</span></p>
-                <p>Create a <span class="cmd-path">ROADMAP.md</span> in this directory and restart the server.</p>
+                <p>${t('projects.detail.roadmapMissingInstruction')}</p>
               </div>
               <hr class="cmd-rule">
               <div class="cmd-status">
@@ -4822,10 +4824,10 @@
 
         const renderItem = (it, sectionKey) => `
           <li class="roadmap-item${it.done ? ' done' : ''}" data-section="${sectionKey}" data-line="${it.line}">
-            <button class="roadmap-checkbox" type="button" aria-label="${it.done ? 'Mark as open' : 'Mark as done'}">${it.done ? '[x]' : '[ ]'}</button>
+            <button class="roadmap-checkbox" type="button" aria-label="${it.done ? t('projects.detail.markAsOpen') : t('projects.detail.markAsDone')}">${it.done ? '[x]' : '[ ]'}</button>
             <span class="roadmap-text">${escapeHtml(it.text)}</span>
             ${renderMetaPills(it.meta)}
-            <button class="roadmap-item-delete" type="button" aria-label="Delete item" title="Delete">×</button>
+            <button class="roadmap-item-delete" type="button" aria-label="${t('projects.detail.deleteItem')}" title="${t('projects.detail.deleteTitle')}">×</button>
           </li>`;
 
         const section = (label, version, items, sectionKey) => `
@@ -4833,8 +4835,8 @@
             <h3>${label}${version ? ` · <span class="roadmap-version">v${escapeHtml(version)}</span>` : ''}</h3>
             ${items.length
               ? `<ul class="roadmap-list">${items.map(it => renderItem(it, sectionKey)).join('')}</ul>`
-              : '<p class="roadmap-empty">— empty —</p>'}
-            <button class="roadmap-add-btn" type="button" data-section="${sectionKey}">+ Item</button>
+              : `<p class="roadmap-empty">${t('projects.detail.sectionEmpty')}</p>`}
+            <button class="roadmap-add-btn" type="button" data-section="${sectionKey}">${t('projects.detail.addItem')}</button>
           </section>`;
 
         // Sessions im cwd — wird aus globalem sessions-Cache gerendert.
@@ -4854,12 +4856,12 @@
         };
         const sessionsPanelHtml = `
           <div class="project-sessions-panel">
-            <h3>Offene Sessions (${linkedSessions.length})</h3>
+            <h3>${t('projects.detail.openSessions', { n: linkedSessions.length })}</h3>
             ${linkedSessions.length
               ? `<ul class="project-sessions-list">${linkedSessions.map(renderSessionItem).join('')}</ul>`
               : sessions === null
-                ? '<div class="project-sessions-empty">Loading sessions…</div>'
-                : '<div class="project-sessions-empty">No session running in this directory.</div>'}
+                ? `<div class="project-sessions-empty">${t('projects.detail.loadingSessions')}</div>`
+                : `<div class="project-sessions-empty">${t('projects.detail.noSessions')}</div>`}
           </div>`;
 
         // Toolbar-Button für "Session hier starten" aktivieren + Pfad
@@ -4889,11 +4891,11 @@
         body.innerHTML = `
           <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
           ${sessionsPanelHtml}
-          ${section('Released',       p.released?.version, p.released?.items || [], 'released')}
-          ${section('In Development', p.dev?.version,      p.dev?.items      || [], 'dev')}
-          ${section('Backlog / Ideas', null,               p.backlog         || [], 'backlog')}
+          ${section(t('projects.detail.sectionReleased'),     p.released?.version, p.released?.items || [], 'released')}
+          ${section(t('projects.detail.sectionDev'),          p.dev?.version,      p.dev?.items      || [], 'dev')}
+          ${section(t('projects.detail.sectionBacklog'), null,               p.backlog         || [], 'backlog')}
           ${p.changelog
-            ? `<section class="roadmap-section"><h3>Changelog</h3><pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre></section>`
+            ? `<section class="roadmap-section"><h3>${t('projects.detail.sectionChangelog')}</h3><pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre></section>`
             : ''}`;
 
         // Click-Delegation für die Session-Items
@@ -4958,7 +4960,7 @@
               renderProjectDetail(p.id);
             } catch (err) {
               if (err.status === 409) {
-                showProjectToast('Conflict — reloading…');
+                showProjectToast(t('projects.detail.conflict'));
                 renderProjectDetail(p.id);
               } else {
                 // Revert optimistic flip in allen Fehler-Pfaden
@@ -4968,7 +4970,7 @@
                 btn.textContent = wasDone ? '[x]' : '[ ]';
                 btn.disabled = false;
                 if (err.status !== 401) {
-                  showProjectToast('Error: ' + err.message);
+                  showProjectToast(t('projects.detail.itemError', { message: err.message }));
                 }
               }
             }
@@ -4987,7 +4989,7 @@
           const resetPending = () => {
             btn.classList.remove('confirm-pending');
             btn.textContent = '×';
-            btn.setAttribute('aria-label', 'Delete item');
+            btn.setAttribute('aria-label', t('projects.detail.deleteItem'));
             if (revertTimer) { clearTimeout(revertTimer); revertTimer = null; }
           };
 
@@ -5003,7 +5005,7 @@
             if (!btn.classList.contains('confirm-pending')) {
               btn.classList.add('confirm-pending');
               btn.textContent = '✓?';
-              btn.setAttribute('aria-label', 'Confirm delete');
+              btn.setAttribute('aria-label', t('projects.detail.confirmDelete'));
               revertTimer = setTimeout(resetPending, CONFIRM_REVERT_MS);
               return;
             }
@@ -5020,10 +5022,10 @@
               btn.disabled = false;
               resetPending();
               if (err.status === 409) {
-                showProjectToast('Conflict — reloading…');
+                showProjectToast(t('projects.detail.conflict'));
                 renderProjectDetail(p.id);
               } else if (err.status !== 401) {
-                showProjectToast('Error: ' + err.message);
+                showProjectToast(t('projects.detail.itemError', { message: err.message }));
               }
             }
           });
@@ -5051,8 +5053,8 @@
           const wrap = document.createElement('div');
           wrap.className = 'roadmap-inline-input';
           wrap.innerHTML = `
-            <input type="text" placeholder="New item…" maxlength="500" spellcheck="false">
-            <span class="inline-hint">Enter = save · Esc = cancel</span>
+            <input type="text" placeholder="${t('projects.detail.newItemPlaceholder')}" maxlength="500" spellcheck="false">
+            <span class="inline-hint">${t('projects.detail.inlineHint')}</span>
           `;
           btn.parentNode.insertBefore(wrap, btn);
           const input = wrap.querySelector('input');
@@ -5073,16 +5075,16 @@
             input.disabled = true;
             try {
               await patchItem(p.id, { action: 'add', section: sectionKey, text });
-              showProjectToast('Item added', 'success');
+              showProjectToast(t('projects.detail.itemAdded'), 'success');
               renderProjectDetail(p.id);
             } catch (err) {
               committing = false;
               input.disabled = false;
               if (err.status === 409) {
-                showProjectToast('Conflict — reloading…');
+                showProjectToast(t('projects.detail.conflict'));
                 renderProjectDetail(p.id);
               } else if (err.status !== 401) {
-                showProjectToast('Error: ' + err.message);
+                showProjectToast(t('projects.detail.itemError', { message: err.message }));
                 input.focus();
               }
             }
@@ -5102,7 +5104,7 @@
           });
         }
       } catch (e) {
-        body.innerHTML = `<div class="usage-empty">Error: ${escapeHtml(e.message)}</div>`;
+        body.innerHTML = `<div class="usage-empty">${t('projects.error', { message: escapeHtml(e.message) })}</div>`;
       }
     }
 
@@ -5110,7 +5112,7 @@
     let _usageCountdownInterval = null;
     async function renderUsage() {
       const view = document.getElementById('usage-view');
-      view.innerHTML = '<div class="usage-empty">Loading usage data…</div>';
+      view.innerHTML = `<div class="usage-empty">${t('usage.loading')}</div>`;
       if (_usageCountdownInterval) { clearInterval(_usageCountdownInterval); _usageCountdownInterval = null; }
       try {
         const hdrs = apiHeaders();
@@ -5121,7 +5123,7 @@
         ]);
         if (histRes.status === 401) {
           clearToken(); showLoginModal();
-          view.innerHTML = '<div class="usage-empty">Auth expired.</div>';
+          view.innerHTML = `<div class="usage-empty">${t('projects.authExpired')}</div>`;
           return;
         }
         if (!histRes.ok) throw new Error(`HTTP ${histRes.status}`);
@@ -5130,7 +5132,7 @@
         const costs = costRes && costRes.ok ? await costRes.json() : null;
 
         if (!hist.monthTotal && hist.days.every(d => !d.input && !d.output) && !costs) {
-          view.innerHTML = '<div class="usage-empty">No data available — Claude Code was not active this month.</div>';
+          view.innerHTML = `<div class="usage-empty">${t('usage.noData')}</div>`;
           return;
         }
 
@@ -5152,23 +5154,23 @@
           const urgent7 = (cur.pct7d ?? 0) > 90 ? ' usage-limit-urgent' : '';
           limitHtml = `
             <div class="usage-limit-card">
-              <div class="ulc-title">Limit Status</div>
+              <div class="ulc-title">${t('usage.limitStatus')}</div>
               <div class="usage-limit-row">
                 <span class="usage-limit-label">5h</span>
                 <div class="usage-limit-bar"><div class="usage-limit-fill ${c5}" style="width:${Math.min(cur.pct5h ?? 0, 100)}%"></div></div>
                 <span class="usage-limit-pct ${c5}">${Math.round(cur.pct5h ?? 0)}%</span>
-                <span class="usage-limit-reset ${c5}${urgent5}" data-reset-ts="${cur.resets5h || ''}">Reset ${formatResetCountdown(cur.resets5h)}</span>
+                <span class="usage-limit-reset ${c5}${urgent5}" data-reset-ts="${cur.resets5h || ''}">${t('usage.reset', { time: formatResetCountdown(cur.resets5h) })}</span>
               </div>
               <div class="usage-limit-row">
                 <span class="usage-limit-label">7d</span>
                 <div class="usage-limit-bar"><div class="usage-limit-fill ${c7}" style="width:${Math.min(cur.pct7d ?? 0, 100)}%"></div></div>
                 <span class="usage-limit-pct ${c7}">${Math.round(cur.pct7d ?? 0)}%</span>
-                <span class="usage-limit-reset ${c7}${urgent7}" data-reset-ts="${cur.resets7d || ''}">Reset ${formatResetCountdown(cur.resets7d)}</span>
+                <span class="usage-limit-reset ${c7}${urgent7}" data-reset-ts="${cur.resets7d || ''}">${t('usage.reset', { time: formatResetCountdown(cur.resets7d) })}</span>
               </div>
-              ${(lim.peaks5h || lim.peaks7d) ? `<div class="usage-limit-peaks">Last 7 days: ${lim.peaks5h ?? 0}x &gt;90% (5h) · ${lim.peaks7d ?? 0}x &gt;90% (7d)</div>` : ''}
+              ${(lim.peaks5h || lim.peaks7d) ? `<div class="usage-limit-peaks">${t('usage.limitPeaks', { peaks5h: lim.peaks5h ?? 0, peaks7d: lim.peaks7d ?? 0 })}</div>` : ''}
             </div>`;
         } else {
-          limitHtml = `<div class="usage-limit-card"><div class="ulc-title">Limit Status</div><div style="color:var(--text-muted);font-size:13px">No limit data available</div></div>`;
+          limitHtml = `<div class="usage-limit-card"><div class="ulc-title">${t('usage.limitStatus')}</div><div style="color:var(--text-muted);font-size:13px">${t('usage.noLimitData')}</div></div>`;
         }
 
         // ── Heatmap ──
@@ -5177,7 +5179,7 @@
           const maxTok = Math.max(...hist.heatmap.map(h => h.tokens), 1);
           const heatMap = {};
           hist.heatmap.forEach(h => { heatMap[`${h.dow}-${h.hour}`] = h.tokens; });
-          const dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+          const dayLabels = [t('usage.day.mon'), t('usage.day.tue'), t('usage.day.wed'), t('usage.day.thu'), t('usage.day.fri'), t('usage.day.sat'), t('usage.day.sun')];
           // Header row
           let cells = '<div class="hm-label"></div>';
           for (let h = 0; h < 24; h++) cells += `<div class="hm-hour-label">${h % 6 === 0 ? h : ''}</div>`;
@@ -5192,7 +5194,7 @@
               cells += `<div class="hm-cell" style="${bg}" title="${dayLabels[d]} ${h}:00 — ${formatTokensCompact(tok)}"></div>`;
             }
           }
-          heatmapHtml = `<div class="usage-section"><div class="us-title">Activity (Heatmap)</div><div class="usage-heatmap-wrap"><div class="usage-heatmap">${cells}</div></div></div>`;
+          heatmapHtml = `<div class="usage-section"><div class="us-title">${t('usage.heatmapTitle')}</div><div class="usage-heatmap-wrap"><div class="usage-heatmap">${cells}</div></div></div>`;
         }
 
         // ── Top Projects ──
@@ -5205,7 +5207,7 @@
               <div class="usage-bar-track"><div class="usage-bar-fill" style="width:${Math.round((p.tokens / maxP) * 100)}%"></div></div>
               <span class="usage-bar-count">${formatTokensCompact(p.tokens)}</span>
             </div>`).join('');
-          projectsHtml = `<div class="usage-section"><div class="us-title">Top Projects</div><div class="usage-bar-list">${bars}</div></div>`;
+          projectsHtml = `<div class="usage-section"><div class="us-title">${t('usage.topProjectsTitle')}</div><div class="usage-bar-list">${bars}</div></div>`;
         }
 
         // ── 30-Day Table ──
@@ -5216,7 +5218,7 @@
           const sessCell = hist.dailySessions?.[d.date] ?? '—';
           return `<tr${empty}><td>${d.date}</td><td class="num">${formatTokensCompact(d.input)}</td><td class="num">${formatTokensCompact(d.output)}</td><td class="num">${total ? formatTokensCompact(total) : '—'}</td><td class="num">${costCell}</td><td class="num">${sessCell}</td></tr>`;
         }).join('');
-        const tableHtml = `<div class="usage-section"><div class="us-title">30-Tage-Tabelle</div><div class="usage-table-wrap"><table class="usage-table"><thead><tr><th>Datum</th><th class="num">Input</th><th class="num">Output</th><th class="num">Gesamt</th><th class="num">Kosten</th><th class="num">Sessions</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+        const tableHtml = `<div class="usage-section"><div class="us-title">${t('usage.tableTitle')}</div><div class="usage-table-wrap"><table class="usage-table"><thead><tr><th>${t('usage.table.date')}</th><th class="num">Input</th><th class="num">Output</th><th class="num">${t('usage.table.total')}</th><th class="num">${t('usage.table.cost')}</th><th class="num">Sessions</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 
         // ── Tool Usage ──
         let toolHtml = '';
@@ -5228,7 +5230,7 @@
               <div class="usage-bar-track"><div class="usage-bar-fill" style="width:${Math.round((t.count / maxT) * 100)}%"></div></div>
               <span class="usage-bar-count">${t.count}</span>
             </div>`).join('');
-          toolHtml = `<div class="usage-section"><div class="us-title">Tool-Nutzung</div><div class="usage-bar-list">${bars}</div></div>`;
+          toolHtml = `<div class="usage-section"><div class="us-title">${t('usage.toolTitle')}</div><div class="usage-bar-list">${bars}</div></div>`;
         }
 
         // ── Arbeitsweise ──
@@ -5237,23 +5239,23 @@
           const ws = hist.workStyle;
           const toolPct = Math.round((ws.toolUse / ws.total) * 100);
           const directPct = 100 - toolPct;
-          workHtml = `<div class="usage-section"><div class="us-title">Work Style</div><div class="usage-workstyle-bar"><div class="ws-tool" style="width:${toolPct}%"></div><div class="ws-direct" style="width:${directPct}%"></div></div><div class="usage-workstyle-labels"><span>Tool Chains <strong>${toolPct}%</strong> (${ws.toolUse})</span><span>Direct Answers <strong>${directPct}%</strong> (${ws.endTurn})</span></div></div>`;
+          workHtml = `<div class="usage-section"><div class="us-title">${t('usage.workStyleTitle')}</div><div class="usage-workstyle-bar"><div class="ws-tool" style="width:${toolPct}%"></div><div class="ws-direct" style="width:${directPct}%"></div></div><div class="usage-workstyle-labels"><span>${t('usage.workStyleToolChains', { pct: toolPct, n: ws.toolUse })}</span><span>${t('usage.workStyleDirectAnswers', { pct: directPct, n: ws.endTurn })}</span></div></div>`;
         }
 
         // ── Produktivitaet ──
         let prodHtml = '';
         if (costs) {
           const apiH = costs.totalApiDurationMs ? `${Math.round(costs.totalApiDurationMs / 3600000)}h` : '—';
-          prodHtml = `<div class="usage-section"><div class="us-title">Produktivitaet</div><div class="usage-prod-row"><div class="usage-prod-item"><div class="up-value up-added">+${(costs.totalLinesAdded || 0).toLocaleString()}</div><div class="up-label">Zeilen hinzugefuegt</div></div><div class="usage-prod-item"><div class="up-value up-removed">-${(costs.totalLinesRemoved || 0).toLocaleString()}</div><div class="up-label">Zeilen entfernt</div></div><div class="usage-prod-item"><div class="up-value up-time">${apiH}</div><div class="up-label">API-Zeit</div></div></div></div>`;
+          prodHtml = `<div class="usage-section"><div class="us-title">${t('usage.productivityTitle')}</div><div class="usage-prod-row"><div class="usage-prod-item"><div class="up-value up-added">+${(costs.totalLinesAdded || 0).toLocaleString()}</div><div class="up-label">${t('usage.linesAdded')}</div></div><div class="usage-prod-item"><div class="up-value up-removed">-${(costs.totalLinesRemoved || 0).toLocaleString()}</div><div class="up-label">${t('usage.linesRemoved')}</div></div><div class="usage-prod-item"><div class="up-value up-time">${apiH}</div><div class="up-label">${t('usage.apiTime')}</div></div></div></div>`;
         }
 
         // ── Assemble ──
         view.innerHTML = `
           <div class="usage-summary-grid">
-            <div class="usage-summary-card"><div class="usc-value">${costVal}</div><div class="usc-label">Monthly<br>Cost</div></div>
-            <div class="usage-summary-card"><div class="usc-value">${sessVal}</div><div class="usc-label">Monthly<br>Sessions</div></div>
-            <div class="usage-summary-card"><div class="usc-value">${cacheVal}</div><div class="usc-label">Monthly<br>Cache Rate</div></div>
-            <div class="usage-summary-card"><div class="usc-value">${autonomyVal}</div><div class="usc-label">Autonomous<br>Tool Chains</div></div>
+            <div class="usage-summary-card"><div class="usc-value">${costVal}</div><div class="usc-label">${t('usage.card.monthlyCost')}</div></div>
+            <div class="usage-summary-card"><div class="usc-value">${sessVal}</div><div class="usc-label">${t('usage.card.monthlySessions')}</div></div>
+            <div class="usage-summary-card"><div class="usc-value">${cacheVal}</div><div class="usc-label">${t('usage.card.monthlyCacheRate')}</div></div>
+            <div class="usage-summary-card"><div class="usc-value">${autonomyVal}</div><div class="usc-label">${t('usage.card.autonomousChains')}</div></div>
           </div>
           ${limitHtml}
           <div class="usage-two-col">
@@ -5272,12 +5274,12 @@
         _usageCountdownInterval = setInterval(() => {
           view.querySelectorAll('.usage-limit-reset[data-reset-ts]').forEach(el => {
             const ts = parseInt(el.dataset.resetTs, 10);
-            if (ts) el.textContent = 'Reset ' + formatResetCountdown(ts);
+            if (ts) el.textContent = t('usage.reset', { time: formatResetCountdown(ts) });
           });
         }, 60000);
 
       } catch (e) {
-        view.innerHTML = `<div class="usage-empty">Load error: ${escapeHtml(e.message)}</div>`;
+        view.innerHTML = `<div class="usage-empty">${t('usage.loadError', { message: escapeHtml(e.message) })}</div>`;
       }
     }
 
@@ -7126,7 +7128,7 @@
           throw new Error(err.detail || err.error || `HTTP ${res.status}`);
         }
         closeReleaseModal();
-        showProjectToast(`v${releaseVersion} finalized`, 'success');
+        showProjectToast(t('projects.release.finalized', { version: releaseVersion }), 'success');
         renderProjectDetail(projectId);
       } catch (e) {
         showToast(t('toast.releaseFailed', { message: e.message }), 'error');
