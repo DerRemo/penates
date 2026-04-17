@@ -4047,6 +4047,7 @@
       document.documentElement.style.colorScheme = theme;
       if (persist) localStorage.setItem('cchub_theme', theme);
       if (currentTerminal) applyTerminalTheme(currentTerminal);
+      if (typeof window._settingsAppearanceSync === 'function') window._settingsAppearanceSync();
     }
     function toggleTheme() {
       setTheme(getTheme() === 'dark' ? 'light' : 'dark');
@@ -7674,6 +7675,7 @@
           syncActive();
         });
       });
+      window._settingsAppearanceSync = syncActive;   // expose for setTheme to call
       syncActive();
     }
 
@@ -7707,7 +7709,6 @@
       btn.addEventListener('click', () => {
         const wantOn = btn.getAttribute('aria-pressed') !== 'true';
         setSoundEnabled(wantOn);  // also calls updateSoundToggleUi() for old button
-        sync();
       });
       sync();
     }
@@ -7735,9 +7736,7 @@
         btn.setAttribute('aria-pressed', pushEnabled() ? 'true' : 'false');
       }
 
-      // Keep Settings push toggle in sync after push state changes.
-      // Patch updatePushToggleUi so both buttons stay consistent.
-      const _origUpdatePushUi = updatePushToggleUi;
+      // updatePushToggleUi invokes window._settingsPushSync (set below) to mirror state to this button.
       window._settingsPushSync = function() {
         syncToggleState();
         updatePermissionDisplay();
