@@ -3242,6 +3242,35 @@
     }
     .upload-toast button:hover { background: var(--accent-muted, rgba(45,212,191,.12)); }
   </style>
+  <script src="/locales/en.js"></script>
+  <script src="/locales/de.js"></script>
+  <script>
+    // i18n translator bootstrap — mirrors lib/i18n.js createTranslator (tested there).
+    (function () {
+      const bundles = window.__I18N_BUNDLES || { en: {}, de: {} };
+      const DEFAULT_LANG = 'en';
+      let currentLang = localStorage.getItem('cchub_lang') || DEFAULT_LANG;
+      if (currentLang !== 'en' && currentLang !== 'de') currentLang = DEFAULT_LANG;
+
+      function t(key, vars) {
+        const s = (bundles[currentLang] && bundles[currentLang][key])
+               ?? (bundles.en && bundles.en[key])
+               ?? key;
+        if (!vars) return s;
+        return s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
+      }
+
+      window.t = t;
+      window.i18nApi = {
+        getLang() { return currentLang; },
+        setLang(lang) {
+          if (lang !== 'en' && lang !== 'de') return;
+          localStorage.setItem('cchub_lang', lang);
+          currentLang = lang;
+        },
+      };
+    })();
+  </script>
 </head>
 <body>
 
@@ -8272,6 +8301,30 @@
     }
 
     document.addEventListener('DOMContentLoaded', wireTerminalDnD);
+
+    // ── i18n DOM sweep ─────────────────────────────────────────────
+    function applyI18nToDom(root) {
+      const scope = root || document;
+      // Text content
+      scope.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (key) el.textContent = window.t(key);
+      });
+      // Attributes — format: "attr1:key1;attr2:key2"
+      scope.querySelectorAll('[data-i18n-attr]').forEach(el => {
+        const spec = el.getAttribute('data-i18n-attr');
+        if (!spec) return;
+        spec.split(';').forEach(pair => {
+          const [attr, key] = pair.split(':').map(s => s.trim());
+          if (!attr || !key) return;
+          el.setAttribute(attr, window.t(key));
+        });
+      });
+    }
+    window.applyI18nToDom = applyI18nToDom;
+
+    // Apply once at boot so HTML authored in the file gets localized.
+    document.addEventListener('DOMContentLoaded', () => applyI18nToDom(document));
   </script>
 
   <div class="file-preview-modal" id="file-preview-modal">
