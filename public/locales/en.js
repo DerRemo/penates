@@ -159,7 +159,7 @@ window.__I18N_BUNDLES.en = {
   'preview.error': 'Error: {message}',
 
   // Upload toast stack
-  'upload.status.queued': 'wartet',
+  'upload.status.queued': 'queued',
   'upload.status.done': 'done',
   'upload.status.tooLargeClient': 'too large (max 100 MB)',
   'upload.status.tooLargeServer': 'too large (server)',
