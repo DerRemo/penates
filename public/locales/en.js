@@ -408,4 +408,40 @@ window.__I18N_BUNDLES.en = {
 
   // Common / shared
   'common.errorWithMessage': 'Error: {message}',
+
+  // Settings — sidebar entry + page
+  'settings.sidebarEntry': 'Settings',
+  'settings.sidebarEntryAria': 'Open settings',
+  'settings.pageTitle': 'Settings',
+
+  // Settings — section headers
+  'settings.section.appearance': 'Appearance',
+  'settings.section.language': 'Language',
+  'settings.section.notifications': 'Notifications',
+  'settings.section.help': 'Help',
+  'settings.section.about': 'About',
+
+  // Settings — Appearance section
+  'settings.appearance.themeLabel': 'Theme',
+  'settings.appearance.themeLight': 'Light',
+  'settings.appearance.themeDark': 'Dark',
+
+  // Settings — Language section
+  'settings.language.label': 'Interface language',
+  'settings.language.english': 'English',
+  'settings.language.german': 'Deutsch',
+  'settings.language.reloadHint': 'Switching reloads the page.',
+
+  // Settings — Notifications section
+  'settings.notifications.soundLabel': 'Sound alerts',
+  'settings.notifications.pushLabel': 'Push notifications',
+
+  // Settings — Help section
+  'settings.help.kbdShortcutsLabel': 'Keyboard shortcuts',
+
+  // Settings — About section
+  'settings.about.currentVersion': 'Current version',
+  'settings.about.latestVersion': 'Latest release',
+  'settings.about.viewRelease': 'View release',
+  'settings.about.uptimeLabel': 'Server uptime',
 };

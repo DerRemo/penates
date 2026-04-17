@@ -457,6 +457,57 @@
       margin: var(--space-3) var(--space-2);
     }
 
+    /* Settings entry pinned at the bottom of the sidebar */
+    .sidebar__settings-section {
+      margin-top: auto;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: var(--space-2);
+    }
+    .sidebar__settings-entry {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      width: 100%;
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: inherit;
+      text-align: left;
+      min-height: 36px;
+      position: relative;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+    .sidebar__settings-entry:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .sidebar__settings-entry.is-active {
+      background: var(--accent-muted);
+      color: var(--accent);
+    }
+    .sidebar__settings-entry .gear {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      stroke: currentColor;
+    }
+    .sidebar__settings-dot {
+      position: absolute;
+      top: 50%;
+      right: var(--space-3);
+      transform: translateY(-50%);
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent, #2dd4bf);
+      box-shadow: 0 0 6px rgba(45,212,191,.7);
+    }
+    .sidebar__settings-dot[hidden] { display: none; }
+
     .sidebar__empty {
       color: var(--text-muted);
       font-size: var(--text-xs);
@@ -2152,6 +2203,7 @@
     body[data-current-view="dashboard"]      .main-content [data-view="dashboard"]      { display: block; }
     body[data-current-view="terminal"]       .main-content [data-view="terminal"]       { display: flex; }
     body[data-current-view="project-detail"] .main-content [data-view="project-detail"] { display: flex; }
+    body[data-current-view="settings"]       .main-content [data-view="settings"]       { display: block; }
 
     /* ── Terminal View ─────────────────────────────────────────────── */
     /* --kb-inset wird von JS gesetzt wenn die iOS-Tastatur auftaucht —
@@ -3241,6 +3293,145 @@
       font-family: inherit;
     }
     .upload-toast button:hover { background: var(--accent-muted, rgba(45,212,191,.12)); }
+
+    /* ── Settings View ─────────────────────────────────────────────── */
+    .settings-view {
+      padding: var(--space-5, 20px);
+    }
+    .settings-view .view__header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .settings-view .view__header h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .settings-page {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 720px;
+    }
+    .settings-card {
+      background: var(--bg-surface-translucent);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md, 8px);
+      padding: 16px;
+    }
+    .settings-card h2 {
+      margin: 0 0 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-muted);
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .settings-row + .settings-row {
+      border-top: 1px solid var(--border-subtle);
+    }
+    .settings-row label {
+      flex: 1;
+      color: var(--text-secondary);
+      font-size: var(--text-sm, 13px);
+    }
+    .settings-row__control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .settings-row__hint {
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .settings-row__meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .settings-row--link {
+      cursor: pointer;
+      border-radius: 4px;
+      padding-left: 4px;
+      padding-right: 4px;
+      transition: background 0.12s ease;
+    }
+    .settings-row--link:hover {
+      background: var(--bg-card-hover);
+    }
+    .seg-btn {
+      padding: 5px 12px;
+      border-radius: var(--radius-sm, 6px);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: var(--text-sm, 13px);
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+    .seg-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .seg-btn.is-active {
+      background: var(--accent-muted);
+      border-color: var(--accent, #2dd4bf);
+      color: var(--accent, #2dd4bf);
+    }
+    .toggle-btn {
+      width: 40px;
+      height: 22px;
+      border-radius: 11px;
+      border: 0;
+      cursor: pointer;
+      background: rgba(255,255,255,.12);
+      position: relative;
+      transition: background .15s;
+      flex-shrink: 0;
+    }
+    .toggle-btn::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform .15s;
+    }
+    .toggle-btn[aria-pressed="true"] { background: var(--accent, #2dd4bf); }
+    .toggle-btn[aria-pressed="true"]::after { transform: translateX(18px); }
+    .settings-about-changelog {
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(0,0,0,.15);
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .settings-about-changelog:empty { display: none; }
+    .settings-about-changelog h3,
+    .settings-about-changelog h4 { margin: 12px 0 6px; font-size: 13px; }
+    .settings-about-changelog ul { margin: 6px 0; padding-left: 20px; }
+    .settings-about-changelog code {
+      background: rgba(255,255,255,.08);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: var(--font-mono);
+    }
+    .settings-about-changelog a { color: var(--accent, #2dd4bf); text-decoration: underline; }
   </style>
   <script src="/locales/en.js"></script>
   <script src="/locales/de.js"></script>
@@ -3335,6 +3526,19 @@
         </span>
         <span class="sidebar__nav-label" data-i18n="sidebar.nav.usage">Usage</span>
       </button>
+
+      <div class="sidebar__settings-section">
+        <button class="sidebar__settings-entry" id="sidebar-settings-entry" type="button"
+                data-i18n-attr="aria-label:settings.sidebarEntryAria" aria-label="Open settings">
+          <svg class="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span class="sidebar__nav-label" data-i18n="settings.sidebarEntry">Settings</span>
+          <span class="sidebar__settings-dot" id="sidebar-settings-dot" aria-hidden="true" hidden></span>
+        </button>
+      </div>
     </aside>
 
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
@@ -3518,6 +3722,94 @@
       </aside>
       <div class="files-resizer" id="files-resizer" style="display:none"></div>
       <div class="terminal-container" id="terminal-container"></div>
+    </div>
+  </div>
+
+  <!-- ── Settings View ───────────────────────────────────────── -->
+  <div class="settings-view" id="settings-view" data-view="settings">
+    <div class="view__header">
+      <h1 data-i18n="settings.pageTitle">Settings</h1>
+    </div>
+    <div class="settings-page">
+
+      <!-- Appearance -->
+      <section class="settings-card" id="settings-appearance">
+        <h2 data-i18n="settings.section.appearance">Appearance</h2>
+        <div class="settings-row">
+          <label data-i18n="settings.appearance.themeLabel">Theme</label>
+          <div class="settings-row__control">
+            <button type="button" class="seg-btn" data-theme-value="light"
+                    data-i18n="settings.appearance.themeLight">Light</button>
+            <button type="button" class="seg-btn" data-theme-value="dark"
+                    data-i18n="settings.appearance.themeDark">Dark</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Language -->
+      <section class="settings-card" id="settings-language">
+        <h2 data-i18n="settings.section.language">Language</h2>
+        <div class="settings-row">
+          <label data-i18n="settings.language.label">Interface language</label>
+          <div class="settings-row__control">
+            <button type="button" class="seg-btn" data-lang-value="en"
+                    data-i18n="settings.language.english">English</button>
+            <button type="button" class="seg-btn" data-lang-value="de"
+                    data-i18n="settings.language.german">Deutsch</button>
+          </div>
+        </div>
+        <p class="settings-row__hint" data-i18n="settings.language.reloadHint">Switching reloads the page.</p>
+      </section>
+
+      <!-- Notifications -->
+      <section class="settings-card" id="settings-notifications">
+        <h2 data-i18n="settings.section.notifications">Notifications</h2>
+        <div class="settings-row">
+          <label data-i18n="settings.notifications.soundLabel">Sound alerts</label>
+          <div class="settings-row__control">
+            <button type="button" class="toggle-btn" id="settings-sound-toggle" aria-pressed="false"></button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <label data-i18n="settings.notifications.pushLabel">Push notifications</label>
+          <div class="settings-row__control">
+            <button type="button" class="toggle-btn" id="settings-push-toggle" aria-pressed="false"></button>
+            <span class="settings-row__meta" id="settings-push-permission"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Help -->
+      <section class="settings-card" id="settings-help">
+        <h2 data-i18n="settings.section.help">Help</h2>
+        <div class="settings-row settings-row--link" id="settings-kbd-shortcuts-row">
+          <label data-i18n="settings.help.kbdShortcutsLabel">Keyboard shortcuts</label>
+          <div class="settings-row__control"><span aria-hidden="true">→</span></div>
+        </div>
+      </section>
+
+      <!-- About -->
+      <section class="settings-card" id="settings-about">
+        <h2 data-i18n="settings.section.about">About</h2>
+        <div class="settings-row">
+          <label data-i18n="settings.about.currentVersion">Current version</label>
+          <div class="settings-row__control"><code id="settings-current-version">—</code></div>
+        </div>
+        <div class="settings-row">
+          <label data-i18n="settings.about.latestVersion">Latest release</label>
+          <div class="settings-row__control">
+            <code id="settings-latest-version">—</code>
+            <a id="settings-release-link" href="#" target="_blank" rel="noopener" hidden
+               data-i18n="settings.about.viewRelease">View release</a>
+          </div>
+        </div>
+        <div class="settings-row">
+          <label data-i18n="settings.about.uptimeLabel">Server uptime</label>
+          <div class="settings-row__control"><code id="settings-uptime">—</code></div>
+        </div>
+        <div class="settings-about-changelog" id="settings-about-changelog"></div>
+      </section>
+
     </div>
   </div>
 
@@ -3808,12 +4100,12 @@
     }
 
     // ── View-Manager ───────────────────────────────────────────────
-    // Drei Top-Level-Views: dashboard, terminal, project-detail.
+    // Vier Top-Level-Views: dashboard, terminal, project-detail, settings.
     // Einzige zentrale Stelle die zwischen ihnen schaltet. Kümmert sich
     // um: body[data-current-view], History-Integration, Polling-Lifecycle,
     // view-spezifischen Init (Terminal-Attach / Project-Lade).
     let currentView = 'dashboard';
-    const VALID_VIEWS = new Set(['dashboard', 'terminal', 'project-detail']);
+    const VALID_VIEWS = new Set(['dashboard', 'terminal', 'project-detail', 'settings']);
 
     function setView(name, opts = {}) {
       if (!VALID_VIEWS.has(name)) name = 'dashboard';
@@ -3836,6 +4128,8 @@
           history.pushState({ view: 'terminal', sessionName }, '');
         } else if (name === 'project-detail' && history.state?.view !== 'project-detail') {
           history.pushState({ view: 'project-detail', projectId }, '');
+        } else if (name === 'settings' && history.state?.view !== 'settings') {
+          history.pushState({ view: 'settings' }, '');
         } else if (name === 'dashboard' && history.state?.view && history.state.view !== 'dashboard') {
           // Zurück zu Dashboard ohne fromPopstate → history.back() auslösen,
           // damit der Eintrag aus dem History-Stack geräumt wird. popstate
@@ -4343,9 +4637,11 @@
     function updateSidebarNavActive() {
       const navItems = document.querySelectorAll('.sidebar__item[data-sidebar-nav]');
       navItems.forEach(el => el.classList.remove('sidebar__item--active'));
+      const settingsEntry = document.getElementById('sidebar-settings-entry');
+      if (settingsEntry) settingsEntry.classList.toggle('is-active', currentView === 'settings');
       if (currentView !== 'dashboard') {
-        // Im Terminal-/Project-Detail-View ist das aktive Element eine
-        // Session (wird in renderSidebar über data-session gesetzt).
+        // Im Terminal-/Project-Detail-/Settings-View ist das aktive Element entweder
+        // eine Session (data-session) oder der Settings-Button — kein Tab-Nav-Highlight.
         return;
       }
       const tab = getTab();
@@ -7251,6 +7547,10 @@
           if (currentView !== 'dashboard') setView('dashboard');
           setTab(nav);
         }
+      }
+      const settingsBtn = e.target.closest('#sidebar-settings-entry');
+      if (settingsBtn) {
+        setView('settings');
       }
     });
 

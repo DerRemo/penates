@@ -408,4 +408,40 @@ window.__I18N_BUNDLES.de = {
 
   // Common / shared
   'common.errorWithMessage': 'Fehler: {message}',
+
+  // Settings — sidebar entry + page
+  'settings.sidebarEntry': 'Einstellungen',
+  'settings.sidebarEntryAria': 'Einstellungen öffnen',
+  'settings.pageTitle': 'Einstellungen',
+
+  // Settings — section headers
+  'settings.section.appearance': 'Erscheinungsbild',
+  'settings.section.language': 'Sprache',
+  'settings.section.notifications': 'Benachrichtigungen',
+  'settings.section.help': 'Hilfe',
+  'settings.section.about': 'Über',
+
+  // Settings — Appearance section
+  'settings.appearance.themeLabel': 'Theme',
+  'settings.appearance.themeLight': 'Hell',
+  'settings.appearance.themeDark': 'Dunkel',
+
+  // Settings — Language section
+  'settings.language.label': 'Oberflächensprache',
+  'settings.language.english': 'English',
+  'settings.language.german': 'Deutsch',
+  'settings.language.reloadHint': 'Beim Umschalten wird die Seite neu geladen.',
+
+  // Settings — Notifications section
+  'settings.notifications.soundLabel': 'Ton-Alarme',
+  'settings.notifications.pushLabel': 'Push-Benachrichtigungen',
+
+  // Settings — Help section
+  'settings.help.kbdShortcutsLabel': 'Tastaturkürzel',
+
+  // Settings — About section
+  'settings.about.currentVersion': 'Aktuelle Version',
+  'settings.about.latestVersion': 'Neuestes Release',
+  'settings.about.viewRelease': 'Release anzeigen',
+  'settings.about.uptimeLabel': 'Server-Uptime',
 };
