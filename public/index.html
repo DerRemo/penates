@@ -7260,7 +7260,7 @@
           if (p.type === 'code') return `<code>${mdEscapeHtml(p.value)}</code>`;
           let s = mdEscapeHtml(p.value);
           s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, url) =>
-            `<a href="${url}" target="_blank" rel="noopener">${label}</a>`);
+            `<a href="${mdEscapeHtml(url)}" target="_blank" rel="noopener">${label}</a>`);
           s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
           s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
           s = s.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>');
@@ -7779,8 +7779,9 @@
         window.__versionInfo = info;
         renderUpdateDot(info);
         renderAboutPanel(info);
-      } catch {
-        // Silent — no dot shown, About panel keeps '—' defaults.
+      } catch (e) {
+        console.warn('[Settings/UpdateCheck] /api/version fetch failed:', e);
+        // Silent in UI — no dot shown, About panel shows '—' (already the default).
       }
     }
 
