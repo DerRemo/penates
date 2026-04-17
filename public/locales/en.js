@@ -260,6 +260,7 @@ window.__I18N_BUNDLES.en = {
   'toast.pushSubSaveFailed': 'Subscription could not be saved: {message}',
   'toast.pushEnabled': 'Push notifications enabled',
   'toast.pushDisabled': 'Push notifications disabled',
+  'toast.pushToggleFailed': 'Failed to toggle push notifications',
   'toast.vapidNotLoaded': 'VAPID key not loaded',
   'toast.ideaAdded': 'Idea added to backlog',
 
@@ -433,8 +434,12 @@ window.__I18N_BUNDLES.en = {
   'settings.language.reloadHint': 'Switching reloads the page.',
 
   // Settings — Notifications section
-  'settings.notifications.soundLabel': 'Sound alerts',
   'settings.notifications.pushLabel': 'Push notifications',
+  'settings.notifications.push.permission.default': 'Permission: not requested yet',
+  'settings.notifications.push.permission.denied': 'Permission: denied — allow it in browser settings',
+  'settings.notifications.push.permission.granted': 'Permission: granted',
+  'settings.notifications.pushUnsupported': 'Not supported in this browser',
+  'settings.notifications.soundLabel': 'Sound alerts',
 
   // Settings — Help section
   'settings.help.kbdShortcutsLabel': 'Keyboard shortcuts',

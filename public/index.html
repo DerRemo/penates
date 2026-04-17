@@ -4542,6 +4542,9 @@
       if (!btn) return;
       btn.setAttribute('data-sound', soundEnabled() ? 'on' : 'off');
       btn.title = soundEnabled() ? t('header.soundOffTitle') : t('header.soundOnTitle');
+      // Mirror to Settings sound toggle.
+      const settingsBtn = document.getElementById('settings-sound-toggle');
+      if (settingsBtn) settingsBtn.setAttribute('aria-pressed', soundEnabled() ? 'true' : 'false');
     }
     let audioCtx = null;
     function ensureAudioCtx() {
@@ -4711,11 +4714,15 @@
       if (Notification.permission === 'denied') {
         btn.setAttribute('data-push', 'denied');
         btn.title = 'Push blocked — change browser settings';
+        // Mirror to Settings push toggle if already initialized.
+        if (typeof window._settingsPushSync === 'function') window._settingsPushSync();
         return;
       }
       const on = overrideState !== undefined ? overrideState : pushEnabled();
       btn.setAttribute('data-push', on ? 'on' : 'off');
       btn.title = on ? 'Disable push notifications' : 'Enable push notifications (works with tab closed)';
+      // Mirror to Settings push toggle if already initialized.
+      if (typeof window._settingsPushSync === 'function') window._settingsPushSync();
     }
 
     // Persistente Device-ID pro Browser-Installation. Wird beim ersten Laden
@@ -7652,6 +7659,114 @@
       refreshSessions();
     });
 
+    // ── Settings: Appearance ──────────────────────────────────────
+    // Wires the Light/Dark seg-btns in the Appearance section.
+    // Calls the existing setTheme() so xterm-theme + colorScheme stay in sync.
+    function initSettingsAppearance() {
+      const buttons = document.querySelectorAll('#settings-appearance [data-theme-value]');
+      function syncActive() {
+        const current = getTheme();
+        buttons.forEach(b => b.classList.toggle('is-active', b.dataset.themeValue === current));
+      }
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          setTheme(btn.dataset.themeValue);
+          syncActive();
+        });
+      });
+      syncActive();
+    }
+
+    // ── Settings: Language ────────────────────────────────────────
+    // Wires the EN/DE seg-btns; reloads the page on change (same as before).
+    function initSettingsLanguage() {
+      const buttons = document.querySelectorAll('#settings-language [data-lang-value]');
+      function syncActive() {
+        const current = window.i18nApi.getLang();
+        buttons.forEach(b => b.classList.toggle('is-active', b.dataset.langValue === current));
+      }
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = btn.dataset.langValue;
+          if (val === window.i18nApi.getLang()) return;
+          window.i18nApi.setLang(val);
+          location.reload();
+        });
+      });
+      syncActive();
+    }
+
+    // ── Settings: Sound ───────────────────────────────────────────
+    // Mirrors the existing #sound-toggle via the shared setSoundEnabled() helper.
+    function initSettingsSound() {
+      const btn = document.getElementById('settings-sound-toggle');
+      if (!btn) return;
+      function sync() {
+        btn.setAttribute('aria-pressed', soundEnabled() ? 'true' : 'false');
+      }
+      btn.addEventListener('click', () => {
+        const wantOn = btn.getAttribute('aria-pressed') !== 'true';
+        setSoundEnabled(wantOn);  // also calls updateSoundToggleUi() for old button
+        sync();
+      });
+      sync();
+    }
+
+    // ── Settings: Push ────────────────────────────────────────────
+    // Mirrors the existing #push-toggle, reusing enablePush() / disablePush().
+    function initSettingsPush() {
+      const btn = document.getElementById('settings-push-toggle');
+      const permEl = document.getElementById('settings-push-permission');
+      if (!btn || !permEl) return;
+
+      function updatePermissionDisplay() {
+        if (!('Notification' in window)) {
+          permEl.textContent = t('settings.notifications.pushUnsupported');
+          btn.disabled = true;
+          btn.setAttribute('aria-pressed', 'false');
+          return;
+        }
+        const perm = Notification.permission;
+        permEl.textContent = t(`settings.notifications.push.permission.${perm}`);
+        btn.disabled = (perm === 'denied');
+      }
+
+      function syncToggleState() {
+        btn.setAttribute('aria-pressed', pushEnabled() ? 'true' : 'false');
+      }
+
+      // Keep Settings push toggle in sync after push state changes.
+      // Patch updatePushToggleUi so both buttons stay consistent.
+      const _origUpdatePushUi = updatePushToggleUi;
+      window._settingsPushSync = function() {
+        syncToggleState();
+        updatePermissionDisplay();
+      };
+
+      btn.addEventListener('click', async () => {
+        if (btn.disabled) return;
+        if (Notification.permission === 'denied') {
+          showToast(t('toast.pushBlocked'), 'error');
+          return;
+        }
+        try {
+          if (pushEnabled()) {
+            await disablePush();
+          } else {
+            await enablePush();
+          }
+        } catch (err) {
+          console.error('[settings] Push toggle failed:', err);
+          showToast(t('toast.pushToggleFailed'), 'error');
+        }
+        syncToggleState();
+        updatePermissionDisplay();
+      });
+
+      syncToggleState();
+      updatePermissionDisplay();
+    }
+
     // ── Init ─────────────────────────────────────────────────────
     // setView() zuerst — setzt body[data-current-view] und damit die
     // Sichtbarkeit aller drei Top-Level-Views. Default: Dashboard.
@@ -7668,6 +7783,11 @@
     // Web Push: Service Worker registrieren + VAPID-Key holen.
     // Macht den Push-Toggle-Button sichtbar, falls Browser es unterstützt.
     initPush();
+    // Settings page: wire controls.
+    initSettingsAppearance();
+    initSettingsLanguage();
+    initSettingsSound();
+    initSettingsPush();
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────
     window.FileBrowser = (() => {

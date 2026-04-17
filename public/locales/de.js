@@ -260,6 +260,7 @@ window.__I18N_BUNDLES.de = {
   'toast.pushSubSaveFailed': 'Subscription konnte nicht gespeichert werden: {message}',
   'toast.pushEnabled': 'Push-Benachrichtigungen aktiviert',
   'toast.pushDisabled': 'Push-Benachrichtigungen deaktiviert',
+  'toast.pushToggleFailed': 'Push-Benachrichtigungen umschalten fehlgeschlagen',
   'toast.vapidNotLoaded': 'VAPID-Key nicht geladen',
   'toast.ideaAdded': 'Idee ins Backlog geschrieben',
 
@@ -433,8 +434,12 @@ window.__I18N_BUNDLES.de = {
   'settings.language.reloadHint': 'Beim Umschalten wird die Seite neu geladen.',
 
   // Settings — Notifications section
-  'settings.notifications.soundLabel': 'Ton-Alarme',
   'settings.notifications.pushLabel': 'Push-Benachrichtigungen',
+  'settings.notifications.push.permission.default': 'Berechtigung: noch nicht angefragt',
+  'settings.notifications.push.permission.denied': 'Berechtigung: verweigert — in den Browser-Einstellungen erlauben',
+  'settings.notifications.push.permission.granted': 'Berechtigung: erteilt',
+  'settings.notifications.pushUnsupported': 'In diesem Browser nicht unterstützt',
+  'settings.notifications.soundLabel': 'Ton-Alarme',
 
   // Settings — Help section
   'settings.help.kbdShortcutsLabel': 'Tastaturkürzel',
