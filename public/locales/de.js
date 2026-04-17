@@ -130,6 +130,7 @@ window.__I18N_BUNDLES.de = {
 
   // File browser context menu
   'filebrowser.context.open': 'Öffnen',
+  'filebrowser.context.download': 'Herunterladen',
   'filebrowser.context.rename': 'Umbenennen',
   'filebrowser.context.copyTo': 'Kopieren nach…',
   'filebrowser.context.moveTo': 'Verschieben nach…',
@@ -156,6 +157,7 @@ window.__I18N_BUNDLES.de = {
   'preview.loading': 'Lädt…',
   'preview.tooLarge': 'Zu groß für Preview. Im Terminal öffnen.',
   'preview.unknownBinary': 'Unbekannter Binärtyp.',
+  'preview.oversize.download': 'Datei herunterladen',
 
   // Upload toast stack
   'upload.status.queued': 'wartet',
@@ -211,6 +213,7 @@ window.__I18N_BUNDLES.de = {
   'modal.newProject.create': 'Anlegen',
 
   // Toasts — session lifecycle
+  'toast.downloadFailed': 'Download fehlgeschlagen',
   'toast.sessionHasOutput': '{name} hat Output',
   'toast.invalidToken': 'Token ungültig — bitte neu eingeben',
   'toast.connFailed': 'Verbindung zum Server fehlgeschlagen',

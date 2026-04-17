@@ -29,6 +29,7 @@ import {
   copy as filesCopy,
   deleteToTrash as filesDeleteToTrash,
   writeStream as filesWriteStream,
+  streamFileToResponse as filesStreamToResponse,
   FileError,
 } from './lib/files.js';
 import Busboy from 'busboy';
@@ -738,6 +739,7 @@ function handleFileError(res, err) {
   if (err instanceof FileError) {
     const status = {
       forbidden: 403,
+      'not-found': 404,
       'not-a-dir': 400,
       'not-a-file': 400,
       'bad-name': 400,
@@ -807,6 +809,15 @@ app.delete('/api/projects/:id/files', async (req, res) => {
     if (paths.length === 0) return res.status(400).json({ error: 'no-paths' });
     const result = await filesDeleteToTrash(project.path, paths);
     res.json(result);
+  } catch (e) { handleFileError(res, e); }
+});
+
+app.get('/api/projects/:id/files/download', async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project) return res.status(404).json({ error: 'not-found' });
+    const rel = typeof req.query.path === 'string' ? req.query.path : '';
+    filesStreamToResponse(project.path, rel, res);
   } catch (e) { handleFileError(res, e); }
 });
 

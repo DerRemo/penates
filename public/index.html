@@ -8277,6 +8277,33 @@
       return { open, close, toggle, activateForSession, wireButtons, wireResizer, wireTreeDnD };
     })();
 
+    // ── v0.7.1 Task 15: Download helper ──────────────────────────
+    async function downloadFile(projectId, relPath, filename) {
+      const url = `/api/projects/${encodeURIComponent(projectId)}/files/download`
+        + `?path=${encodeURIComponent(relPath)}`;
+      let res;
+      try {
+        res = await fetch(url, { headers: apiHeaders() });
+      } catch {
+        showToast(window.t('toast.downloadFailed'), 'error');
+        return;
+      }
+      if (!res.ok) {
+        showToast(window.t('toast.downloadFailed'), 'error');
+        return;
+      }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename || relPath.split('/').pop() || 'download';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    }
+
     // ── v0.6.0 FilePreview Modal ─────────────────────────────────
     const FilePreview = (() => {
       let hljsLoaded = null;
@@ -8305,6 +8332,14 @@
           });
           if (res.status === 413) {
             body.innerHTML = `<div class="preview-oversize">${t('preview.tooLarge')}</div>`;
+            const downloadBtn = document.createElement('button');
+            downloadBtn.type = 'button';
+            downloadBtn.className = 'btn';
+            downloadBtn.textContent = window.t('preview.oversize.download');
+            downloadBtn.addEventListener('click', () => {
+              downloadFile(projectId, relPath, relPath.split('/').pop());
+            });
+            body.appendChild(downloadBtn);
             return;
           }
           if (res.status === 415) {
@@ -8422,8 +8457,10 @@
       function openRowContextMenu(projectId, row, e) {
         e.preventDefault();
         const relPath = row.dataset.path;
+        const isFile = row.dataset.type !== 'dir';
         showMenu(e.clientX, e.clientY, [
           { label: t('filebrowser.context.open'), action: () => row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })) },
+          ...(isFile ? [{ label: t('filebrowser.context.download'), action: () => downloadFile(projectId, relPath, relPath.split('/').pop()) }] : []),
           { label: t('filebrowser.context.rename'), action: () => startRename(projectId, row) },
           { label: t('filebrowser.context.copyTo'), action: () => promptOp(projectId, relPath, 'copy') },
           { label: t('filebrowser.context.moveTo'), action: () => promptOp(projectId, relPath, 'move') },
