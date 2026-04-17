@@ -3481,27 +3481,27 @@
   <div class="terminal-view" id="terminal-view" data-view="terminal">
     <div class="terminal-toolbar">
       <div class="terminal-toolbar-left">
-        <button class="btn btn-ghost btn-sm" id="disconnect-btn" type="button" aria-label="Back to dashboard" title="Back">
+        <button class="btn btn-ghost btn-sm" id="disconnect-btn" type="button" aria-label="Back to dashboard" title="Back" data-i18n-attr="aria-label:terminal.toolbar.backAria;title:terminal.toolbar.backTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          <span class="btn-label">Back</span>
+          <span class="btn-label" data-i18n="terminal.toolbar.back">Back</span>
         </button>
         <span class="terminal-session-name" id="terminal-session-name"></span>
         <span class="conn-status" id="conn-status" data-state="connecting">
-          <span class="dot"></span><span id="conn-status-label">Verbinde</span>
+          <span class="dot"></span><span id="conn-status-label" data-i18n="terminal.connStatus.connecting">Connecting</span>
         </span>
       </div>
       <div class="terminal-toolbar-right">
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-files" type="button" style="display:none" aria-label="Show files" title="Show files">
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-files" type="button" style="display:none" aria-label="Show files" title="Show files" data-i18n-attr="aria-label:terminal.toolbar.filesAria;title:terminal.toolbar.filesTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span class="btn-label">Files</span>
+          <span class="btn-label" data-i18n="terminal.toolbar.files">Files</span>
         </button>
-        <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden aria-label="Capture idea" title="Capture idea to project backlog">
+        <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
-          <span class="btn-label">Capture idea</span>
+          <span class="btn-label" data-i18n="terminal.toolbar.captureIdea">Capture idea</span>
         </button>
-        <button class="btn btn-danger btn-sm" id="kill-current-btn" type="button" aria-label="Kill session" title="Kill session">
+        <button class="btn btn-danger btn-sm" id="kill-current-btn" type="button" aria-label="Kill session" title="Kill session" data-i18n-attr="aria-label:terminal.toolbar.killAria;title:terminal.toolbar.killTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          <span class="btn-label">Kill</span>
+          <span class="btn-label" data-i18n="terminal.toolbar.kill">Kill</span>
         </button>
       </div>
     </div>
@@ -3509,10 +3509,10 @@
       <aside class="files-sidebar" id="files-sidebar">
         <div class="files-toolbar">
           <span class="breadcrumb" id="files-breadcrumb">/</span>
-          <button id="files-mkdir" title="New Folder">+ Folder</button>
-          <button id="files-upload-picker" title="Upload File">+ File</button>
-          <button id="files-refresh" title="Refresh">⟳</button>
-          <button id="files-close" title="Close">×</button>
+          <button id="files-mkdir" title="New Folder" data-i18n-attr="title:filebrowser.toolbar.newFolderTitle" data-i18n="filebrowser.toolbar.newFolder">+ Folder</button>
+          <button id="files-upload-picker" title="Upload File" data-i18n-attr="title:filebrowser.toolbar.uploadTitle" data-i18n="filebrowser.toolbar.upload">+ File</button>
+          <button id="files-refresh" title="Refresh" data-i18n-attr="title:filebrowser.toolbar.refreshTitle">⟳</button>
+          <button id="files-close" title="Close" data-i18n-attr="title:filebrowser.toolbar.closeTitle">×</button>
         </div>
         <div class="files-tree" id="files-tree"></div>
       </aside>
@@ -3526,7 +3526,7 @@
   <!-- /.app-layout -->
 
   <!-- ── Touch-Toolbar über der iOS-Tastatur ───────────────────── -->
-  <div class="touch-bar" id="touch-bar" role="toolbar" aria-label="Virtuelle Tasten">
+  <div class="touch-bar" id="touch-bar" role="toolbar" aria-label="Virtual Keys" data-i18n-attr="aria-label:terminal.touchBar.aria">
     <button class="touch-key" type="button" data-seq="\x1b">Esc</button>
     <button class="touch-key" type="button" data-seq="\t">Tab</button>
     <button class="touch-key" type="button" data-ctrl>Ctrl</button>
@@ -3586,26 +3586,26 @@
 
   <div class="modal-overlay" id="new-project-modal" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
     <div class="modal">
-      <h2 id="new-project-title">Create New Project</h2>
+      <h2 id="new-project-title" data-i18n="modal.newProject.title">Create New Project</h2>
       <p>Create a new <code>ROADMAP.md</code> in an existing directory. It will be registered as a project and appear in the Projects tab.</p>
       <div class="form-group">
-        <label class="form-label">Display Name</label>
-        <input class="form-input" id="new-project-name" placeholder="e.g. Kalvo Backend" autocomplete="off" spellcheck="false" maxlength="80">
+        <label class="form-label" data-i18n="modal.newProject.nameLabel">Display Name</label>
+        <input class="form-input" id="new-project-name" placeholder="e.g. Kalvo Backend" autocomplete="off" spellcheck="false" maxlength="80" data-i18n-attr="placeholder:modal.newProject.namePlaceholder">
       </div>
       <div class="form-group">
-        <label class="form-label">Project Directory</label>
+        <label class="form-label" data-i18n="modal.newProject.dirLabel">Project Directory</label>
         <div class="tree-picker" id="new-project-tree-picker">
           <div class="tree-selected" id="new-project-tree-selected" dir="rtl">~</div>
           <div class="tree-list" id="new-project-tree-root">
-            <div class="tree-empty">Loading…</div>
+            <div class="tree-empty" data-i18n="treePicker.loading">Loading…</div>
           </div>
         </div>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" type="button" id="new-project-cancel">Cancel</button>
+        <button class="btn btn-ghost" type="button" id="new-project-cancel" data-i18n="modal.newProject.cancel">Cancel</button>
         <button class="btn btn-primary" type="button" id="new-project-submit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          Create
+          <span data-i18n="modal.newProject.create">Create</span>
         </button>
       </div>
     </div>
@@ -3615,17 +3615,17 @@
        aus der Terminal-Toolbar, schreibt direkt ins Projekt-Backlog. -->
   <div class="modal-overlay" id="idea-modal" role="dialog" aria-modal="true" aria-labelledby="idea-modal-title">
     <div class="modal">
-      <h2 id="idea-modal-title">Capture Idea</h2>
-      <p>Wird ins Backlog von <strong id="idea-modal-project">—</strong> geschrieben.</p>
+      <h2 id="idea-modal-title" data-i18n="modal.idea.title">Capture Idea</h2>
+      <p>Will be added to the backlog of <strong id="idea-modal-project">—</strong>.</p>
       <div class="form-group">
-        <label class="form-label" for="idea-modal-input">Short Description</label>
-        <input type="text" class="form-input" id="idea-modal-input" maxlength="500" autocomplete="off" spellcheck="false" placeholder="e.g. Sidebar should remember which session was last open">
+        <label class="form-label" for="idea-modal-input" data-i18n="modal.idea.descLabel">Short Description</label>
+        <input type="text" class="form-input" id="idea-modal-input" maxlength="500" autocomplete="off" spellcheck="false" placeholder="e.g. Sidebar should remember which session was last open" data-i18n-attr="placeholder:modal.idea.descPlaceholder">
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" type="button" id="idea-modal-cancel">Close</button>
+        <button class="btn btn-ghost" type="button" id="idea-modal-cancel" data-i18n="modal.idea.cancel">Close</button>
         <button class="btn btn-primary" type="button" id="idea-modal-save">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-          Save
+          <span data-i18n="modal.idea.save">Save</span>
         </button>
       </div>
     </div>
@@ -3633,23 +3633,22 @@
 
   <div class="modal-overlay" id="new-session-modal" role="dialog" aria-modal="true" aria-labelledby="new-session-title">
     <div class="modal">
-      <h2 id="new-session-title">Start New Session</h2>
-      <p>Starte eine neue Claude Code Session auf deinem Mac mini.</p>
+      <h2 id="new-session-title" data-i18n="modal.newSession.title">Start New Session</h2>
       <div class="form-group">
-        <label class="form-label">Session Name</label>
-        <input class="form-input" id="new-session-name" placeholder="e.g. kalvo-feature" autocomplete="off" spellcheck="false">
+        <label class="form-label" data-i18n="modal.newSession.nameLabel">Session Name</label>
+        <input class="form-input" id="new-session-name" placeholder="e.g. kalvo-feature" autocomplete="off" spellcheck="false" data-i18n-attr="placeholder:modal.newSession.namePlaceholder">
       </div>
       <div class="form-group">
-        <label class="form-label">Project Directory</label>
+        <label class="form-label" data-i18n="modal.newSession.dirLabel">Project Directory</label>
         <div class="tree-picker" id="tree-picker">
           <div class="tree-selected" id="tree-selected" dir="rtl">~</div>
           <div class="tree-list" id="tree-root">
-            <div class="tree-empty">Loading…</div>
+            <div class="tree-empty" data-i18n="treePicker.loading">Loading…</div>
           </div>
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Start Command</label>
+        <label class="form-label" data-i18n="modal.newSession.cmdLabel">Start Command</label>
         <div class="select-wrapper">
           <select class="form-input" id="new-session-cmd">
             <option value="claude">claude</option>
@@ -3659,10 +3658,10 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" type="button">Cancel</button>
+        <button class="btn btn-ghost" type="button" data-i18n="modal.newSession.cancel">Cancel</button>
         <button class="btn btn-primary" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          Start
+          <span data-i18n="modal.newSession.start">Start</span>
         </button>
       </div>
     </div>
@@ -3671,11 +3670,11 @@
   <!-- Bulk-Kill Modal -->
   <div class="modal-overlay" id="bulk-kill-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-kill-title">
     <div class="modal">
-      <h2 id="bulk-kill-title">Kill Idle Sessions</h2>
+      <h2 id="bulk-kill-title" data-i18n="modal.bulkKill.title">Kill Idle Sessions</h2>
       <p id="bulk-kill-body"></p>
       <div class="modal-actions">
-        <button class="btn btn-ghost" type="button" id="bulk-kill-cancel">Cancel</button>
-        <button class="btn btn-danger" type="button" id="bulk-kill-confirm">Kill All</button>
+        <button class="btn btn-ghost" type="button" id="bulk-kill-cancel" data-i18n="modal.bulkKill.cancel">Cancel</button>
+        <button class="btn btn-danger" type="button" id="bulk-kill-confirm" data-i18n="modal.bulkKill.confirm">Kill All</button>
       </div>
     </div>
   </div>
@@ -3684,7 +3683,7 @@
     <div id="adopt-modal" class="modal-overlay">
       <div class="modal adopt-modal">
         <div class="modal-header">
-          <h2>Adopt Session</h2>
+          <h2 data-i18n="modal.adopt.title">Adopt Session</h2>
           <button class="modal-close" onclick="closeAdoptModal()">✕</button>
         </div>
         <div class="modal-body">
@@ -3692,12 +3691,12 @@
             The foreign tmux session <code id="adopt-source-name"></code> will be renamed to
             <code>cc-&lt;name&gt;</code> and managed by the Hub from now on.
           </p>
-          <label for="adopt-new-name">New Name (without cc- prefix)</label>
+          <label for="adopt-new-name" data-i18n="modal.adopt.nameLabel">New Name (without cc- prefix)</label>
           <input id="adopt-new-name" type="text" class="input" autocomplete="off" />
         </div>
         <div class="modal-footer">
-          <button class="btn btn-ghost" onclick="closeAdoptModal()">Cancel</button>
-          <button class="btn btn-primary" onclick="submitAdopt()">Adopt</button>
+          <button class="btn btn-ghost" onclick="closeAdoptModal()" data-i18n="modal.adopt.cancel">Cancel</button>
+          <button class="btn btn-primary" onclick="submitAdopt()" data-i18n="modal.adopt.submit">Adopt</button>
         </div>
       </div>
     </div>
@@ -4380,7 +4379,7 @@
         card.classList.add('attention-flash');
       }
       const displayName = name.replace(/^cc-/, '');
-      showToast(`${displayName} has output`, 'info');
+      showToast(t('toast.sessionHasOutput', { name: displayName }), 'info');
     }
 
     // ── Web Push ──────────────────────────────────────────────────
@@ -4467,11 +4466,11 @@
 
     // Push aktivieren: Permission → Subscribe → Server.
     async function enablePush() {
-      if (!vapidPublicKey) { showToast('VAPID key not loaded', 'error'); return; }
+      if (!vapidPublicKey) { showToast(t('toast.vapidNotLoaded'), 'error'); return; }
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         updatePushToggleUi(false);
-        if (permission === 'denied') showToast('Push blocked — please allow in browser settings', 'error');
+        if (permission === 'denied') showToast(t('toast.pushBlocked'), 'error');
         return;
       }
       const reg = await navigator.serviceWorker.ready;
@@ -4482,7 +4481,7 @@
           applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
         });
       } catch (e) {
-        showToast('Push subscription failed: ' + e.message, 'error');
+        showToast(t('toast.pushSubFailed', { message: e.message }), 'error');
         return;
       }
       try {
@@ -4494,10 +4493,10 @@
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         localStorage.setItem(PUSH_KEY, '1');
         updatePushToggleUi(true);
-        showToast('Push notifications enabled', 'info');
+        showToast(t('toast.pushEnabled'), 'info');
       } catch (e) {
         await sub.unsubscribe().catch(() => {});
-        showToast('Subscription could not be saved: ' + e.message, 'error');
+        showToast(t('toast.pushSubSaveFailed', { message: e.message }), 'error');
       }
     }
 
@@ -4516,7 +4515,7 @@
       }
       localStorage.setItem(PUSH_KEY, '0');
       updatePushToggleUi(false);
-      showToast('Push notifications disabled', 'info');
+      showToast(t('toast.pushDisabled'), 'info');
     }
 
     // ── Project-Events WebSocket ───────────────────────────────────
@@ -4704,12 +4703,12 @@
       input.disabled = true;
       try {
         await patchItem(projectId, { action: 'add', section: 'backlog', text });
-        showToast('Idea added to backlog', 'success');
+        showToast(t('toast.ideaAdded'), 'success');
         // Rapid-Fire: Input leeren und offen halten, damit mehrere Ideen
         // am Stück erfasst werden können. Schließen via Escape/Button.
         input.value = '';
       } catch (e) {
-        if (e.status !== 401) showToast('Error: ' + e.message, 'error');
+        if (e.status !== 401) showToast(t('toast.projectError', { message: e.message }), 'error');
       } finally {
         input.disabled = false;
         input.focus();
@@ -5449,7 +5448,7 @@
           clearToken();
           sessions = [];
           renderSessions();
-          showToast('Invalid token — please re-enter', 'error');
+          showToast(t('toast.invalidToken'), 'error');
           showLoginModal();
           return;
         }
@@ -5484,7 +5483,7 @@
       } catch (err) {
         if (sessions === null) sessions = []; // erster Fetch fehlgeschlagen → nicht ewig Skeleton zeigen
         renderSessions();
-        showToast('Connection to server failed', 'error');
+        showToast(t('toast.connFailed'), 'error');
       }
     }
 
@@ -5898,9 +5897,9 @@
             muteBtn.dataset.muted = String(next);
             const cached = sessions?.find(s => s.name === name);
             if (cached) cached.muted = next;
-            showToast(next ? 'Notifications muted' : 'Notifications active', 'info');
+            showToast(next ? t('toast.notifMuted') : t('toast.notifActive'), 'info');
           } catch {
-            showToast('Mute failed', 'error');
+            showToast(t('toast.muteFailed'), 'error');
           } finally {
             muteBtn.disabled = false;
           }
@@ -5922,17 +5921,17 @@
               body: JSON.stringify({ pinned: next }),
             });
             if (res.status === 404) {
-              showToast('Only known sessions can be pinned', 'error');
+              showToast(t('toast.pinOnlyKnown'), 'error');
               return;
             }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             pinBtn.dataset.pinned = String(next);
             const cached = sessions?.find(s => s.name === name);
             if (cached) cached.pinned = next;
-            showToast(next ? 'Session pinned' : 'Session unpinned', 'info');
+            showToast(next ? t('toast.sessionPinned') : t('toast.sessionUnpinned'), 'info');
             refreshSessions(); // neu sortieren
           } catch {
-            showToast('Pin failed', 'error');
+            showToast(t('toast.pinFailed'), 'error');
           } finally {
             pinBtn.disabled = false;
           }
@@ -6156,9 +6155,9 @@
           term.focus();
           if (!text.trim()) return;
           navigator.clipboard.writeText(text).then(() => {
-            showToast(`Copied (${text.length} chars)`, 'success');
+            showToast(t('toast.copiedChars', { n: text.length }), 'success');
           }).catch(() => {
-            showToast('Copy failed — clipboard not writable', 'error');
+            showToast(t('toast.copyFailed'), 'error');
           });
         };
         clipboardAbort?.abort();
@@ -6198,7 +6197,7 @@
           const text = await navigator.clipboard.readText();
           if (text) { term.focus(); term.paste(text); }
         } catch {
-          showToast('Paste failed — clipboard not readable. Firefox: allow permission.', 'error');
+          showToast(t('toast.pasteFailed'), 'error');
         }
       };
       document.addEventListener('keydown', pasteIntercept, { capture: true, signal: clipboardAbort.signal });
@@ -6226,7 +6225,7 @@
             const text = await navigator.clipboard.readText();
             if (text) term.paste(text);
           } catch (err) {
-            showToast('Clipboard not readable — please allow browser permission', 'error');
+            showToast(t('toast.clipboardNotReadable'), 'error');
           }
         });
       }
@@ -6336,7 +6335,7 @@
         // Client-Selection unterdrücken. Nur zeigen wenn der User den Hint
         // noch nie gesehen hat.
         if (!localStorage.getItem('cchub_hint_copy_seen')) {
-          showToast('Tip: Shift+Drag or Alt+Drag selects and copies instantly', 'info');
+          showToast(t('toast.copyHint'), 'info');
           localStorage.setItem('cchub_hint_copy_seen', '1');
         }
       });
@@ -6355,7 +6354,7 @@
     // funktioniert. terminalRef/fitAddonRef/containerRef bleiben stabil.
     function openTerminalWebSocket(name, term, fitAddon, container, isReconnect) {
       const displayName = name.replace(/^cc-/, '');
-      setConnStatus('connecting', isReconnect ? `Reconnect ${reconnectAttempts}/${MAX_RECONNECT}` : 'Verbinde');
+      setConnStatus('connecting', isReconnect ? t('terminal.connStatus.reconnecting', { n: reconnectAttempts, max: MAX_RECONNECT }) : t('terminal.connStatus.connecting'));
 
       const protocols = AUTH_TOKEN ? [`bearer.${AUTH_TOKEN}`] : [];
       const ws = new WebSocket(wsUrl(name), protocols);
@@ -6363,9 +6362,9 @@
 
       ws.onopen = () => {
         reconnectAttempts = 0;
-        setConnStatus('connected', 'Connected');
+        setConnStatus('connected', t('terminal.connStatus.connected'));
         ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-        if (!isReconnect) showToast(`Connected to ${displayName}`, 'success');
+        if (!isReconnect) showToast(t('toast.connected', { name: displayName }), 'success');
       };
 
       ws.onmessage = (event) => {
@@ -6381,13 +6380,13 @@
       ws.onclose = (ev) => {
         // 4001 = Auth failed, 4004 = Session gone → beide NICHT reconnecten
         if (ev.code === 4001) {
-          setConnStatus('disconnected', 'Auth missing');
-          showToast('Auth failed — invalid token', 'error');
+          setConnStatus('disconnected', t('terminal.connStatus.authMissing'));
+          showToast(t('toast.authFailed'), 'error');
           return;
         }
         if (ev.code === 4004) {
-          setConnStatus('disconnected', 'Session weg');
-          showToast('Session no longer exists', 'error');
+          setConnStatus('disconnected', t('terminal.connStatus.sessionGone'));
+          showToast(t('toast.sessionGone'), 'error');
           return;
         }
         // User-initiated disconnect (currentWs auf null gesetzt in disconnectTerminal) → ruhe
@@ -6395,16 +6394,16 @@
 
         if (reconnectAttempts < MAX_RECONNECT) {
           reconnectAttempts++;
-          setConnStatus('connecting', `Reconnect in 2s (${reconnectAttempts}/${MAX_RECONNECT})`);
-          term.write(`\r\n\x1b[90m── Connection lost, reconnect ${reconnectAttempts}/${MAX_RECONNECT} ──\x1b[0m\r\n`);
+          setConnStatus('connecting', t('terminal.connStatus.reconnectIn', { n: reconnectAttempts, max: MAX_RECONNECT }));
+          term.write(`\r\n\x1b[90m${t('terminal.msg.connLost', { n: reconnectAttempts, max: MAX_RECONNECT })}\x1b[0m\r\n`);
           clearTimeout(reconnectTimer);
           reconnectTimer = setTimeout(() => {
             // Session existiert noch? Vorher prüfen.
             openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/true);
           }, 2000);
         } else {
-          setConnStatus('disconnected', 'Disconnected');
-          term.write('\r\n\x1b[90m── Connection closed, reconnect limit reached ──\x1b[0m\r\n');
+          setConnStatus('disconnected', t('terminal.connStatus.disconnected'));
+          term.write(`\r\n\x1b[90m${t('terminal.msg.connClosed')}\x1b[0m\r\n`);
         }
       };
 
@@ -6538,34 +6537,34 @@
           headers: apiHeaders(),
         });
         if (res.status === 409) {
-          showToast('A session with this name already exists', 'error');
+          showToast(t('toast.restoreConflict'), 'error');
           return;
         }
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          showToast(body.error || 'Restore failed', 'error');
+          showToast(body.error || t('toast.restoreFailed'), 'error');
           return;
         }
-        showToast(`Session "${displayName}" restored`, 'success');
+        showToast(t('toast.sessionRestored', { name: displayName }), 'success');
         refreshSessions();
       } catch {
-        showToast('Connection error during restore', 'error');
+        showToast(t('toast.restoreConnError'), 'error');
       }
     }
 
     async function forgetSession(name) {
       const displayName = name.replace(/^cc-/, '');
-      if (!confirm(`Remove entry "${displayName}" from the list?\n\nThe session will not be killed (it is no longer running). Restore will no longer be possible.`)) return;
+      if (!confirm(t('confirm.forgetSession', { name: displayName }))) return;
       try {
         const res = await fetch(`/api/sessions/${encodeURIComponent(name)}/known`, {
           method: 'DELETE',
           headers: apiHeaders(),
         });
         if (!res.ok) throw new Error();
-        showToast(`"${displayName}" forgotten`, 'success');
+        showToast(t('toast.sessionForgotten', { name: displayName }), 'success');
         refreshSessions();
       } catch {
-        showToast('Forget failed', 'error');
+        showToast(t('toast.forgetFailed'), 'error');
       }
     }
 
@@ -6577,20 +6576,20 @@
           body: JSON.stringify({ newName }),
         });
         if (res.status === 409) {
-          showToast('Target name already in use', 'error');
+          showToast(t('toast.adoptNameInUse'), 'error');
           return false;
         }
         if (res.status === 400) {
           const body = await res.json().catch(() => ({}));
-          showToast(body.error || 'Invalid name', 'error');
+          showToast(body.error || t('toast.adoptInvalidName'), 'error');
           return false;
         }
         if (!res.ok) throw new Error();
-        showToast(`"${sourceName}" adopted as "cc-${newName}"`, 'success');
+        showToast(t('toast.adopted', { source: sourceName, name: newName }), 'success');
         refreshSessions();
         return true;
       } catch {
-        showToast('Adopt failed', 'error');
+        showToast(t('toast.adoptFailed'), 'error');
         return false;
       }
     }
@@ -6617,7 +6616,7 @@
       if (!currentAdoptSource) return;
       const newName = document.getElementById('adopt-new-name').value.trim();
       if (!newName) {
-        showToast('Please enter a name', 'error');
+        showToast(t('toast.enterName'), 'error');
         return;
       }
       const ok = await adoptSession(currentAdoptSource, newName);
@@ -6631,7 +6630,7 @@
     // ── Kill session ─────────────────────────────────────────────
     async function killSession(name) {
       const displayName = name.replace(/^cc-/, '');
-      if (!confirm(`Really kill session "${displayName}"?`)) return;
+      if (!confirm(t('confirm.killSession', { name: displayName }))) return;
 
       try {
         const res = await fetch(`/api/sessions/${encodeURIComponent(name)}`, {
@@ -6639,10 +6638,10 @@
           headers: apiHeaders(),
         });
         if (!res.ok) throw new Error('Failed');
-        showToast(`Session "${displayName}" killed`, 'success');
+        showToast(t('toast.sessionKilled', { name: displayName }), 'success');
         refreshSessions();
       } catch {
-        showToast('Failed to kill session', 'error');
+        showToast(t('toast.killFailed'), 'error');
       }
     }
 
@@ -6652,7 +6651,7 @@
         !s.attached && s.activity !== 'working' && s.activity !== 'waiting'
       );
       if (candidates.length === 0) {
-        showToast('No idle sessions to kill', 'info');
+        showToast(t('toast.noIdleSessions'), 'info');
         return;
       }
 
@@ -6661,7 +6660,7 @@
       body.textContent = '';
 
       const intro = document.createElement('span');
-      intro.textContent = `Terminating ${candidates.length} session${candidates.length === 1 ? '' : 's'} without recent activity:`;
+      intro.textContent = t('modal.bulkKill.intro', { count: candidates.length, plural: candidates.length === 1 ? '' : 's' });
       body.appendChild(intro);
 
       const ul = document.createElement('ul');
@@ -6675,7 +6674,7 @@
       if (candidates.length > 10) {
         const li = document.createElement('li');
         li.style.opacity = '0.6';
-        li.textContent = `and ${candidates.length - 10} more…`;
+        li.textContent = t('modal.bulkKill.andMore', { n: candidates.length - 10 });
         ul.appendChild(li);
       }
       body.appendChild(ul);
@@ -6726,9 +6725,9 @@
       cancelBtn.disabled = false;
 
       if (failed === 0) {
-        showToast(`${succeeded} session${succeeded === 1 ? '' : 's'} killed`, 'success');
+        showToast(t('toast.bulkKillDone', { n: succeeded, plural: succeeded === 1 ? '' : 's' }), 'success');
       } else {
-        showToast(`${succeeded} killed, ${failed} failed`, 'error');
+        showToast(t('toast.bulkKillPartial', { succeeded, failed }), 'error');
       }
       refreshSessions();
     });
@@ -6740,15 +6739,15 @@
       // refreshSessions() hintereinander triggern (disconnectTerminal ruft
       // selbst schon refresh auf).
       const displayName = name.replace(/^cc-/, '');
-      if (!confirm(`Really kill session "${displayName}"?`)) return;
+      if (!confirm(t('confirm.killSession', { name: displayName }))) return;
       fetch(`/api/sessions/${encodeURIComponent(name)}`, {
         method: 'DELETE',
         headers: apiHeaders(),
       }).then(res => {
         if (!res.ok) throw new Error();
-        showToast(`Session "${displayName}" killed`, 'success');
+        showToast(t('toast.sessionKilled', { name: displayName }), 'success');
       }).catch(() => {
-        showToast('Failed to kill session', 'error');
+        showToast(t('toast.killFailed'), 'error');
       }).finally(() => {
         disconnectTerminal();
         setView('dashboard');
@@ -6814,14 +6813,14 @@
           node.classList.add('expanded');
           const children = document.createElement('div');
           children.className = 'tree-children';
-          children.innerHTML = '<div class="tree-empty">Loading…</div>';
+          children.innerHTML = `<div class="tree-empty">${t('treePicker.loading')}</div>`;
           node.appendChild(children);
 
           try {
             const data = await fetchBrowse(entry.path);
             children.innerHTML = '';
             if (data.entries.length === 0) {
-              children.innerHTML = '<div class="tree-empty">(no subdirectories)</div>';
+              children.innerHTML = `<div class="tree-empty">${t('filebrowser.tree.noSubdirs')}</div>`;
               row.querySelector('.tree-arrow').classList.add('empty');
             } else {
               data.entries.forEach(ch => children.appendChild(createNode(ch)));
@@ -6838,13 +6837,13 @@
       async function init(skipSelect) {
         const root = rootEl();
         if (!root) return;
-        root.innerHTML = '<div class="tree-empty">Loading…</div>';
+        root.innerHTML = `<div class="tree-empty">${t('treePicker.loading')}</div>`;
         try {
           const data = await fetchBrowse('~');
           if (!skipSelect) setSelected(data.path);
           root.innerHTML = '';
           if (data.entries.length === 0) {
-            root.innerHTML = '<div class="tree-empty">(empty)</div>';
+            root.innerHTML = `<div class="tree-empty">${t('filebrowser.tree.pickerEmpty')}</div>`;
             return;
           }
           data.entries.forEach(entry => root.appendChild(createNode(entry)));
@@ -6876,7 +6875,7 @@
       const command = document.getElementById('new-session-cmd').value.trim();
 
       if (!name) {
-        showToast('Please enter a session name', 'error');
+        showToast(t('toast.enterSessionName'), 'error');
         return;
       }
 
@@ -6888,16 +6887,16 @@
         });
 
         if (res.status === 409) {
-          showToast('Session with this name already exists', 'error');
+          showToast(t('toast.sessionNameExists'), 'error');
           return;
         }
         if (!res.ok) throw new Error('Failed');
 
-        showToast(`Session "${name}" started`, 'success');
+        showToast(t('toast.sessionStarted', { name }), 'success');
         closeNewSessionModal();
         refreshSessions();
       } catch {
-        showToast('Failed to create session', 'error');
+        showToast(t('toast.createSessionFailed'), 'error');
       }
     }
 
@@ -6947,11 +6946,11 @@
       const displayName = document.getElementById('new-project-name').value.trim();
       const path = projectTreePicker.getSelected();
       if (!displayName) {
-        showToast('Please enter a display name', 'error');
+        showToast(t('toast.enterDisplayName'), 'error');
         return;
       }
       if (!path) {
-        showToast('Please select a project directory', 'error');
+        showToast(t('toast.selectProjectDir'), 'error');
         return;
       }
       btn.disabled = true;
@@ -6970,12 +6969,12 @@
         }
         const created = await res.json();
         closeNewProjectModal();
-        showToast(`Project "${displayName}" created`, 'success');
+        showToast(t('toast.projectCreated', { name: displayName }), 'success');
         // Direkt in die Detail-View springen — Registry ist schon aktualisiert,
         // der Projekt-Detail-Fetch trifft sofort.
         setView('project-detail', { projectId: created.id });
       } catch (e) {
-        showToast('Error: ' + e.message, 'error');
+        showToast(t('toast.projectError', { message: e.message }), 'error');
       } finally {
         btn.disabled = false;
       }
@@ -7110,7 +7109,7 @@
       const newDevVersion  = document.getElementById('release-new-dev-input').value.trim();
       const narrative      = document.getElementById('release-narrative-input').value;
       if (!projectId || !releaseVersion || !newDevVersion) {
-        showToast('Release and dev version must be set', 'error');
+        showToast(t('toast.releaseMissingVersions'), 'error');
         return;
       }
       const btn = document.getElementById('release-submit');
@@ -7130,7 +7129,7 @@
         showProjectToast(`v${releaseVersion} finalized`, 'success');
         renderProjectDetail(projectId);
       } catch (e) {
-        showToast('Release failed: ' + e.message, 'error');
+        showToast(t('toast.releaseFailed', { message: e.message }), 'error');
       } finally {
         btn.disabled = false;
       }
@@ -7219,7 +7218,7 @@
 
     document.getElementById('push-toggle').addEventListener('click', async () => {
       if (Notification.permission === 'denied') {
-        showToast('Push blocked — please allow in browser settings', 'error');
+        showToast(t('toast.pushBlocked'), 'error');
         return;
       }
       if (pushEnabled()) {
@@ -7455,7 +7454,7 @@
           if (entries.length === 0) {
             const empty = document.createElement('div');
             empty.style.cssText = 'padding:4px 8px;color:var(--text-muted,#666);font-size:11px;font-style:italic;';
-            empty.textContent = 'Empty';
+            empty.textContent = t('filebrowser.tree.empty');
             wrap.appendChild(empty);
           } else {
             for (const entry of entries) wrap.appendChild(renderRow(entry, relPath));
@@ -7510,7 +7509,7 @@
 
       async function renderRoot() {
         const tree = document.getElementById('files-tree');
-        tree.innerHTML = '<div style="padding:8px;color:var(--text-muted,#666);font-size:11px;">Loading…</div>';
+        tree.innerHTML = `<div style="padding:8px;color:var(--text-muted,#666);font-size:11px;">${t('filebrowser.tree.loading')}</div>`;
         try {
           const list = await fetchList('');
           tree.innerHTML = '';
@@ -7565,7 +7564,7 @@
             if (window.FileActions && window.currentProjectId) {
               window.FileActions.mkdirPrompt(window.currentProjectId, '');
             } else {
-              showToast('Cannot create folder', 'error');
+              showToast(t('filebrowser.toast.cannotCreateFolder'), 'error');
             }
           });
 
@@ -7816,18 +7815,18 @@
         const body = document.getElementById('preview-body');
         document.getElementById('preview-name').textContent = entry.name || relPath.split('/').pop();
         document.getElementById('preview-size').textContent = entry.size != null ? formatSize(entry.size) : '';
-        body.innerHTML = '<div class="preview-oversize">Loading…</div>';
+        body.innerHTML = `<div class="preview-oversize">${t('preview.loading')}</div>`;
         modal.classList.add('open');
         try {
           const res = await fetch(`/api/projects/${projectId}/files/content?path=${encodeURIComponent(relPath)}`, {
             headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
           });
           if (res.status === 413) {
-            body.innerHTML = `<div class="preview-oversize">Too large for preview. Open in terminal.</div>`;
+            body.innerHTML = `<div class="preview-oversize">${t('preview.tooLarge')}</div>`;
             return;
           }
           if (res.status === 415) {
-            body.innerHTML = `<div class="preview-oversize">Unknown binary type.</div>`;
+            body.innerHTML = `<div class="preview-oversize">${t('preview.unknownBinary')}</div>`;
             return;
           }
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -7863,7 +7862,7 @@
             } catch {}
           }
         } catch (e) {
-          body.innerHTML = `<div class="preview-oversize">Error: ${(e && e.message) || e}</div>`;
+          body.innerHTML = `<div class="preview-oversize">${t('preview.error', { message: (e && e.message) || e })}</div>`;
         }
       }
 
@@ -7942,14 +7941,14 @@
         e.preventDefault();
         const relPath = row.dataset.path;
         showMenu(e.clientX, e.clientY, [
-          { label: 'Open', action: () => row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })) },
-          { label: 'Rename', action: () => startRename(projectId, row) },
-          { label: 'Copy to…', action: () => promptOp(projectId, relPath, 'copy') },
-          { label: 'Move to…', action: () => promptOp(projectId, relPath, 'move') },
+          { label: t('filebrowser.context.open'), action: () => row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })) },
+          { label: t('filebrowser.context.rename'), action: () => startRename(projectId, row) },
+          { label: t('filebrowser.context.copyTo'), action: () => promptOp(projectId, relPath, 'copy') },
+          { label: t('filebrowser.context.moveTo'), action: () => promptOp(projectId, relPath, 'move') },
           '---',
-          { label: 'Move to Trash', action: () => confirmDelete(projectId, row, relPath) },
+          { label: t('filebrowser.context.moveToTrash'), action: () => confirmDelete(projectId, row, relPath) },
           '---',
-          { label: 'Copy Path', action: () => navigator.clipboard?.writeText(relPath).catch(() => {}) },
+          { label: t('filebrowser.context.copyPath'), action: () => navigator.clipboard?.writeText(relPath).catch(() => {}) },
         ]);
       }
 
@@ -7990,7 +7989,7 @@
             span.textContent = newName;
             input.replaceWith(span);
           } else {
-            notify('Rename failed', 'error');
+            notify(t('filebrowser.toast.renameFailed'), 'error');
             settled = false;
             cancel();
           }
@@ -8028,7 +8027,7 @@
           if (res.ok) {
             row.remove();
           } else {
-            notify('Delete failed', 'error');
+            notify(t('filebrowser.toast.deleteFailed'), 'error');
             row.classList.remove('pending-delete');
             const lbl = row.querySelector('span:last-child');
             if (lbl) lbl.textContent = oldLabel;
@@ -8038,15 +8037,15 @@
       }
 
       async function promptOp(projectId, relPath, op) {
-        const label = op === 'copy' ? 'Copy to' : 'Move to';
-        const to = window.prompt(`${label} (relative target path):`, relPath);
+        const label = op === 'copy' ? t('filebrowser.prompt.copy') : t('filebrowser.prompt.move');
+        const to = window.prompt(t('filebrowser.prompt.targetPath', { label }), relPath);
         if (!to || to === relPath) return;
         const res = await authedFetch(`/api/projects/${projectId}/files`, {
           method: 'PATCH',
           body: { op, from: relPath, to },
         });
         if (!res.ok) {
-          notify(`${label.toLowerCase()} failed`, 'error');
+          notify(t(op === 'copy' ? 'filebrowser.toast.copyFailed' : 'filebrowser.toast.moveFailed'), 'error');
           return;
         }
         const refreshBtn = document.getElementById('files-refresh');
@@ -8054,14 +8053,14 @@
       }
 
       async function mkdirPrompt(projectId, parentRel = '') {
-        const name = window.prompt('New Folder:');
+        const name = window.prompt(t('filebrowser.prompt.newFolder'));
         if (!name) return;
         const res = await authedFetch(`/api/projects/${projectId}/files/mkdir`, {
           method: 'POST',
           body: { path: parentRel, name },
         });
         if (!res.ok) {
-          notify('Create failed', 'error');
+          notify(t('filebrowser.toast.createFailed'), 'error');
           return;
         }
         const refreshBtn = document.getElementById('files-refresh');
@@ -8111,7 +8110,7 @@
         const stack = document.getElementById('upload-toast-stack');
         const el = document.createElement('div');
         el.className = 'upload-toast';
-        el.innerHTML = '<div><span class="name"></span> — <span class="status">wartet</span></div><div class="bar"><div class="bar-fill"></div></div>';
+        el.innerHTML = `<div><span class="name"></span> — <span class="status">${t('upload.status.queued')}</span></div><div class="bar"><div class="bar-fill"></div></div>`;
         el.querySelector('.name').textContent = name;
         stack.appendChild(el);
         return el;
@@ -8121,7 +8120,7 @@
         if (file.size > HARD_CAP) {
           const t = addToast(file.name);
           t.classList.add('error');
-          t.querySelector('.status').textContent = 'too large (max 100 MB)';
+          t.querySelector('.status').textContent = window.t('upload.status.tooLargeClient');
           setTimeout(() => t.remove(), 5000);
           return;
         }
@@ -8172,14 +8171,14 @@
           xhr.addEventListener('load', () => {
             if (xhr.status >= 200 && xhr.status < 300) {
               toast.querySelector('.bar-fill').style.width = '100%';
-              toast.querySelector('.status').textContent = 'done';
+              toast.querySelector('.status').textContent = window.t('upload.status.done');
               setTimeout(() => toast.remove(), 2000);
             } else if (xhr.status === 409) {
               toast.classList.add('error');
               showConflictUI(toast, job);
             } else if (xhr.status === 413) {
               toast.classList.add('error');
-              toast.querySelector('.status').textContent = 'too large (server)';
+              toast.querySelector('.status').textContent = window.t('upload.status.tooLargeServer');
               setTimeout(() => toast.remove(), 5000);
             } else {
               toast.classList.add('error');
@@ -8190,7 +8189,7 @@
           });
           xhr.addEventListener('error', () => {
             toast.classList.add('error');
-            toast.querySelector('.status').textContent = 'Network error';
+            toast.querySelector('.status').textContent = window.t('upload.status.networkError');
             setTimeout(() => toast.remove(), 5000);
             resolve();
           });
@@ -8199,10 +8198,10 @@
       }
 
       function showConflictUI(toast, job) {
-        toast.querySelector('.status').textContent = 'exists';
+        toast.querySelector('.status').textContent = window.t('upload.status.exists');
         const row = document.createElement('div');
         row.className = 'conflict';
-        row.innerHTML = '<button data-a="rename">Rename</button><button data-a="overwrite">Overwrite</button><button data-a="abort">Cancel</button>';
+        row.innerHTML = `<button data-a="rename">${window.t('upload.conflict.rename')}</button><button data-a="overwrite">${window.t('upload.conflict.overwrite')}</button><button data-a="abort">${window.t('upload.conflict.abort')}</button>`;
         toast.appendChild(row);
         row.addEventListener('click', (e) => {
           const a = e.target.dataset.a;
@@ -8222,7 +8221,7 @@
           xhr.addEventListener('load', () => {
             if (xhr.status >= 200 && xhr.status < 300) {
               toast.classList.remove('error');
-              toast.querySelector('.status').textContent = 'done';
+              toast.querySelector('.status').textContent = window.t('upload.status.done');
               setTimeout(() => toast.remove(), 2000);
             } else {
               toast.querySelector('.status').textContent = `Error ${xhr.status}`;
@@ -8253,7 +8252,7 @@
           overlay.id = 'terminal-drop-overlay';
           const label = document.createElement('div');
           label.id = 'terminal-drop-label';
-          label.textContent = 'Upload to session directory';
+          label.textContent = t('terminal.dropOverlay.label');
           overlay.appendChild(label);
           container.appendChild(overlay);
         }
@@ -8296,7 +8295,7 @@
         if (overlay) overlay.classList.remove('active');
         const name = window.currentSessionName || null;
         if (!name) {
-          if (typeof showToast === 'function') showToast('No active session', 'error');
+          if (typeof showToast === 'function') showToast(t('toast.noActiveSession'), 'error');
           return;
         }
         for (const f of e.dataTransfer.files) {
@@ -8338,8 +8337,8 @@
         <span class="name" id="preview-name"></span>
         <span class="size" id="preview-size"></span>
         <span class="spacer"></span>
-        <button id="preview-copy-path" title="Copy Path">Path</button>
-        <button id="preview-close" title="Close">×</button>
+        <button id="preview-copy-path" title="Copy Path" data-i18n-attr="title:preview.copyPathTitle" data-i18n="preview.copyPathLabel">Path</button>
+        <button id="preview-close" title="Close" data-i18n-attr="title:preview.closeTitle" data-i18n="preview.closeLabel">×</button>
       </div>
       <div class="preview-body" id="preview-body"></div>
     </div>
