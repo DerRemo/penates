@@ -7311,25 +7311,25 @@
     function formatAge(timestamp) {
       const diff = Date.now() - timestamp;
       const mins = Math.floor(diff / 60000);
-      if (mins < 1) return 'Gerade eben';
-      if (mins < 60) return `vor ${mins}m`;
+      if (mins < 1) return window.t('time.justNow');
+      if (mins < 60) return window.t('time.mAgo', { n: mins });
       const hours = Math.floor(mins / 60);
-      if (hours < 24) return `vor ${hours}h`;
+      if (hours < 24) return window.t('time.hAgo', { n: hours });
       const days = Math.floor(hours / 24);
-      return `vor ${days}d`;
+      return window.t('time.dAgo', { n: days });
     }
 
     // Relative Zeit aus ISO-String für "zuletzt gesehen" in dormant Cards.
     function formatRelativeTime(iso) {
-      if (!iso) return 'unbekannt';
+      if (!iso) return window.t('time.unknown');
       const then = Date.parse(iso);
-      if (isNaN(then)) return 'unbekannt';
+      if (isNaN(then)) return window.t('time.unknown');
       const diff = Math.floor((Date.now() - then) / 1000);
-      if (diff < 60) return 'gerade eben';
-      if (diff < 3600) return `vor ${Math.floor(diff / 60)} min`;
-      if (diff < 86400) return `vor ${Math.floor(diff / 3600)} h`;
-      if (diff < 604800) return `vor ${Math.floor(diff / 86400)} Tagen`;
-      return `vor ${Math.floor(diff / 604800)} Wochen`;
+      if (diff < 60) return window.t('time.justNowLower');
+      if (diff < 3600) return window.t('time.minAgo', { n: Math.floor(diff / 60) });
+      if (diff < 86400) return window.t('time.hAgo', { n: Math.floor(diff / 3600) });
+      if (diff < 604800) return window.t('time.daysAgo', { n: Math.floor(diff / 86400) });
+      return window.t('time.weeksAgo', { n: Math.floor(diff / 604800) });
     }
 
     // ── Wiring: Event-Listener für Buttons + Shortcuts ────────────

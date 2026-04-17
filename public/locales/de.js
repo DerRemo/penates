@@ -4,15 +4,6 @@ window.__I18N_BUNDLES.de = {
   // Header
   'header.logoProduct': 'Claude Code',
   'header.sidebarToggleAria': 'Navigation umschalten',
-  'header.pushToggleAria': 'Web-Push umschalten',
-  'header.pushToggleTitle': 'Push-Benachrichtigungen (auch bei geschlossenem Tab)',
-  'header.soundToggleAria': 'Sound umschalten',
-  'header.soundToggleTitle': 'Sound-Alerts umschalten',
-  'header.themeToggleAria': 'Theme umschalten',
-  'header.themeToggleTitle': 'Theme umschalten (t)',
-  'header.kbdHelpAria': 'Tastaturkürzel anzeigen',
-  'header.kbdHelpTitle': 'Tastaturkürzel (?)',
-
   // Sidebar
   'sidebar.sessionsLabel': 'Sessions',
   'sidebar.navigationLabel': 'Navigation',
@@ -453,4 +444,15 @@ window.__I18N_BUNDLES.de = {
   'settings.about.viewRelease': 'Release anzeigen',
   'settings.about.uptimeLabel': 'Server-Uptime',
   'settings.about.newAvailable': '(neue Version verfügbar)',
+
+  // Time / relative
+  'time.unknown': 'unbekannt',
+  'time.justNow': 'Gerade eben',
+  'time.justNowLower': 'gerade eben',
+  'time.mAgo': 'vor {n}m',
+  'time.hAgo': 'vor {n}h',
+  'time.dAgo': 'vor {n}d',
+  'time.minAgo': 'vor {n} min',
+  'time.daysAgo': 'vor {n} Tagen',
+  'time.weeksAgo': 'vor {n} Wochen',
 };
