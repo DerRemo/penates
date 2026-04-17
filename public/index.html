@@ -572,7 +572,8 @@
       }
       /* Sidebar-Items bekommen volle 44px Touch-Target, sonst
          mogeln sich die Finger-Taps auf Nachbar-Zeilen. */
-      .sidebar__item { min-height: 44px; padding: var(--space-3); }
+      .sidebar__item,
+      .sidebar__settings-entry { min-height: 44px; padding: var(--space-3); }
       .sidebar__label { padding-top: var(--space-4); }
       .main-content { margin-left: 0; }
       /* Header auf Mobile entlasten — Logo-Mark weg (steht mittig zwischen
@@ -3361,6 +3362,12 @@
     }
     .settings-row--link {
       cursor: pointer;
+      background: transparent;
+      border: 0;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      width: 100%;
       border-radius: 4px;
       padding-left: 4px;
       padding-right: 4px;
@@ -3395,7 +3402,7 @@
       border-radius: 11px;
       border: 0;
       cursor: pointer;
-      background: rgba(255,255,255,.12);
+      background: var(--border);
       position: relative;
       transition: background .15s;
       flex-shrink: 0;
@@ -3782,10 +3789,10 @@
       <!-- Help -->
       <section class="settings-card" id="settings-help">
         <h2 data-i18n="settings.section.help">Help</h2>
-        <div class="settings-row settings-row--link" id="settings-kbd-shortcuts-row">
-          <label data-i18n="settings.help.kbdShortcutsLabel">Keyboard shortcuts</label>
-          <div class="settings-row__control"><span aria-hidden="true">→</span></div>
-        </div>
+        <button type="button" class="settings-row settings-row--link" id="settings-kbd-shortcuts-row">
+          <span data-i18n="settings.help.kbdShortcutsLabel">Keyboard shortcuts</span>
+          <span class="settings-row__control"><span aria-hidden="true">→</span></span>
+        </button>
       </section>
 
       <!-- About -->
