@@ -143,8 +143,8 @@ window.__I18N_BUNDLES.en = {
   'filebrowser.prompt.newFolder': 'New Folder:',
   'filebrowser.toast.renameFailed': 'Rename failed',
   'filebrowser.toast.deleteFailed': 'Delete failed',
-  'filebrowser.toast.copyFailed': 'copy failed',
-  'filebrowser.toast.moveFailed': 'move failed',
+  'filebrowser.toast.copyFailed': 'Copy failed',
+  'filebrowser.toast.moveFailed': 'Move failed',
   'filebrowser.toast.createFailed': 'Create failed',
   'filebrowser.toast.cannotCreateFolder': 'Cannot create folder',
 

@@ -6035,7 +6035,7 @@
         const text = term.getSelection();
         if (!text) return true;
         navigator.clipboard.writeText(text).catch(() => {
-          showToast('Copy failed — clipboard not writable', 'error');
+          showToast(t('toast.copyFailed'), 'error');
         });
         return false;
       });
