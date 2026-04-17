@@ -331,12 +331,6 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
@@ -581,7 +575,6 @@
       .header .logo-mark { display: none; }
       .header .logo-text { font-size: 15px; }
       .header { gap: var(--space-2); padding-left: max(var(--space-3), env(safe-area-inset-left)); padding-right: max(var(--space-3), env(safe-area-inset-right)); }
-      .header-right { gap: var(--space-1); }
     }
 
     /* ── Terminal-Header (neu, in .terminal-view) ───────────────── */
@@ -4628,7 +4621,7 @@
 
     function pushEnabled() { return localStorage.getItem(PUSH_KEY) === '1'; }
 
-    function updatePushToggleUi(overrideState) {
+    function updatePushToggleUi() {
       // Mirror to Settings push toggle if already initialized.
       if (typeof window._settingsPushSync === 'function') window._settingsPushSync();
     }
@@ -4689,7 +4682,7 @@
       if (!vapidPublicKey) { showToast(t('toast.vapidNotLoaded'), 'error'); return; }
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        updatePushToggleUi(false);
+        updatePushToggleUi();
         if (permission === 'denied') showToast(t('toast.pushBlocked'), 'error');
         return;
       }
@@ -4712,7 +4705,7 @@
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         localStorage.setItem(PUSH_KEY, '1');
-        updatePushToggleUi(true);
+        updatePushToggleUi();
         showToast(t('toast.pushEnabled'), 'info');
       } catch (e) {
         await sub.unsubscribe().catch(() => {});
@@ -4734,7 +4727,7 @@
         await sub.unsubscribe().catch(() => {});
       }
       localStorage.setItem(PUSH_KEY, '0');
-      updatePushToggleUi(false);
+      updatePushToggleUi();
       showToast(t('toast.pushDisabled'), 'info');
     }
 
@@ -7695,7 +7688,8 @@
         const data = await res.json();
         curEl.textContent = data.version ? 'v' + data.version : '—';
         upEl.textContent = formatDurationShort(data.uptimeSeconds);
-      } catch {
+      } catch (e) {
+        console.warn('[Settings/About] /healthz fetch failed:', e);
         curEl.textContent = '—';
         upEl.textContent = '—';
       }
