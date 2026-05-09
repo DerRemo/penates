@@ -12,7 +12,6 @@ import { fileURLToPath } from 'url';
 import { dirname, join, resolve, sep } from 'path';
 import { readdirSync, readFileSync } from 'fs';
 import { createChecker } from './lib/update-check.js';
-import { mkdir as fsMkdir } from 'fs/promises';
 import { homedir } from 'os';
 import { getCurrentContext, getDailyUsageV2 } from './lib/usage.js';
 import * as usageLimits from './lib/usage-limits.js';
@@ -855,9 +854,6 @@ function handleUpload(req, res, resolveTargetDir) {
     }
     const onConflict = String(req.query.onConflict || 'rename');
     try {
-      // ensure the target directory exists (e.g. when ?path= specifies a sub-folder that hasn't been created yet)
-      const absParent = join(targetDir.root, targetDir.rel);
-      await fsMkdir(absParent, { recursive: true });
       const result = await filesWriteStream(targetDir.root, targetDir.rel, info.filename, stream, { onConflict });
       // suppress our own fs.watch event
       const abs = join(targetDir.root, result.path);
@@ -867,6 +863,12 @@ function handleUpload(req, res, resolveTargetDir) {
       stream.resume();
       if (e instanceof FileError && e.code === 'exists') {
         return finish(409, { error: 'exists', meta: e.meta });
+      }
+      if (e instanceof FileError && e.code === 'oversize') {
+        return finish(413, { error: 'oversize', meta: e.meta });
+      }
+      if (e instanceof FileError && e.code === 'forbidden') {
+        return finish(403, { error: 'forbidden', message: e.message });
       }
       return finish(500, { error: 'write-failed', message: e.message });
     }

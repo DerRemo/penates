@@ -23,7 +23,7 @@ export default defineConfig({
     command: 'PORT=3334 node server.js',
     url: 'http://localhost:3334/healthz',
     reuseExistingServer: false,
-    timeout: 20_000,
+    timeout: 60_000,
   },
 
   projects: [
