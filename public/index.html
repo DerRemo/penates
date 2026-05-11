@@ -2072,6 +2072,78 @@
       box-shadow: 0 0 0 3px var(--teal-glow);
     }
 
+    .tree-picker-header {
+      display: flex;
+      align-items: stretch;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .tree-picker-header .tree-selected {
+      flex: 1;
+      border-bottom: none;
+      background: transparent;
+    }
+
+    .tree-mkdir-btn {
+      flex-shrink: 0;
+      padding: 0 12px;
+      border: none;
+      border-left: 1px solid var(--border-subtle);
+      background: transparent;
+      color: var(--text-muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.1s ease, color 0.1s ease;
+    }
+
+    .tree-mkdir-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--teal);
+    }
+
+    .tree-mkdir-btn:focus-visible {
+      outline: 2px solid var(--teal);
+      outline-offset: -2px;
+    }
+
+    .tree-row-new {
+      cursor: default;
+    }
+
+    .tree-row-new input {
+      flex: 1;
+      min-width: 0;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .tree-row-new input:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 2px var(--teal-glow);
+    }
+
+    .tree-row-new.error input {
+      border-color: var(--danger, #e44);
+      box-shadow: 0 0 0 2px rgba(228, 68, 68, 0.2);
+    }
+
+    .tree-mkdir-hint {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      color: var(--danger, #e44);
+      margin-left: 6px;
+      white-space: nowrap;
+    }
+
     .tree-selected {
       padding: 10px 14px;
       font-family: 'JetBrains Mono', monospace;
@@ -3858,7 +3930,14 @@
       <div class="form-group">
         <label class="form-label" data-i18n="modal.newSession.dirLabel">Project Directory</label>
         <div class="tree-picker" id="tree-picker">
-          <div class="tree-selected" id="tree-selected" dir="rtl">~</div>
+          <div class="tree-picker-header">
+            <div class="tree-selected" id="tree-selected" dir="rtl">~</div>
+            <button class="tree-mkdir-btn" id="tree-mkdir-btn" type="button"
+                    data-i18n-attr="title:treePicker.mkdir.title"
+                    title="Neuer Ordner">
+              <span data-i18n="treePicker.mkdir.button">+ Ordner</span>
+            </button>
+          </div>
           <div class="tree-list" id="tree-root">
             <div class="tree-empty" data-i18n="treePicker.loading">Loading…</div>
           </div>
