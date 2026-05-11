@@ -928,7 +928,7 @@ app.get('/api/browse', (req, res) => {
 // path-guard. Body: { path: "<absolute>" }. The path may be sent with a leading
 // "~" — we expand to $HOME just like /api/browse.
 app.post('/api/browse/mkdir', (req, res) => {
-  let p = req.body && req.body.path;
+  let { path: p } = req.body;
   if (typeof p !== 'string' || p.length === 0) {
     return res.status(400).json({ error: 'path required' });
   }
@@ -939,12 +939,14 @@ app.post('/api/browse/mkdir', (req, res) => {
     return res.status(201).json({ path: created });
   } catch (err) {
     if (!(err instanceof BrowseMkdirError)) {
-      return res.status(500).json({ error: err.message });
+      console.error('[browse/mkdir] unexpected error:', err);
+      return res.status(500).json({ error: err.message, path: p });
     }
-    if (err.code === 'invalid_name') return res.status(400).json({ error: err.message });
-    if (err.code === 'forbidden')    return res.status(403).json({ error: err.message });
-    if (err.code === 'exists')       return res.status(409).json({ error: err.message });
-    return res.status(500).json({ error: err.message });
+    if (err.code === 'invalid_name') return res.status(400).json({ error: err.message, path: p });
+    if (err.code === 'forbidden')    return res.status(403).json({ error: err.message, path: p });
+    if (err.code === 'exists')       return res.status(409).json({ error: err.message, path: p });
+    console.error('[browse/mkdir] unhandled BrowseMkdirError code:', err.code, err.message);
+    return res.status(500).json({ error: err.message, path: p });
   }
 });
 
