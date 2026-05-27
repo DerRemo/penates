@@ -4680,11 +4680,13 @@
       });
     }
     // Predicate: ist die Session unter dem aktuellen Filter sichtbar?
+    // "Aktiv" = alle Sessions mit frischem Hook-State (working/waiting/idle).
+    // Nur "unknown" wird ausgeblendet — das sind Sessions ohne frische Hook-
+    // Daten (>60s alt oder pre-Hook-Install). Plus Attached-Exception.
     function isSidebarSessionVisible(session, filter) {
       if (filter === 'all') return true;
       const a = session.activity;
-      if (a === 'working' || a === 'waiting') return true;
-      // Attached-Exception: gerade verbundene Session bleibt immer drin.
+      if (a === 'working' || a === 'waiting' || a === 'idle') return true;
       if (currentView === 'terminal' && currentSessionName === session.name) return true;
       return false;
     }
