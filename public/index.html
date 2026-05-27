@@ -4638,24 +4638,9 @@
           badge.title = cfg.title;
         }
       }
-      // Sidebar-Sync: bei Filter "Aktiv" kann ein Activity-Wechsel die
-      // Sichtbarkeit ändern → voller re-render. Bei "Alle" reicht der
-      // schnelle In-Place-Patch des Dot-Attributs.
-      const filter = getSidebarFilter();
-      if (filter === 'active' && Array.isArray(sessions)) {
-        const session = sessions.find(s => s.name === name);
-        if (session) {
-          // Mutate in-place damit isSidebarSessionVisible den neuen Wert sieht.
-          const prevActivity = session.activity;
-          session.activity = activity;
-          const wasVisible = isSidebarSessionVisible({ ...session, activity: prevActivity }, filter);
-          const isVisible = isSidebarSessionVisible(session, filter);
-          if (wasVisible !== isVisible) {
-            renderSidebar();
-            return;
-          }
-        }
-      }
+      // Sidebar-Dot synchron halten — Sichtbarkeit hängt am session.status
+      // (dormant vs. running), nicht an der activity. Status ändert sich nur
+      // beim nächsten refreshSessions(), daher reicht hier ein Inline-Patch.
       const sidebarItem = document.querySelector(`.sidebar__item[data-session="${CSS.escape(name)}"] .sidebar__dot`);
       if (sidebarItem) sidebarItem.setAttribute('data-activity', activity || 'unknown');
     }
@@ -4680,13 +4665,13 @@
       });
     }
     // Predicate: ist die Session unter dem aktuellen Filter sichtbar?
-    // "Aktiv" = alle Sessions mit frischem Hook-State (working/waiting/idle).
-    // Nur "unknown" wird ausgeblendet — das sind Sessions ohne frische Hook-
-    // Daten (>60s alt oder pre-Hook-Install). Plus Attached-Exception.
+    // "Aktiv" = alle nicht-toten Sessions. Status "dormant" (= via Hub
+    // erstellt aber nicht mehr in tmux) wird ausgeblendet. Running und
+    // foreign sind beide sichtbar. Plus Attached-Exception als Sicherheits-
+    // netz, falls eine attached Session aus irgendeinem Grund dormant wird.
     function isSidebarSessionVisible(session, filter) {
       if (filter === 'all') return true;
-      const a = session.activity;
-      if (a === 'working' || a === 'waiting' || a === 'idle') return true;
+      if (session.status !== 'dormant') return true;
       if (currentView === 'terminal' && currentSessionName === session.name) return true;
       return false;
     }
