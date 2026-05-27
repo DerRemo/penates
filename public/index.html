@@ -4638,8 +4638,24 @@
           badge.title = cfg.title;
         }
       }
-      // Sidebar-Dot synchron halten — die Sidebar-Liste darf nie hinter
-      // den Cards herhinken, sonst divergieren die beiden State-Views.
+      // Sidebar-Sync: bei Filter "Aktiv" kann ein Activity-Wechsel die
+      // Sichtbarkeit ändern → voller re-render. Bei "Alle" reicht der
+      // schnelle In-Place-Patch des Dot-Attributs.
+      const filter = getSidebarFilter();
+      if (filter === 'active' && Array.isArray(sessions)) {
+        const session = sessions.find(s => s.name === name);
+        if (session) {
+          // Mutate in-place damit isSidebarSessionVisible den neuen Wert sieht.
+          const prevActivity = session.activity;
+          session.activity = activity;
+          const wasVisible = isSidebarSessionVisible({ ...session, activity: prevActivity }, filter);
+          const isVisible = isSidebarSessionVisible(session, filter);
+          if (wasVisible !== isVisible) {
+            renderSidebar();
+            return;
+          }
+        }
+      }
       const sidebarItem = document.querySelector(`.sidebar__item[data-session="${CSS.escape(name)}"] .sidebar__dot`);
       if (sidebarItem) sidebarItem.setAttribute('data-activity', activity || 'unknown');
     }
