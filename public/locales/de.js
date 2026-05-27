@@ -11,7 +11,7 @@ window.__I18N_BUNDLES.de = {
   'sidebar.noActiveSessions': 'Keine aktiven Sessions',
   'sidebar.filterActive': 'Aktiv',
   'sidebar.filterAll': 'Alle',
-  'sidebar.noActiveFiltered': 'Keine aktiven Sessions',
+  'sidebar.noActiveFiltered': 'Keine aktiven Sessions — wechsle zu „Alle"',
   'sidebar.nav.overview': 'Übersicht',
   'sidebar.nav.projects': 'Projekte',
   'sidebar.nav.usage': 'Usage',
