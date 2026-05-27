@@ -4644,6 +4644,35 @@
       if (sidebarItem) sidebarItem.setAttribute('data-activity', activity || 'unknown');
     }
 
+    // ── Sidebar-Filter ─────────────────────────────────────────────
+    // Default 'active' = nur working+waiting (plus attached-Ausnahme).
+    // 'all' = ungefiltert. Persistiert in localStorage.
+    const SIDEBAR_FILTER_KEY = 'cchub_sidebar_filter';
+    function getSidebarFilter() {
+      try {
+        const v = localStorage.getItem(SIDEBAR_FILTER_KEY);
+        return v === 'all' ? 'all' : 'active';
+      } catch (_) { return 'active'; }
+    }
+    function setSidebarFilter(value) {
+      const v = value === 'all' ? 'all' : 'active';
+      try { localStorage.setItem(SIDEBAR_FILTER_KEY, v); } catch (_) {}
+      // aria-pressed sync auf beide Buttons (auch wenn aktuell unsichtbar,
+      // damit der State direkt nach dem nächsten Render stimmt).
+      document.querySelectorAll('.sidebar__filter-btn').forEach(btn => {
+        btn.setAttribute('aria-pressed', btn.getAttribute('data-sidebar-filter') === v ? 'true' : 'false');
+      });
+    }
+    // Predicate: ist die Session unter dem aktuellen Filter sichtbar?
+    function isSidebarSessionVisible(session, filter) {
+      if (filter === 'all') return true;
+      const a = session.activity;
+      if (a === 'working' || a === 'waiting') return true;
+      // Attached-Exception: gerade verbundene Session bleibt immer drin.
+      if (currentView === 'terminal' && currentSessionName === session.name) return true;
+      return false;
+    }
+
     // ── Sidebar-Render ─────────────────────────────────────────────
     // Rendert die Session-Liste in der Sidebar und aktualisiert die
     // Nav-Items. Rennt bei jedem renderSessions() mit (spiegelt dieselbe
@@ -4653,24 +4682,33 @@
       if (!list) return;
       if (!Array.isArray(sessions) || sessions.length === 0) {
         list.innerHTML = `<div class="sidebar__empty">${t('sidebar.noActiveSessions')}</div>`;
-      } else {
-        // Reihenfolge: attached zuerst (optisch markiert über active-class),
-        // danach nach created desc. Namen als data-session für patchActivityBadge.
-        const sorted = [...sessions].sort((a, b) => {
-          if (a.attached !== b.attached) return a.attached ? -1 : 1;
-          return (b.created || 0) - (a.created || 0);
-        });
-        list.innerHTML = sorted.map(s => {
-          const display = s.name.replace(/^cc-/, '');
-          const safe = escapeHtml(s.name);
-          const activity = s.activity || 'unknown';
-          const isActive = currentView === 'terminal' && currentSessionName === s.name;
-          return `<button class="sidebar__item${isActive ? ' sidebar__item--active' : ''}" type="button" data-session="${safe}">`
-            + `<span class="sidebar__dot" data-activity="${activity}"></span>`
-            + `<span class="sidebar__name">${escapeHtml(display)}</span>`
-            + `</button>`;
-        }).join('');
+        updateSidebarNavActive();
+        return;
       }
+      const filter = getSidebarFilter();
+      const visible = sessions.filter(s => isSidebarSessionVisible(s, filter));
+      if (visible.length === 0) {
+        // Sessions existieren, aber keine erfüllt den Aktiv-Filter.
+        list.innerHTML = `<div class="sidebar__empty">${t('sidebar.noActiveFiltered')}</div>`;
+        updateSidebarNavActive();
+        return;
+      }
+      // Reihenfolge: attached zuerst (optisch markiert über active-class),
+      // danach nach created desc. Namen als data-session für patchActivityBadge.
+      const sorted = [...visible].sort((a, b) => {
+        if (a.attached !== b.attached) return a.attached ? -1 : 1;
+        return (b.created || 0) - (a.created || 0);
+      });
+      list.innerHTML = sorted.map(s => {
+        const display = s.name.replace(/^cc-/, '');
+        const safe = escapeHtml(s.name);
+        const activity = s.activity || 'unknown';
+        const isActive = currentView === 'terminal' && currentSessionName === s.name;
+        return `<button class="sidebar__item${isActive ? ' sidebar__item--active' : ''}" type="button" data-session="${safe}">`
+          + `<span class="sidebar__dot" data-activity="${activity}"></span>`
+          + `<span class="sidebar__name">${escapeHtml(display)}</span>`
+          + `</button>`;
+      }).join('');
       updateSidebarNavActive();
     }
 
@@ -5845,6 +5883,8 @@
       }
 
       // Sidebar lebt aus derselben Datenquelle — synchron halten.
+      // Filter-Toggle initial mit gespeichertem State sync (Default = aktiv).
+      setSidebarFilter(getSidebarFilter());
       renderSidebar();
 
       // D3: Filter anwenden — nur auf Session-Namen, Preview wurde
@@ -7770,6 +7810,12 @@
     // einzelner Listener reicht — renderSidebar() schreibt die Buttons
     // bei jedem Render neu, aber dieser Container bleibt stabil.
     document.getElementById('sidebar').addEventListener('click', (e) => {
+      const filterBtn = e.target.closest('[data-sidebar-filter]');
+      if (filterBtn) {
+        setSidebarFilter(filterBtn.getAttribute('data-sidebar-filter'));
+        renderSidebar();
+        return;
+      }
       const sessionBtn = e.target.closest('.sidebar__item[data-session]');
       if (sessionBtn) {
         const name = sessionBtn.getAttribute('data-session');
