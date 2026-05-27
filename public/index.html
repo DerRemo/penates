@@ -3530,6 +3530,12 @@
 
     <aside class="sidebar" id="sidebar" aria-label="Navigation">
       <div class="sidebar__label" data-i18n="sidebar.sessionsLabel">Sessions</div>
+      <div class="sidebar__filter" role="group" aria-label="Session filter">
+        <button class="sidebar__filter-btn" type="button" data-sidebar-filter="active"
+                aria-pressed="true" data-i18n="sidebar.filterActive">Active</button>
+        <button class="sidebar__filter-btn" type="button" data-sidebar-filter="all"
+                aria-pressed="false" data-i18n="sidebar.filterAll">All</button>
+      </div>
       <div id="sidebar-sessions">
         <div class="sidebar__empty" data-i18n="sidebar.loading">Loading…</div>
       </div>
