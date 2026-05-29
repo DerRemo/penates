@@ -1,6 +1,6 @@
 // E2E für Moshi-Interop: foreign Session meldet Activity unter Rohnamen,
 // Adopt behält den Namen (kein cc--Prefix). Prüft auf API-Ebene.
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { execFileSync } from 'child_process';
 import { getToken } from './helpers.js';
 
@@ -28,69 +28,68 @@ async function getSessions(page, auth) {
   return Array.isArray(data) ? data : data.sessions;
 }
 
-test.afterEach(async ({ page }) => {
-  killForeign();
-  // Hook-State für FOREIGN aus dem Server-Memory löschen, damit nachfolgende
-  // Projekte (laptop, tablet, mobile) nicht den 'waiting'-State des vorigen
-  // Tests erben. SessionEnd löscht den Eintrag vollständig aus attention.js.
-  try {
-    const token = await getToken(page);
-    if (token) {
-      await page.request.post('/api/hooks/SessionEnd', {
-        headers: { Authorization: `Bearer ${token}`, 'X-CC-Hub-Session': FOREIGN, 'Content-Type': 'application/json' },
-        data: {},
-      }).catch(() => {});
-    }
-  } catch {}
-});
-
-test('foreign Session meldet Activity unter Rohnamen', async ({ page }) => {
-  killForeign();
-  createForeign();
-
-  await page.goto('/');
-  const token = await getToken(page);
-  const auth = { Authorization: `Bearer ${token}` };
-
-  // Vor dem Hook: Session ist foreign mit activity:unknown.
-  let sessions = await getSessions(page, auth);
-  let s = sessions.find(x => x.name === FOREIGN);
-  expect(s, 'foreign session in /api/sessions').toBeTruthy();
-  expect(s.status).toBe('foreign');
-  expect(s.activity).toBe('unknown');
-
-  // Hook simulieren — wie der self-bootstrapping Hook unter dem tmux-Rohnamen.
-  const hook = await page.request.post('/api/hooks/Notification', {
-    headers: { ...auth, 'X-CC-Hub-Session': FOREIGN, 'Content-Type': 'application/json' },
-    data: {},
+test.describe('Moshi-Interop', () => {
+  test.afterEach(async ({ request }) => {
+    killForeign();
+    // Hook-State für FOREIGN aus dem Server-Memory löschen, damit nachfolgende
+    // Projekte (laptop, tablet, mobile) nicht den 'waiting'-State des vorigen
+    // Tests erben. SessionEnd löscht den Eintrag vollständig aus attention.js.
+    await request.post('/api/hooks/SessionEnd', {
+      headers: {
+        Authorization: `Bearer ${process.env.AUTH_TOKEN || ''}`,
+        'X-CC-Hub-Session': FOREIGN,
+        'Content-Type': 'application/json',
+      },
+      data: {},
+    }).catch(() => {});
   });
-  expect(hook.ok()).toBeTruthy();
 
-  // Nach dem Hook: activity ist gesetzt (waiting), Name unverändert.
-  sessions = await getSessions(page, auth);
-  s = sessions.find(x => x.name === FOREIGN);
-  expect(s.activity).toBe('waiting');
-});
+  test('foreign Session meldet Activity unter Rohnamen', async ({ authedPage }) => {
+    killForeign();
+    createForeign();
 
-test('Adopt behält den Originalnamen (kein cc--Prefix)', async ({ page }) => {
-  killForeign();
-  createForeign();
+    const token = await getToken(authedPage);
+    const auth = { Authorization: `Bearer ${token}` };
 
-  await page.goto('/');
-  const token = await getToken(page);
-  const auth = { Authorization: `Bearer ${token}` };
+    // Vor dem Hook: Session ist foreign mit activity:unknown.
+    let sessions = await getSessions(authedPage, auth);
+    let s = sessions.find(x => x.name === FOREIGN);
+    expect(s, 'foreign session in /api/sessions').toBeTruthy();
+    expect(s.status).toBe('foreign');
+    expect(s.activity).toBe('unknown');
 
-  const adopt = await page.request.post(`/api/sessions/${encodeURIComponent(FOREIGN)}/adopt`, { headers: auth });
-  expect(adopt.ok()).toBeTruthy();
-  const body = await adopt.json();
-  expect(body.name).toBe(FOREIGN); // kein cc--Prefix
+    // Hook simulieren — wie der self-bootstrapping Hook unter dem tmux-Rohnamen.
+    const hook = await authedPage.request.post('/api/hooks/Notification', {
+      headers: { ...auth, 'X-CC-Hub-Session': FOREIGN, 'Content-Type': 'application/json' },
+      data: {},
+    });
+    expect(hook.ok()).toBeTruthy();
 
-  const sessions = await getSessions(page, auth);
-  const s = sessions.find(x => x.name === FOREIGN);
-  expect(s).toBeTruthy();
-  expect(s.status).toBe('running');
-  expect(sessions.find(x => x.name === `cc-${FOREIGN}`)).toBeUndefined();
+    // Nach dem Hook: activity ist gesetzt (waiting), Name unverändert.
+    sessions = await getSessions(authedPage, auth);
+    s = sessions.find(x => x.name === FOREIGN);
+    expect(s.activity).toBe('waiting');
+  });
 
-  // Cleanup: known-Eintrag entfernen, damit Re-Runs sauber sind.
-  await page.request.delete(`/api/sessions/${encodeURIComponent(FOREIGN)}/known`, { headers: auth }).catch(() => {});
+  test('Adopt behält den Originalnamen (kein cc--Prefix)', async ({ authedPage }) => {
+    killForeign();
+    createForeign();
+
+    const token = await getToken(authedPage);
+    const auth = { Authorization: `Bearer ${token}` };
+
+    const adopt = await authedPage.request.post(`/api/sessions/${encodeURIComponent(FOREIGN)}/adopt`, { headers: auth });
+    expect(adopt.ok()).toBeTruthy();
+    const body = await adopt.json();
+    expect(body.name).toBe(FOREIGN); // kein cc--Prefix
+
+    const sessions = await getSessions(authedPage, auth);
+    const s = sessions.find(x => x.name === FOREIGN);
+    expect(s).toBeTruthy();
+    expect(s.status).toBe('running');
+    expect(sessions.find(x => x.name === `cc-${FOREIGN}`)).toBeUndefined();
+
+    // Cleanup: known-Eintrag entfernen, damit Re-Runs sauber sind.
+    await authedPage.request.delete(`/api/sessions/${encodeURIComponent(FOREIGN)}/known`, { headers: auth }).catch(() => {});
+  });
 });
