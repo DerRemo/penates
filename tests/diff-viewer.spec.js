@@ -1,10 +1,11 @@
 // E2E für den Diff-Viewer (Spec 2): Git-Badge → diff-view, Datei-Liste,
 // diff2html-Render (viewport-abhängig side-by-side/line-by-line), Live-Refresh.
 //
-// Die Session wird über den Hub (POST /api/sessions) in einem dirty Git-Repo
-// erstellt → läuft als running-Card mit klickbarem Git-Badge. (Foreign tmux-
-// Sessions rendern als "tmux"-Adopt-Card OHNE Badge — das ist Design, nicht
-// Teil dieses Features.)
+// Die Session wird als FOREIGN tmux-Session erstellt (direkt via `tmux
+// new-session`, KEIN cc-Prefix, KEIN API-Call) in einem dirty Git-Repo. Der
+// Hub listet foreign Sessions; deren Card trägt jetzt ebenfalls den Git-Badge,
+// weil das Backend für jede Session mit auflösbarem cwd `git` liefert. Foreign
+// (z.B. Moshi-gestartete) Sessions sind das Kern-Interop-Szenario.
 import { test, expect } from './fixtures.js';
 import { execFileSync } from 'child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'fs';
@@ -22,8 +23,8 @@ const TOKEN = process.env.AUTH_TOKEN || '';
 // dabei das Watch-Root NICHT nach. Bei wiederverwendetem Namen würde der
 // zweite Test gegen das (gelöschte) Repo-Verzeichnis des ersten watchen →
 // Live-Refresh-Events blieben aus. Eindeutige Namen umgehen die Kollision.
-let SHORT = 'diff-e2e';
-let SESSION = `cc-${SHORT}`;
+// Kein cc-Prefix → die Session erscheint als foreign-Card.
+let SESSION = 'diff-e2e';
 let repoDir = null;
 
 function gitInRepo(...args) {
@@ -42,25 +43,18 @@ function makeDirtyRepo() {
 }
 function killSession() { try { execFileSync(TMUX, ['kill-session', '-t', SESSION], { stdio: 'pipe' }); } catch {} }
 
-async function startSession(request) {
-  // Über den Hub starten → cc-prefixed running-Session im Repo-cwd.
-  const res = await request.post('/api/sessions', {
-    headers: { Authorization: `Bearer ${TOKEN}` },
-    data: { name: SHORT, directory: repoDir, command: 'bash --noprofile --norc' },
-  });
-  expect(res.ok(), `session create failed: ${res.status()}`).toBeTruthy();
+function startSession() {
+  // FOREIGN tmux-Session direkt starten (kein cc-Prefix, kein API-Call) →
+  // erscheint im Dashboard als foreign-Card mit Git-Badge.
+  execFileSync(TMUX, ['new-session', '-d', '-s', SESSION, '-c', repoDir, 'bash', '--noprofile', '--norc'], { stdio: 'pipe' });
 }
 
 test.describe('Diff-Viewer', () => {
-  test.beforeEach(async ({ request }, testInfo) => {
-    SHORT = `diff-e2e-${testInfo.workerIndex}-${Date.now().toString(36)}`;
-    SESSION = `cc-${SHORT}`;
-    makeDirtyRepo(); killSession(); await startSession(request);
+  test.beforeEach(async ({}, testInfo) => {
+    SESSION = `diff-e2e-${testInfo.workerIndex}-${Date.now().toString(36)}`;
+    makeDirtyRepo(); killSession(); startSession();
   });
-  test.afterEach(async ({ request }) => {
-    await request.delete(`/api/sessions/${encodeURIComponent(SESSION)}`, {
-      headers: { Authorization: `Bearer ${TOKEN}` },
-    }).catch(() => {});
+  test.afterEach(async () => {
     killSession();
     if (repoDir) { rmSync(repoDir, { recursive: true, force: true }); repoDir = null; }
   });
@@ -106,17 +100,9 @@ test.describe('Diff-Viewer', () => {
     // verpassen (fs.watch hat kein Replay). Wir schreiben die Datei daher
     // periodisch neu, bis sie auftaucht: jeder Write ist ein frisches
     // Watcher-Event, also greift spätestens der erste nach dem Subscribe.
-    const live = join(repoDir, 'live.txt');
-    const liveRow = authedPage.locator('.diff-file', { hasText: 'live.txt' });
-    let touch = 0;
-    const ticker = setInterval(() => {
-      if (!repoDir) return;
-      try { writeFileSync(live, `added-live ${++touch}\n`); } catch {}
-    }, 1000);
-    try {
-      await expect(liveRow).toBeVisible({ timeout: 15000 });
-    } finally {
-      clearInterval(ticker);
-    }
+    await expect(async () => {
+      writeFileSync(join(repoDir, 'live.txt'), 'added-live\n');
+      await expect(authedPage.locator('.diff-file', { hasText: 'live.txt' })).toBeVisible({ timeout: 1500 });
+    }).toPass({ timeout: 12000 });
   });
 });

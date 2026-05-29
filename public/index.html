@@ -6113,6 +6113,7 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 ${age}
               </div>
+              ${s.git ? renderGitBadge(s.git, s.name) : ''}
             </div>
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-primary btn-sm" data-action="adopt">
