@@ -227,7 +227,7 @@ window.__I18N_BUNDLES.de = {
   'toast.forgetFailed': 'Fehler beim Vergessen',
   'toast.adoptNameInUse': 'Ziel-Name bereits in Benutzung',
   'toast.adoptInvalidName': 'Ungültiger Name',
-  'toast.adopted': '„{source}" adoptiert als „cc-{name}"',
+  'toast.adopted': '„{source}" adoptiert',
   'toast.adoptFailed': 'Fehler beim Adoptieren',
   'toast.enterName': 'Bitte gib einen Namen ein',
   'toast.sessionStarted': 'Session „{name}" gestartet',
