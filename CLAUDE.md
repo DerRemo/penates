@@ -74,6 +74,7 @@ Rekursives `fs.watch` pro Projekt, on-demand: `attachWatcher(projectDir)` / `det
 | PATCH | `/api/projects/:id/files` | Rename / Move / Copy (`{ op, src, dst }`) |
 | DELETE | `/api/projects/:id/files` | In Trash löschen (`?path=rel`) |
 | POST | `/api/sessions/:name/upload` | Upload in Session-cwd (Busboy multipart) |
+| POST | `/api/sessions/:name/image` | Einzelnes PNG (`express.raw image/png`, ≤8 MB) → `.cch-images/`, liefert `{rel}` für die `@`-Mention |
 | WS | `/api/files/events` | Live-Updates; `{ type: subscribe/unsubscribe, projectId }` — bearer-Subprotocol wie Terminal |
 
 ### Frontend-Module (inline in index.html)
@@ -409,6 +410,35 @@ Native Diff-View pro Session: zeigt die uncommitteten Änderungen der Session-cw
 
 - Unit `lib/git-diff.test.js`: `parseStatusV2` (Kategorisierung, Rename-oldPath, null) + `getDiff` (Temp-Repo: Kategorien, Multi-File-Split, binary/oversize, Rename-Counts via numstat -z, Nicht-Repo).
 - E2E `tests/diff-viewer.spec.js`: foreign tmux-Session in dirty Temp-Repo → Badge öffnet Diff-View, Datei-Liste, Render (diff2html bzw. `<pre>`-Fallback offline), viewport-abhängiges Format, Live-Refresh.
+
+## Image-Paste & Annotation
+
+Bild in eine Claude-Session geben: per Clipboard-Paste, Picker-Button oder Drag&Drop, optional mit Basis-Markup annotieren, dann landet das PNG in `<cwd>/.cch-images/` und der cwd-relative Pfad wird als `@`-Mention in die Terminal-Input-Zeile injiziert (Claude hängt das Bild an).
+
+### lib/session-images.js
+
+Express-frei, reuse des Path-Guards aus `lib/files.js` (`resolveSafe`) — kein eigener Guard.
+
+- `saveSessionImage(cwd, buffer, { ext = 'png' })` — legt `.cch-images/` an, schreibt `<YYYY-MM-DD-HHMMSS>.png` (kollisionssicher mit `-1/-2/…`-Suffix), stellt einen `.gitignore`-Eintrag `.cch-images/` idempotent sicher (auch im Nicht-Repo harmlos), ruft lazy `cleanupOldImages`. Liefert `{ rel, abs }`.
+- `cleanupOldImages(cwd, { maxAgeDays = 7 })` — best-effort, löscht PNGs älter als 7 Tage; fehlender Ordner = No-Op.
+
+### Route
+
+- `POST /api/sessions/:name/image` — `validSessionName` (400), cwd via `resolveSessionCwd` (404), Body = rohes `image/png` (`express.raw`, ≤8 MB → 413), `saveSessionImage` → `{ rel }`. Path-Guard-Escape → 403. Vom globalen `writeLimiter` gedeckt (kein per-Route-Bucket). Registriert vor dem `app.get('*')`-Catch-all.
+
+### Frontend (public/index.html)
+
+- **`ImageAnnotator` IIFE** — Modal im FilePreview-Stil: Bild auf `<canvas>` + Overlay-Canvas. Toolbar Pfeil/Box/Stift/Text/Undo, **eine** Farbe (Rot `#ff3b30`), **eine** Strichbreite. Oversize-Downscale auf ≤2000px Kante. „Senden" flacht beide Layer via `toBlob` zu einem PNG; `open(blob)` → `Promise<Blob|null>` (Cancel/Esc/Backdrop → null).
+- **`ImagePaste` Glue** — `annotateAndSend(blob)` öffnet den Annotator und POSTet das Ergebnis an die Route, dann `injectMention(rel)` → `currentWs.send({type:'input', data:'@'+rel+' '})` (Trailing-Space, **kein** Auto-Enter). Quellen: immer sichtbarer Picker-Button (`#image-picker-btn` + verstecktes `accept=image/*`), Clipboard-Paste (Bild in `clipboardData.items` → Annotator statt `term.paste`), Drag&Drop (erstes Bild → Annotator, Nicht-Bilder → bestehender `Uploader`). Fehler-Toasts inkl. 404→noCwd, 413→tooLarge. `window.currentWs`/`window.term` werden dafür exponiert.
+
+### v1-Grenze
+
+Der `@`-Mention-Mechanismus ist Claude-spezifisch. Für codex/gemini hängt `@` das Bild **nicht** an (dokumentierte v1-Limitation) — die Datei liegt trotzdem in `.cch-images/` und der Pfad kann manuell genutzt werden.
+
+### Tests
+
+- Unit `lib/session-images.test.js`: Save+Dateiname-Format, idempotenter `.gitignore`-Ensure (+ Erhalt bestehender), Path-Guard-Escape, `cleanupOldImages`-Age-Filter.
+- E2E `tests/image-paste.spec.js` (desktop+mobile): Picker öffnet Annotator, Toolbar, Tool-Auswahl, Senden trifft Endpoint + schließt Modal, 404→noCwd-Toast; ein `fixme` für präzise Canvas-Strich-Pixel.
 
 ## Bekannte Einschränkungen
 
