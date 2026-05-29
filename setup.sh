@@ -135,12 +135,13 @@ else
   # da der Token drinsteht. Werte robust aus .env lesen (Schritt-Reihenfolge-
   # unabhängig).
   HUB_PORT=$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2); HUB_PORT="${HUB_PORT:-3333}"
-  HUB_TOKEN=$(grep '^AUTH_TOKEN=' .env 2>/dev/null | cut -d= -f2)
+  HUB_TOKEN=$(grep '^AUTH_TOKEN=' .env 2>/dev/null | cut -d= -f2-)
   mkdir -p "$HOME/.claude-code-hub"
-  {
+  # umask 077 im Subshell: Datei wird nie group/other-lesbar (Token drinsteht).
+  ( umask 077; {
     echo "CC_HUB_URL=http://127.0.0.1:${HUB_PORT}"
     echo "CC_HUB_TOKEN=${HUB_TOKEN}"
-  } > "$HOME/.claude-code-hub/hook.env"
+  } > "$HOME/.claude-code-hub/hook.env" )
   chmod 600 "$HOME/.claude-code-hub/hook.env"
   echo "  ✓ hook.env geschrieben (~/.claude-code-hub/hook.env, chmod 600)"
 
