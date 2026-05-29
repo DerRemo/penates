@@ -70,19 +70,23 @@ const TMUX = process.env.TMUX_PATH || (() => {
 const EXTRA_PATHS = [join(homedir(), '.local/bin'), '/opt/homebrew/bin', '/usr/local/bin'];
 process.env.PATH = [...new Set([...EXTRA_PATHS, ...(process.env.PATH || '').split(':')])].filter(Boolean).join(':');
 
-// Mouse-Mode global in tmux aktivieren, sodass Wheel-Events im xterm.js-Client
-// als Scroll-Back funktionieren. Ohne das sieht der attached Client keine
+// Mouse-Mode in tmux steuern. Default `on`, sodass Wheel-Events im xterm.js-
+// Client als Scroll-Back funktionieren. Ohne das sieht der attached Client keine
 // Scroll-Events und die Terminal-View scheint eingefroren, sobald Output länger
-// als die Pane-Höhe wird. Race-Condition: Server startet evtl. bevor tmux läuft
-// → Aufruf scheitert still. Deshalb auch nach jeder Session-Erstellung gerufen.
-function ensureMouseOn() {
+// als die Pane-Höhe wird. Per `.env TMUX_MOUSE=off` abschaltbar — nützlich, wenn
+// primär über Moshi (mobiles Terminal) gearbeitet wird, wo der server-globale
+// Mouse-Mode native Touch-Selektion stört. tmux Mouse ist nicht per-Client
+// scopebar. Race-Condition: Server startet evtl. bevor tmux läuft → Aufruf
+// scheitert still. Deshalb auch nach jeder Session-Erstellung gerufen.
+const TMUX_MOUSE = (process.env.TMUX_MOUSE || 'on').toLowerCase() === 'off' ? 'off' : 'on';
+function ensureMouseMode() {
   try {
-    execFileSync(TMUX, ['set-option', '-g', 'mouse', 'on'], {
+    execFileSync(TMUX, ['set-option', '-g', 'mouse', TMUX_MOUSE], {
       encoding: 'utf-8', timeout: 2000, stdio: 'pipe',
     });
   } catch { /* tmux-Server noch nicht da */ }
 }
-ensureMouseOn();
+ensureMouseMode();
 
 const app = express();
 expressWs(app, null, {
@@ -996,8 +1000,8 @@ app.post('/api/sessions', async (req, res) => {
         console.error('[known-sessions] add failed:', e);
       }
       // Mouse-Mode sicherstellen: falls beim Server-Start tmux noch nicht
-      // lief, konnte ensureMouseOn() nicht greifen — jetzt läuft tmux sicher.
-      ensureMouseOn();
+      // lief, konnte ensureMouseMode() nicht greifen — jetzt läuft tmux sicher.
+      ensureMouseMode();
       // Lifecycle-Event fire-and-forget (Latency wichtiger als Crash-Safety)
       auditLog.record('session.create', {
         ...auditLog.extractRequestMeta(req),
@@ -1497,7 +1501,7 @@ app.ws('/api/terminal/:name', (ws, req) => {
   // in xterm.js funktioniert nur, wenn tmux Mouse-Events forwarded — und
   // die globale Option überlebt keinen tmux-Server-Neustart, keine Reboots
   // und keine Pre-Hook-Legacy-Sessions, die vor dem Hub-Update entstanden.
-  ensureMouseOn();
+  ensureMouseMode();
 
   let pty;
   try {
