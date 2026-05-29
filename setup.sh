@@ -189,7 +189,11 @@ SL_SENTINEL_END="#CCH-SL-END#"
 SL_BLOCK='
 # ── Claude Code Hub StatusLine Reporting ── #CCH-SL-START#
 # Sends rate-limit + cost data to the Hub. Throttled: only on value change or every 60s.
-if [ -n "$CC_HUB_URL" ] && [ -n "$CC_HUB_TOKEN" ] && [ -n "$CC_HUB_SESSION" ]; then
+# Self-bootstrapping: sourct hook.env (URL+Token) und leitet den Session-Namen
+# live aus tmux ab — meldet daher auch für nicht-Hub-gestartete Sessions (Moshi).
+[ -r "$HOME/.claude-code-hub/hook.env" ] && . "$HOME/.claude-code-hub/hook.env"
+_sl_session="$(tmux display-message -p "#S" 2>/dev/null)"; _sl_session="${_sl_session:-$CC_HUB_SESSION}"
+if [ -n "$CC_HUB_URL" ] && [ -n "$_sl_session" ]; then
   _sl_session_id=$(echo "$input" | jq -r '"'"'.session_id // empty'"'"')
   _sl_state_file="/tmp/cc-hub-sl-${_sl_session_id:-unknown}.state"
   _sl_cost=$(echo "$input" | jq -r '"'"'.cost.total_cost_usd // empty'"'"')
@@ -207,7 +211,7 @@ if [ -n "$CC_HUB_URL" ] && [ -n "$CC_HUB_TOKEN" ] && [ -n "$CC_HUB_SESSION" ]; t
     _sl_payload=$(echo "$input" | jq -c '"'"'{rate_limits, cost, context_window, model}'"'"')
     curl -fsS -m 2 -X POST "$CC_HUB_URL/api/hooks/statusline" \
       -H "Authorization: Bearer $CC_HUB_TOKEN" \
-      -H "X-CC-Hub-Session: $CC_HUB_SESSION" \
+      -H "X-CC-Hub-Session: $_sl_session" \
       -H "Content-Type: application/json" \
       -d "$_sl_payload" >/dev/null 2>&1 &
     printf '"'"'%s|%s\n'"'"' "$_sl_current" "$_sl_now" > "$_sl_state_file"
