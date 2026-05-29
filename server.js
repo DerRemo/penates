@@ -40,6 +40,7 @@ import {
   closeAll as fwCloseAll,
 } from './lib/file-watcher.js';
 import * as attention from './lib/attention.js';
+import * as attachTracker from './lib/attach-tracker.js';
 import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
@@ -1027,6 +1028,7 @@ app.delete('/api/sessions/:name', (req, res) => {
     execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
     attention.forget(name);
     usageLimits.forget(name);
+    attachTracker.forget(name);
     // Alias-Einträge aufräumen, die auf diese Session zeigten.
     for (const [k, v] of hookAlias.entries()) {
       if (v === name || k === name) hookAlias.delete(k);
@@ -1056,6 +1058,7 @@ app.patch('/api/sessions/:name', async (req, res) => {
     execFileSync(TMUX, ['rename-session', '-t', name, fullNewName], { encoding: 'utf-8', timeout: 5000 });
     attention.rename(name, fullNewName);
     usageLimits.rename(name, fullNewName);
+    attachTracker.rename(name, fullNewName);
     aliasOnRename(name, fullNewName);
     // known-sessions mitziehen, damit Restore nach Rename den neuen Namen findet.
     try { await knownSessions.rename(name, fullNewName); } catch (e) { console.error('[known-sessions] rename failed:', e); }
@@ -1189,9 +1192,31 @@ app.ws('/api/projects/events', (ws, req) => {
 // Sendet native Push-Notifications an alle registrierten Subscriptions wenn
 // eine Session nach Stop/Notification unattached und nicht muted ist.
 // 410 Gone = Subscription abgelaufen → automatisch löschen.
+// Frischer tmux-Probe: Ist diese Session aktuell von irgendeinem Client
+// attached? Argv-Array, kein Shell-Interpolation. Fehler/keine Session → false.
+function tmuxSessionAttached(name) {
+  try {
+    const out = execFileSync(TMUX, ['display-message', '-p', '-t', name, '#{session_attached}'], {
+      encoding: 'utf-8', timeout: 2000, stdio: 'pipe',
+    }).trim();
+    return parseInt(out, 10) > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function sendPushForAttention(event) {
   const subs = pushSubs.allSubs();
   if (!subs.length) return;
+  // Fremd-Client (z.B. Moshi) attached? Dann pusht der Hub nicht — der User
+  // schaut bereits über ein anderes Terminal zu. tmux meldet attached, aber
+  // der Hub hält keinen eigenen Attach für diese Session.
+  if (attachTracker.shouldSuppressForForeignClient(
+        tmuxSessionAttached(event.name),
+        attachTracker.hubAttachedCount(event.name))) {
+    console.log(`[push] skipped (foreign client attached): session=${event.name}`);
+    return;
+  }
   const displayName = (event.name || '').replace(/^cc-/, '');
   const activityLabels = { idle: 'Bereit', waiting: 'Braucht Input', working: 'Arbeitet' };
   const actLabel = activityLabels[event.activity] || 'Aktiv';
@@ -1528,6 +1553,7 @@ app.ws('/api/terminal/:name', (ws, req) => {
   }
 
   activePtys.add(pty);
+  attachTracker.noteAttach(sessionName);
 
   // ── Audit-Log: session.attach + session.detach ────────────────
   // sessionMeta einmal extrahieren und über die WS-Lifetime cachen,
@@ -1540,6 +1566,7 @@ app.ws('/api/terminal/:name', (ws, req) => {
   const recordDetach = () => {
     if (detachRecorded) return;
     detachRecorded = true;
+    attachTracker.noteDetach(sessionName);
     auditLog.record('session.detach', {
       ...sessionMeta,
       session: sessionName,
