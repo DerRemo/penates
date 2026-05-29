@@ -46,7 +46,7 @@ import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
-import { parseStatusV2 } from './lib/git-diff.js';
+import { parseStatusV2, getDiff } from './lib/git-diff.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -396,6 +396,19 @@ function parseGitStatus(raw) {
   const s = parseStatusV2(raw);
   if (!s) return null;
   return { branch: s.branch, dirty: s.files.length > 0, ahead: s.ahead, behind: s.behind };
+}
+
+// cwd einer Session auflösen: live via tmux pane_current_path, sonst
+// known-sessions directory. null wenn nicht auflösbar.
+function resolveSessionCwd(name) {
+  try {
+    const cwd = execFileSync(TMUX, ['display-message', '-p', '-t', name, '#{pane_current_path}'], {
+      encoding: 'utf8', timeout: 1500, stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (cwd) return cwd;
+  } catch {}
+  const entry = knownSessions.list().find(e => e.name === name);
+  return entry ? entry.directory : null;
 }
 
 // ── Hub-Env für Claude-Hooks ─────────────────────────────────────────────────
@@ -1068,6 +1081,19 @@ app.patch('/api/sessions/:name', async (req, res) => {
     res.json({ success: true, name: fullNewName });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Git-Diff der Session: vollständige Hunks aller geänderten Dateien.
+app.get('/api/sessions/:name/diff', (req, res) => {
+  const name = req.params.name;
+  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  const cwd = resolveSessionCwd(name);
+  if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
+  try {
+    res.json(getDiff(cwd));
+  } catch (e) {
+    res.status(500).json({ error: 'diff failed', message: String(e && e.message || e) });
   }
 });
 
