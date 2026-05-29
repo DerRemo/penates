@@ -72,6 +72,10 @@ test.describe('moshi-hook Daten-Schicht', () => {
 
   // ── Test C: Account-Panel in der Usage-Ansicht ──────────────────────────
   test('account panel in Usage-Ansicht', async ({ authedPage: page }) => {
+    // resetsAt als unix seconds (wie die REAL-Route nach Fix 1 liefert),
+    // damit formatResetCountdown(unixTs) keinen NaN-Countdown rendert.
+    const resetsAt5h = Math.floor(Date.now() / 1000) + 3600;
+    const resetsAt7d = Math.floor(Date.now() / 1000) + 86400;
     await page.route('**/api/usage/limits**', (route) => {
       route.fulfill({
         status: 200,
@@ -83,8 +87,8 @@ test.describe('moshi-hook Daten-Schicht', () => {
               accountLabel: 'Max 5x',
               agent: 'claude-code',
               windows: [
-                { label: '5h', usedPercentage: 7, resetsAt: '2026-05-29T14:30:00Z' },
-                { label: '7d', usedPercentage: 8, resetsAt: '2026-06-04T04:00:01Z' },
+                { label: '5h', usedPercentage: 7, resetsAt: resetsAt5h },
+                { label: '7d', usedPercentage: 8, resetsAt: resetsAt7d },
               ],
             },
           ],
@@ -107,5 +111,10 @@ test.describe('moshi-hook Daten-Schicht', () => {
 
     // Account-Label muss "Max 5x" enthalten
     await expect(page.locator('.usage-account-label').first()).toContainText('Max 5x', { timeout: 5_000 });
+
+    // Reset-Countdown darf kein "NaN" enthalten — prüft dass resetsAt als
+    // unix seconds korrekt durch formatResetCountdown() verarbeitet wird.
+    const resetText = await page.locator('.usage-limit-reset').first().innerText();
+    expect(resetText).not.toContain('NaN');
   });
 });
