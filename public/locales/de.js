@@ -173,6 +173,7 @@ window.__I18N_BUNDLES.de = {
   'modal.newSession.nameLabel': 'Session Name',
   'modal.newSession.namePlaceholder': 'z.B. kalvo-feature',
   'modal.newSession.dirLabel': 'Projektverzeichnis',
+  'modal.newSession.recentLabel': 'Zuletzt benutzt',
   'modal.newSession.cmdLabel': 'Startbefehl',
   'modal.newSession.cancel': 'Abbrechen',
   'modal.newSession.start': 'Starten',

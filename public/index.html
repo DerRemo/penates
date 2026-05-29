@@ -2083,6 +2083,19 @@
       margin-top: 24px;
     }
 
+    /* ── Recent Dirs ─────────────────────────────────────────────── */
+    .recent-dirs { margin-bottom: 10px; }
+    .recent-dirs-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .recent-dirs-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+    .recent-dir-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px;
+      cursor: pointer; background: var(--bg-elevated); border: 1px solid var(--border); }
+    .recent-dir-item:hover { border-color: var(--accent); }
+    .recent-dir-path { flex: 1; min-width: 0; font-size: 12px; font-family: var(--font-mono);
+      direction: rtl; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .recent-dir-sources { display: flex; gap: 3px; flex-shrink: 0; }
+    .recent-src-badge { font-size: 9px; text-transform: uppercase; letter-spacing: .3px; padding: 1px 5px;
+      border-radius: 4px; background: rgba(45,212,191,.15); color: var(--accent); font-weight: 600; }
+
     /* ── Tree Picker ─────────────────────────────────────────────── */
     .tree-picker {
       background: var(--bg-deep);
@@ -3950,6 +3963,10 @@
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="modal.newSession.dirLabel">Project Directory</label>
+        <div class="recent-dirs" id="recent-dirs" hidden>
+          <div class="recent-dirs-label" data-i18n="modal.newSession.recentLabel">Zuletzt benutzt</div>
+          <div class="recent-dirs-list" id="recent-dirs-list"></div>
+        </div>
         <div class="tree-picker" id="tree-picker">
           <div class="tree-picker-header">
             <div class="tree-selected" id="tree-selected" dir="rtl">~</div>
@@ -7376,6 +7393,34 @@
       }
     }
 
+    // ── Recent Dirs ──────────────────────────────────────────────
+    async function loadRecentDirs() {
+      const wrap = document.getElementById('recent-dirs');
+      const list = document.getElementById('recent-dirs-list');
+      if (!wrap || !list) return;
+      wrap.hidden = true;
+      list.innerHTML = '';
+      let dirs = [];
+      try {
+        const res = await fetch('/api/recent-dirs?limit=8', { headers: apiHeaders() });
+        if (res.ok) dirs = (await res.json()).dirs || [];
+      } catch { /* moshi-hook fehlt → leise */ }
+      if (!dirs.length) return; // Block bleibt versteckt, Tree-Picker bleibt einzige Quelle
+      for (const d of dirs) {
+        const item = document.createElement('div');
+        item.className = 'recent-dir-item';
+        const badges = (d.sources || []).map(s =>
+          `<span class="recent-src-badge">${escapeHtml(s)}</span>`).join('');
+        item.innerHTML = `<span class="recent-dir-path" dir="rtl">${escapeHtml(d.cwd)}</span>`
+          + `<span class="recent-dir-sources">${badges}</span>`;
+        item.addEventListener('click', () => {
+          sessionTreePicker.setSelected(d.cwd);
+        });
+        list.appendChild(item);
+      }
+      wrap.hidden = false;
+    }
+
     // ── Modal ────────────────────────────────────────────────────
     function openNewSessionModal(prefillPath = null) {
       document.getElementById('new-session-modal').classList.add('open');
@@ -7388,6 +7433,7 @@
       // init() den prefill nach dem async fetchBrowse überschreibt.
       if (prefillPath) sessionTreePicker.setSelected(prefillPath);
       sessionTreePicker.init(!!prefillPath);
+      loadRecentDirs();
       setTimeout(() => document.getElementById('new-session-name').focus(), 200);
     }
 
