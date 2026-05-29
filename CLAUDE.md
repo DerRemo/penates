@@ -381,6 +381,35 @@ im jsonl; alte Punkte ohne `acct` → `default`), gespeist on-demand
   Session stirbt mit dem bestehenden „nicht im PATH"-Hinweis. Cursor/opencode/
   kimi/qwen sind (noch) nicht dabei.
 
+## Diff-Viewer (Spec 2)
+
+Native Diff-View pro Session: zeigt die uncommitteten Änderungen der Session-cwd (unstaged/staged/untracked), Einstieg über den klickbaren Git-Badge der Session-Card.
+
+### lib/git-diff.js
+
+- `parseStatusV2(raw)` — reiner Parser für `git status --porcelain=v2 --branch -z` (NUL-getrennt) → `{ branch, ahead, behind, files:[{category:'unstaged'|'staged'|'untracked', path, oldPath?, status}] }` oder `null`. Eine Datei kann gleichzeitig staged + unstaged sein (erscheint dann in beiden Kategorien). Renames (Record-Typ `2`) liefern `oldPath`. `server.js` `getGitStatus` nutzt denselben Parser (DRY — leitet `dirty` aus `files.length > 0` ab).
+- `getDiff(cwd, { maxFileBytes = 200_000, maxUntracked = 100 })` — liefert pro Datei `additions/deletions/binary/oversize/diff`. **Gebündelte git-Aufrufe statt pro Datei:** `git diff` + `git diff --cached` (Multi-File-Unified-Diff, client-seitig an `diff --git`-Grenzen gesplittet) + `git diff --numstat -z` + `git diff --cached --numstat -z` (Counts; `-z` damit Renames sauber zugeordnet werden). Untracked Dateien einzeln via `git diff --no-index -- /dev/null <path>` (exit 1 → Diff aus `err.stdout`), gedeckelt durch `maxUntracked`. binary/oversize → `diff:null`. Alle Aufrufe via `execFileSync('git', [argv])`, kein Shell-Interp.
+
+### Route + Live-Refresh
+
+- `GET /api/sessions/:name/diff` — `validSessionName`-Check (400), cwd via `resolveSessionCwd` (live `tmux display-message #{pane_current_path}`, sonst known-sessions `directory`; 404 wenn unauflösbar), dann `getDiff(cwd)`. `isRepo:false` → 200 mit `{isRepo:false}`.
+- WS `/api/files/events` zusätzlich zu `{subscribe:<projectId>}` jetzt `{subscribeSession:<name>}` / `{unsubscribeSession:<name>}` (synthetische projectId `'session:'+name`, watcht die Session-cwd). Diff-View re-fetcht debounced (~300ms) bei Watcher-Events.
+
+### Frontend (public/index.html)
+
+- 5. View `data-view="diff"` (`DiffView`-IIFE). Einstieg: klickbarer Git-Badge (`renderGitBadge(git, sessionName)` → `data-diff-session`), delegierter capture-phase-Handler mit `stopPropagation` (öffnet Diff statt Terminal). Badge ist auf running-, dormant- UND foreign-Cards (foreign = z.B. Moshi-gestartete Sessions, deren cwd der Backend per tmux auflöst).
+- Diff-Rendering via **diff2html** (lazy CDN-ESM, Dark-Teal-getrimmt; bei Ladefehler `<pre>`-Fallback). Responsive: side-by-side ≥900px, line-by-line <900px. Datei-Liste links gruppiert (UNSTAGED/STAGED/UNTRACKED), Diff rechts.
+
+### Bekannte Grenzen
+
+- **Staging triggert kein Live-Event:** Der File-Watcher ignoriert `.git` (`IGNORE_TOP`), daher aktualisiert `git add`/`git reset` die staged/unstaged-Aufteilung nicht automatisch — nur Arbeitsbaum-Inhaltsänderungen. Der manuelle Refresh-Button im Header deckt das ab.
+- **File-Watcher stale-root bei Namens-Wiederverwendung:** Die `session:<name>`-Watcher-State wird nach unsubscribe 30s gecacht und re-pointet `root` nicht. Wird innerhalb dieses Fensters eine gleichnamige Session mit anderer cwd erzeugt, watcht der Live-Refresh kurzzeitig die alte cwd. Real-world-Impact gering; manueller Refresh deckt es ab.
+
+### Tests
+
+- Unit `lib/git-diff.test.js`: `parseStatusV2` (Kategorisierung, Rename-oldPath, null) + `getDiff` (Temp-Repo: Kategorien, Multi-File-Split, binary/oversize, Rename-Counts via numstat -z, Nicht-Repo).
+- E2E `tests/diff-viewer.spec.js`: foreign tmux-Session in dirty Temp-Repo → Badge öffnet Diff-View, Datei-Liste, Render (diff2html bzw. `<pre>`-Fallback offline), viewport-abhängiges Format, Live-Refresh.
+
 ## Bekannte Einschränkungen
 
 - tmux-Socket wird beim ersten `tmux new-session` automatisch erstellt

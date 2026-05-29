@@ -46,6 +46,7 @@ import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
+import { parseStatusV2, getDiff } from './lib/git-diff.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -391,30 +392,23 @@ function getGitStatus(cwd) {
 }
 
 function parseGitStatus(raw) {
-  // --porcelain=v2 -z liefert NUL-getrennte Records. Header-Zeilen (`# ...`)
-  // sind am Anfang, gefolgt von File-Change-Records.
-  // Wir brauchen: branch.head, branch.ab, sowie die reine Existenz einer
-  // non-header-Zeile als dirty-Flag.
-  const records = raw.split('\0');
-  let branch = null;
-  let ahead = null;
-  let behind = null;
-  let dirty = false;
-  for (const rec of records) {
-    if (!rec) continue;
-    if (rec.startsWith('# branch.head ')) {
-      branch = rec.slice('# branch.head '.length);
-    } else if (rec.startsWith('# branch.ab ')) {
-      // Format: `# branch.ab +<ahead> -<behind>`
-      const m = rec.match(/\+(\d+)\s+-(\d+)/);
-      if (m) { ahead = parseInt(m[1], 10); behind = parseInt(m[2], 10); }
-    } else if (!rec.startsWith('# ')) {
-      dirty = true;
-    }
-  }
-  if (!branch) return null;  // keine gültige git-Ausgabe
-  // `(detached)` wird von git genau so geliefert bei HEAD-losem Repo.
-  return { branch, dirty, ahead, behind };
+  // Thin adapter über parseStatusV2 aus lib/git-diff.js — kein doppelter Parser.
+  const s = parseStatusV2(raw);
+  if (!s) return null;
+  return { branch: s.branch, dirty: s.files.length > 0, ahead: s.ahead, behind: s.behind };
+}
+
+// cwd einer Session auflösen: live via tmux pane_current_path, sonst
+// known-sessions directory. null wenn nicht auflösbar.
+function resolveSessionCwd(name) {
+  try {
+    const cwd = execFileSync(TMUX, ['display-message', '-p', '-t', name, '#{pane_current_path}'], {
+      encoding: 'utf8', timeout: 1500, stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (cwd) return cwd;
+  } catch {}
+  const entry = knownSessions.list().find(e => e.name === name);
+  return entry ? entry.directory : null;
 }
 
 // ── Hub-Env für Claude-Hooks ─────────────────────────────────────────────────
@@ -1090,6 +1084,19 @@ app.patch('/api/sessions/:name', async (req, res) => {
   }
 });
 
+// Git-Diff der Session: vollständige Hunks aller geänderten Dateien.
+app.get('/api/sessions/:name/diff', (req, res) => {
+  const name = req.params.name;
+  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  const cwd = resolveSessionCwd(name);
+  if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
+  try {
+    res.json(getDiff(cwd));
+  } catch (e) {
+    res.status(500).json({ error: 'diff failed', message: String(e && e.message || e) });
+  }
+});
+
 // Restore a dormant session: re-create in tmux with same cwd/command.
 // Source of truth ist known-sessions.json — tmux weiß von dormant nichts.
 app.post('/api/sessions/:name/restore', async (req, res) => {
@@ -1639,6 +1646,19 @@ app.ws('/api/files/events', (ws, req) => {
         fwUnsubscribe(pid, handler);
         subs.delete(pid);
       }
+    } else if (msg.subscribeSession) {
+      const name = String(msg.subscribeSession);
+      const pid = 'session:' + name;
+      if (subs.has(pid)) return;
+      const cwd = resolveSessionCwd(name);
+      if (!cwd) return;
+      const handler = (event) => { try { ws.send(JSON.stringify(event)); } catch {} };
+      fwSubscribe(pid, cwd, handler);
+      subs.set(pid, handler);
+    } else if (msg.unsubscribeSession) {
+      const pid = 'session:' + String(msg.unsubscribeSession);
+      const handler = subs.get(pid);
+      if (handler) { fwUnsubscribe(pid, handler); subs.delete(pid); }
     }
   });
   ws.on('close', () => {

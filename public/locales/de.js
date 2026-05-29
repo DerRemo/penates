@@ -277,6 +277,17 @@ window.__I18N_BUNDLES.de = {
   'sessionCard.git.statusTitle': 'Git-Status',
   'sessionCard.git.dirtyTitle': 'Ungestagete Änderungen',
 
+  // Diff view
+  'diff.title': 'Diff: {name}',
+  'diff.openTitle': 'Änderungen anzeigen',
+  'diff.group.unstaged': 'Unstaged',
+  'diff.group.staged': 'Staged',
+  'diff.group.untracked': 'Untracked',
+  'diff.empty': 'Keine uncommitteten Änderungen',
+  'diff.noRepo': 'Kein Git-Repository',
+  'diff.binary': 'Binärdatei — kein Diff',
+  'diff.oversize': 'Datei zu groß für die Anzeige',
+
   // Session card — context tooltip
   'sessionCard.noClaudeData': 'Noch keine Claude-Code-Daten im cwd',
 

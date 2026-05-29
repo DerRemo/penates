@@ -2319,6 +2319,7 @@
     body[data-current-view="terminal"]       .main-content [data-view="terminal"]       { display: flex; }
     body[data-current-view="project-detail"] .main-content [data-view="project-detail"] { display: flex; }
     body[data-current-view="settings"]       .main-content [data-view="settings"]       { display: block; }
+    body[data-current-view="diff"]           .main-content [data-view="diff"]           { display: flex; }
 
     /* ── Terminal View ─────────────────────────────────────────────── */
     /* --kb-inset wird von JS gesetzt wenn die iOS-Tastatur auftaucht —
@@ -3292,6 +3293,34 @@
       padding: 40px; text-align: center; color: var(--text-muted, #888); font-size: 14px;
     }
 
+    /* ── Diff View ─────────────────────────────────────────────── */
+    .diff-view { flex-direction: column; height: 100%; min-height: 0; }
+    .diff-header { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+    .diff-title { font-weight: 600; color: var(--text-primary); }
+    .diff-branch { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.85em; }
+    .diff-live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); opacity: 0.3; transition: opacity 0.2s; }
+    .diff-live.pulse { opacity: 1; }
+    .diff-refresh { margin-left: auto; }
+    .diff-body { display: flex; flex: 1; min-height: 0; }
+    .diff-filelist { width: 280px; overflow-y: auto; border-right: 1px solid var(--border); padding: var(--space-2); flex: 0 0 auto; }
+    .diff-group-label { text-transform: uppercase; font-size: 0.7em; color: var(--text-muted); margin: var(--space-2) 0 var(--space-1); letter-spacing: 0.05em; }
+    .diff-file { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-mono); font-size: 0.82em; }
+    .diff-file:hover { background: var(--bg-card-hover); }
+    .diff-file.active { background: var(--accent); color: var(--accent-contrast); }
+    .diff-file .diff-path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .diff-file .stat-add { color: var(--green); }
+    .diff-file .stat-del { color: var(--red); }
+    .diff-file.active .stat-add, .diff-file.active .stat-del { color: var(--accent-contrast); }
+    .diff-pane { flex: 1; overflow: auto; padding: var(--space-2); }
+    .diff-empty { color: var(--text-muted); padding: var(--space-6) var(--space-4); text-align: center; }
+    .diff-pane pre { font-family: var(--font-mono); font-size: 0.82em; white-space: pre-wrap; word-break: break-word; }
+    .diff-pane .d2h-file-header { display: none; }
+    .diff-pane .d2h-code-line, .diff-pane .d2h-code-side-line { font-family: var(--font-mono); }
+    @media (max-width: 899px) {
+      .diff-body { flex-direction: column; }
+      .diff-filelist { width: auto; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
+    }
+
     /* ── v0.6.0 Task 11: Context Menu + Inline Rename + Delete Confirm ── */
     .cchub-contextmenu {
       position: fixed; z-index: 300;
@@ -3856,6 +3885,21 @@
     </div>
   </div>
 
+  <!-- ── Diff View ──────────────────────────────────────────── -->
+  <div class="diff-view" id="diff-view" data-view="diff">
+    <div class="diff-header">
+      <button class="btn btn-ghost diff-back" id="diff-back" type="button" aria-label="Back">←</button>
+      <span class="diff-title" id="diff-title">Diff</span>
+      <span class="diff-branch" id="diff-branch"></span>
+      <span class="diff-live" id="diff-live" title="Live"></span>
+      <button class="btn btn-ghost diff-refresh" id="diff-refresh" type="button" aria-label="Refresh">↻</button>
+    </div>
+    <div class="diff-body">
+      <aside class="diff-filelist" id="diff-filelist"></aside>
+      <section class="diff-pane" id="diff-pane"></section>
+    </div>
+  </div>
+
     </main>
   </div>
   <!-- /.app-layout -->
@@ -4155,12 +4199,13 @@
     // um: body[data-current-view], History-Integration, Polling-Lifecycle,
     // view-spezifischen Init (Terminal-Attach / Project-Lade).
     let currentView = 'dashboard';
-    const VALID_VIEWS = new Set(['dashboard', 'terminal', 'project-detail', 'settings']);
+    const VALID_VIEWS = new Set(['dashboard', 'terminal', 'project-detail', 'settings', 'diff']);
 
     function setView(name, opts = {}) {
       if (!VALID_VIEWS.has(name)) name = 'dashboard';
       const { fromPopstate = false, sessionName = null, projectId = null } = opts;
       const prev = currentView;
+      if (prev === 'diff' && name !== 'diff') { try { DiffView._cleanup(); } catch {} }
       currentView = name;
       document.body.setAttribute('data-current-view', name);
       // Sidebar-Markierung nachziehen — beim Session-Wechsel und bei
@@ -4180,6 +4225,8 @@
           history.pushState({ view: 'project-detail', projectId }, '');
         } else if (name === 'settings' && history.state?.view !== 'settings') {
           history.pushState({ view: 'settings' }, '');
+        } else if (name === 'diff' && history.state?.view !== 'diff') {
+          history.pushState({ view: 'diff', sessionName }, '');
         } else if (name === 'dashboard' && history.state?.view && history.state.view !== 'dashboard') {
           // Zurück zu Dashboard ohne fromPopstate → history.back() auslösen,
           // damit der Eintrag aus dem History-Stack geräumt wird. popstate
@@ -4293,7 +4340,7 @@
       const model = s.contextModel || '?';
       return `${tok} / ${lim} tokens · ${model}`;
     }
-    function renderGitBadge(git) {
+    function renderGitBadge(git, sessionName) {
       if (!git) return '';
       const { branch, dirty, ahead, behind } = git;
       const dirtyDot = dirty ? `<span class="git-dirty-dot" title="${t('sessionCard.git.dirtyTitle')}" aria-label="dirty"></span>` : '';
@@ -4303,7 +4350,7 @@
       if (behind !== null && behind > 0) abParts.push(`↓${behind}`);
       const ab = abParts.length ? `<span class="git-ab">${abParts.join(' ')}</span>` : '';
       return `
-        <div class="session-meta-item git-badge" title="${t('sessionCard.git.statusTitle')}">
+        <div class="session-meta-item git-badge" role="button" tabindex="0" data-diff-session="${escapeHtml(sessionName || '')}" title="${t('diff.openTitle')}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>
           <span class="git-branch">${escapeHtml(branch)}</span>${dirtyDot}${ab}
         </div>`;
@@ -5996,7 +6043,7 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
                 ${formatContextPct(s.contextPct)}
               </div>
-              ${renderGitBadge(s.git)}
+              ${renderGitBadge(s.git, s.name)}
             </div>
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-ghost btn-sm" data-action="connect">
@@ -6033,7 +6080,7 @@
               <div>${cardCliBadge(s.command || 'claude')}$ ${escapeHtml(s.command || 'claude')}</div>
               <div>${t('sessionCard.lastSeen', { time: escapeHtml(lastSeen) })}</div>
             </div>
-            ${s.git ? `<div class="session-meta" style="padding-top: var(--space-2)">${renderGitBadge(s.git)}</div>` : ''}
+            ${s.git ? `<div class="session-meta" style="padding-top: var(--space-2)">${renderGitBadge(s.git, s.name)}</div>` : ''}
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-primary btn-sm" data-action="restore">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -6066,6 +6113,7 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 ${age}
               </div>
+              ${s.git ? renderGitBadge(s.git, s.name) : ''}
             </div>
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-primary btn-sm" data-action="adopt">
@@ -8789,6 +8837,151 @@
     window.FilePreview = FilePreview;
 
     document.addEventListener('DOMContentLoaded', () => FilePreview.wire());
+
+    // ── Diff View (Task 6): clickable git badge → diff2html, live refresh ──
+    const DiffView = (() => {
+      let d2hLoaded = null, cssInjected = false;
+      let currentSession = null, currentFiles = [], selectedPath = null;
+      let ws = null, refetchTimer = null;
+
+      async function ensureD2H() {
+        if (d2hLoaded) return d2hLoaded;
+        if (!cssInjected) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = 'https://cdn.jsdelivr.net/npm/diff2html@3.4.48/bundles/css/diff2html.min.css';
+          document.head.appendChild(link);
+          cssInjected = true;
+        }
+        d2hLoaded = import('https://cdn.jsdelivr.net/npm/diff2html@3.4.48/+esm').then(m => m.html);
+        return d2hLoaded;
+      }
+
+      async function open(sessionName) {
+        currentSession = sessionName;
+        selectedPath = null;
+        setView('diff', { sessionName });
+        document.getElementById('diff-title').textContent = t('diff.title', { name: sessionName });
+        await refetch();
+        connectWs(sessionName);
+      }
+
+      async function refetch() {
+        if (!currentSession) return;
+        try {
+          const res = await fetch(`/api/sessions/${encodeURIComponent(currentSession)}/diff`, {
+            headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          render(await res.json());
+        } catch (e) {
+          document.getElementById('diff-pane').innerHTML =
+            `<div class="diff-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
+        }
+      }
+
+      function render(data) {
+        const branchEl = document.getElementById('diff-branch');
+        const listEl = document.getElementById('diff-filelist');
+        const paneEl = document.getElementById('diff-pane');
+        if (!data || !data.isRepo) {
+          branchEl.textContent = ''; listEl.innerHTML = '';
+          paneEl.innerHTML = `<div class="diff-empty">${t('diff.noRepo')}</div>`;
+          return;
+        }
+        const ab = [];
+        if (data.ahead) ab.push(`↑${data.ahead}`);
+        if (data.behind) ab.push(`↓${data.behind}`);
+        branchEl.textContent = `${data.branch || ''} ${ab.join(' ')}`.trim();
+        currentFiles = data.files || [];
+        if (!currentFiles.length) {
+          listEl.innerHTML = '';
+          paneEl.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`;
+          return;
+        }
+        const groups = ['unstaged', 'staged', 'untracked'];
+        listEl.innerHTML = groups.map(cat => {
+          const fs = currentFiles.filter(f => f.category === cat);
+          if (!fs.length) return '';
+          const rows = fs.map(f => {
+            const idx = currentFiles.indexOf(f);
+            return `<div class="diff-file" role="button" tabindex="0" data-idx="${idx}">
+              <span class="diff-status">${escapeHtml(f.status)}</span>
+              <span class="diff-path" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</span>
+              <span class="stat-add">+${f.additions}</span><span class="stat-del">−${f.deletions}</span>
+            </div>`;
+          }).join('');
+          return `<div class="diff-group-label">${t('diff.group.' + cat)} (${fs.length})</div>${rows}`;
+        }).join('');
+        listEl.querySelectorAll('.diff-file').forEach(el => {
+          el.addEventListener('click', () => selectFile(parseInt(el.getAttribute('data-idx'), 10)));
+        });
+        const keep = currentFiles.findIndex(f => f.path === selectedPath);
+        selectFile(keep >= 0 ? keep : 0);
+      }
+
+      async function selectFile(idx) {
+        const f = currentFiles[idx];
+        const pane = document.getElementById('diff-pane');
+        document.querySelectorAll('.diff-file').forEach(el =>
+          el.classList.toggle('active', parseInt(el.getAttribute('data-idx'), 10) === idx));
+        if (!f) { pane.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`; return; }
+        selectedPath = f.path;
+        if (f.binary) { pane.innerHTML = `<div class="diff-empty">${t('diff.binary')}</div>`; return; }
+        if (f.oversize) { pane.innerHTML = `<div class="diff-empty">${t('diff.oversize')}</div>`; return; }
+        if (!f.diff) { pane.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`; return; }
+        const outputFormat = window.matchMedia('(max-width: 899px)').matches ? 'line-by-line' : 'side-by-side';
+        try {
+          const html = await ensureD2H();
+          pane.innerHTML = html(f.diff, { drawFileList: false, matching: 'lines', outputFormat });
+        } catch {
+          const pre = document.createElement('pre');
+          pre.textContent = f.diff;
+          pane.innerHTML = ''; pane.appendChild(pre);
+        }
+      }
+
+      function connectWs(sessionName) {
+        disconnectWs();
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        try { ws = new WebSocket(`${proto}://${location.host}/api/files/events`, [`bearer.${AUTH_TOKEN || ''}`]); }
+        catch { return; }
+        ws.addEventListener('open', () => { try { ws.send(JSON.stringify({ subscribeSession: sessionName })); } catch {} });
+        ws.addEventListener('message', (e) => {
+          let msg; try { msg = JSON.parse(e.data); } catch { return; }
+          if (!msg || msg.projectId !== 'session:' + sessionName) return;
+          const live = document.getElementById('diff-live');
+          if (live) { live.classList.add('pulse'); setTimeout(() => live.classList.remove('pulse'), 400); }
+          clearTimeout(refetchTimer);
+          refetchTimer = setTimeout(refetch, 300);
+        });
+      }
+
+      function disconnectWs() {
+        clearTimeout(refetchTimer);
+        if (ws) {
+          try { ws.send(JSON.stringify({ unsubscribeSession: currentSession })); } catch {}
+          try { ws.close(); } catch {}
+          ws = null;
+        }
+      }
+
+      function close() { disconnectWs(); currentSession = null; selectedPath = null; setView('dashboard'); }
+
+      document.getElementById('diff-back').addEventListener('click', close);
+      document.getElementById('diff-refresh').addEventListener('click', refetch);
+
+      // Delegated capture-phase badge click — opens diff, stops card→terminal nav.
+      document.addEventListener('click', (e) => {
+        const badge = e.target.closest && e.target.closest('.git-badge[data-diff-session]');
+        if (!badge) return;
+        e.stopPropagation();
+        e.preventDefault();
+        DiffView.open(badge.getAttribute('data-diff-session'));
+      }, true);
+
+      return { open, close, _cleanup: disconnectWs };
+    })();
 
     // ── v0.6.0 Task 11: FileActions (context menu, inline rename, delete confirm, mkdir) ──
     const FileActions = (() => {
