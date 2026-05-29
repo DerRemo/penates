@@ -5987,6 +5987,7 @@
               <div class="session-status ${act.cls}" title="${escapeHtml(act.title)}">${label}</div>
             </div>
             <div class="session-meta">
+              ${cardCliBadge(s.command) ? `<div class="session-meta-item">${cardCliBadge(s.command)}</div>` : ''}
               <div class="session-meta-item">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 ${age}
@@ -6029,7 +6030,7 @@
             </div>
             <div class="dormant-stub">
               <div class="path">${escapeHtml(s.path || '')}</div>
-              <div>$ ${escapeHtml(s.command || 'claude')}</div>
+              <div>${cardCliBadge(s.command || 'claude')}$ ${escapeHtml(s.command || 'claude')}</div>
               <div>${t('sessionCard.lastSeen', { time: escapeHtml(lastSeen) })}</div>
             </div>
             ${s.git ? `<div class="session-meta" style="padding-top: var(--space-2)">${renderGitBadge(s.git)}</div>` : ''}
@@ -7381,6 +7382,15 @@
       const c = mod.CLIS.find(x => x.id === cliId);
       if (!c) return '';
       return `<span class="cli-badge" style="--cli-color:${c.color}" title="${escapeHtml(c.label)}">${escapeHtml(c.label[0])}</span>`;
+    }
+
+    // Aufgelöstes CLIS-Modul für synchrones Card-Rendering vorhalten.
+    let _clisMod = null;
+    ensureClis().then(m => { _clisMod = m; });
+    function cardCliBadge(command) {
+      if (!_clisMod) return '';
+      const id = _clisMod.cliFromCommand ? _clisMod.cliFromCommand(command) : null;
+      return cliBadgeHtml(_clisMod, id);
     }
 
     let _activeCli = 'claude';
