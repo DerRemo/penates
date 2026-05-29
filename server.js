@@ -1646,6 +1646,19 @@ app.ws('/api/files/events', (ws, req) => {
         fwUnsubscribe(pid, handler);
         subs.delete(pid);
       }
+    } else if (msg.subscribeSession) {
+      const name = String(msg.subscribeSession);
+      const pid = 'session:' + name;
+      if (subs.has(pid)) return;
+      const cwd = resolveSessionCwd(name);
+      if (!cwd) return;
+      const handler = (event) => { try { ws.send(JSON.stringify(event)); } catch {} };
+      fwSubscribe(pid, cwd, handler);
+      subs.set(pid, handler);
+    } else if (msg.unsubscribeSession) {
+      const pid = 'session:' + String(msg.unsubscribeSession);
+      const handler = subs.get(pid);
+      if (handler) { fwUnsubscribe(pid, handler); subs.delete(pid); }
     }
   });
   ws.on('close', () => {
