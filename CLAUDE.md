@@ -362,6 +362,25 @@ im jsonl; alte Punkte ohne `acct` → `default`), gespeist on-demand
 (`GET /api/usage/limits`) + 5-min-Poll. Routen: `GET /api/usage/limits`
 (account-level), `GET /api/recent-dirs`.
 
+## Multi-CLI Spawn (Kern-Drei)
+
+`public/clis.js` ist die einzige Registry der unterstützten Coding-CLIs
+(claude/codex/gemini) — `CLIS` (id, label, binary, color, variants) +
+`cliFromCommand(cmd)` (leitet die CLI aus dem Command-String ab). Browser
+(`import('./clis.js')`) und `node:test` nutzen dieselbe Datei, kein Build-Step.
+
+- **New-Session-Modal:** CLI-Picker (Icon-Buttons je CLI) + ein Varianten-
+  `<select>` (id bleibt `new-session-cmd`, daher `createSession` unverändert).
+  Varianten decken die Approval-Stufen ab (z.B. codex `--full-auto`/`--yolo`,
+  gemini `--approval-mode auto_edit`/`--yolo`). `POST /api/sessions` nimmt den
+  gewählten `command` unverändert entgegen.
+- **Session-Card:** ein CLI-Badge (`cliFromCommand(s.command)`) auf running
+  und dormant Cards. `GET /api/sessions` reicht `command` jetzt auch für
+  running Sessions nach (aus known-sessions), damit das Badge dort greift.
+- Auth ist out-of-scope: jede CLI nutzt ihren eigenen Login; fehlende CLI →
+  Session stirbt mit dem bestehenden „nicht im PATH"-Hinweis. Cursor/opencode/
+  kimi/qwen sind (noch) nicht dabei.
+
 ## Bekannte Einschränkungen
 
 - tmux-Socket wird beim ersten `tmux new-session` automatisch erstellt
