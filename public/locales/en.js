@@ -173,6 +173,7 @@ window.__I18N_BUNDLES.en = {
   'modal.newSession.nameLabel': 'Session Name',
   'modal.newSession.namePlaceholder': 'e.g. kalvo-feature',
   'modal.newSession.dirLabel': 'Project Directory',
+  'modal.newSession.recentLabel': 'Recently used',
   'modal.newSession.cmdLabel': 'Start Command',
   'modal.newSession.cancel': 'Cancel',
   'modal.newSession.start': 'Start',
@@ -358,12 +359,13 @@ window.__I18N_BUNDLES.en = {
   'usage.loadError': 'Load error: {message}',
 
   // Usage dashboard — limit status card
-  'usage.limitStatus': 'Limit Status',
-  'usage.noLimitData': 'No limit data available',
   'usage.reset': 'Reset {time}',
   'usage.resetNow': 'Now',
-  'usage.limitResetBadge': '{window} Reset {time}',
   'usage.limitPeaks': 'Last 7 days: {peaks5h}x >90% (5h) · {peaks7d}x >90% (7d)',
+  'usage.accountPanelTitle': 'Accounts',
+  'usage.noAccountData': 'No account data (moshi-hook unavailable)',
+  'usage.window5h': '5h',
+  'usage.window7d': '7d',
 
   // Usage dashboard — heatmap
   'usage.heatmapTitle': 'Activity (Heatmap)',

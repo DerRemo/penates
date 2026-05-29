@@ -772,6 +772,9 @@
       margin-bottom: 14px;
       font-weight: 600;
     }
+    .usage-account-row { padding: 8px 0; border-top: 1px solid var(--border); }
+    .ulc-title + .usage-account-row { border-top: none; }
+    .usage-account-label { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
     .usage-limit-row {
       display: flex;
       align-items: center;
@@ -1010,15 +1013,6 @@
       letter-spacing: 1.3px;
       color: var(--text-muted);
     }
-
-    /* Session card limit badge */
-    .usage-limit-badge {
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
-    .usage-limit-badge.usage-limit-green { color: var(--teal); }
-    .usage-limit-badge.usage-limit-amber { color: var(--amber); }
-    .usage-limit-badge.usage-limit-red   { color: var(--red); }
 
     /* Mobile responsive */
     @media (max-width: 768px) {
@@ -2088,6 +2082,19 @@
       justify-content: flex-end;
       margin-top: 24px;
     }
+
+    /* ── Recent Dirs ─────────────────────────────────────────────── */
+    .recent-dirs { margin-bottom: 10px; }
+    .recent-dirs-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .recent-dirs-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+    .recent-dir-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px;
+      cursor: pointer; background: var(--bg-elevated); border: 1px solid var(--border); }
+    .recent-dir-item:hover { border-color: var(--accent); }
+    .recent-dir-path { flex: 1; min-width: 0; font-size: 12px; font-family: var(--font-mono);
+      direction: rtl; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .recent-dir-sources { display: flex; gap: 3px; flex-shrink: 0; }
+    .recent-src-badge { font-size: 9px; text-transform: uppercase; letter-spacing: .3px; padding: 1px 5px;
+      border-radius: 4px; background: rgba(45,212,191,.15); color: var(--accent); font-weight: 600; }
 
     /* ── Tree Picker ─────────────────────────────────────────────── */
     .tree-picker {
@@ -3956,6 +3963,10 @@
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="modal.newSession.dirLabel">Project Directory</label>
+        <div class="recent-dirs" id="recent-dirs" hidden>
+          <div class="recent-dirs-label" data-i18n="modal.newSession.recentLabel">Zuletzt benutzt</div>
+          <div class="recent-dirs-list" id="recent-dirs-list"></div>
+        </div>
         <div class="tree-picker" id="tree-picker">
           <div class="tree-picker-header">
             <div class="tree-selected" id="tree-selected" dir="rtl">~</div>
@@ -4264,21 +4275,6 @@
       if (pct >= 85) return 'usage-limit-red';
       if (pct >= 60) return 'usage-limit-amber';
       return 'usage-limit-green';
-    }
-    function formatLimitsBadge(limits) {
-      if (!limits || limits.pct5h == null) return '';
-      const c5 = limitColorClass(limits.pct5h);
-      const c7 = limitColorClass(limits.pct7d ?? 0);
-      let html = `5h <span class="usage-limit-badge ${c5}">${Math.round(limits.pct5h)}%</span>`;
-      if (limits.pct7d != null) html += ` · 7d <span class="usage-limit-badge ${c7}">${Math.round(limits.pct7d)}%</span>`;
-      return html;
-    }
-    function formatLimitsTooltip(limits) {
-      if (!limits) return '';
-      const parts = [];
-      if (limits.resets5h) parts.push(t('usage.limitResetBadge', { window: '5h', time: formatResetCountdown(limits.resets5h) }));
-      if (limits.resets7d) parts.push(t('usage.limitResetBadge', { window: '7d', time: formatResetCountdown(limits.resets7d) }));
-      return parts.join(' · ') || t('usage.limitStatus');
     }
     function formatContextTooltip(s) {
       if (s.contextTokens == null) return t('sessionCard.noClaudeData');
@@ -5502,33 +5498,40 @@
           ? `${Math.round((hist.workStyle.toolUse / (hist.workStyle.total || 1)) * 100)}%`
           : '—';
 
-        // ── Limit Status ──
-        let limitHtml = '';
-        if (lim && lim.current) {
-          const cur = lim.current;
-          const c5 = limitColorClass(cur.pct5h ?? 0);
-          const c7 = limitColorClass(cur.pct7d ?? 0);
-          const urgent5 = (cur.pct5h ?? 0) > 90 ? ' usage-limit-urgent' : '';
-          const urgent7 = (cur.pct7d ?? 0) > 90 ? ' usage-limit-urgent' : '';
-          limitHtml = `
-            <div class="usage-limit-card">
-              <div class="ulc-title">${t('usage.limitStatus')}</div>
-              <div class="usage-limit-row">
-                <span class="usage-limit-label">5h</span>
-                <div class="usage-limit-bar"><div class="usage-limit-fill ${c5}" style="width:${Math.min(cur.pct5h ?? 0, 100)}%"></div></div>
-                <span class="usage-limit-pct ${c5}">${Math.round(cur.pct5h ?? 0)}%</span>
-                <span class="usage-limit-reset ${c5}${urgent5}" data-reset-ts="${cur.resets5h || ''}">${t('usage.reset', { time: formatResetCountdown(cur.resets5h) })}</span>
-              </div>
-              <div class="usage-limit-row">
-                <span class="usage-limit-label">7d</span>
-                <div class="usage-limit-bar"><div class="usage-limit-fill ${c7}" style="width:${Math.min(cur.pct7d ?? 0, 100)}%"></div></div>
-                <span class="usage-limit-pct ${c7}">${Math.round(cur.pct7d ?? 0)}%</span>
-                <span class="usage-limit-reset ${c7}${urgent7}" data-reset-ts="${cur.resets7d || ''}">${t('usage.reset', { time: formatResetCountdown(cur.resets7d) })}</span>
-              </div>
+        // ── Limit Status (account-level, aus moshi-hook usage) ──
+        const accounts = (lim && lim.accounts) || [];
+        let limitHtml;
+        if (!accounts.length) {
+          limitHtml = `<div class="usage-limit-card"><div class="ulc-title">${t('usage.accountPanelTitle')}</div>`
+            + `<div style="color:var(--text-muted);font-size:13px">${t('usage.noAccountData')}</div></div>`;
+        } else {
+          const renderRow = (lbl, w) => {
+            if (!w) return '';
+            const pct = Math.round(w.usedPercentage ?? 0);
+            const cc = limitColorClass(pct);
+            const urgent = pct > 90 ? ' usage-limit-urgent' : '';
+            return `<div class="usage-limit-row">
+                <span class="usage-limit-label">${lbl}</span>
+                <div class="usage-limit-bar"><div class="usage-limit-fill ${cc}" style="width:${Math.min(pct, 100)}%"></div></div>
+                <span class="usage-limit-pct ${cc}">${pct}%</span>
+                <span class="usage-limit-reset ${cc}${urgent}" data-reset-ts="${w.resetsAt || ''}">${t('usage.reset', { time: formatResetCountdown(w.resetsAt) })}</span>
+              </div>`;
+          };
+          const accRows = accounts.map(a => {
+            const w5 = (a.windows || []).find(w => w.label === '5h');
+            const w7 = (a.windows || []).find(w => w.label === '7d');
+            const label = escapeHtml([a.accountLabel, a.agent].filter(Boolean).join(' · ') || 'Account');
+            return `<div class="usage-account-row">
+              <div class="usage-account-label">${label}</div>
+              ${renderRow(t('usage.window5h'), w5)}
+              ${renderRow(t('usage.window7d'), w7)}
+            </div>`;
+          }).join('');
+          limitHtml = `<div class="usage-limit-card">
+              <div class="ulc-title">${t('usage.accountPanelTitle')}</div>
+              ${accRows}
               ${(lim.peaks5h || lim.peaks7d) ? `<div class="usage-limit-peaks">${t('usage.limitPeaks', { peaks5h: lim.peaks5h ?? 0, peaks7d: lim.peaks7d ?? 0 })}</div>` : ''}
             </div>`;
-        } else {
-          limitHtml = `<div class="usage-limit-card"><div class="ulc-title">${t('usage.limitStatus')}</div><div style="color:var(--text-muted);font-size:13px">${t('usage.noLimitData')}</div></div>`;
         }
 
         // ── Heatmap ──
@@ -5984,11 +5987,6 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
                 ${formatContextPct(s.contextPct)}
               </div>
-              ${s.limits ? `
-              <div class="session-meta-item" title="${escapeHtml(formatLimitsTooltip(s.limits))}">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                ${formatLimitsBadge(s.limits)}
-              </div>` : ''}
               ${renderGitBadge(s.git)}
             </div>
             <div class="session-actions" data-stop-propagation>
@@ -7395,6 +7393,34 @@
       }
     }
 
+    // ── Recent Dirs ──────────────────────────────────────────────
+    async function loadRecentDirs() {
+      const wrap = document.getElementById('recent-dirs');
+      const list = document.getElementById('recent-dirs-list');
+      if (!wrap || !list) return;
+      wrap.hidden = true;
+      list.innerHTML = '';
+      let dirs = [];
+      try {
+        const res = await fetch('/api/recent-dirs?limit=8', { headers: apiHeaders() });
+        if (res.ok) dirs = (await res.json()).dirs || [];
+      } catch { /* moshi-hook fehlt → leise */ }
+      if (!dirs.length) return; // Block bleibt versteckt, Tree-Picker bleibt einzige Quelle
+      for (const d of dirs) {
+        const item = document.createElement('div');
+        item.className = 'recent-dir-item';
+        const badges = (d.sources || []).map(s =>
+          `<span class="recent-src-badge">${escapeHtml(s)}</span>`).join('');
+        item.innerHTML = `<span class="recent-dir-path" dir="rtl">${escapeHtml(d.cwd)}</span>`
+          + `<span class="recent-dir-sources">${badges}</span>`;
+        item.addEventListener('click', () => {
+          sessionTreePicker.setSelected(d.cwd);
+        });
+        list.appendChild(item);
+      }
+      wrap.hidden = false;
+    }
+
     // ── Modal ────────────────────────────────────────────────────
     function openNewSessionModal(prefillPath = null) {
       document.getElementById('new-session-modal').classList.add('open');
@@ -7407,6 +7433,7 @@
       // init() den prefill nach dem async fetchBrowse überschreibt.
       if (prefillPath) sessionTreePicker.setSelected(prefillPath);
       sessionTreePicker.init(!!prefillPath);
+      loadRecentDirs();
       setTimeout(() => document.getElementById('new-session-name').focus(), 200);
     }
 

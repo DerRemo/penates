@@ -328,8 +328,9 @@ Funktionen:
 | Method | Route | Beschreibung |
 |--------|-------|-------------|
 | POST | `/api/hooks/statusline` | StatusLine-Daten empfangen. Auth via Bearer, Session via `X-CC-Hub-Session`. Tolerantes JSON-Parsing. |
-| GET | `/api/usage/limits?days=7` | Limit-History + Peaks + aktuelle Werte. 30s-Cache. |
+| GET | `/api/usage/limits?days=7` | Limit-History + Peaks + aktuelle Werte (account-level via moshi-hook). 30s-Cache. |
 | GET | `/api/usage/costs` | Aggregierte Kosten aus allen aktiven Sessions. 10s-Cache. |
+| GET | `/api/recent-dirs` | Recency-rankte Arbeitsverzeichnisse via `moshi-hook cwd-list` (Quick-Pick im New-Session-Modal). |
 
 `GET /api/usage/history?days=30` liefert jetzt das erweiterte Payload aus `getDailyUsageV2` (zusätzlich: byProject, heatmap, cacheRate, workStyle, toolUsage, dailySessions, errors).
 
@@ -340,6 +341,26 @@ Funktionen:
 ### StatusLine-Script
 
 `setup.sh` Schritt `[6/7]` installiert idempotent einen Reporting-Block in `~/.claude/statusline-command.sh` zwischen `#CCH-SL-START#` / `#CCH-SL-END#` Sentinel-Kommentaren. Re-Runs ersetzen nur den Hub-Block, User-Rendering bleibt erhalten.
+
+## moshi-hook Daten-Schicht (Interop)
+
+`moshi-hook` (CLI von getmoshi.app, via `brew tap rjyo/moshi`) wird von
+`setup.sh` read-only installiert — **kein** Daemon/pair/install. `lib/moshi-hook.js`
+kapselt fehlertolerant zwei Subcommands (Fehler/fehlende CLI → null):
+
+- `getUsage()` ← `moshi-hook usage`: account-weite 5h/7d-Rate-Limits mit
+  `accountLabel` + `agent` (multi-account). Speist das **account-level**
+  Limit-Panel im Usage-Dashboard. Per-Session-Limit-Badges entfielen damit
+  (Limits sind account-weit, nicht pro Session). Cost/Lines/Context kommen
+  weiter aus dem StatusLine-Hook (`lib/usage-limits.js`, `recordStatusline`).
+- `getRecentDirs()` ← `moshi-hook cwd-list --json`: recency-rankte Arbeits-
+  verzeichnisse (claude/codex/cursor) → „Zuletzt benutzt"-Quick-Pick im
+  New-Session-Modal mit Agent-Source-Badges.
+
+`lib/usage-limits.js` schreibt die Limit-History account-keyed (`acct`-Feld
+im jsonl; alte Punkte ohne `acct` → `default`), gespeist on-demand
+(`GET /api/usage/limits`) + 5-min-Poll. Routen: `GET /api/usage/limits`
+(account-level), `GET /api/recent-dirs`.
 
 ## Bekannte Einschränkungen
 
