@@ -475,4 +475,15 @@ window.__I18N_BUNDLES.de = {
   'time.minAgo': 'vor {n} min',
   'time.daysAgo': 'vor {n} Tagen',
   'time.weeksAgo': 'vor {n} Wochen',
+  // Browser-Preview
+  'preview.toggle': 'Vorschau',
+  'preview.toggleAria': 'Vorschau ein-/ausblenden',
+  'preview.header.portLabel': 'Port',
+  'preview.header.portPlaceholder': 'Port…',
+  'preview.header.reload': 'Neu laden',
+  'preview.header.openTab': 'In neuem Tab öffnen',
+  'preview.header.close': 'Schließen',
+  'preview.empty.choosePort': 'Wähle einen Port oder gib ihn ein, um die Vorschau zu laden.',
+  'preview.empty.notConfigured': 'Preview nicht konfiguriert. Setze PREVIEW_DOMAIN in .env (siehe setup.sh).',
+  'preview.error.noServer': 'Kein Server auf Port {n} — läuft dein Dev-Server?',
 };
