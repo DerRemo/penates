@@ -1195,6 +1195,7 @@ app.ws('/api/projects/events', (ws, req) => {
 // Frischer tmux-Probe: Ist diese Session aktuell von irgendeinem Client
 // attached? Argv-Array, kein Shell-Interpolation. Fehler/keine Session → false.
 function tmuxSessionAttached(name) {
+  if (!name) return false;
   try {
     const out = execFileSync(TMUX, ['display-message', '-p', '-t', name, '#{session_attached}'], {
       encoding: 'utf-8', timeout: 2000, stdio: 'pipe',
