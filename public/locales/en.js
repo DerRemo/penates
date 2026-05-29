@@ -174,7 +174,8 @@ window.__I18N_BUNDLES.en = {
   'modal.newSession.namePlaceholder': 'e.g. kalvo-feature',
   'modal.newSession.dirLabel': 'Project Directory',
   'modal.newSession.recentLabel': 'Recently used',
-  'modal.newSession.cmdLabel': 'Start Command',
+  'modal.newSession.cliLabel': 'CLI',
+  'modal.newSession.variantLabel': 'Variant',
   'modal.newSession.cancel': 'Cancel',
   'modal.newSession.start': 'Start',
 
