@@ -1111,38 +1111,27 @@ app.post('/api/sessions/:name/restore', async (req, res) => {
   });
 });
 
-// Adopt a foreign tmux session: rename to cc-<newName>, persist to known.
-// Command ist bei fremder Session unbekannt — 'claude' als Default, konsistent
-// mit der Best-Effort-Adoption beim Server-Start.
+// Adopt a foreign tmux session: register it in known-sessions under its
+// EXISTING name (kein Rename). Damit bleibt der Name stabil, den ein Fremd-
+// Client (z.B. Moshi) benutzt. Command ist bei fremder Session unbekannt —
+// 'claude' als Default, konsistent mit der Best-Effort-Adoption beim Start.
 app.post('/api/sessions/:name/adopt', async (req, res) => {
   const { name } = req.params;
-  const { newName } = req.body;
-  if (typeof name !== 'string' || !name) {
-    return res.status(400).json({ error: 'Invalid source session name' });
+  if (typeof name !== 'string' || !validSessionName(name)) {
+    return res.status(400).json({ error: 'Invalid session name: letters/digits/dash/dot/underscore/spaces, 1-64 chars' });
   }
-  if (typeof newName !== 'string' || !validSessionName(newName)) {
-    return res.status(400).json({ error: 'Invalid new session name: letters/digits/dash/dot/underscore/spaces, 1-64 chars' });
-  }
-  const fullNewName = SESSION_PREFIX + newName;
   const live = getTmuxSessions();
   const source = live.find(s => s.name === name);
   if (!source) {
     return res.status(404).json({ error: 'Source session not found' });
   }
-  if (live.some(s => s.name === fullNewName)) {
-    return res.status(409).json({ error: 'Target session name already in use' });
-  }
   try {
-    execFileSync(TMUX, ['rename-session', '-t', name, fullNewName], { encoding: 'utf-8', timeout: 5000 });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-  try {
-    await knownSessions.add({ name: fullNewName, directory: source.path, command: 'claude' });
+    await knownSessions.add({ name, directory: source.path, command: 'claude' });
   } catch (e) {
     console.error('[known-sessions] adopt persist failed:', e);
+    return res.status(500).json({ error: 'Failed to persist adopted session' });
   }
-  res.status(200).json({ success: true, name: fullNewName });
+  res.status(200).json({ success: true, name });
 });
 
 // Forget a known-session entry (remove from JSON, tmux unaffected).
