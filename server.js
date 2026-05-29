@@ -15,6 +15,7 @@ import { createChecker } from './lib/update-check.js';
 import { homedir } from 'os';
 import { getCurrentContext, getDailyUsageV2 } from './lib/usage.js';
 import * as usageLimits from './lib/usage-limits.js';
+import * as moshiHook from './lib/moshi-hook.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
@@ -498,13 +499,6 @@ app.get('/api/sessions', (req, res) => {
     const base = {
       ...s,
       activity: hookActivity || 'unknown',
-      limits: sl ? {
-        pct5h: sl.pct5h,
-        pct7d: sl.pct7d,
-        resets5h: sl.resets5h,
-        resets7d: sl.resets7d,
-        updatedAt: sl.updatedAt,
-      } : null,
       cost: sl ? {
         totalUsd: sl.costUsd,
         durationMs: sl.durationMs,
@@ -558,7 +552,7 @@ app.get('/api/usage/history', async (req, res) => {
   }
 });
 
-// Limit-History (StatusLine-basiert, Tages-Aggregation).
+// Account-weite Limit-History (moshi-hook usage). 30s-Cache.
 let limitsCache = { ts: 0, data: null };
 app.get('/api/usage/limits', async (req, res) => {
   const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), 30);
@@ -568,6 +562,8 @@ app.get('/api/usage/limits', async (req, res) => {
     return res.json(limitsCache.data);
   }
   try {
+    const usage = moshiHook.getUsage();
+    if (usage) usageLimits.recordUsageSnapshot(usage);
     const data = await usageLimits.getLimitHistory({ days });
     limitsCache = { ts: now, key, data };
     res.json(data);
@@ -585,6 +581,21 @@ app.get('/api/usage/costs', (_req, res) => {
   }
   const data = usageLimits.getAllSessionCosts();
   costsCache = { ts: now, data };
+  res.json(data);
+});
+
+// Recency-rankte Arbeitsverzeichnisse aus moshi-hook cwd-list. 10s-Cache.
+let recentDirsCache = { ts: 0, key: null, data: null };
+app.get('/api/recent-dirs', (req, res) => {
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 8, 1), 30);
+  const now = Date.now();
+  const key = `limit=${limit}`;
+  if (recentDirsCache.data && recentDirsCache.key === key && now - recentDirsCache.ts < 10_000) {
+    return res.json(recentDirsCache.data);
+  }
+  const dirs = moshiHook.getRecentDirs({ limit }) || [];
+  const data = { dirs };
+  recentDirsCache = { ts: now, key, data };
   res.json(data);
 });
 
@@ -1694,6 +1705,15 @@ const server = app.listen(PORT, async () => {
   }
 });
 
+// Leiser 5-min-Poll: hält die account-weite Limit-History auch ohne offene
+// Usage-Ansicht aktuell. moshi-hook fehlt → getUsage()=null → no-op.
+const USAGE_POLL_MS = 5 * 60_000;
+const usagePollTimer = setInterval(() => {
+  const usage = moshiHook.getUsage();
+  if (usage) usageLimits.recordUsageSnapshot(usage);
+}, USAGE_POLL_MS);
+usagePollTimer.unref();
+
 // Heartbeat: alle 60s lastSeenAt für laufende bekannte Sessions updaten.
 // Das gibt uns in der UI einen belastbaren "zuletzt gesehen"-Wert für
 // dormant Cards, sobald die Session wegbricht.
@@ -1713,6 +1733,7 @@ heartbeatTimer.unref();
 function shutdown(signal) {
   console.log(`\n  ${signal} received — killing ${activePtys.size} active PTY(s) and shutting down`);
   clearInterval(heartbeatTimer);
+  clearInterval(usagePollTimer);
   for (const p of activePtys) { try { p.kill(); } catch {} }
   projectWatcher.closeAll();
   fwCloseAll();
