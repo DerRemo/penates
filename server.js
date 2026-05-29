@@ -47,6 +47,8 @@ import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
 import { parseStatusV2, getDiff } from './lib/git-diff.js';
+import { hostToPort, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
+import { listListeningPorts } from './lib/port-scan.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -56,6 +58,15 @@ const updateChecker = createChecker({ current: pkgJson.version });
 
 const PORT = process.env.PORT || 3333;
 const AUTH_TOKEN = process.env.AUTH_TOKEN || '';
+// Browser-Preview: Reverse-Proxy für lokale Dev-Server über <port>.preview.<domain>.
+// PREVIEW_DOMAIN unset → Feature komplett aus (kein Routen-Effekt, Panel zeigt Hinweis).
+const PREVIEW_DOMAIN = process.env.PREVIEW_DOMAIN || '';
+const PREVIEW_ENABLED = !!PREVIEW_DOMAIN;
+const PREVIEW_BASE = PREVIEW_ENABLED ? 'preview.' + PREVIEW_DOMAIN : '';
+// SSRF-Guard: nur Ports proxen, die der Detektor aktuell als lauschend meldet.
+function isPreviewPortListening(port) {
+  return listListeningPorts({ excludePort: PORT }).some((p) => p.port === port);
+}
 const SESSION_PREFIX = process.env.SESSION_PREFIX || 'cc-';
 const TMUX = process.env.TMUX_PATH || (() => {
   // Auto-detect tmux in PATH instead of hardcoding Homebrew Apple Silicon path.
@@ -107,6 +118,21 @@ expressWs(app, null, {
   },
 });
 
+// ── Browser-Preview Host-Dispatch (VOR Auth/Static/Catch-all/JSON) ───────────
+// Greift NUR bei <port>.preview.<PREVIEW_DOMAIN>. Normale Hub-Hosts fallen
+// durch (next()) und laufen die bestehende Kette. CF Access hat am Tunnel-Edge
+// bereits authentifiziert; der Hub-Bearer-Token ist hier irrelevant.
+app.use((req, res, next) => {
+  if (!PREVIEW_ENABLED) return next();
+  const port = hostToPort(req.headers.host, PREVIEW_BASE);
+  if (port == null) return next();                       // → normaler Hub-Pfad
+  if (!isPreviewPortListening(port)) {
+    res.status(403).set('Content-Type', 'text/html; charset=utf-8');
+    return res.end(`<!doctype html><meta charset=utf-8><body style="font:16px system-ui;padding:2rem;background:#0f1115;color:#e5e7eb">Kein Server auf Port ${port} — läuft dein Dev-Server?</body>`);
+  }
+  return proxyHttp(req, res, port);                      // kein next() — Proxy übernimmt
+});
+
 // express.json() für alles außer /api/hooks — Claude liefert dort
 // gelegentlich syntaktisch kaputtes JSON und der Parser würde mit 400
 // abbrechen, bevor unser Handler läuft. Hook-Route hat ihren eigenen
@@ -137,7 +163,7 @@ const CSP = [
   "manifest-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
-  "frame-src blob:",
+  PREVIEW_ENABLED ? `frame-src blob: https://*.${PREVIEW_BASE}` : "frame-src blob:",
   "frame-ancestors 'none'",
 ].join('; ');
 app.use((_req, res, next) => {
@@ -308,6 +334,15 @@ app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/hooks/')) return next();
   if (req.method === 'GET' || req.method === 'HEAD') return readLimiter(req, res, next);
   return writeLimiter(req, res, next);
+});
+
+// Browser-Preview: Config (ist das Feature an? + Basis-Domain) + Port-Liste.
+// Hub-Domain-Calls — durch secureMiddleware (Auth) + readLimiter gedeckt.
+app.get('/api/preview/config', (_req, res) => {
+  res.json({ enabled: PREVIEW_ENABLED, baseDomain: PREVIEW_ENABLED ? PREVIEW_BASE : null });
+});
+app.get('/api/preview/ports', (_req, res) => {
+  res.json({ ports: listListeningPorts({ excludePort: PORT }) });
 });
 
 // ── Validation ───────────────────────────────────────────────────────────────
@@ -1730,6 +1765,15 @@ const server = app.listen(PORT, async () => {
     console.error('[push-subs] load failed:', e.message);
   }
 });
+
+// Browser-Preview: HMR-WS-Upgrade vor express-ws abfangen. attachUpgrade greift
+// die express-ws-Listener ab und delegiert Nicht-Preview-Upgrades zurück, sodass
+// Preview-Subdomains exklusiv über proxyWs laufen und der Hub-WS (/api/terminal,
+// /api/files/events) unverändert bedient wird. Siehe lib/preview-proxy.test.js.
+if (PREVIEW_ENABLED) {
+  attachUpgrade(server, { baseDomain: PREVIEW_BASE, isListening: isPreviewPortListening });
+  console.log(`  ▸ browser-preview: proxy aktiv für *.${PREVIEW_BASE}`);
+}
 
 // Leiser 5-min-Poll: hält die account-weite Limit-History auch ohne offene
 // Usage-Ansicht aktuell. moshi-hook fehlt → getUsage()=null → no-op.
