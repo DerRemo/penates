@@ -161,9 +161,15 @@ else
     jq --arg evt "$evt" --arg cmd "$cmd" '
       .hooks //= {}
       | .hooks[$evt] //= []
-      # Bestehende Hub-Einträge (_owner:"claude-code-hub") entfernen
+      # Bestehende Hub-Einträge entfernen: sowohl mit _owner-Sentinel als auch
+      # sentinel-lose Legacy-Einträge (Pre-Sentinel-Versionen), erkennbar am
+      # curl an "/api/hooks/". So entstehen beim Upgrade keine Duplikate.
+      # moshi-hook & User-Hooks (kein /api/hooks/) bleiben unangetastet.
       | .hooks[$evt] |= map(select(
-          (.hooks // [] | map(._owner // "") | any(. == "claude-code-hub")) | not
+          (.hooks // [] | any(
+            (._owner // "") == "claude-code-hub"
+            or ((.command // "") | contains("/api/hooks/"))
+          )) | not
         ))
       # Neuen Eintrag anhängen
       | .hooks[$evt] += [{
