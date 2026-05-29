@@ -475,4 +475,17 @@ window.__I18N_BUNDLES.de = {
   'time.minAgo': 'vor {n} min',
   'time.daysAgo': 'vor {n} Tagen',
   'time.weeksAgo': 'vor {n} Wochen',
+  // Image-Paste & Annotation
+  'imagePaste.toolbar.arrow': 'Pfeil',
+  'imagePaste.toolbar.box': 'Box',
+  'imagePaste.toolbar.pen': 'Stift',
+  'imagePaste.toolbar.text': 'Text',
+  'imagePaste.toolbar.undo': 'Rückgängig',
+  'imagePaste.send': 'Senden',
+  'imagePaste.cancel': 'Abbrechen',
+  'imagePaste.pickerTitle': 'Bild einfügen',
+  'imagePaste.textPrompt': 'Text eingeben',
+  'imagePaste.error.noCwd': 'Session-Verzeichnis nicht verfügbar',
+  'imagePaste.error.tooLarge': 'Bild zu groß',
+  'imagePaste.error.failed': 'Bild-Upload fehlgeschlagen',
 };

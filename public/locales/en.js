@@ -475,4 +475,17 @@ window.__I18N_BUNDLES.en = {
   'time.minAgo': '{n} min ago',
   'time.daysAgo': '{n} days ago',
   'time.weeksAgo': '{n} weeks ago',
+  // Image-Paste & Annotation
+  'imagePaste.toolbar.arrow': 'Arrow',
+  'imagePaste.toolbar.box': 'Box',
+  'imagePaste.toolbar.pen': 'Pen',
+  'imagePaste.toolbar.text': 'Text',
+  'imagePaste.toolbar.undo': 'Undo',
+  'imagePaste.send': 'Send',
+  'imagePaste.cancel': 'Cancel',
+  'imagePaste.pickerTitle': 'Insert image',
+  'imagePaste.textPrompt': 'Enter text',
+  'imagePaste.error.noCwd': 'Session directory unavailable',
+  'imagePaste.error.tooLarge': 'Image too large',
+  'imagePaste.error.failed': 'Image upload failed',
 };
