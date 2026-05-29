@@ -774,7 +774,7 @@
     }
     .usage-account-row { padding: 8px 0; border-top: 1px solid var(--border); }
     .ulc-title + .usage-account-row { border-top: none; }
-    .usage-account-label { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .usage-account-label { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
     .usage-limit-row {
       display: flex;
       align-items: center;
@@ -2075,6 +2075,18 @@
       background: var(--bg-surface);
       color: var(--text-primary);
     }
+
+    .cli-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cli-pick-btn { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px;
+      background: var(--bg-elevated); border: 1px solid var(--border); cursor: pointer; color: var(--text-primary);
+      font-size: 13px; font-weight: 600; transition: border-color .15s, background .15s; }
+    .cli-pick-btn:hover { border-color: var(--accent); }
+    .cli-pick-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--teal-glow); }
+    .cli-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+      border-radius: 5px; font-size: 11px; font-weight: 700; color: #fff;
+      background: var(--cli-color, var(--accent)); flex-shrink: 0; }
+    .session-meta-item .cli-badge { width: 14px; height: 14px; font-size: 9px; border-radius: 4px; }
+    .dormant-stub .cli-badge { width: 14px; height: 14px; font-size: 9px; border-radius: 4px; vertical-align: middle; margin-right: 4px; }
 
     .modal-actions {
       display: flex;
@@ -3982,15 +3994,11 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label" data-i18n="modal.newSession.cmdLabel">Start Command</label>
+        <label class="form-label" data-i18n="modal.newSession.cliLabel">CLI</label>
+        <div class="cli-picker" id="cli-picker" role="group" aria-label="CLI"></div>
+        <label class="form-label" for="new-session-cmd" data-i18n="modal.newSession.variantLabel" style="margin-top:10px">Variante</label>
         <div class="select-wrapper">
-          <select class="form-input" id="new-session-cmd">
-            <option value="claude">claude</option>
-            <option value="claude --dangerously-skip-permissions">claude --dangerously-skip-permissions</option>
-            <option value="claude --channels plugin:telegram@claude-plugins-official --dangerously-skip-permissions">claude + telegram</option>
-            <option value="codex">codex</option>
-            <option value="codex --yolo">codex --yolo</option>
-          </select>
+          <select class="form-input" id="new-session-cmd"></select>
         </div>
       </div>
       <div class="modal-actions">
@@ -5979,6 +5987,7 @@
               <div class="session-status ${act.cls}" title="${escapeHtml(act.title)}">${label}</div>
             </div>
             <div class="session-meta">
+              ${cardCliBadge(s.command) ? `<div class="session-meta-item">${cardCliBadge(s.command)}</div>` : ''}
               <div class="session-meta-item">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 ${age}
@@ -6021,7 +6030,7 @@
             </div>
             <div class="dormant-stub">
               <div class="path">${escapeHtml(s.path || '')}</div>
-              <div>$ ${escapeHtml(s.command || 'claude')}</div>
+              <div>${cardCliBadge(s.command || 'claude')}$ ${escapeHtml(s.command || 'claude')}</div>
               <div>${t('sessionCard.lastSeen', { time: escapeHtml(lastSeen) })}</div>
             </div>
             ${s.git ? `<div class="session-meta" style="padding-top: var(--space-2)">${renderGitBadge(s.git)}</div>` : ''}
@@ -7361,6 +7370,63 @@
     // initialisiert (siehe openNewProjectModal() unten).
     const projectTreePicker = createTreePicker({ rootElId: 'new-project-tree-root', selectedElId: 'new-project-tree-selected' });
 
+    // CLI-Registry lazy laden (lokales ESM-Modul, kein CDN). Fallback bei
+    // Ladefehler: Default-claude, Modal bleibt nutzbar.
+    let _clisPromise = null;
+    function ensureClis() {
+      if (!_clisPromise) _clisPromise = import('./clis.js').catch(() => null);
+      return _clisPromise;
+    }
+    function cliBadgeHtml(mod, cliId) {
+      if (!mod || !cliId) return '';
+      const c = mod.CLIS.find(x => x.id === cliId);
+      if (!c) return '';
+      return `<span class="cli-badge" style="--cli-color:${c.color}" title="${escapeHtml(c.label)}">${escapeHtml(c.label[0])}</span>`;
+    }
+
+    // Aufgelöstes CLIS-Modul für synchrones Card-Rendering vorhalten.
+    let _clisMod = null;
+    ensureClis().then(m => { _clisMod = m; });
+    function cardCliBadge(command) {
+      if (!_clisMod) return '';
+      const id = _clisMod.cliFromCommand ? _clisMod.cliFromCommand(command) : null;
+      return cliBadgeHtml(_clisMod, id);
+    }
+
+    let _activeCli = 'claude';
+    function fillVariants(mod, cliId) {
+      const sel = document.getElementById('new-session-cmd');
+      if (!sel) return;
+      const c = mod.CLIS.find(x => x.id === cliId) || mod.CLIS[0];
+      sel.innerHTML = c.variants.map(v =>
+        `<option value="${escapeHtml(v.command)}">${escapeHtml(v.label)}</option>`).join('');
+    }
+    async function renderCliPicker() {
+      const mod = await ensureClis();
+      const picker = document.getElementById('cli-picker');
+      const sel = document.getElementById('new-session-cmd');
+      if (!mod) { // Fallback
+        if (picker) picker.innerHTML = '';
+        if (sel) sel.innerHTML = '<option value="claude">claude</option>';
+        return;
+      }
+      _activeCli = 'claude';
+      if (picker) {
+        picker.innerHTML = mod.CLIS.map(c =>
+          `<button type="button" class="cli-pick-btn" data-cli="${c.id}" aria-pressed="${c.id === _activeCli}">`
+          + `${cliBadgeHtml(mod, c.id)}<span>${escapeHtml(c.label)}</span></button>`).join('');
+        picker.querySelectorAll('.cli-pick-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            _activeCli = btn.dataset.cli;
+            picker.querySelectorAll('.cli-pick-btn').forEach(b =>
+              b.setAttribute('aria-pressed', b.dataset.cli === _activeCli ? 'true' : 'false'));
+            fillVariants(mod, _activeCli);
+          });
+        });
+      }
+      fillVariants(mod, _activeCli);
+    }
+
     // ── Create session ───────────────────────────────────────────
     async function createSession() {
       const name = document.getElementById('new-session-name').value.trim();
@@ -7425,8 +7491,7 @@
     function openNewSessionModal(prefillPath = null) {
       document.getElementById('new-session-modal').classList.add('open');
       document.getElementById('new-session-name').value = '';
-      document.getElementById('new-session-cmd').value = 'claude';
-      document.getElementById('new-session-cmd').selectedIndex = 0;
+      renderCliPicker();
       document.getElementById('tree-selected').textContent = prefillPath || '~';
       // Prefill zählt als Selection, sodass „Starten" ohne Tree-Klick
       // direkt im gewünschten Ordner landet. skipSelect verhindert dass

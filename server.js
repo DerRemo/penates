@@ -523,6 +523,12 @@ app.get('/api/sessions', (req, res) => {
     base.muted = knownSessions.isMuted(s.name);
     base.pinned = knownSessions.isPinned(s.name);
     base.git = getGitStatus(s.path);
+    // command für Running-Sessions aus known-sessions nachreichen (tmux
+    // liefert es nicht). Dormant tragen es schon; foreign ggf. nicht → null.
+    if (base.command == null) {
+      const ke = knownByName.get(s.name);
+      base.command = ke ? ke.command : null;
+    }
     return base;
   };
 
