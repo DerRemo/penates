@@ -30,6 +30,16 @@ if ! command -v tmux &> /dev/null; then
 fi
 echo "  ✓ tmux $(tmux -V)"
 
+# moshi-hook: read-only Datenquelle für Usage (Rate-Limits) + Recent-Dirs.
+# NUR Install — kein `serve`/`pair`/`install` (das würde Moshis eigene
+# Agent-Hooks schreiben und mit den Hub-Hooks kollidieren).
+if ! command -v moshi-hook &> /dev/null; then
+  echo "  ⚙ moshi-hook wird installiert (Datenquelle für Usage/Recent-Dirs)..."
+  brew tap rjyo/moshi && brew install moshi-hook
+else
+  echo "  ✓ moshi-hook vorhanden"
+fi
+
 # 2. Install dependencies
 echo ""
 echo -e "${BOLD}[2/7]${RESET} Installiere Abhängigkeiten..."
