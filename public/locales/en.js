@@ -186,7 +186,6 @@ window.__I18N_BUNDLES.en = {
 
   // Modals — Adopt Session
   'modal.adopt.title': 'Adopt Session',
-  'modal.adopt.nameLabel': 'New Name (without cc- prefix)',
   'modal.adopt.cancel': 'Cancel',
   'modal.adopt.submit': 'Adopt',
 
@@ -225,11 +224,9 @@ window.__I18N_BUNDLES.en = {
   'toast.restoreConnError': 'Connection error during restore',
   'toast.sessionForgotten': '"{name}" forgotten',
   'toast.forgetFailed': 'Forget failed',
-  'toast.adoptNameInUse': 'Target name already in use',
   'toast.adoptInvalidName': 'Invalid name',
-  'toast.adopted': '"{source}" adopted as "cc-{name}"',
+  'toast.adopted': '"{source}" adopted',
   'toast.adoptFailed': 'Adopt failed',
-  'toast.enterName': 'Please enter a name',
   'toast.sessionStarted': 'Session "{name}" started',
   'toast.sessionNameExists': 'Session with this name already exists',
   'toast.enterSessionName': 'Please enter a session name',

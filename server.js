@@ -40,6 +40,7 @@ import {
   closeAll as fwCloseAll,
 } from './lib/file-watcher.js';
 import * as attention from './lib/attention.js';
+import * as attachTracker from './lib/attach-tracker.js';
 import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
@@ -70,19 +71,23 @@ const TMUX = process.env.TMUX_PATH || (() => {
 const EXTRA_PATHS = [join(homedir(), '.local/bin'), '/opt/homebrew/bin', '/usr/local/bin'];
 process.env.PATH = [...new Set([...EXTRA_PATHS, ...(process.env.PATH || '').split(':')])].filter(Boolean).join(':');
 
-// Mouse-Mode global in tmux aktivieren, sodass Wheel-Events im xterm.js-Client
-// als Scroll-Back funktionieren. Ohne das sieht der attached Client keine
+// Mouse-Mode in tmux steuern. Default `on`, sodass Wheel-Events im xterm.js-
+// Client als Scroll-Back funktionieren. Ohne das sieht der attached Client keine
 // Scroll-Events und die Terminal-View scheint eingefroren, sobald Output länger
-// als die Pane-Höhe wird. Race-Condition: Server startet evtl. bevor tmux läuft
-// → Aufruf scheitert still. Deshalb auch nach jeder Session-Erstellung gerufen.
-function ensureMouseOn() {
+// als die Pane-Höhe wird. Per `.env TMUX_MOUSE=off` abschaltbar — nützlich, wenn
+// primär über Moshi (mobiles Terminal) gearbeitet wird, wo der server-globale
+// Mouse-Mode native Touch-Selektion stört. tmux Mouse ist nicht per-Client
+// scopebar. Race-Condition: Server startet evtl. bevor tmux läuft → Aufruf
+// scheitert still. Deshalb auch nach jeder Session-Erstellung gerufen.
+const TMUX_MOUSE = (process.env.TMUX_MOUSE || 'on').toLowerCase() === 'off' ? 'off' : 'on';
+function ensureMouseMode() {
   try {
-    execFileSync(TMUX, ['set-option', '-g', 'mouse', 'on'], {
+    execFileSync(TMUX, ['set-option', '-g', 'mouse', TMUX_MOUSE], {
       encoding: 'utf-8', timeout: 2000, stdio: 'pipe',
     });
   } catch { /* tmux-Server noch nicht da */ }
 }
-ensureMouseOn();
+ensureMouseMode();
 
 const app = express();
 expressWs(app, null, {
@@ -996,8 +1001,8 @@ app.post('/api/sessions', async (req, res) => {
         console.error('[known-sessions] add failed:', e);
       }
       // Mouse-Mode sicherstellen: falls beim Server-Start tmux noch nicht
-      // lief, konnte ensureMouseOn() nicht greifen — jetzt läuft tmux sicher.
-      ensureMouseOn();
+      // lief, konnte ensureMouseMode() nicht greifen — jetzt läuft tmux sicher.
+      ensureMouseMode();
       // Lifecycle-Event fire-and-forget (Latency wichtiger als Crash-Safety)
       auditLog.record('session.create', {
         ...auditLog.extractRequestMeta(req),
@@ -1023,6 +1028,7 @@ app.delete('/api/sessions/:name', (req, res) => {
     execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
     attention.forget(name);
     usageLimits.forget(name);
+    attachTracker.forget(name);
     // Alias-Einträge aufräumen, die auf diese Session zeigten.
     for (const [k, v] of hookAlias.entries()) {
       if (v === name || k === name) hookAlias.delete(k);
@@ -1052,6 +1058,7 @@ app.patch('/api/sessions/:name', async (req, res) => {
     execFileSync(TMUX, ['rename-session', '-t', name, fullNewName], { encoding: 'utf-8', timeout: 5000 });
     attention.rename(name, fullNewName);
     usageLimits.rename(name, fullNewName);
+    attachTracker.rename(name, fullNewName);
     aliasOnRename(name, fullNewName);
     // known-sessions mitziehen, damit Restore nach Rename den neuen Namen findet.
     try { await knownSessions.rename(name, fullNewName); } catch (e) { console.error('[known-sessions] rename failed:', e); }
@@ -1104,38 +1111,27 @@ app.post('/api/sessions/:name/restore', async (req, res) => {
   });
 });
 
-// Adopt a foreign tmux session: rename to cc-<newName>, persist to known.
-// Command ist bei fremder Session unbekannt — 'claude' als Default, konsistent
-// mit der Best-Effort-Adoption beim Server-Start.
+// Adopt a foreign tmux session: register it in known-sessions under its
+// EXISTING name (kein Rename). Damit bleibt der Name stabil, den ein Fremd-
+// Client (z.B. Moshi) benutzt. Command ist bei fremder Session unbekannt —
+// 'claude' als Default, konsistent mit der Best-Effort-Adoption beim Start.
 app.post('/api/sessions/:name/adopt', async (req, res) => {
   const { name } = req.params;
-  const { newName } = req.body;
-  if (typeof name !== 'string' || !name) {
-    return res.status(400).json({ error: 'Invalid source session name' });
+  if (typeof name !== 'string' || !validSessionName(name)) {
+    return res.status(400).json({ error: 'Invalid session name: letters/digits/dash/dot/underscore/spaces, 1-64 chars' });
   }
-  if (typeof newName !== 'string' || !validSessionName(newName)) {
-    return res.status(400).json({ error: 'Invalid new session name: letters/digits/dash/dot/underscore/spaces, 1-64 chars' });
-  }
-  const fullNewName = SESSION_PREFIX + newName;
   const live = getTmuxSessions();
   const source = live.find(s => s.name === name);
   if (!source) {
     return res.status(404).json({ error: 'Source session not found' });
   }
-  if (live.some(s => s.name === fullNewName)) {
-    return res.status(409).json({ error: 'Target session name already in use' });
-  }
   try {
-    execFileSync(TMUX, ['rename-session', '-t', name, fullNewName], { encoding: 'utf-8', timeout: 5000 });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-  try {
-    await knownSessions.add({ name: fullNewName, directory: source.path, command: 'claude' });
+    await knownSessions.add({ name, directory: source.path, command: 'claude' });
   } catch (e) {
     console.error('[known-sessions] adopt persist failed:', e);
+    return res.status(500).json({ error: 'Failed to persist adopted session' });
   }
-  res.status(200).json({ success: true, name: fullNewName });
+  res.status(200).json({ success: true, name });
 });
 
 // Forget a known-session entry (remove from JSON, tmux unaffected).
@@ -1185,9 +1181,32 @@ app.ws('/api/projects/events', (ws, req) => {
 // Sendet native Push-Notifications an alle registrierten Subscriptions wenn
 // eine Session nach Stop/Notification unattached und nicht muted ist.
 // 410 Gone = Subscription abgelaufen → automatisch löschen.
+// Frischer tmux-Probe: Ist diese Session aktuell von irgendeinem Client
+// attached? Argv-Array, kein Shell-Interpolation. Fehler/keine Session → false.
+function tmuxSessionAttached(name) {
+  if (!name) return false;
+  try {
+    const out = execFileSync(TMUX, ['display-message', '-p', '-t', name, '#{session_attached}'], {
+      encoding: 'utf-8', timeout: 2000, stdio: 'pipe',
+    }).trim();
+    return parseInt(out, 10) > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function sendPushForAttention(event) {
   const subs = pushSubs.allSubs();
   if (!subs.length) return;
+  // Fremd-Client (z.B. Moshi) attached? Dann pusht der Hub nicht — der User
+  // schaut bereits über ein anderes Terminal zu. tmux meldet attached, aber
+  // der Hub hält keinen eigenen Attach für diese Session.
+  if (attachTracker.shouldSuppressForForeignClient(
+        tmuxSessionAttached(event.name),
+        attachTracker.hubAttachedCount(event.name))) {
+    console.log(`[push] skipped (foreign client attached): session=${event.name}`);
+    return;
+  }
   const displayName = (event.name || '').replace(/^cc-/, '');
   const activityLabels = { idle: 'Bereit', waiting: 'Braucht Input', working: 'Arbeitet' };
   const actLabel = activityLabels[event.activity] || 'Aktiv';
@@ -1497,7 +1516,7 @@ app.ws('/api/terminal/:name', (ws, req) => {
   // in xterm.js funktioniert nur, wenn tmux Mouse-Events forwarded — und
   // die globale Option überlebt keinen tmux-Server-Neustart, keine Reboots
   // und keine Pre-Hook-Legacy-Sessions, die vor dem Hub-Update entstanden.
-  ensureMouseOn();
+  ensureMouseMode();
 
   let pty;
   try {
@@ -1524,6 +1543,7 @@ app.ws('/api/terminal/:name', (ws, req) => {
   }
 
   activePtys.add(pty);
+  attachTracker.noteAttach(sessionName);
 
   // ── Audit-Log: session.attach + session.detach ────────────────
   // sessionMeta einmal extrahieren und über die WS-Lifetime cachen,
@@ -1536,6 +1556,7 @@ app.ws('/api/terminal/:name', (ws, req) => {
   const recordDetach = () => {
     if (detachRecorded) return;
     detachRecorded = true;
+    attachTracker.noteDetach(sessionName);
     auditLog.record('session.detach', {
       ...sessionMeta,
       session: sessionName,

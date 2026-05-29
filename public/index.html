@@ -3051,17 +3051,6 @@
       font-size: 12px;
       color: var(--teal);
     }
-    .adopt-modal label {
-      display: block;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
     /* ── D2: Connection-Status im Terminal-Toolbar ──────────────────── */
     .conn-status {
       display: inline-flex;
@@ -4015,7 +4004,7 @@
     </div>
   </div>
 
-    <!-- Adopt-Modal: kleines Modal zum Umbenennen einer fremden tmux-Session -->
+    <!-- Adopt-Modal: kleines Modal zum Übernehmen einer fremden tmux-Session -->
     <div id="adopt-modal" class="modal-overlay">
       <div class="modal adopt-modal">
         <div class="modal-header">
@@ -4024,11 +4013,9 @@
         </div>
         <div class="modal-body">
           <p class="adopt-intro">
-            The foreign tmux session <code id="adopt-source-name"></code> will be renamed to
-            <code>cc-&lt;name&gt;</code> and managed by the Hub from now on.
+            The foreign tmux session <code id="adopt-source-name"></code> will be managed by
+            the Hub from now on. Its name stays the same.
           </p>
-          <label for="adopt-new-name" data-i18n="modal.adopt.nameLabel">New Name (without cc- prefix)</label>
-          <input id="adopt-new-name" type="text" class="input" autocomplete="off" />
         </div>
         <div class="modal-footer">
           <button class="btn btn-ghost" onclick="closeAdoptModal()" data-i18n="modal.adopt.cancel">Cancel</button>
@@ -6943,24 +6930,19 @@
       }
     }
 
-    async function adoptSession(sourceName, newName) {
+    async function adoptSession(sourceName) {
       try {
         const res = await fetch(`/api/sessions/${encodeURIComponent(sourceName)}/adopt`, {
           method: 'POST',
           headers: apiHeaders(),
-          body: JSON.stringify({ newName }),
         });
-        if (res.status === 409) {
-          showToast(t('toast.adoptNameInUse'), 'error');
-          return false;
-        }
         if (res.status === 400) {
           const body = await res.json().catch(() => ({}));
           showToast(body.error || t('toast.adoptInvalidName'), 'error');
           return false;
         }
         if (!res.ok) throw new Error();
-        showToast(t('toast.adopted', { source: sourceName, name: newName }), 'success');
+        showToast(t('toast.adopted', { source: sourceName, name: sourceName }), 'success');
         refreshSessions();
         return true;
       } catch {
@@ -6974,12 +6956,7 @@
     function openAdoptModal(sourceName) {
       currentAdoptSource = sourceName;
       document.getElementById('adopt-source-name').textContent = sourceName;
-      const input = document.getElementById('adopt-new-name');
-      // Default: source-Name gesäubert (nur erlaubte Zeichen, ohne cc-Prefix)
-      const clean = sourceName.replace(/^cc-/, '').replace(/[^\w\-. ]/g, '-').slice(0, 64);
-      input.value = clean;
       document.getElementById('adopt-modal').classList.add('open');
-      setTimeout(() => { input.focus(); input.select(); }, 100);
     }
 
     function closeAdoptModal() {
@@ -6989,12 +6966,7 @@
 
     async function submitAdopt() {
       if (!currentAdoptSource) return;
-      const newName = document.getElementById('adopt-new-name').value.trim();
-      if (!newName) {
-        showToast(t('toast.enterName'), 'error');
-        return;
-      }
-      const ok = await adoptSession(currentAdoptSource, newName);
+      const ok = await adoptSession(currentAdoptSource);
       if (ok) closeAdoptModal();
     }
 

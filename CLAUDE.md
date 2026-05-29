@@ -117,6 +117,18 @@ als tmux-Session-Env an den Claude-Kindprozess vererbt werden:
 - `CC_HUB_URL` — `http://127.0.0.1:<PORT>`
 - `CC_HUB_TOKEN` — Bearer-Token (nur wenn `AUTH_TOKEN` gesetzt)
 
+### Self-bootstrapping Hooks (Moshi-Interop)
+
+Der Hook-curl ist quellen-agnostisch: er sourct `~/.claude-code-hub/hook.env`
+(`CC_HUB_URL` + `CC_HUB_TOKEN`, von `setup.sh` mit `chmod 600` geschrieben) und
+leitet den Session-Namen zur Laufzeit aus tmux ab (`tmux display-message -p
+'#S'`, Fallback `$CC_HUB_SESSION`). Dadurch melden auch Sessions an den Hub,
+die NICHT über den Hub gestartet wurden (z.B. via Moshi per SSH/Mosh). Das
+`tmux -e`-Inject (`hubEnvArgs`) bleibt als Fallback. Der StatusLine-Block
+nutzt dasselbe Muster. Re-Runs von `setup.sh` ersetzen weiterhin nur die
+Hub-eigenen Hook-Einträge (`_owner`-Sentinel) — fremde Hooks wie `moshi-hook`
+bleiben erhalten.
+
 ### Datenfluss
 
 ```
@@ -147,6 +159,10 @@ Claude CLI ──Hook──> curl ──POST──> /api/hooks/:event
   Beep, flasht die Card, markiert unread, zeigt Toast. Payload identisch.
 - **Cool-Down gilt nur für `session-attention`**, nicht für
   `session-activity` — Badges sollen immer sofort stimmen.
+- **Fremd-Attach-Suppression:** Ist eine Session von einem Nicht-Hub-Client
+  (z.B. Moshi) attached (tmux meldet `session_attached`, der Hub hält aber
+  keinen eigenen PTY — getrackt in `lib/attach-tracker.js`), unterdrückt der
+  Hub die Push-Notification für diese Session.
 
 ### Event → Activity-Mapping
 
@@ -245,6 +261,12 @@ Client: `new WebSocket(url, [\`bearer.\${token}\`])`. Server echo'd das Protocol
 - Frontend ist eine Single-File SPA — CSS und JS inline in index.html, kein Build-Step
 - xterm.js, xterm-addon-fit und xterm-addon-web-links werden per CDN geladen; JetBrains Mono + Noto Sans Symbols liegen lokal in `public/fonts/`
 - Fehlertexte im UI sind Deutsch, API-Error-Strings Englisch — bewusste Trennung zwischen User- und Dev-Ebene.
+- `TMUX_MOUSE` (`.env`, default `on`) schaltet den server-globalen tmux
+  Mouse-Mode. Auf `off` für Moshi-lastige Nutzung (native Touch-Selektion);
+  dann ist Scroll-Wheel im Hub-Browser-Terminal deaktiviert.
+- Adopt (`POST /api/sessions/:name/adopt`) registriert foreign Sessions unter
+  ihrem **Originalnamen** (kein Rename auf `cc-`), damit der Name stabil bleibt,
+  den Moshi benutzt. Nicht-`cc-`-Namen werden im Hub als vollwertig geführt.
 
 ## Entwicklung
 

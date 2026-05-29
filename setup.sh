@@ -129,13 +129,29 @@ else
   mkdir -p "$HOME/.claude"
   [ -f "$SETTINGS_FILE" ] || echo "{}" > "$SETTINGS_FILE"
 
+  # hook.env: URL + Token an einem Ort, den der Hook zur Laufzeit sourcen kann.
+  # Damit melden AUCH Sessions an den Hub, die NICHT über den Hub gestartet
+  # wurden (z.B. via Moshi) — sie haben das tmux -e-Inject nicht. chmod 600,
+  # da der Token drinsteht. Werte robust aus .env lesen (Schritt-Reihenfolge-
+  # unabhängig).
+  HUB_PORT=$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2); HUB_PORT="${HUB_PORT:-3333}"
+  HUB_TOKEN=$(grep '^AUTH_TOKEN=' .env 2>/dev/null | cut -d= -f2-)
+  mkdir -p "$HOME/.claude-code-hub"
+  # umask 077 im Subshell: Datei wird nie group/other-lesbar (Token drinsteht).
+  ( umask 077; {
+    echo "CC_HUB_URL=http://127.0.0.1:${HUB_PORT}"
+    echo "CC_HUB_TOKEN=${HUB_TOKEN}"
+  } > "$HOME/.claude-code-hub/hook.env" )
+  chmod 600 "$HOME/.claude-code-hub/hook.env"
+  echo "  ✓ hook.env geschrieben (~/.claude-code-hub/hook.env, chmod 600)"
+
   # Events die der Hub konsumiert. Jeder Event bekommt denselben curl-
   # Payload: POST an /api/hooks/:event mit Auth + Session-Header.
   HOOK_EVENTS=(UserPromptSubmit Stop SubagentStop Notification SessionStart SessionEnd)
 
   # Sentinel-Marker pro Entry, damit Re-Runs nur Hub-Einträge ersetzen
   # und niemals User-eigene Hooks löschen.
-  HOOK_CMD='curl -fsS -m 2 -X POST "$CC_HUB_URL/api/hooks/EVENT_NAME" -H "Authorization: Bearer $CC_HUB_TOKEN" -H "X-CC-Hub-Session: $CC_HUB_SESSION" -H "Content-Type: application/json" --data-binary @- >/dev/null 2>&1 || true'
+  HOOK_CMD='{ [ -r "$HOME/.claude-code-hub/hook.env" ] && . "$HOME/.claude-code-hub/hook.env"; S="$(tmux display-message -p "#S" 2>/dev/null)"; S="${S:-$CC_HUB_SESSION}"; curl -fsS -m 2 -X POST "$CC_HUB_URL/api/hooks/EVENT_NAME" -H "Authorization: Bearer $CC_HUB_TOKEN" -H "X-CC-Hub-Session: $S" -H "Content-Type: application/json" --data-binary @-; } >/dev/null 2>&1 || true'
 
   TMP=$(mktemp)
   cp "$SETTINGS_FILE" "$TMP"
@@ -173,7 +189,11 @@ SL_SENTINEL_END="#CCH-SL-END#"
 SL_BLOCK='
 # ── Claude Code Hub StatusLine Reporting ── #CCH-SL-START#
 # Sends rate-limit + cost data to the Hub. Throttled: only on value change or every 60s.
-if [ -n "$CC_HUB_URL" ] && [ -n "$CC_HUB_TOKEN" ] && [ -n "$CC_HUB_SESSION" ]; then
+# Self-bootstrapping: sourct hook.env (URL+Token) und leitet den Session-Namen
+# live aus tmux ab — meldet daher auch für nicht-Hub-gestartete Sessions (Moshi).
+[ -r "$HOME/.claude-code-hub/hook.env" ] && . "$HOME/.claude-code-hub/hook.env"
+_sl_session="$(tmux display-message -p "#S" 2>/dev/null)"; _sl_session="${_sl_session:-$CC_HUB_SESSION}"
+if [ -n "$CC_HUB_URL" ] && [ -n "$_sl_session" ]; then
   _sl_session_id=$(echo "$input" | jq -r '"'"'.session_id // empty'"'"')
   _sl_state_file="/tmp/cc-hub-sl-${_sl_session_id:-unknown}.state"
   _sl_cost=$(echo "$input" | jq -r '"'"'.cost.total_cost_usd // empty'"'"')
@@ -191,7 +211,7 @@ if [ -n "$CC_HUB_URL" ] && [ -n "$CC_HUB_TOKEN" ] && [ -n "$CC_HUB_SESSION" ]; t
     _sl_payload=$(echo "$input" | jq -c '"'"'{rate_limits, cost, context_window, model}'"'"')
     curl -fsS -m 2 -X POST "$CC_HUB_URL/api/hooks/statusline" \
       -H "Authorization: Bearer $CC_HUB_TOKEN" \
-      -H "X-CC-Hub-Session: $CC_HUB_SESSION" \
+      -H "X-CC-Hub-Session: $_sl_session" \
       -H "Content-Type: application/json" \
       -d "$_sl_payload" >/dev/null 2>&1 &
     printf '"'"'%s|%s\n'"'"' "$_sl_current" "$_sl_now" > "$_sl_state_file"

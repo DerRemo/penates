@@ -18,7 +18,7 @@ export default async function globalTeardown() {
     const testSessions = output
       .split('\n')
       .filter(Boolean)
-      .filter(name => name.startsWith('cc-test-'));
+      .filter(name => name.startsWith('cc-test-') || name.startsWith('moshi-e2e-'));
 
     for (const name of testSessions) {
       try {
