@@ -47,6 +47,7 @@ import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
 import { parseStatusV2, getDiff } from './lib/git-diff.js';
+import { saveSessionImage } from './lib/session-images.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -1095,6 +1096,39 @@ app.get('/api/sessions/:name/diff', (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'diff failed', message: String(e && e.message || e) });
   }
+});
+
+// Single-PNG body for the image-paste flow. 8 MB → express.raw answers 413
+// on overflow (entity.too.large). type:'image/png' so other bodies don't match.
+const imageBody = express.raw({ type: 'image/png', limit: '8mb' });
+
+// POST /api/sessions/:name/image — speichert ein einzelnes PNG in
+// <cwd>/.cch-images/ und liefert den cwd-relativen Pfad für die @-Mention.
+// Body = rohes image/png (≤8 MB). writeLimiter (global) deckt das Rate-Limit ab.
+app.post('/api/sessions/:name/image', imageBody, (req, res) => {
+  const name = req.params.name;
+  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  const cwd = resolveSessionCwd(name);
+  if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
+  const buf = req.body;
+  if (!buf || !buf.length) return res.status(400).json({ error: 'Empty image body' });
+  try {
+    const { rel } = saveSessionImage(cwd, buf);
+    res.json({ rel });
+  } catch (e) {
+    if (e instanceof FileError && e.code === 'forbidden') {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    res.status(500).json({ error: 'image save failed', message: String((e && e.message) || e) });
+  }
+});
+
+// express.raw → 413 bei Overflow. Mappe den PayloadTooLargeError auf unsere JSON-Form.
+app.use('/api/sessions/:name/image', (err, req, res, next) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({ error: 'Image too large' });
+  }
+  next(err);
 });
 
 // Restore a dormant session: re-create in tmux with same cwd/command.
