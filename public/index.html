@@ -3293,6 +3293,44 @@
       padding: 40px; text-align: center; color: var(--text-muted, #888); font-size: 14px;
     }
 
+    /* ── Image Annotator Modal ─────────────────────────────────── */
+    .image-annotator-modal {
+      display: none; position: fixed; inset: 0; z-index: 1200;
+      background: rgba(0,0,0,.72); align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .image-annotator-modal.open { display: flex; }
+    .image-annotator-modal .annotator-card {
+      background: var(--bg-elevated, #16181d); border: 1px solid var(--border, #2a2d35);
+      border-radius: 10px; max-width: 92vw; max-height: 92vh; display: flex; flex-direction: column;
+    }
+    .image-annotator-modal .annotator-toolbar {
+      display: flex; gap: 6px; align-items: center; padding: 10px 12px;
+      border-bottom: 1px solid var(--border, #2a2d35); flex-wrap: wrap;
+    }
+    .image-annotator-modal .anno-tool, .image-annotator-modal .anno-undo {
+      background: transparent; color: var(--text-primary, #e5e7eb);
+      border: 1px solid var(--border, #2a2d35); border-radius: 6px;
+      padding: 6px 10px; min-height: 36px; cursor: pointer; font: inherit;
+    }
+    .image-annotator-modal .anno-tool.active {
+      border-color: var(--accent, #2dd4bf); color: var(--accent, #2dd4bf);
+    }
+    .image-annotator-modal .anno-tool:hover, .image-annotator-modal .anno-undo:hover {
+      border-color: var(--accent, #2dd4bf);
+    }
+    .image-annotator-modal .annotator-stage {
+      position: relative; overflow: auto; padding: 12px; line-height: 0;
+    }
+    .image-annotator-modal #annotator-base { display: block; max-width: 100%; height: auto; }
+    .image-annotator-modal #annotator-overlay {
+      position: absolute; top: 12px; left: 12px; touch-action: none; cursor: crosshair;
+    }
+    @media (max-width: 640px) {
+      .image-annotator-modal .annotator-toolbar .btn,
+      .image-annotator-modal .anno-tool, .image-annotator-modal .anno-undo { flex: 1 1 auto; }
+    }
+
     /* ── Diff View ─────────────────────────────────────────────── */
     .diff-view { flex-direction: column; height: 100%; min-height: 0; }
     .diff-header { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); flex: 0 0 auto; }
@@ -3771,6 +3809,11 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           <span class="btn-label" data-i18n="terminal.toolbar.files">Files</span>
         </button>
+        <button class="btn btn-ghost btn-sm" id="image-picker-btn" type="button" aria-label="Insert image" title="Insert image" data-i18n-attr="aria-label:imagePaste.pickerTitle;title:imagePaste.pickerTitle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <span class="btn-label" data-i18n="imagePaste.pickerTitle">Insert image</span>
+        </button>
+        <input type="file" id="image-picker-input" accept="image/*" style="display:none" />
         <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
           <span class="btn-label" data-i18n="terminal.toolbar.captureIdea">Capture idea</span>
@@ -6436,6 +6479,7 @@
         theme: buildXtermTheme(),
       });
 
+      window.term = term;  // für best-effort focus aus ImagePaste
       const fitAddon = new FitAddon.FitAddon();
       const webLinksAddon = new WebLinksAddon.WebLinksAddon();
       term.loadAddon(fitAddon);
@@ -6592,6 +6636,21 @@
       // aktiviert hat. `capture: true` damit wir vor xterms Handler laufen
       // und kein Doppel-Paste entsteht.
       container.addEventListener('paste', (e) => {
+        // Bild im Clipboard? → Annotator statt Text-Paste.
+        const items = e.clipboardData?.items;
+        if (items) {
+          for (const it of items) {
+            if (it.type && it.type.startsWith('image/')) {
+              const file = it.getAsFile();
+              if (file) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.ImagePaste) window.ImagePaste.annotateAndSend(file);
+                return;
+              }
+            }
+          }
+        }
         const text = e.clipboardData?.getData('text');
         if (!text) return;
         e.preventDefault();
@@ -6834,6 +6893,7 @@
       });
 
       currentWs = ws;
+      window.currentWs = ws;
     }
 
     // ── Touch-Toolbar: Keys → Terminal senden ────────────────────
@@ -6925,6 +6985,7 @@
       if (currentWs) {
         const ws = currentWs;
         currentWs = null;
+        window.currentWs = null;
         try { ws.close(); } catch {}
       }
       touchScrollAbort?.abort();
@@ -8838,6 +8899,229 @@
 
     document.addEventListener('DOMContentLoaded', () => FilePreview.wire());
 
+    // ── Image Annotator: canvas markup modal (arrow/box/pen/text/undo) ──
+    const ImageAnnotator = (() => {
+      const COLOR = '#ff3b30';      // kräftiges Rot, eine Farbe
+      const WIDTH = 4;              // eine Strichbreite
+      const MAX_EDGE = 2000;        // oversize-Downscale
+      let baseCanvas, overlay, octx, bctx, stage;
+      let img = null;               // geladenes Image
+      let tool = 'pen';
+      let strokes = [];             // Stroke-Stack für Undo
+      let drawing = false, start = null, current = null;
+      let resolveFn = null;
+
+      function els() {
+        baseCanvas = document.getElementById('annotator-base');
+        overlay = document.getElementById('annotator-overlay');
+        stage = document.getElementById('annotator-stage');
+        bctx = baseCanvas.getContext('2d');
+        octx = overlay.getContext('2d');
+      }
+
+      function setTool(tl) {
+        tool = tl;
+        document.querySelectorAll('#annotator-toolbar .anno-tool').forEach((b) => {
+          b.classList.toggle('active', b.dataset.tool === tl);
+        });
+      }
+
+      function fit(naturalW, naturalH) {
+        const scale = Math.min(1, MAX_EDGE / Math.max(naturalW, naturalH));
+        return { w: Math.round(naturalW * scale), h: Math.round(naturalH * scale) };
+      }
+
+      function drawArrow(ctx, x1, y1, x2, y2) {
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        const ang = Math.atan2(y2 - y1, x2 - x1), head = 14;
+        ctx.beginPath(); ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - head * Math.cos(ang - Math.PI / 6), y2 - head * Math.sin(ang - Math.PI / 6));
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - head * Math.cos(ang + Math.PI / 6), y2 - head * Math.sin(ang + Math.PI / 6));
+        ctx.stroke();
+      }
+
+      function renderStroke(ctx, s) {
+        ctx.strokeStyle = COLOR; ctx.fillStyle = COLOR;
+        ctx.lineWidth = WIDTH; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        if (s.type === 'pen') {
+          ctx.beginPath();
+          s.points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+          ctx.stroke();
+        } else if (s.type === 'box') {
+          ctx.strokeRect(s.x1, s.y1, s.x2 - s.x1, s.y2 - s.y1);
+        } else if (s.type === 'arrow') {
+          drawArrow(ctx, s.x1, s.y1, s.x2, s.y2);
+        } else if (s.type === 'text') {
+          ctx.font = '20px sans-serif';
+          ctx.fillText(s.text, s.x, s.y);
+        }
+      }
+
+      function repaintOverlay(preview) {
+        octx.clearRect(0, 0, overlay.width, overlay.height);
+        for (const s of strokes) renderStroke(octx, s);
+        if (preview) renderStroke(octx, preview);
+      }
+
+      function pos(e) {
+        const r = overlay.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * (overlay.width / r.width),
+                 y: (e.clientY - r.top) * (overlay.height / r.height) };
+      }
+
+      function onDown(e) {
+        if (tool === 'text') {
+          const p = pos(e);
+          const text = window.prompt(t('imagePaste.textPrompt'));
+          if (text) { strokes.push({ type: 'text', x: p.x, y: p.y, text }); repaintOverlay(); }
+          return;
+        }
+        drawing = true; start = pos(e); current = start;
+        if (tool === 'pen') strokes.push({ type: 'pen', points: [start] });
+        overlay.setPointerCapture?.(e.pointerId);
+      }
+      function onMove(e) {
+        if (!drawing) return;
+        current = pos(e);
+        if (tool === 'pen') {
+          strokes[strokes.length - 1].points.push(current);
+          repaintOverlay();
+        } else {
+          repaintOverlay({ type: tool, x1: start.x, y1: start.y, x2: current.x, y2: current.y });
+        }
+      }
+      function onUp() {
+        if (!drawing) return;
+        drawing = false;
+        if (tool === 'box' || tool === 'arrow') {
+          strokes.push({ type: tool, x1: start.x, y1: start.y, x2: current.x, y2: current.y });
+        }
+        repaintOverlay();
+      }
+
+      function undo() { strokes.pop(); repaintOverlay(); }
+
+      function flatten() {
+        const out = document.createElement('canvas');
+        out.width = baseCanvas.width; out.height = baseCanvas.height;
+        const ctx = out.getContext('2d');
+        ctx.drawImage(baseCanvas, 0, 0);
+        ctx.drawImage(overlay, 0, 0);
+        return new Promise((res) => out.toBlob((b) => res(b), 'image/png'));
+      }
+
+      function close(result) {
+        const modal = document.getElementById('image-annotator-modal');
+        modal.classList.remove('open');
+        strokes = []; img = null; drawing = false;
+        const fn = resolveFn; resolveFn = null;
+        if (fn) fn(result);
+      }
+
+      function wire() {
+        els();
+        const modal = document.getElementById('image-annotator-modal');
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(null); });
+        document.getElementById('annotator-cancel').addEventListener('click', () => close(null));
+        document.getElementById('annotator-send').addEventListener('click', async () => {
+          const blob = await flatten(); close(blob);
+        });
+        document.getElementById('annotator-undo').addEventListener('click', undo);
+        document.querySelectorAll('#annotator-toolbar .anno-tool').forEach((b) => {
+          b.addEventListener('click', () => setTool(b.dataset.tool));
+        });
+        overlay.addEventListener('pointerdown', onDown);
+        overlay.addEventListener('pointermove', onMove);
+        overlay.addEventListener('pointerup', onUp);
+        overlay.addEventListener('pointercancel', onUp);
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && modal.classList.contains('open')) close(null);
+        });
+      }
+
+      function open(blob) {
+        return new Promise((resolve) => {
+          resolveFn = resolve;
+          strokes = []; setTool('pen');
+          const url = URL.createObjectURL(blob);
+          img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(url);
+            const { w, h } = fit(img.naturalWidth, img.naturalHeight);
+            baseCanvas.width = overlay.width = w;
+            baseCanvas.height = overlay.height = h;
+            overlay.style.width = baseCanvas.style.width = w + 'px';
+            overlay.style.height = baseCanvas.style.height = h + 'px';
+            bctx.clearRect(0, 0, w, h);
+            bctx.drawImage(img, 0, 0, w, h);
+            octx.clearRect(0, 0, w, h);
+            document.getElementById('image-annotator-modal').classList.add('open');
+          };
+          img.onerror = () => { URL.revokeObjectURL(url); close(null); };
+          img.src = url;
+        });
+      }
+
+      return { open, wire, _setTool: setTool };
+    })();
+    window.ImageAnnotator = ImageAnnotator;
+    document.addEventListener('DOMContentLoaded', () => ImageAnnotator.wire());
+
+    // ── ImagePaste glue: sources → annotator → upload → @-mention inject ──
+    const ImagePaste = (() => {
+      async function sendImage(blob) {
+        const name = window.currentSessionName;
+        if (!name) { showToast(t('toast.noActiveSession'), 'error'); return; }
+        let res;
+        try {
+          res = await fetch(`/api/sessions/${encodeURIComponent(name)}/image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${AUTH_TOKEN || ''}` },
+            body: blob,
+          });
+        } catch {
+          showToast(t('imagePaste.error.failed'), 'error'); return;
+        }
+        if (res.status === 404) { showToast(t('imagePaste.error.noCwd'), 'error'); return; }
+        if (res.status === 413) { showToast(t('imagePaste.error.tooLarge'), 'error'); return; }
+        if (!res.ok) { showToast(t('imagePaste.error.failed'), 'error'); return; }
+        let body;
+        try { body = await res.json(); } catch { showToast(t('imagePaste.error.failed'), 'error'); return; }
+        if (!body || !body.rel) { showToast(t('imagePaste.error.failed'), 'error'); return; }
+        injectMention(body.rel);
+      }
+
+      function injectMention(rel) {
+        if (window.currentWs && window.currentWs.readyState === WebSocket.OPEN) {
+          window.currentWs.send(JSON.stringify({ type: 'input', data: '@' + rel + ' ' })); // KEIN \r
+        }
+        try { if (window.term) window.term.focus(); } catch {}
+      }
+
+      // Annotator-Resolve → bei Blob senden, bei null verwerfen.
+      function annotateAndSend(blob) {
+        ImageAnnotator.open(blob).then((out) => { if (out) sendImage(out); });
+      }
+
+      function wire() {
+        const btn = document.getElementById('image-picker-btn');
+        const input = document.getElementById('image-picker-input');
+        if (btn && input) {
+          btn.addEventListener('click', () => input.click());
+          input.addEventListener('change', () => {
+            const f = input.files && input.files[0];
+            if (f && f.type.startsWith('image/')) annotateAndSend(f);
+            input.value = '';
+          });
+        }
+      }
+
+      return { wire, sendImage, injectMention, annotateAndSend };
+    })();
+    window.ImagePaste = ImagePaste;
+    document.addEventListener('DOMContentLoaded', () => ImagePaste.wire());
+
     // ── Diff View (Task 6): clickable git badge → diff2html, live refresh ──
     const DiffView = (() => {
       let d2hLoaded = null, cssInjected = false;
@@ -9391,7 +9675,12 @@
           if (typeof showToast === 'function') showToast(t('toast.noActiveSession'), 'error');
           return;
         }
-        for (const f of e.dataTransfer.files) {
+        const files = Array.from(e.dataTransfer.files);
+        // Erstes Bild → Annotator; alle Nicht-Bilder → bestehender Uploader unverändert.
+        const firstImage = files.find((f) => f.type && f.type.startsWith('image/'));
+        if (firstImage && window.ImagePaste) window.ImagePaste.annotateAndSend(firstImage);
+        for (const f of files) {
+          if (f === firstImage) continue;
           Uploader.enqueue(f, { kind: 'session', session: name });
         }
       }, true);
@@ -9439,6 +9728,25 @@
         <button id="preview-close" title="Close" data-i18n-attr="title:preview.closeTitle" data-i18n="preview.closeLabel">×</button>
       </div>
       <div class="preview-body" id="preview-body"></div>
+    </div>
+  </div>
+
+  <div class="image-annotator-modal" id="image-annotator-modal" role="dialog" aria-modal="true">
+    <div class="annotator-card" onclick="event.stopPropagation()">
+      <div class="annotator-toolbar" id="annotator-toolbar">
+        <button type="button" class="anno-tool" data-tool="arrow" data-i18n="imagePaste.toolbar.arrow" title="Arrow">Arrow</button>
+        <button type="button" class="anno-tool" data-tool="box" data-i18n="imagePaste.toolbar.box" title="Box">Box</button>
+        <button type="button" class="anno-tool" data-tool="pen" data-i18n="imagePaste.toolbar.pen" title="Pen">Pen</button>
+        <button type="button" class="anno-tool" data-tool="text" data-i18n="imagePaste.toolbar.text" title="Text">Text</button>
+        <button type="button" class="anno-undo" id="annotator-undo" data-i18n="imagePaste.toolbar.undo" title="Undo">Undo</button>
+        <span class="annotator-spacer" style="flex:1"></span>
+        <button type="button" class="btn" id="annotator-cancel" data-i18n="imagePaste.cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="annotator-send" data-i18n="imagePaste.send">Send</button>
+      </div>
+      <div class="annotator-stage" id="annotator-stage">
+        <canvas id="annotator-base"></canvas>
+        <canvas id="annotator-overlay"></canvas>
+      </div>
     </div>
   </div>
 
