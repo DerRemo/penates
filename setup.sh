@@ -129,13 +129,28 @@ else
   mkdir -p "$HOME/.claude"
   [ -f "$SETTINGS_FILE" ] || echo "{}" > "$SETTINGS_FILE"
 
+  # hook.env: URL + Token an einem Ort, den der Hook zur Laufzeit sourcen kann.
+  # Damit melden AUCH Sessions an den Hub, die NICHT über den Hub gestartet
+  # wurden (z.B. via Moshi) — sie haben das tmux -e-Inject nicht. chmod 600,
+  # da der Token drinsteht. Werte robust aus .env lesen (Schritt-Reihenfolge-
+  # unabhängig).
+  HUB_PORT=$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2); HUB_PORT="${HUB_PORT:-3333}"
+  HUB_TOKEN=$(grep '^AUTH_TOKEN=' .env 2>/dev/null | cut -d= -f2)
+  mkdir -p "$HOME/.claude-code-hub"
+  {
+    echo "CC_HUB_URL=http://127.0.0.1:${HUB_PORT}"
+    echo "CC_HUB_TOKEN=${HUB_TOKEN}"
+  } > "$HOME/.claude-code-hub/hook.env"
+  chmod 600 "$HOME/.claude-code-hub/hook.env"
+  echo "  ✓ hook.env geschrieben (~/.claude-code-hub/hook.env, chmod 600)"
+
   # Events die der Hub konsumiert. Jeder Event bekommt denselben curl-
   # Payload: POST an /api/hooks/:event mit Auth + Session-Header.
   HOOK_EVENTS=(UserPromptSubmit Stop SubagentStop Notification SessionStart SessionEnd)
 
   # Sentinel-Marker pro Entry, damit Re-Runs nur Hub-Einträge ersetzen
   # und niemals User-eigene Hooks löschen.
-  HOOK_CMD='curl -fsS -m 2 -X POST "$CC_HUB_URL/api/hooks/EVENT_NAME" -H "Authorization: Bearer $CC_HUB_TOKEN" -H "X-CC-Hub-Session: $CC_HUB_SESSION" -H "Content-Type: application/json" --data-binary @- >/dev/null 2>&1 || true'
+  HOOK_CMD='{ [ -r "$HOME/.claude-code-hub/hook.env" ] && . "$HOME/.claude-code-hub/hook.env"; S="$(tmux display-message -p "#S" 2>/dev/null)"; S="${S:-$CC_HUB_SESSION}"; curl -fsS -m 2 -X POST "$CC_HUB_URL/api/hooks/EVENT_NAME" -H "Authorization: Bearer $CC_HUB_TOKEN" -H "X-CC-Hub-Session: $S" -H "Content-Type: application/json" --data-binary @-; } >/dev/null 2>&1 || true'
 
   TMP=$(mktemp)
   cp "$SETTINGS_FILE" "$TMP"
