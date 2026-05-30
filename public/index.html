@@ -90,8 +90,10 @@
     integrity="sha384-dpjGwSSISUTz2taP54Bor7qkyMR20sSO9oe11UVYnGs2/YdUBf7HW30XKQx9PCzn" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"
     integrity="sha384-iAAiqSZrWZz/YKZSTKOPNaRhVOg9JY14avg2EWEpYNnUsrnATA+Sg8pV7mak84/G" crossorigin="anonymous"></script>
-  <!-- highlight.js theme for FilePreview — optional, no SRI (loaded lazily by FilePreview) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css" crossorigin="anonymous">
+  <!-- highlight.js theme for FilePreview — href is swapped to match the
+       page theme (github-dark for dark flavors, github for Latte) by
+       syncHljsTheme() so code previews aren't a dark island on Latte. -->
+  <link rel="stylesheet" id="hljs-theme" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css" crossorigin="anonymous">
   <style>
     /* ── Design-Tokens (theme-independent) ─────────────────────────
        Spacing, type scale, radii, shadows-scale und breakpoints
@@ -3414,11 +3416,11 @@
       box-shadow: var(--shadow-modal, 0 30px 80px rgba(0,0,0,.8));
     }
     .file-preview-modal .preview-header {
-      padding: 10px 14px; border-bottom: 1px solid var(--border, #222);
-      display: flex; align-items: center; gap: 12px;
-      font-size: 13px; color: var(--text-secondary, #aaa);
+      padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: var(--space-3);
+      font-size: 13px; color: var(--text-secondary);
     }
-    .file-preview-modal .preview-header .name { color: var(--accent, #2dd4bf); font-weight: 600; }
+    .file-preview-modal .preview-header .name { color: var(--accent); font-weight: 600; font-family: var(--font-mono); }
     .file-preview-modal .preview-header .spacer { flex: 1; }
     .file-preview-modal .preview-header button {
       background: transparent; border: 1px solid var(--border, #333); color: var(--text-secondary, #aaa);
@@ -3544,7 +3546,7 @@
     .cchub-contextmenu button:hover { background: var(--accent-muted, rgba(45,212,191,.12)); color: var(--accent, #2dd4bf); }
     .cchub-contextmenu hr { border: 0; border-top: 1px solid var(--border-subtle, #222); margin: 4px 0; }
     .file-row .rename-input {
-      flex: 1; background: #000; border: 1px solid var(--accent, #2dd4bf); color: #fff;
+      flex: 1; background: var(--bg-elevated); border: 1px solid var(--accent); color: var(--text-primary);
       padding: 1px 4px; font: inherit; border-radius: 3px;
       min-width: 0;
     }
@@ -3572,15 +3574,16 @@
     }
     .upload-toast {
       min-width: 260px;
-      background: #141414;
-      border: 1px solid var(--accent, #2dd4bf);
-      border-radius: 6px;
-      padding: 8px 10px;
-      color: #ddd; font-size: 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: var(--space-2) var(--space-3);
+      color: var(--text-secondary); font-size: 12px;
+      box-shadow: var(--shadow-toast);
     }
-    .upload-toast.error { border-color: #ef4444; }
-    .upload-toast .name { color: var(--accent, #2dd4bf); font-weight: 600; }
-    .upload-toast .bar { height: 4px; background: #222; border-radius: 2px; overflow: hidden; margin-top: 4px; }
+    .upload-toast.error { border-color: var(--red); }
+    .upload-toast .name { color: var(--accent); font-weight: 600; }
+    .upload-toast .bar { height: 4px; background: var(--border-subtle); border-radius: 2px; overflow: hidden; margin-top: 4px; }
     .upload-toast .bar-fill { height: 100%; background: var(--accent, #2dd4bf); width: 0%; transition: width .2s; }
     .upload-toast .conflict { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
     .upload-toast button {
@@ -9599,6 +9602,15 @@
         hljsLoaded = import('https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/+esm').then(m => m.default);
         return hljsLoaded;
       }
+      // Match the hljs stylesheet to the page theme so a code preview on
+      // Latte renders light, not a dark github-dark island.
+      function syncHljsTheme() {
+        const link = document.getElementById('hljs-theme');
+        if (!link) return;
+        const dark = (document.documentElement.getAttribute('data-theme') || 'latte') !== 'latte';
+        const href = `https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/${dark ? 'github-dark' : 'github'}.min.css`;
+        if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+      }
 
       function formatSize(bytes) {
         if (bytes < 1024) return bytes + ' B';
@@ -9607,6 +9619,7 @@
       }
 
       async function open(projectId, relPath, entry) {
+        syncHljsTheme();
         const modal = document.getElementById('file-preview-modal');
         const body = document.getElementById('file-preview-body');
         document.getElementById('file-preview-name').textContent = entry.name || relPath.split('/').pop();
