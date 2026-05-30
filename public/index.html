@@ -3809,7 +3809,8 @@
       border-radius: var(--radius-sm); padding: 8px 12px; color: var(--text-muted);
     }
     .field:focus-within { box-shadow: var(--focus-ring); border-color: var(--accent); }
-    .field input { border: 0; background: transparent; color: var(--text-primary); font: 500 13px var(--font-ui); outline: none; width: 200px; }
+    .field svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .field input { border: 0; background: transparent; color: var(--text-primary); font: 500 13px var(--font-ui); outline: none; width: 180px; }
     .field kbd { font: 600 10px var(--font-mono); color: var(--text-muted); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
 
     .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px var(--space-2); }
@@ -3817,7 +3818,8 @@
     .sidebar__brand-name { font: 700 15px var(--font-display); letter-spacing: -.01em; }
     .sidebar__brand-name small { display: block; font: 500 11px var(--font-ui); color: var(--text-muted); }
     .sidebar__count { margin-left: auto; font: 600 11px var(--font-mono); color: var(--text-muted); }
-    .sidebar__limit { margin-top: auto; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 10px; background: var(--bg-base); }
+    #sidebar-sessions { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+    .sidebar__limit { display: flex; align-items: center; gap: 10px; margin: var(--space-2) var(--space-2) 0; border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 10px; background: var(--bg-base); }
     .sidebar__limit[hidden] { display: none; }
     .sidebar__limit-ring { --p: 0; width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--border) 0); display: grid; place-items: center; }
     .sidebar__limit-ring i { width: 27px; height: 27px; border-radius: 50%; background: var(--bg-base); display: grid; place-items: center; font: 600 9px var(--font-mono); color: var(--text-secondary); font-style: normal; }
@@ -3830,7 +3832,11 @@
       .app-topbar__search { margin-left: 0; order: 3; flex: 1 1 100%; }
       .section-bar { flex-wrap: wrap; }
     }
-    @media (min-width: 900px) { .header { display: none; } }
+    @media (min-width: 900px) {
+      .header { display: none; }
+      /* Desktop hat keinen Header mehr — Sidebar nicht um die 64px-Header-Höhe versetzen */
+      .sidebar { top: env(safe-area-inset-top, 0px); height: calc(100dvh - env(safe-area-inset-top)); }
+    }
   </style>
   <script src="/locales/en.js"></script>
   <script src="/locales/de.js"></script>
