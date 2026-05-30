@@ -15,6 +15,19 @@ window.__I18N_BUNDLES.en = {
   'sidebar.nav.overview': 'Overview',
   'sidebar.nav.projects': 'Projects',
   'sidebar.nav.usage': 'Usage',
+  'sidebar.brand.subtitle': '{active} active · {dormant} dormant',
+  'sidebar.limit.label': '5h limit',
+  'sidebar.limit.reset': 'resets in {time}',
+
+  // Shell — titles
+  'shell.title.overview': 'Overview',
+  'shell.title.projects': 'Projects',
+  'shell.title.usage': 'Usage',
+
+  // Shell — summary
+  'shell.summary.working': 'working',
+  'shell.summary.waiting': 'waiting',
+  'shell.summary.idle': 'idle',
 
   // Dashboard toolbar
   'dashboard.tablistAria': 'Dashboard tabs',
