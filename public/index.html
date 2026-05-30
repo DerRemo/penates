@@ -118,8 +118,10 @@
 
       /* Radii — in beiden Themes identisch */
       --radius-sm: 8px;
+      --radius-md: 10px;
       --radius: 12px;
       --radius-lg: 16px;
+      --radius-pill: 999px;
 
       /* Motion */
       --ease-out: cubic-bezier(.2,.7,.3,1);
@@ -138,77 +140,198 @@
 
     /* Dark-Theme. Alle Farben gehen durch CSS-Variablen, damit
        Light-Theme weiter unten nur die Werte überschreibt. */
-    :root[data-theme="dark"] {
+    /* ── Catppuccin-Flavors ───────────────────────────────────────
+       Mapping je Flavor: Page=Base, Sidebar/Panel=Mantle, Card=Surface0
+       (raised), Hover=Surface1, Border=Surface1/Surface0/Surface2.
+       Akzent=Teal, working=Blue, waiting=Yellow (Catppuccin-Warning),
+       idle=Green, danger=Red. Tönungen via color-mix über die Anker
+       (kein rgba-Raten). Legacy "dark"→Mocha, "light"/kein-Attr→Latte. */
+
+    /* MOCHA (Default-Dark) */
+    :root[data-theme="mocha"], :root[data-theme="dark"] {
       --bg-deep: #1e1e2e;
       --bg-surface: #181825;
-      --bg-surface-translucent: rgba(30, 30, 46, 0.80);
-      --bg-card: #181825;
-      --bg-card-hover: #313244;
+      --bg-surface-translucent: color-mix(in srgb, #1e1e2e 80%, transparent);
+      --bg-card: #313244;
+      --bg-card-hover: #45475a;
       --bg-elevated: #313244;
-      --border: #313244;
-      --border-subtle: #181825;
+      --border: #45475a;
+      --border-subtle: #313244;
       --text-primary: #cdd6f4;
       --text-secondary: #a6adc8;
       --text-muted: #6c7086;
       --teal: #94e2d5;
-      --teal-dim: #74c7ec;
-      --teal-glow: rgba(148, 226, 213, 0.12);
-      --teal-glow-strong: rgba(148, 226, 213, 0.25);
-      --orange: #fab387;
-      --orange-dim: rgba(250, 179, 135, 0.14);
+      --teal-dim: color-mix(in srgb, #94e2d5 70%, #1e1e2e);
+      --teal-glow: color-mix(in srgb, #94e2d5 14%, transparent);
+      --teal-glow-strong: color-mix(in srgb, #94e2d5 26%, transparent);
+      --orange: #f9e2af;
+      --orange-dim: color-mix(in srgb, #f9e2af 16%, transparent);
       --red: #f38ba8;
-      --red-dim: rgba(243, 139, 168, 0.12);
+      --red-dim: color-mix(in srgb, #f38ba8 13%, transparent);
       --green: #a6e3a1;
-      --green-dim: rgba(166, 227, 161, 0.13);
+      --green-dim: color-mix(in srgb, #a6e3a1 14%, transparent);
       --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.3);
       --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
       --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
-      --modal-backdrop: rgba(17, 17, 27, 0.72);
-      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(148, 226, 213, 0.04) 0%, transparent 60%);
-      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(180, 190, 254, 0.03) 0%, transparent 60%);
+      --modal-backdrop: color-mix(in srgb, #11111b 72%, transparent);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, color-mix(in srgb, #94e2d5 5%, transparent) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, color-mix(in srgb, #b4befe 4%, transparent) 0%, transparent 60%);
       --scanline-display: none;
-
-      /* Neue Token-Aliase (Phase 1 Compat-Layer) */
       --bg-base: var(--bg-deep);
       --bg-overlay: var(--modal-backdrop);
       --text-inverse: #11111b;
       --border-default: var(--border);
-      --border-strong: #45475a;
+      --border-strong: #585b70;
       --accent: var(--teal);
-      --accent-hover: #a6e9dd;
+      --accent-hover: color-mix(in srgb, #94e2d5 85%, #ffffff);
       --accent-muted: var(--teal-glow);
       --accent-contrast: #11111b;
-      --accent-soft: rgba(148, 226, 213, 0.12);
-      --work-soft: rgba(137, 180, 250, 0.13);
-      --wait-soft: rgba(250, 179, 135, 0.14);
-      --idle-soft: rgba(166, 227, 161, 0.13);
-      /* Mauve-Akzent (Catppuccin-Signature) — zum Umschalten einkommentieren:
-         --teal: #cba6f7; --accent-hover: #d9bdfa; --accent-contrast: #11111b;
-         --teal-glow: rgba(203,166,247,.12); --accent-soft: rgba(203,166,247,.12); */
+      --accent-soft: var(--teal-glow);
+      --blue: #89b4fa;
+      --blue-muted: color-mix(in srgb, #89b4fa 14%, transparent);
+      --work-soft: var(--blue-muted);
+      --wait-soft: var(--orange-dim);
+      --idle-soft: var(--green-dim);
       --status-idle: var(--green);
-      --status-working: var(--teal);
+      --status-working: var(--blue);
       --status-waiting: var(--orange);
       --status-offline: var(--text-muted);
       --amber: var(--orange);
       --amber-muted: var(--orange-dim);
       --red-muted: var(--red-dim);
       --green-muted: var(--green-dim);
-      --blue: #89b4fa;
-      --blue-muted: rgba(137, 180, 250, 0.13);
       --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.25);
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
     }
 
-    /* Light-Theme (Default). Weichere Paper-Farben, dunkleres Teal für
-       Kontrast, Scanline aus (sieht auf hellem BG hässlich aus). */
-    :root, :root[data-theme="light"] {
+    /* FRAPPÉ */
+    :root[data-theme="frappe"] {
+      --bg-deep: #303446;
+      --bg-surface: #292c3c;
+      --bg-surface-translucent: color-mix(in srgb, #303446 80%, transparent);
+      --bg-card: #414559;
+      --bg-card-hover: #51576d;
+      --bg-elevated: #414559;
+      --border: #51576d;
+      --border-subtle: #414559;
+      --text-primary: #c6d0f5;
+      --text-secondary: #a5adce;
+      --text-muted: #737994;
+      --teal: #81c8be;
+      --teal-dim: color-mix(in srgb, #81c8be 70%, #303446);
+      --teal-glow: color-mix(in srgb, #81c8be 14%, transparent);
+      --teal-glow-strong: color-mix(in srgb, #81c8be 26%, transparent);
+      --orange: #e5c890;
+      --orange-dim: color-mix(in srgb, #e5c890 16%, transparent);
+      --red: #e78284;
+      --red-dim: color-mix(in srgb, #e78284 13%, transparent);
+      --green: #a6d189;
+      --green-dim: color-mix(in srgb, #a6d189 14%, transparent);
+      --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.3);
+      --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+      --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
+      --modal-backdrop: color-mix(in srgb, #232634 72%, transparent);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, color-mix(in srgb, #81c8be 5%, transparent) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, color-mix(in srgb, #babbf1 4%, transparent) 0%, transparent 60%);
+      --scanline-display: none;
+      --bg-base: var(--bg-deep);
+      --bg-overlay: var(--modal-backdrop);
+      --text-inverse: #232634;
+      --border-default: var(--border);
+      --border-strong: #626880;
+      --accent: var(--teal);
+      --accent-hover: color-mix(in srgb, #81c8be 85%, #ffffff);
+      --accent-muted: var(--teal-glow);
+      --accent-contrast: #232634;
+      --accent-soft: var(--teal-glow);
+      --blue: #8caaee;
+      --blue-muted: color-mix(in srgb, #8caaee 14%, transparent);
+      --work-soft: var(--blue-muted);
+      --wait-soft: var(--orange-dim);
+      --idle-soft: var(--green-dim);
+      --status-idle: var(--green);
+      --status-working: var(--blue);
+      --status-waiting: var(--orange);
+      --status-offline: var(--text-muted);
+      --amber: var(--orange);
+      --amber-muted: var(--orange-dim);
+      --red-muted: var(--red-dim);
+      --green-muted: var(--green-dim);
+      --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.25);
+      --shadow: var(--shadow-card);
+      --shadow-lg: var(--shadow-modal);
+      --shadow-overlay: var(--shadow-modal);
+    }
+
+    /* MACCHIATO */
+    :root[data-theme="macchiato"] {
+      --bg-deep: #24273a;
+      --bg-surface: #1e2030;
+      --bg-surface-translucent: color-mix(in srgb, #24273a 80%, transparent);
+      --bg-card: #363a4f;
+      --bg-card-hover: #494d64;
+      --bg-elevated: #363a4f;
+      --border: #494d64;
+      --border-subtle: #363a4f;
+      --text-primary: #cad3f5;
+      --text-secondary: #a5adcb;
+      --text-muted: #6e738d;
+      --teal: #8bd5ca;
+      --teal-dim: color-mix(in srgb, #8bd5ca 70%, #24273a);
+      --teal-glow: color-mix(in srgb, #8bd5ca 14%, transparent);
+      --teal-glow-strong: color-mix(in srgb, #8bd5ca 26%, transparent);
+      --orange: #eed49f;
+      --orange-dim: color-mix(in srgb, #eed49f 16%, transparent);
+      --red: #ed8796;
+      --red-dim: color-mix(in srgb, #ed8796 13%, transparent);
+      --green: #a6da95;
+      --green-dim: color-mix(in srgb, #a6da95 14%, transparent);
+      --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.3);
+      --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+      --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
+      --modal-backdrop: color-mix(in srgb, #181926 72%, transparent);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, color-mix(in srgb, #8bd5ca 5%, transparent) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, color-mix(in srgb, #b7bdf8 4%, transparent) 0%, transparent 60%);
+      --scanline-display: none;
+      --bg-base: var(--bg-deep);
+      --bg-overlay: var(--modal-backdrop);
+      --text-inverse: #181926;
+      --border-default: var(--border);
+      --border-strong: #5b6078;
+      --accent: var(--teal);
+      --accent-hover: color-mix(in srgb, #8bd5ca 85%, #ffffff);
+      --accent-muted: var(--teal-glow);
+      --accent-contrast: #181926;
+      --accent-soft: var(--teal-glow);
+      --blue: #8aadf4;
+      --blue-muted: color-mix(in srgb, #8aadf4 14%, transparent);
+      --work-soft: var(--blue-muted);
+      --wait-soft: var(--orange-dim);
+      --idle-soft: var(--green-dim);
+      --status-idle: var(--green);
+      --status-working: var(--blue);
+      --status-waiting: var(--orange);
+      --status-offline: var(--text-muted);
+      --amber: var(--orange);
+      --amber-muted: var(--orange-dim);
+      --red-muted: var(--red-dim);
+      --green-muted: var(--green-dim);
+      --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.25);
+      --shadow: var(--shadow-card);
+      --shadow-lg: var(--shadow-modal);
+      --shadow-overlay: var(--shadow-modal);
+    }
+
+    /* LATTE (Default-Light). Hellstes = Base als raised Card; Page=Mantle,
+       Sidebar/Panel=Crust. Greift auch ohne data-theme + bei Legacy "light". */
+    :root, :root[data-theme="latte"], :root[data-theme="light"] {
       --bg-deep: #e6e9ef;
-      --bg-surface: #eff1f5;
-      --bg-surface-translucent: rgba(230, 233, 239, 0.80);
+      --bg-surface: #dce0e8;
+      --bg-surface-translucent: color-mix(in srgb, #e6e9ef 80%, transparent);
       --bg-card: #eff1f5;
-      --bg-card-hover: #dce0e8;
+      --bg-card-hover: #e6e9ef;
       --bg-elevated: #eff1f5;
       --border: #ccd0da;
       --border-subtle: #dce0e8;
@@ -216,51 +339,46 @@
       --text-secondary: #6c6f85;
       --text-muted: #8c8fa1;
       --teal: #179299;
-      --teal-dim: #137a80;
-      --teal-glow: rgba(23, 146, 153, 0.10);
-      --teal-glow-strong: rgba(23, 146, 153, 0.22);
-      --orange: #fe640b;
-      --orange-dim: rgba(254, 100, 11, 0.12);
+      --teal-dim: color-mix(in srgb, #179299 80%, #000000);
+      --teal-glow: color-mix(in srgb, #179299 12%, transparent);
+      --teal-glow-strong: color-mix(in srgb, #179299 22%, transparent);
+      --orange: #df8e1d;
+      --orange-dim: color-mix(in srgb, #df8e1d 16%, transparent);
       --red: #d20f39;
-      --red-dim: rgba(210, 15, 57, 0.08);
+      --red-dim: color-mix(in srgb, #d20f39 10%, transparent);
       --green: #40a02b;
-      --green-dim: rgba(64, 160, 43, 0.10);
-      --shadow-card: 0 4px 14px rgba(15, 22, 35, 0.06);
-      --shadow-modal: 0 20px 60px rgba(15, 22, 35, 0.18);
-      --shadow-toast: 0 8px 24px rgba(15, 22, 35, 0.12);
-      --modal-backdrop: rgba(76, 79, 105, 0.30);
-      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(23, 146, 153, 0.05) 0%, transparent 60%);
-      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(114, 135, 253, 0.04) 0%, transparent 60%);
+      --green-dim: color-mix(in srgb, #40a02b 12%, transparent);
+      --shadow-card: 0 4px 14px rgba(76, 79, 105, 0.06);
+      --shadow-modal: 0 20px 60px rgba(76, 79, 105, 0.18);
+      --shadow-toast: 0 8px 24px rgba(76, 79, 105, 0.12);
+      --modal-backdrop: color-mix(in srgb, #4c4f69 30%, transparent);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, color-mix(in srgb, #179299 6%, transparent) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, color-mix(in srgb, #7287fd 5%, transparent) 0%, transparent 60%);
       --scanline-display: none;
-
-      /* Neue Token-Aliase (Phase 1 Compat-Layer) */
       --bg-base: var(--bg-deep);
       --bg-overlay: var(--modal-backdrop);
       --text-inverse: #ffffff;
       --border-default: var(--border);
       --border-strong: #bcc0cc;
       --accent: var(--teal);
-      --accent-hover: #137a80;
+      --accent-hover: color-mix(in srgb, #179299 88%, #000000);
       --accent-muted: var(--teal-glow);
       --accent-contrast: #ffffff;
-      --accent-soft: rgba(23, 146, 153, 0.10);
-      --work-soft: rgba(30, 102, 245, 0.10);
-      --wait-soft: rgba(254, 100, 11, 0.12);
-      --idle-soft: rgba(64, 160, 43, 0.10);
-      /* Mauve-Akzent (Catppuccin-Signature) — zum Umschalten einkommentieren:
-         --teal: #8839ef; --accent-hover: #7a2fd6; --accent-contrast: #ffffff;
-         --teal-glow: rgba(136,57,239,.10); --accent-soft: rgba(136,57,239,.10); */
+      --accent-soft: var(--teal-glow);
+      --blue: #1e66f5;
+      --blue-muted: color-mix(in srgb, #1e66f5 10%, transparent);
+      --work-soft: var(--blue-muted);
+      --wait-soft: var(--orange-dim);
+      --idle-soft: var(--green-dim);
       --status-idle: var(--green);
-      --status-working: var(--teal);
+      --status-working: var(--blue);
       --status-waiting: var(--orange);
       --status-offline: var(--text-muted);
       --amber: var(--orange);
       --amber-muted: var(--orange-dim);
       --red-muted: var(--red-dim);
       --green-muted: var(--green-dim);
-      --blue: #1e66f5;
-      --blue-muted: rgba(30, 102, 245, 0.10);
-      --shadow-sm: 0 2px 6px rgba(15, 22, 35, 0.06);
+      --shadow-sm: 0 2px 6px rgba(76, 79, 105, 0.06);
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
