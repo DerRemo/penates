@@ -17,13 +17,16 @@
        das falsche Theme auf. Muss als allererstes im <head> stehen. -->
   <script>
     (function(){
+      var THEMES = ['latte','frappe','macchiato','mocha'];
+      var LEGACY = {light:'latte', dark:'mocha'};
       try {
         var stored = localStorage.getItem('cchub_theme');
-        var preferred = stored || 'light';
+        var t = LEGACY[stored] || stored;
+        var preferred = THEMES.indexOf(t) !== -1 ? t : 'latte';
         document.documentElement.setAttribute('data-theme', preferred);
         document.documentElement.style.colorScheme = preferred;
       } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.setAttribute('data-theme', 'latte');
       }
     })();
   </script>
@@ -4183,11 +4186,11 @@
         <h2 data-i18n="settings.section.appearance">Appearance</h2>
         <div class="settings-row">
           <label data-i18n="settings.appearance.themeLabel">Theme</label>
-          <div class="settings-row__control">
-            <button type="button" class="seg-btn" data-theme-value="light"
-                    data-i18n="settings.appearance.themeLight">Light</button>
-            <button type="button" class="seg-btn" data-theme-value="dark"
-                    data-i18n="settings.appearance.themeDark">Dark</button>
+          <div class="settings-row__control" style="flex-wrap:wrap">
+            <button type="button" class="seg-btn" data-theme-value="latte">Latte</button>
+            <button type="button" class="seg-btn" data-theme-value="frappe">Frappé</button>
+            <button type="button" class="seg-btn" data-theme-value="macchiato">Macchiato</button>
+            <button type="button" class="seg-btn" data-theme-value="mocha">Mocha</button>
           </div>
         </div>
       </section>
@@ -4518,23 +4521,31 @@
     let clipboardAbort = null;     // AbortController für Document-level Clipboard-Keys
 
     // ── Theme ──────────────────────────────────────────────────────
+    const THEMES = ['latte','frappe','macchiato','mocha'];
+    const THEME_LEGACY = {light:'latte', dark:'mocha'};
+    function normalizeTheme(t) {
+      var mapped = THEME_LEGACY[t] || t;
+      return THEMES.indexOf(mapped) !== -1 ? mapped : 'latte';
+    }
     function getTheme() {
-      return document.documentElement.getAttribute('data-theme') || 'dark';
+      return normalizeTheme(document.documentElement.getAttribute('data-theme') || 'latte');
     }
     function setTheme(theme, persist = true) {
-      document.documentElement.setAttribute('data-theme', theme);
-      document.documentElement.style.colorScheme = theme;
-      if (persist) localStorage.setItem('cchub_theme', theme);
+      var t = normalizeTheme(theme);
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.style.colorScheme = t;
+      if (persist) localStorage.setItem('cchub_theme', t);
       if (currentTerminal) applyTerminalTheme(currentTerminal);
       if (typeof window._settingsAppearanceSync === 'function') window._settingsAppearanceSync();
     }
     function toggleTheme() {
-      setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+      const idx = THEMES.indexOf(getTheme());
+      setTheme(THEMES[(idx + 1) % THEMES.length]);
     }
     // Folge System-Theme, wenn User keine eigene Präferenz gesetzt hat.
     if (!localStorage.getItem('cchub_theme')) {
       matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
-        if (!localStorage.getItem('cchub_theme')) setTheme(e.matches ? 'light' : 'dark', false);
+        if (!localStorage.getItem('cchub_theme')) setTheme(e.matches ? 'latte' : 'mocha', false);
       });
     }
 
@@ -8548,7 +8559,7 @@
     });
 
     // ── Settings: Appearance ──────────────────────────────────────
-    // Wires the Light/Dark seg-btns in the Appearance section.
+    // Wires the 4 Catppuccin seg-btns (Latte/Frappé/Macchiato/Mocha).
     // Calls the existing setTheme() so xterm-theme + colorScheme stay in sync.
     function initSettingsAppearance() {
       const buttons = document.querySelectorAll('#settings-appearance [data-theme-value]');
