@@ -7145,6 +7145,21 @@
       window.currentWs = ws;
     }
 
+    // ── Resume-Trigger ───────────────────────────────────────────
+    // Reconnectet sofort (Backoff-Reset), wenn App in den Vordergrund kommt oder
+    // das Netz zurück ist — aber nur wenn eine Session aktiv und der WS nicht ohnehin
+    // offen/verbindend ist (Guard gegen Parallel-Storm).
+    function maybeReconnectNow() {
+      if (!currentSessionName) return;
+      if (currentWs && (currentWs.readyState === WebSocket.OPEN || currentWs.readyState === WebSocket.CONNECTING)) return;
+      if (typeof reconnectNow === 'function') reconnectNow();
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') maybeReconnectNow();
+    });
+    window.addEventListener('online', maybeReconnectNow);
+    window.addEventListener('pageshow', maybeReconnectNow);
+
     // ── Touch-Toolbar: Keys → Terminal senden ────────────────────
     // Shared Ctrl-Transform: 0x40-0x7E ASCII → Ctrl+letter (0x00-0x1F
     // via `& 0x1F`). Wird sowohl von term.onData (iOS-Keyboard-Input)
@@ -7225,6 +7240,8 @@
     // direkt vom popstate-Handler wenn der User per Edge-Swipe kommt.
     function disconnectTerminal() {
       clearTimeout(reconnectTimer);
+      stopHeartbeat();
+      reconnectNow = null;
       reconnectTimer = null;
       reconnectAttempts = 0;
       if (currentResizeObserver) {
