@@ -27,7 +27,7 @@ test.describe('File Preview', () => {
       return;
     }
 
-    await target.dblclick();
+    await target.click();
     const modal = page.locator('#file-preview-modal');
     await expect(modal).toBeVisible({ timeout: 5_000 });
 
@@ -35,7 +35,7 @@ test.describe('File Preview', () => {
     const codeBlock = modal.locator('pre, code, .hljs');
     await expect(codeBlock.first()).toBeVisible({ timeout: 5_000 });
 
-    await page.click('#preview-close');
+    await page.click('#file-preview-close');
     await expect(modal).not.toBeVisible({ timeout: 3_000 });
   });
 
@@ -53,12 +53,12 @@ test.describe('File Preview', () => {
       return;
     }
 
-    await imgFile.dblclick();
+    await imgFile.click();
     const modal = page.locator('#file-preview-modal');
     await expect(modal).toBeVisible({ timeout: 5_000 });
     await expect(modal.locator('img')).toBeVisible({ timeout: 5_000 });
 
-    await page.click('#preview-close');
+    await page.click('#file-preview-close');
   });
 
   test('preview modal closes via Escape', async ({ authedPage: page }) => {
@@ -75,7 +75,7 @@ test.describe('File Preview', () => {
       return;
     }
 
-    await file.dblclick();
+    await file.click();
     await expect(page.locator('#file-preview-modal')).toBeVisible({ timeout: 5_000 });
 
     await page.keyboard.press('Escape');
@@ -96,14 +96,14 @@ test.describe('File Preview', () => {
       return;
     }
 
-    await file.dblclick();
+    await file.click();
     await expect(page.locator('#file-preview-modal')).toBeVisible({ timeout: 5_000 });
 
-    const copyBtn = page.locator('#preview-copy-path');
+    const copyBtn = page.locator('#file-preview-copy-path');
     await expect(copyBtn).toBeVisible();
     await copyBtn.click();
     await page.waitForTimeout(300);
 
-    await page.click('#preview-close');
+    await page.click('#file-preview-close');
   });
 });

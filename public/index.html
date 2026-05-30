@@ -3807,8 +3807,11 @@
     }
     @media (min-width: 900px) {
       .header { display: none; }
-      /* Desktop hat keinen Header mehr — Sidebar nicht um die 64px-Header-Höhe versetzen */
+      /* Desktop hat keinen Header mehr — die 64px-Header-Höhe nirgends mehr
+         abziehen (Sidebar, App-Shell und Detail-View laufen voll bis unten). */
       .sidebar { top: env(safe-area-inset-top, 0px); height: calc(100dvh - env(safe-area-inset-top)); }
+      .app-layout { min-height: calc(100dvh - env(safe-area-inset-top)); }
+      .detail-view { height: calc(100dvh - env(safe-area-inset-top)); }
     }
   </style>
   <script src="/locales/en.js"></script>
@@ -9600,6 +9603,7 @@
     // ── v0.6.0 FilePreview Modal ─────────────────────────────────
     const FilePreview = (() => {
       let hljsLoaded = null;
+      let openedAt = 0;
       async function ensureHljs() {
         if (hljsLoaded) return hljsLoaded;
         hljsLoaded = import('https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/+esm').then(m => m.default);
@@ -9629,6 +9633,7 @@
         document.getElementById('file-preview-size').textContent = entry.size != null ? formatSize(entry.size) : '';
         body.innerHTML = `<div class="preview-oversize">${t('preview.loading')}</div>`;
         modal.classList.add('open');
+        openedAt = Date.now();
         try {
           const res = await fetch(`/api/projects/${projectId}/files/content?path=${encodeURIComponent(relPath)}`, {
             headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
@@ -9694,7 +9699,9 @@
 
       function wire() {
         const modal = document.getElementById('file-preview-modal');
-        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+        // Ignore backdrop clicks right after opening so a double-click on a
+        // file row (1st opens, 2nd lands on the backdrop) doesn't flash it shut.
+        modal.addEventListener('click', (e) => { if (e.target === modal && Date.now() - openedAt > 300) close(); });
         document.getElementById('file-preview-close').addEventListener('click', close);
         document.getElementById('file-preview-copy-path').addEventListener('click', () => {
           const name = document.getElementById('file-preview-name').textContent;
