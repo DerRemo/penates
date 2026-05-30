@@ -3953,6 +3953,38 @@
   <div class="app-layout">
 
     <aside class="sidebar" id="sidebar" aria-label="Navigation">
+      <div class="sidebar__brand">
+        <div class="sidebar__brand-mark">&gt;_</div>
+        <div class="sidebar__brand-name">
+          <span data-i18n="header.logoProduct">Claude</span> Hub
+          <small id="sidebar-brand-subtitle"></small>
+        </div>
+      </div>
+
+      <div class="sidebar__label" data-i18n="sidebar.navigationLabel">Navigation</div>
+      <button class="sidebar__item" type="button" data-sidebar-nav="sessions">
+        <span class="sidebar__nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.overview">Overview</span>
+        <span class="sidebar__count" id="nav-count-sessions"></span>
+      </button>
+      <button class="sidebar__item" type="button" data-sidebar-nav="projects">
+        <span class="sidebar__nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+        </span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.projects">Projects</span>
+        <span class="sidebar__count" id="nav-count-projects"></span>
+      </button>
+      <button class="sidebar__item" type="button" data-sidebar-nav="usage">
+        <span class="sidebar__nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
+        </span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.usage">Usage</span>
+      </button>
+
+      <div class="sidebar__divider"></div>
+
       <div class="sidebar__label" data-i18n="sidebar.sessionsLabel">Sessions</div>
       <div class="sidebar__filter" role="group" aria-label="Session filter">
         <button class="sidebar__filter-btn" type="button" data-sidebar-filter="active"
@@ -3964,27 +3996,13 @@
         <div class="sidebar__empty" data-i18n="sidebar.loading">Loading…</div>
       </div>
 
-      <div class="sidebar__divider"></div>
-
-      <div class="sidebar__label" data-i18n="sidebar.navigationLabel">Navigation</div>
-      <button class="sidebar__item" type="button" data-sidebar-nav="sessions">
-        <span class="sidebar__nav-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        </span>
-        <span class="sidebar__nav-label" data-i18n="sidebar.nav.overview">Overview</span>
-      </button>
-      <button class="sidebar__item" type="button" data-sidebar-nav="projects">
-        <span class="sidebar__nav-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
-        </span>
-        <span class="sidebar__nav-label" data-i18n="sidebar.nav.projects">Projects</span>
-      </button>
-      <button class="sidebar__item" type="button" data-sidebar-nav="usage">
-        <span class="sidebar__nav-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
-        </span>
-        <span class="sidebar__nav-label" data-i18n="sidebar.nav.usage">Usage</span>
-      </button>
+      <div class="sidebar__limit" id="sidebar-limit" hidden>
+        <div class="sidebar__limit-ring" id="sidebar-limit-ring"><i id="sidebar-limit-pct"></i></div>
+        <div class="sidebar__limit-meta">
+          <b data-i18n="sidebar.limit.label">5h-Limit</b>
+          <span id="sidebar-limit-reset"></span>
+        </div>
+      </div>
 
       <div class="sidebar__settings-section">
         <button class="sidebar__settings-entry" id="sidebar-settings-entry" type="button"
