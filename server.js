@@ -299,7 +299,7 @@ async function secureMiddleware(req, res, next) {
       // ohne Bearer-Token durch — der Handler prüft das OTP selbst gegen
       // das pending-Approval-Objekt. Enge Pfad-Regex, kein Blast-Radius.
       if (req.method === 'POST' &&
-          /^\/approvals\/[^/]+$/.test(req.path) &&
+          /^\/approvals\/[0-9a-f-]{36}$/.test(req.path) &&
           req.query.token) {
         req.cchContext = { ...rawMeta, user: jwtUser };
         return next();
@@ -1608,6 +1608,13 @@ app.post('/api/sessions/:name/pin', async (req, res) => {
 });
 
 // ── Tool-Approvals ───────────────────────────────────────────────────────────
+// Config-Routen ZUERST, damit Express nicht 'config' als :id matched.
+app.get('/api/approvals/config', (_req, res) => res.json({ enabled: remoteApprovalEnabled }));
+app.post('/api/approvals/config', express.json(), (req, res) => {
+  remoteApprovalEnabled = !!(req.body && req.body.enabled);
+  res.json({ enabled: remoteApprovalEnabled });
+});
+
 // Entscheidung vom Dashboard (Bearer) ODER vom Service-Worker (?token=<otp>).
 app.post('/api/approvals/:id', express.json(), (req, res) => {
   const { id } = req.params;
@@ -1618,12 +1625,6 @@ app.post('/api/approvals/:id', express.json(), (req, res) => {
   const ok = approvals.resolve(id, decision);
   if (!ok) return res.status(404).json({ error: 'not-found-or-resolved' });
   res.json({ ok: true, decision });
-});
-
-app.get('/api/approvals/config', (_req, res) => res.json({ enabled: remoteApprovalEnabled }));
-app.post('/api/approvals/config', express.json(), (req, res) => {
-  remoteApprovalEnabled = !!(req.body && req.body.enabled);
-  res.json({ enabled: remoteApprovalEnabled });
 });
 
 // ── Claude-Code Hooks ────────────────────────────────────────────────────────
