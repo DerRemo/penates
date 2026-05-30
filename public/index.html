@@ -4488,12 +4488,30 @@
     let currentSessionName = null;
     let currentResizeObserver = null;
     let refreshInterval = null;
+    let sidebarLimitInterval = null;
     let reconnectTimer = null;
     let reconnectAttempts = 0;
     const MAX_RECONNECT = 3;
     let pingTimer = null;       // Client→Server app-level ping interval
     let pongTimer = null;       // erwartet {type:'pong'} innerhalb der Frist
     let reconnectNow = null;    // gesetzt in openTerminalWebSocket → von Resume-Triggern genutzt
+
+    // gespiegelt aus lib/shell-counts.js — bei Änderung beide pflegen
+    function deriveShellCounts(sessions) {
+      const c = { total: 0, active: 0, dormant: 0, working: 0, waiting: 0, idle: 0, unknown: 0 };
+      for (const s of sessions || []) {
+        c.total++;
+        if (s && s.status === 'dormant') { c.dormant++; continue; }
+        c.active++;
+        switch (s && s.activity) {
+          case 'working': c.working++; break;
+          case 'waiting': c.waiting++; break;
+          case 'idle':    c.idle++;    break;
+          default:        c.unknown++; break;
+        }
+      }
+      return c;
+    }
 
     // Mirror von lib/backoff.js (dort unit-getestet). Base 1s, Faktor 2, Cap 20s, ±20% Jitter.
     function nextBackoffMs(attempt) {
@@ -4700,6 +4718,52 @@
       if (tab === 'usage') renderUsage();
       if (tab === 'projects') { renderProjectsWithSearch(searchQuery); openProjectEventsWs(); }
       updateSidebarNavActive();
+      updateShellChrome();
+    }
+
+    // ── Shell-Chrome Helpers ───────────────────────────────────────
+    const SHELL_TITLES = { sessions: 'shell.title.overview', projects: 'shell.title.projects', usage: 'shell.title.usage' };
+    function updateShellChrome() {
+      const tab = getTab();
+      const c = deriveShellCounts(sessions || []);
+      const titleKey = SHELL_TITLES[tab] || SHELL_TITLES.sessions;
+      const titleEl = document.getElementById('shell-title');
+      if (titleEl) { titleEl.setAttribute('data-i18n', titleKey); titleEl.textContent = t(titleKey); }
+      const sub = document.getElementById('sidebar-brand-subtitle');
+      if (sub) sub.textContent = t('sidebar.brand.subtitle', { active: c.active, dormant: c.dormant });
+      const sum = document.getElementById('shell-summary');
+      if (sum) sum.innerHTML = `<b>${c.working}</b> ${t('shell.summary.working')}<span class="sep">·</span><b>${c.waiting}</b> ${t('shell.summary.waiting')}<span class="sep">·</span><b>${c.idle}</b> ${t('shell.summary.idle')}`;
+      const navS = document.getElementById('nav-count-sessions');
+      if (navS) navS.textContent = c.active || '';
+      const lbl = document.getElementById('shell-section-label');
+      const cnt = document.getElementById('shell-section-count');
+      if (lbl && cnt) {
+        if (tab === 'sessions') { lbl.textContent = t('sidebar.filterActive').toUpperCase(); cnt.textContent = c.active; cnt.hidden = false; }
+        else { lbl.textContent = t(SHELL_TITLES[tab]).toUpperCase(); cnt.hidden = true; }
+      }
+    }
+
+    function updateSidebarLimit(pct, resetTs) {
+      const box = document.getElementById('sidebar-limit');
+      if (!box) return;
+      if (pct == null) { box.hidden = true; return; }
+      box.hidden = false;
+      const ring = document.getElementById('sidebar-limit-ring');
+      ring.style.setProperty('--p', pct);
+      ring.className = 'sidebar__limit-ring ' + limitColorClass(pct);
+      document.getElementById('sidebar-limit-pct').textContent = pct + '%';
+      const resetEl = document.getElementById('sidebar-limit-reset');
+      resetEl.textContent = resetTs ? t('sidebar.limit.reset', { time: formatResetCountdown(resetTs) }) : '';
+    }
+    async function refreshSidebarLimit() {
+      try {
+        const res = await fetch('/api/usage/limits?days=7', { headers: apiHeaders() });
+        if (!res.ok) { updateSidebarLimit(null); return; }
+        const lim = await res.json();
+        const acc = (lim.accounts || [])[0];
+        const w5 = acc && (acc.windows || []).find(w => w.label === '5h');
+        updateSidebarLimit(w5 ? Math.round(w5.usedPercentage ?? 0) : null, w5 && w5.resetsAt);
+      } catch (_) { updateSidebarLimit(null); }
     }
 
     // ── Token-Formatter ────────────────────────────────────────────
@@ -4855,6 +4919,8 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const projects = data.projects || [];
+        const np = document.getElementById('nav-count-projects');
+        if (np) np.textContent = projects.length || '';
 
         if (projects.length === 0) {
           view.innerHTML = buildProjectsEmptyHtml();
@@ -6353,6 +6419,7 @@
           });
         }
         updateTabBadge();
+        updateShellChrome();
       } catch (err) {
         if (sessions === null) sessions = []; // erster Fetch fehlgeschlagen → nicht ewig Skeleton zeigen
         renderSessions();
@@ -8809,6 +8876,11 @@
     // damit Attention-Events auch dann ankommen wenn der User gerade
     // im Projekte- oder Usage-Tab ist.
     openNotifyWs();
+    // Sidebar-Limit-Ring: einmaliger Fetch + 60s-Polling.
+    if (!sidebarLimitInterval) {
+      refreshSidebarLimit();
+      sidebarLimitInterval = setInterval(refreshSidebarLimit, 60000);
+    }
     // Web Push: Service Worker registrieren + VAPID-Key holen.
     initPush();
     // Settings page: wire controls.
