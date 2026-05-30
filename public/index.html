@@ -4946,6 +4946,10 @@
     function patchActivityBadge(name, activity, tool) {
       const card = document.querySelector(`.session-card[data-name="${CSS.escape(name)}"]`);
       if (card) {
+        // Status-Streifen folgt der activity (nur running-Cards tragen data-activity)
+        if (card.getAttribute('data-status') === 'running') {
+          card.setAttribute('data-activity', activity || 'unknown');
+        }
         const badge = card.querySelector('.session-status');
         if (badge) {
           if (tool) {
@@ -6364,22 +6368,14 @@
       const renderForeignCard = (s) => {
         const displayName = s.name;
         const safeName = escapeHtml(s.name);
-        const age = formatAge(s.created);
         return `
           <div class="session-card" data-status="foreign" data-name="${safeName}">
             <div class="session-card-header">
               <div class="session-name">
-                <span class="icon">&gt;_</span>
-                ${escapeHtml(displayName)}
+                <span class="cli-logo cli-logo--fallback" aria-hidden="true">${TERMINAL_GLYPH}</span>
+                <span class="session-name-text">${escapeHtml(displayName)}</span>
               </div>
               <span class="foreign-badge">tmux</span>
-            </div>
-            <div class="session-meta">
-              <div class="session-meta-item">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                ${age}
-              </div>
-              ${s.git ? renderGitBadge(s.git, s.name) : ''}
             </div>
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-primary btn-sm" data-action="adopt">
