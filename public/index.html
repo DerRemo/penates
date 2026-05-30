@@ -7037,7 +7037,12 @@
           .then(({ data }) => { if (data) term.write(data); })
           .catch(() => {})
           .finally(() => {
-            openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/false);
+            // Guard: User könnte während des Seed-Fetch weg-navigiert haben
+            // (disconnectTerminal → term disposed). Dann KEINEN WS auf das tote
+            // Terminal öffnen (sonst Orphan-WS + Heartbeat-Leak).
+            if (currentSessionName === name && currentTerminal === term) {
+              openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/false);
+            }
           });
 
         // Handle resize — Observer wird in disconnectTerminal aufgeräumt.
@@ -7077,7 +7082,7 @@
     // funktioniert. terminalRef/fitAddonRef/containerRef bleiben stabil.
     function openTerminalWebSocket(name, term, fitAddon, container, isReconnect) {
       const displayName = name.replace(/^cc-/, '');
-      setConnStatus('connecting', isReconnect ? t('terminal.connStatus.reconnecting', { n: reconnectAttempts, max: MAX_RECONNECT }) : t('terminal.connStatus.connecting'));
+      setConnStatus('connecting', isReconnect ? t('terminal.connStatus.reconnecting', { n: reconnectAttempts }) : t('terminal.connStatus.connecting'));
 
       const protocols = AUTH_TOKEN ? [`bearer.${AUTH_TOKEN}`] : [];
       const ws = new WebSocket(wsUrl(name), protocols);
