@@ -105,13 +105,14 @@ test.describe('multi-CLI picker', () => {
     // The card must exist first
     await expect(page.locator('.session-card[data-name="cc-codexsess"]')).toBeVisible({ timeout: 10_000 });
 
-    // The cli-badge depends on _clisMod being loaded (async import).
-    // Wait for it via waitForFunction, then assert via locator.
+    // Redesign: Der Text-Badge (.cli-badge) auf der Card wurde durch das
+    // CLI-Brand-Logo (.cli-logo svg) ersetzt. Das Logo hängt am async
+    // geladenen _clisMod — via waitForFunction abwarten, dann asserten.
     await page.waitForFunction(
-      () => document.querySelector('.session-card[data-name="cc-codexsess"] .cli-badge') !== null,
+      () => document.querySelector('.session-card[data-name="cc-codexsess"] .cli-logo svg') !== null,
       { timeout: 10_000 },
     );
 
-    await expect(page.locator('.session-card[data-name="cc-codexsess"] .cli-badge').first()).toBeVisible();
+    await expect(page.locator('.session-card[data-name="cc-codexsess"] .cli-logo').first()).toBeVisible();
   });
 });
