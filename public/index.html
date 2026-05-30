@@ -17,19 +17,22 @@
        das falsche Theme auf. Muss als allererstes im <head> stehen. -->
   <script>
     (function(){
+      var THEMES = ['latte','frappe','macchiato','mocha'];
+      var LEGACY = {light:'latte', dark:'mocha'};
       try {
         var stored = localStorage.getItem('cchub_theme');
-        var preferred = stored || 'light';
+        var t = LEGACY[stored] || stored;
+        var preferred = THEMES.indexOf(t) !== -1 ? t : 'latte';
         document.documentElement.setAttribute('data-theme', preferred);
         document.documentElement.style.colorScheme = preferred;
       } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.setAttribute('data-theme', 'latte');
       }
     })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     /* Fonts werden lokal aus public/fonts/ ausgeliefert (kein CDN, kein CORS).
        JetBrains Mono deckt Latin + Box Drawing + Block Elements, aber KEINE
@@ -112,13 +115,25 @@
       --text-md: 16px;
       --text-lg: 20px;
       --text-xl: 24px;
-      --font-ui: 'DM Sans', -apple-system, system-ui, sans-serif;
+      --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+      --font-ui: 'Inter', -apple-system, system-ui, sans-serif;
       --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
       /* Radii — in beiden Themes identisch */
       --radius-sm: 8px;
+      --radius-md: 10px;
       --radius: 12px;
       --radius-lg: 16px;
+      --radius-pill: 999px;
+
+      /* Motion */
+      --ease-out: cubic-bezier(.2,.7,.3,1);
+      --ease-in: cubic-bezier(.5,0,.9,.3);
+      --ease-in-out: cubic-bezier(.5,.05,.2,1);
+      --dur-fast: .12s;
+      --dur: .18s;
+      --dur-slow: .28s;
+      --focus-ring: 0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent);
 
       /* Breakpoints (als Referenz — media queries können keine var() nutzen) */
       --bp-sm: 640px;
@@ -128,115 +143,245 @@
 
     /* Dark-Theme. Alle Farben gehen durch CSS-Variablen, damit
        Light-Theme weiter unten nur die Werte überschreibt. */
-    :root[data-theme="dark"] {
-      --bg-deep: #0a0e14;
-      --bg-surface: #111720;
-      --bg-surface-translucent: rgba(10, 14, 20, 0.85);
-      --bg-card: #161d28;
-      --bg-card-hover: #1a2332;
-      --bg-elevated: #1e2738;
-      --border: #1e2a3a;
-      --border-subtle: #152030;
-      --text-primary: #e4e8ee;
-      --text-secondary: #7a8ba0;
-      --text-muted: #4a5a6e;
-      --teal: #2dd4bf;
-      --teal-dim: #1a9e8e;
-      --teal-glow: rgba(45, 212, 191, 0.12);
-      --teal-glow-strong: rgba(45, 212, 191, 0.25);
-      --orange: #f59e0b;
-      --orange-dim: rgba(245, 158, 11, 0.15);
-      --red: #ef4444;
-      --red-dim: rgba(239, 68, 68, 0.12);
-      --green: #22c55e;
-      --green-dim: rgba(34, 197, 94, 0.12);
+    /* ── Catppuccin-Flavors ───────────────────────────────────────
+       Mapping je Flavor: Page=Base, Sidebar/Panel=Mantle, Card=Surface0
+       (raised), Hover=Surface1, Border=Surface1/Surface0/Surface2.
+       Akzent=Teal, working=Blue, waiting=Yellow (Catppuccin-Warning),
+       idle=Green, danger=Red. Tönungen via color-mix über die Anker
+       (kein rgba-Raten). Legacy "dark"→Mocha, "light"/kein-Attr→Latte. */
+
+    /* MOCHA (Default-Dark) */
+    :root[data-theme="mocha"], :root[data-theme="dark"] {
+      --bg-deep: #1e1e2e;
+      --bg-surface: #181825;
+      --bg-surface-translucent: color-mix(in srgb, #1e1e2e 80%, transparent);
+      --bg-card: #313244;
+      --bg-card-hover: #45475a;
+      --bg-elevated: #313244;
+      --border: #45475a;
+      --border-subtle: #313244;
+      --text-primary: #cdd6f4;
+      --text-secondary: #a6adc8;
+      --text-muted: #6c7086;
+      --teal: #94e2d5;
+      --teal-dim: color-mix(in srgb, #94e2d5 70%, #1e1e2e);
+      --teal-glow: color-mix(in srgb, #94e2d5 14%, transparent);
+      --teal-glow-strong: color-mix(in srgb, #94e2d5 26%, transparent);
+      --orange: #f9e2af;
+      --orange-dim: color-mix(in srgb, #f9e2af 16%, transparent);
+      --red: #f38ba8;
+      --red-dim: color-mix(in srgb, #f38ba8 13%, transparent);
+      --green: #a6e3a1;
+      --green-dim: color-mix(in srgb, #a6e3a1 14%, transparent);
       --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.3);
       --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
       --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
-      --modal-backdrop: rgba(0, 0, 0, 0.7);
-      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(45, 212, 191, 0.04) 0%, transparent 60%);
-      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 60%);
-      --scanline-display: block;
-
-      /* Neue Token-Aliase (Phase 1 Compat-Layer) */
+      --modal-backdrop: color-mix(in srgb, #11111b 72%, transparent);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, color-mix(in srgb, #94e2d5 5%, transparent) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, color-mix(in srgb, #b4befe 4%, transparent) 0%, transparent 60%);
+      --scanline-display: none;
       --bg-base: var(--bg-deep);
       --bg-overlay: var(--modal-backdrop);
-      --text-inverse: #0a0e14;
+      --text-inverse: #11111b;
       --border-default: var(--border);
-      --border-strong: #2a3a4f;
+      --border-strong: #585b70;
       --accent: var(--teal);
-      --accent-hover: #5eead4;
+      --accent-hover: color-mix(in srgb, #94e2d5 85%, #ffffff);
       --accent-muted: var(--teal-glow);
-      --accent-contrast: #0a0e14;
+      --accent-contrast: #11111b;
+      --accent-soft: var(--teal-glow);
+      --blue: #89b4fa;
+      --blue-muted: color-mix(in srgb, #89b4fa 14%, transparent);
+      --work-soft: var(--blue-muted);
+      --wait-soft: var(--orange-dim);
+      --idle-soft: var(--green-dim);
       --status-idle: var(--green);
-      --status-working: var(--teal);
+      --status-working: var(--blue);
       --status-waiting: var(--orange);
       --status-offline: var(--text-muted);
       --amber: var(--orange);
       --amber-muted: var(--orange-dim);
       --red-muted: var(--red-dim);
       --green-muted: var(--green-dim);
-      --blue: #60a5fa;
-      --blue-muted: rgba(96, 165, 250, 0.15);
       --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.25);
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
     }
 
-    /* Light-Theme (Default). Weichere Paper-Farben, dunkleres Teal für
-       Kontrast, Scanline aus (sieht auf hellem BG hässlich aus). */
-    :root, :root[data-theme="light"] {
-      --bg-deep: #f6f7f9;
-      --bg-surface: #ffffff;
-      --bg-surface-translucent: rgba(255, 255, 255, 0.85);
-      --bg-card: #ffffff;
-      --bg-card-hover: #f2f4f7;
-      --bg-elevated: #ffffff;
-      --border: #e2e6ec;
-      --border-subtle: #edf0f4;
-      --text-primary: #0f1623;
-      --text-secondary: #4b5a70;
-      --text-muted: #8795a8;
-      --teal: #0d9488;
-      --teal-dim: #0f766e;
-      --teal-glow: rgba(13, 148, 136, 0.10);
-      --teal-glow-strong: rgba(13, 148, 136, 0.22);
-      --orange: #c2660a;
-      --orange-dim: rgba(194, 102, 10, 0.10);
-      --red: #dc2626;
-      --red-dim: rgba(220, 38, 38, 0.08);
-      --green: #15803d;
-      --green-dim: rgba(21, 128, 61, 0.10);
-      --shadow-card: 0 4px 14px rgba(15, 22, 35, 0.06);
-      --shadow-modal: 0 20px 60px rgba(15, 22, 35, 0.18);
-      --shadow-toast: 0 8px 24px rgba(15, 22, 35, 0.12);
-      --modal-backdrop: rgba(15, 22, 35, 0.35);
-      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(13, 148, 136, 0.06) 0%, transparent 60%);
-      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(99, 102, 241, 0.04) 0%, transparent 60%);
+    /* FRAPPÉ */
+    :root[data-theme="frappe"] {
+      --bg-deep: #303446;
+      --bg-surface: #292c3c;
+      --bg-surface-translucent: color-mix(in srgb, #303446 80%, transparent);
+      --bg-card: #414559;
+      --bg-card-hover: #51576d;
+      --bg-elevated: #414559;
+      --border: #51576d;
+      --border-subtle: #414559;
+      --text-primary: #c6d0f5;
+      --text-secondary: #a5adce;
+      --text-muted: #737994;
+      --teal: #81c8be;
+      --teal-dim: color-mix(in srgb, #81c8be 70%, #303446);
+      --teal-glow: color-mix(in srgb, #81c8be 14%, transparent);
+      --teal-glow-strong: color-mix(in srgb, #81c8be 26%, transparent);
+      --orange: #e5c890;
+      --orange-dim: color-mix(in srgb, #e5c890 16%, transparent);
+      --red: #e78284;
+      --red-dim: color-mix(in srgb, #e78284 13%, transparent);
+      --green: #a6d189;
+      --green-dim: color-mix(in srgb, #a6d189 14%, transparent);
+      --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.3);
+      --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+      --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
+      --modal-backdrop: color-mix(in srgb, #232634 72%, transparent);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, color-mix(in srgb, #81c8be 5%, transparent) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, color-mix(in srgb, #babbf1 4%, transparent) 0%, transparent 60%);
       --scanline-display: none;
-
-      /* Neue Token-Aliase (Phase 1 Compat-Layer) */
       --bg-base: var(--bg-deep);
       --bg-overlay: var(--modal-backdrop);
-      --text-inverse: #ffffff;
+      --text-inverse: #232634;
       --border-default: var(--border);
-      --border-strong: #c8cfda;
+      --border-strong: #626880;
       --accent: var(--teal);
-      --accent-hover: #0f766e;
+      --accent-hover: color-mix(in srgb, #81c8be 85%, #ffffff);
       --accent-muted: var(--teal-glow);
-      --accent-contrast: #ffffff;
+      --accent-contrast: #232634;
+      --accent-soft: var(--teal-glow);
+      --blue: #8caaee;
+      --blue-muted: color-mix(in srgb, #8caaee 14%, transparent);
+      --work-soft: var(--blue-muted);
+      --wait-soft: var(--orange-dim);
+      --idle-soft: var(--green-dim);
       --status-idle: var(--green);
-      --status-working: var(--teal);
+      --status-working: var(--blue);
       --status-waiting: var(--orange);
       --status-offline: var(--text-muted);
       --amber: var(--orange);
       --amber-muted: var(--orange-dim);
       --red-muted: var(--red-dim);
       --green-muted: var(--green-dim);
-      --blue: #2563eb;
-      --blue-muted: rgba(37, 99, 235, 0.10);
-      --shadow-sm: 0 2px 6px rgba(15, 22, 35, 0.06);
+      --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.25);
+      --shadow: var(--shadow-card);
+      --shadow-lg: var(--shadow-modal);
+      --shadow-overlay: var(--shadow-modal);
+    }
+
+    /* MACCHIATO */
+    :root[data-theme="macchiato"] {
+      --bg-deep: #24273a;
+      --bg-surface: #1e2030;
+      --bg-surface-translucent: color-mix(in srgb, #24273a 80%, transparent);
+      --bg-card: #363a4f;
+      --bg-card-hover: #494d64;
+      --bg-elevated: #363a4f;
+      --border: #494d64;
+      --border-subtle: #363a4f;
+      --text-primary: #cad3f5;
+      --text-secondary: #a5adcb;
+      --text-muted: #6e738d;
+      --teal: #8bd5ca;
+      --teal-dim: color-mix(in srgb, #8bd5ca 70%, #24273a);
+      --teal-glow: color-mix(in srgb, #8bd5ca 14%, transparent);
+      --teal-glow-strong: color-mix(in srgb, #8bd5ca 26%, transparent);
+      --orange: #eed49f;
+      --orange-dim: color-mix(in srgb, #eed49f 16%, transparent);
+      --red: #ed8796;
+      --red-dim: color-mix(in srgb, #ed8796 13%, transparent);
+      --green: #a6da95;
+      --green-dim: color-mix(in srgb, #a6da95 14%, transparent);
+      --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.3);
+      --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+      --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
+      --modal-backdrop: color-mix(in srgb, #181926 72%, transparent);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, color-mix(in srgb, #8bd5ca 5%, transparent) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, color-mix(in srgb, #b7bdf8 4%, transparent) 0%, transparent 60%);
+      --scanline-display: none;
+      --bg-base: var(--bg-deep);
+      --bg-overlay: var(--modal-backdrop);
+      --text-inverse: #181926;
+      --border-default: var(--border);
+      --border-strong: #5b6078;
+      --accent: var(--teal);
+      --accent-hover: color-mix(in srgb, #8bd5ca 85%, #ffffff);
+      --accent-muted: var(--teal-glow);
+      --accent-contrast: #181926;
+      --accent-soft: var(--teal-glow);
+      --blue: #8aadf4;
+      --blue-muted: color-mix(in srgb, #8aadf4 14%, transparent);
+      --work-soft: var(--blue-muted);
+      --wait-soft: var(--orange-dim);
+      --idle-soft: var(--green-dim);
+      --status-idle: var(--green);
+      --status-working: var(--blue);
+      --status-waiting: var(--orange);
+      --status-offline: var(--text-muted);
+      --amber: var(--orange);
+      --amber-muted: var(--orange-dim);
+      --red-muted: var(--red-dim);
+      --green-muted: var(--green-dim);
+      --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.25);
+      --shadow: var(--shadow-card);
+      --shadow-lg: var(--shadow-modal);
+      --shadow-overlay: var(--shadow-modal);
+    }
+
+    /* LATTE (Default-Light). Hellstes = Base als raised Card; Page=Mantle,
+       Sidebar/Panel=Crust. Greift auch ohne data-theme + bei Legacy "light". */
+    :root, :root[data-theme="latte"], :root[data-theme="light"] {
+      --bg-deep: #e6e9ef;
+      --bg-surface: #dce0e8;
+      --bg-surface-translucent: color-mix(in srgb, #e6e9ef 80%, transparent);
+      --bg-card: #eff1f5;
+      --bg-card-hover: #e6e9ef;
+      --bg-elevated: #eff1f5;
+      --border: #ccd0da;
+      --border-subtle: #dce0e8;
+      --text-primary: #4c4f69;
+      --text-secondary: #6c6f85;
+      --text-muted: #8c8fa1;
+      --teal: #179299;
+      --teal-dim: color-mix(in srgb, #179299 80%, #000000);
+      --teal-glow: color-mix(in srgb, #179299 12%, transparent);
+      --teal-glow-strong: color-mix(in srgb, #179299 22%, transparent);
+      --orange: #df8e1d;
+      --orange-dim: color-mix(in srgb, #df8e1d 16%, transparent);
+      --red: #d20f39;
+      --red-dim: color-mix(in srgb, #d20f39 10%, transparent);
+      --green: #40a02b;
+      --green-dim: color-mix(in srgb, #40a02b 12%, transparent);
+      --shadow-card: 0 4px 14px rgba(76, 79, 105, 0.06);
+      --shadow-modal: 0 20px 60px rgba(76, 79, 105, 0.18);
+      --shadow-toast: 0 8px 24px rgba(76, 79, 105, 0.12);
+      --modal-backdrop: color-mix(in srgb, #4c4f69 30%, transparent);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, color-mix(in srgb, #179299 6%, transparent) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, color-mix(in srgb, #7287fd 5%, transparent) 0%, transparent 60%);
+      --scanline-display: none;
+      --bg-base: var(--bg-deep);
+      --bg-overlay: var(--modal-backdrop);
+      --text-inverse: #ffffff;
+      --border-default: var(--border);
+      --border-strong: #bcc0cc;
+      --accent: var(--teal);
+      --accent-hover: color-mix(in srgb, #179299 88%, #000000);
+      --accent-muted: var(--teal-glow);
+      --accent-contrast: #ffffff;
+      --accent-soft: var(--teal-glow);
+      --blue: #1e66f5;
+      --blue-muted: color-mix(in srgb, #1e66f5 10%, transparent);
+      --work-soft: var(--blue-muted);
+      --wait-soft: var(--orange-dim);
+      --idle-soft: var(--green-dim);
+      --status-idle: var(--green);
+      --status-working: var(--blue);
+      --status-waiting: var(--orange);
+      --status-offline: var(--text-muted);
+      --amber: var(--orange);
+      --amber-muted: var(--orange-dim);
+      --red-muted: var(--red-dim);
+      --green-muted: var(--green-dim);
+      --shadow-sm: 0 2px 6px rgba(76, 79, 105, 0.06);
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
@@ -245,7 +390,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'DM Sans', -apple-system, sans-serif;
+      font-family: var(--font-ui);
       background: var(--bg-deep);
       color: var(--text-primary);
       min-height: 100dvh;
@@ -693,7 +838,7 @@
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
-      font-family: 'DM Sans', sans-serif;
+      font-family: var(--font-ui);
       font-size: 13px;
       font-weight: 600;
       letter-spacing: 0.3px;
@@ -1192,7 +1337,7 @@
       font-size: 12px; font-weight: 600; text-transform: uppercase;
       letter-spacing: 0.08em; opacity: 0.6;
       margin: 0 0 12px;
-      font-family: 'DM Sans', sans-serif;
+      font-family: var(--font-ui);
     }
     .roadmap-search-list { list-style: none; margin: 0; padding: 0; }
     .roadmap-search-hit {
@@ -1418,7 +1563,7 @@
       font-size: 11px; font-weight: 600; text-transform: uppercase;
       letter-spacing: 0.08em; opacity: 0.6;
       margin: 0 0 8px;
-      font-family: 'DM Sans', sans-serif;
+      font-family: var(--font-ui);
     }
     .project-sessions-list { list-style: none; margin: 0; padding: 0; }
     .project-session-item {
@@ -2181,7 +2326,7 @@
       border-left: 1px solid var(--border-subtle);
       background: transparent;
       color: var(--text-muted);
-      font-family: 'DM Sans', sans-serif;
+      font-family: var(--font-ui);
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
@@ -2226,7 +2371,7 @@
     }
 
     .tree-mkdir-hint {
-      font-family: 'DM Sans', sans-serif;
+      font-family: var(--font-ui);
       font-size: 11px;
       color: var(--danger, #e44);
       margin-left: 6px;
@@ -2739,7 +2884,7 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       padding: 8px 12px 8px 32px;
-      font-family: 'DM Sans', sans-serif;
+      font-family: var(--font-ui);
       font-size: 13px;
       color: var(--text-primary);
       outline: none;
@@ -4041,11 +4186,11 @@
         <h2 data-i18n="settings.section.appearance">Appearance</h2>
         <div class="settings-row">
           <label data-i18n="settings.appearance.themeLabel">Theme</label>
-          <div class="settings-row__control">
-            <button type="button" class="seg-btn" data-theme-value="light"
-                    data-i18n="settings.appearance.themeLight">Light</button>
-            <button type="button" class="seg-btn" data-theme-value="dark"
-                    data-i18n="settings.appearance.themeDark">Dark</button>
+          <div class="settings-row__control" style="flex-wrap:wrap">
+            <button type="button" class="seg-btn" data-theme-value="latte">Latte</button>
+            <button type="button" class="seg-btn" data-theme-value="frappe">Frappé</button>
+            <button type="button" class="seg-btn" data-theme-value="macchiato">Macchiato</button>
+            <button type="button" class="seg-btn" data-theme-value="mocha">Mocha</button>
           </div>
         </div>
       </section>
@@ -4376,23 +4521,31 @@
     let clipboardAbort = null;     // AbortController für Document-level Clipboard-Keys
 
     // ── Theme ──────────────────────────────────────────────────────
+    const THEMES = ['latte','frappe','macchiato','mocha'];
+    const THEME_LEGACY = {light:'latte', dark:'mocha'};
+    function normalizeTheme(t) {
+      var mapped = THEME_LEGACY[t] || t;
+      return THEMES.indexOf(mapped) !== -1 ? mapped : 'latte';
+    }
     function getTheme() {
-      return document.documentElement.getAttribute('data-theme') || 'dark';
+      return normalizeTheme(document.documentElement.getAttribute('data-theme') || 'latte');
     }
     function setTheme(theme, persist = true) {
-      document.documentElement.setAttribute('data-theme', theme);
-      document.documentElement.style.colorScheme = theme;
-      if (persist) localStorage.setItem('cchub_theme', theme);
+      var t = normalizeTheme(theme);
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.style.colorScheme = t;
+      if (persist) localStorage.setItem('cchub_theme', t);
       if (currentTerminal) applyTerminalTheme(currentTerminal);
       if (typeof window._settingsAppearanceSync === 'function') window._settingsAppearanceSync();
     }
     function toggleTheme() {
-      setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+      const idx = THEMES.indexOf(getTheme());
+      setTheme(THEMES[(idx + 1) % THEMES.length]);
     }
     // Folge System-Theme, wenn User keine eigene Präferenz gesetzt hat.
     if (!localStorage.getItem('cchub_theme')) {
       matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
-        if (!localStorage.getItem('cchub_theme')) setTheme(e.matches ? 'light' : 'dark', false);
+        if (!localStorage.getItem('cchub_theme')) setTheme(e.matches ? 'latte' : 'mocha', false);
       });
     }
 
@@ -8406,7 +8559,7 @@
     });
 
     // ── Settings: Appearance ──────────────────────────────────────
-    // Wires the Light/Dark seg-btns in the Appearance section.
+    // Wires the 4 Catppuccin seg-btns (Latte/Frappé/Macchiato/Mocha).
     // Calls the existing setTheme() so xterm-theme + colorScheme stay in sync.
     function initSettingsAppearance() {
       const buttons = document.querySelectorAll('#settings-appearance [data-theme-value]');

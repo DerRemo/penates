@@ -2,7 +2,7 @@ import { test, expect } from './fixtures.js';
 
 test.describe('Settings & Preferences', () => {
   // ── Theme toggle (via Settings page) ─────────────────────────────────────
-  test('theme toggle switches dark/light', async ({ authedPage: page }) => {
+  test('theme toggle switches flavor', async ({ authedPage: page }) => {
     await page.click('#sidebar-settings-entry');
     await page.waitForSelector('body[data-current-view="settings"]', { timeout: 10_000 });
 
@@ -10,7 +10,7 @@ test.describe('Settings & Preferences', () => {
     const initialTheme = await page.evaluate(() =>
       document.documentElement.getAttribute('data-theme')
     );
-    const newThemeValue = initialTheme === 'dark' ? 'light' : 'dark';
+    const newThemeValue = initialTheme === 'mocha' ? 'latte' : 'mocha';
 
     await page.locator(`#settings-appearance [data-theme-value="${newThemeValue}"]`).click();
     await page.waitForTimeout(300);
@@ -35,7 +35,7 @@ test.describe('Settings & Preferences', () => {
     const initialTheme = await page.evaluate(() =>
       document.documentElement.getAttribute('data-theme')
     );
-    const targetTheme = initialTheme === 'dark' ? 'light' : 'dark';
+    const targetTheme = initialTheme === 'mocha' ? 'latte' : 'mocha';
 
     await page.locator(`#settings-appearance [data-theme-value="${targetTheme}"]`).click();
     await page.waitForTimeout(300);
@@ -172,12 +172,14 @@ test.describe('Settings page', () => {
     await page.waitForSelector('body[data-current-view="settings"]', { timeout: 10_000 });
 
     const html = page.locator('html');
-    await page.locator('#settings-appearance [data-theme-value="light"]').click();
-    await expect(html).toHaveAttribute('data-theme', 'light');
-    await page.locator('#settings-appearance [data-theme-value="dark"]').click();
-    await expect(html).toHaveAttribute('data-theme', 'dark');
-
-    // Restore: switch back to light if that was initial, or keep dark — reset to dark is fine
+    await page.locator('#settings-appearance [data-theme-value="latte"]').click();
+    await expect(html).toHaveAttribute('data-theme', 'latte');
+    await page.locator('#settings-appearance [data-theme-value="mocha"]').click();
+    await expect(html).toHaveAttribute('data-theme', 'mocha');
+    await page.locator('#settings-appearance [data-theme-value="frappe"]').click();
+    await expect(html).toHaveAttribute('data-theme', 'frappe');
+    await page.locator('#settings-appearance [data-theme-value="macchiato"]').click();
+    await expect(html).toHaveAttribute('data-theme', 'macchiato');
   });
 
   test('language switch to Deutsch reloads and shows German labels, then back', async ({ authedPage: page }) => {
