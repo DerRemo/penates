@@ -16,7 +16,7 @@ echo -e "${DIM}  ─────────────────────
 echo ""
 
 # 1. Check prerequisites
-echo -e "${BOLD}[1/8]${RESET} Prüfe Voraussetzungen..."
+echo -e "${BOLD}[1/9]${RESET} Prüfe Voraussetzungen..."
 
 if ! command -v node &> /dev/null; then
   echo "  ✕ Node.js nicht gefunden. Installiere mit: brew install node"
@@ -42,12 +42,12 @@ fi
 
 # 2. Install dependencies
 echo ""
-echo -e "${BOLD}[2/8]${RESET} Installiere Abhängigkeiten..."
+echo -e "${BOLD}[2/9]${RESET} Installiere Abhängigkeiten..."
 npm install
 
 # 3. Configure .env
 echo ""
-echo -e "${BOLD}[3/8]${RESET} Konfiguration..."
+echo -e "${BOLD}[3/9]${RESET} Konfiguration..."
 
 if [ ! -f .env ]; then
   TOKEN=$(openssl rand -hex 32)
@@ -65,7 +65,7 @@ fi
 
 # 3b. Browser-Preview (optional)
 echo ""
-echo -e "${BOLD}[4/8]${RESET} Browser-Preview (optional)..."
+echo -e "${BOLD}[4/9]${RESET} Browser-Preview (optional)..."
 CURRENT_PREVIEW=$(grep '^PREVIEW_DOMAIN=' .env 2>/dev/null | cut -d= -f2-)
 if [ -z "$CURRENT_PREVIEW" ]; then
   echo "  Live-Dev-Server-Reverse-Proxy über EINEN festen Host: preview.<domain>."
@@ -101,7 +101,7 @@ fi
 
 # 4. Create LaunchAgent for auto-start
 echo ""
-echo -e "${BOLD}[5/8]${RESET} LaunchAgent einrichten..."
+echo -e "${BOLD}[5/9]${RESET} LaunchAgent einrichten..."
 
 PLIST_DIR="$HOME/Library/LaunchAgents"
 LAUNCHAGENT_ID="${LAUNCHAGENT_ID:-com.claude-code-hub}"
@@ -164,7 +164,7 @@ echo "  ✓ LaunchAgent erstellt: $PLIST_FILE"
 
 # 5. Claude-Code Hook-Installation
 echo ""
-echo -e "${BOLD}[6/8]${RESET} Claude-Code Hooks installieren..."
+echo -e "${BOLD}[6/9]${RESET} Claude-Code Hooks installieren..."
 
 SETTINGS_FILE="$HOME/.claude/settings.json"
 if ! command -v jq &> /dev/null; then
@@ -252,7 +252,7 @@ fi
 
 # 6. StatusLine-Script — Hub-Reporting
 echo ""
-echo -e "${BOLD}[7/8]${RESET} StatusLine-Script einrichten..."
+echo -e "${BOLD}[7/9]${RESET} StatusLine-Script einrichten..."
 
 SL_SCRIPT="$HOME/.claude/statusline-command.sh"
 SL_SENTINEL_START="#CCH-SL-START#"
