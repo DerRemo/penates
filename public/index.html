@@ -8834,7 +8834,7 @@
       const WIDTH_KEY = 'cchub_preview_width';
       const OPEN_KEY = 'cchub_preview_open';        // global open/closed memory
       const portKey = (s) => `cchub_preview_port:${s || ''}`;
-      let config = null;                            // { enabled, baseDomain }
+      let config = null;                            // { enabled, host, activePort }
       let ports = [];                               // [{port, process}]
       let sessionName = null;
       let open = false;
@@ -8856,13 +8856,25 @@
         return /^\d+$/.test(sel) ? parseInt(sel, 10) : null;
       }
 
+      // Fixer Host; der Port-Query erzwingt nur ein Reload des iframes beim Wechsel
+      // (der Dev-Server ignoriert unbekannte Query-Params).
       function iframeUrl(port) {
-        return `https://${port}.${config.baseDomain}/`;
+        return `https://${config.host}/?__cchub=${port}`;
       }
 
-      function loadPort(port) {
-        if (!config || !config.enabled || !config.baseDomain) return;
+      // Single-Host-Modell: erst dem Hub sagen, welcher Port hinter dem fixen
+      // Preview-Host stecken soll (POST /select), dann das iframe auf den Host laden.
+      async function loadPort(port) {
+        if (!config || !config.enabled || !config.host) return;
         if (!port) { setOverlay(t('preview.empty.choosePort')); el('preview-iframe').src = 'about:blank'; return; }
+        try {
+          const r = await fetch('/api/preview/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            body: JSON.stringify({ port }),
+          });
+          if (!r.ok) { setOverlay(t('preview.error.noServer').replace('{n}', port)); return; }
+        } catch { setOverlay(t('preview.error.noServer').replace('{n}', port)); return; }
         setOverlay(null);
         el('preview-iframe').src = iframeUrl(port);
         try { localStorage.setItem(portKey(sessionName), String(port)); } catch {}
@@ -8892,7 +8904,7 @@
         try {
           const r = await fetch('/api/preview/config', { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
           config = await r.json();
-        } catch { config = { enabled: false, baseDomain: null }; }
+        } catch { config = { enabled: false, host: null, activePort: null }; }
         return config;
       }
       async function fetchPorts() {
@@ -8959,9 +8971,9 @@
         el('btn-toggle-preview').addEventListener('click', toggle);
         el('preview-close').addEventListener('click', () => showPanel(false));
         el('preview-reload').addEventListener('click', () => loadPort(selectedPort()));
-        el('preview-open-tab').addEventListener('click', () => {
+        el('preview-open-tab').addEventListener('click', async () => {
           const p = selectedPort();
-          if (p && config && config.baseDomain) window.open(iframeUrl(p), '_blank', 'noopener');
+          if (p && config && config.host) { await loadPort(p); window.open(iframeUrl(p), '_blank', 'noopener'); }
         });
         el('preview-port-select').addEventListener('change', () => { el('preview-port-input').value = ''; loadPort(selectedPort()); });
         el('preview-port-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPort(selectedPort()); });
