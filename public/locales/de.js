@@ -167,6 +167,7 @@ window.__I18N_BUNDLES.de = {
 
   // Terminal drop overlay
   'terminal.dropOverlay.label': 'In Session-cwd hochladen',
+  'terminal.dropOverlay.mentionLabel': 'Als @-Mention einfügen',
 
   // Modals — New Session
   'modal.newSession.title': 'Neue Session starten',

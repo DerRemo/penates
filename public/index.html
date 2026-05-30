@@ -8488,6 +8488,17 @@
         btn.dataset.type = entry.type;
         btn.dataset.path = parentPath ? `${parentPath}/${entry.name}` : entry.name;
 
+        // Drag-Quelle: Datei/Ordner ins Terminal ziehen → @-Mention (siehe wireTerminalDnD).
+        // Ordner bekommen ein /-Suffix. Eigener MIME-Typ, damit der OS-Datei-Drop-Pfad
+        // (guard: 'Files') unberührt bleibt.
+        btn.draggable = true;
+        btn.addEventListener('dragstart', (e) => {
+          const rel = btn.dataset.path + (entry.type === 'dir' ? '/' : '');
+          e.dataTransfer.setData('application/x-cchub-path', rel);
+          e.dataTransfer.setData('text/plain', '@' + rel + ' ');
+          e.dataTransfer.effectAllowed = 'copy';
+        });
+
         const icon = document.createElement('span');
         icon.className = 'icon';
         icon.textContent = entry.type === 'dir' ? '📁' : iconForExt(entry.name);
@@ -9988,23 +9999,39 @@
 
       let counter = 0;
 
+      // Zwei Drop-Quellen: OS-Dateien ('Files' → Upload) und interner Tree-Drag
+      // (PATH_TYPE → @-Mention). dtKind unterscheidet beide; null = ignorieren.
+      const PATH_TYPE = 'application/x-cchub-path';
+      const dtKind = (e) => {
+        const ty = e.dataTransfer && e.dataTransfer.types;
+        if (!ty) return null;
+        if (ty.includes(PATH_TYPE)) return 'mention';
+        if (ty.includes('Files')) return 'files';
+        return null;
+      };
+
       container.addEventListener('dragenter', (e) => {
-        if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+        const kind = dtKind(e);
+        if (!kind) return;
         counter++;
         const overlay = getOrCreateOverlay();
+        const label = overlay.querySelector('#terminal-drop-label');
+        if (label) label.textContent = t(kind === 'mention'
+          ? 'terminal.dropOverlay.mentionLabel' : 'terminal.dropOverlay.label');
         overlay.classList.add('active');
         e.stopPropagation();
         e.preventDefault();
       }, true);
 
       container.addEventListener('dragover', (e) => {
-        if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+        if (!dtKind(e)) return;
         e.preventDefault();
         e.stopPropagation();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
       }, true);
 
       container.addEventListener('dragleave', (e) => {
-        if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+        if (!dtKind(e)) return;
         counter--;
         if (counter <= 0) {
           counter = 0;
@@ -10014,7 +10041,8 @@
       }, true);
 
       container.addEventListener('drop', (e) => {
-        if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+        const kind = dtKind(e);
+        if (!kind) return;
         e.preventDefault();
         e.stopPropagation();
         counter = 0;
@@ -10025,7 +10053,15 @@
           if (typeof showToast === 'function') showToast(t('toast.noActiveSession'), 'error');
           return;
         }
+        // Interner Tree-Drag → @-Mention in die Eingabezeile (kein Upload).
+        if (kind === 'mention') {
+          const rel = e.dataTransfer.getData(PATH_TYPE);
+          if (rel && window.ImagePaste) window.ImagePaste.injectMention(rel);
+          return;
+        }
+        // OS-Dateien → bestehende Upload-/Bild-Logik unverändert.
         const files = Array.from(e.dataTransfer.files);
+        if (!files.length) return;
         // Erstes Bild → Annotator; alle Nicht-Bilder → bestehender Uploader unverändert.
         const firstImage = files.find((f) => f.type && f.type.startsWith('image/'));
         if (firstImage && window.ImagePaste) window.ImagePaste.annotateAndSend(firstImage);

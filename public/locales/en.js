@@ -167,6 +167,7 @@ window.__I18N_BUNDLES.en = {
 
   // Terminal drop overlay
   'terminal.dropOverlay.label': 'Upload to session directory',
+  'terminal.dropOverlay.mentionLabel': 'Insert as @-mention',
 
   // Modals — New Session
   'modal.newSession.title': 'Start New Session',
