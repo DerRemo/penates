@@ -85,4 +85,42 @@ test.describe('session card redesign', () => {
     await card.locator('.session-name-text').click();
     await expect(page.locator('body')).toHaveAttribute('data-current-view', 'terminal', { timeout: 10_000 });
   });
+
+  // Regression: alte absolut-positionierte mute/pin-Regeln + altes
+  // .session-actions .btn{flex:1 1 auto} hatten den Kill-Button über die
+  // ganze Card gestreckt und pin/mute über die Status-Pille gelegt.
+  test('action bar is compact: kill button not stretched, pin/mute aligned in the bar', async ({ authedPage: page }, testInfo) => {
+    await mockSessions(page, [RUNNING]);
+    await page.reload();
+    await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
+    const card = page.locator('.session-card[data-name="cc-redesign"]');
+    await expect(card).toBeVisible({ timeout: 10_000 });
+
+    const kill = card.locator('[data-action="kill"]');
+    const pin = card.locator('[data-action="pin"]');
+    const mute = card.locator('[data-action="mute"]');
+    if (!testInfo.project.use.hasTouch) await card.hover();
+    await expect(kill).toBeVisible({ timeout: 2_000 });
+
+    const [killBox, pinBox, muteBox, cardBox] = await Promise.all([
+      kill.boundingBox(), pin.boundingBox(), mute.boundingBox(), card.boundingBox(),
+    ]);
+
+    // Kill-Button kompakt: nicht vertikal gestreckt, nicht über die ganze
+    // Card-Breite gezogen (war vorher ~422px / volle Card-Breite).
+    expect(killBox.height).toBeLessThan(44);
+    expect(killBox.width).toBeLessThan(cardBox.width * 0.5);
+
+    // pin/mute liegen in der Aktionsleiste (gleiche Zeile wie Kill), nicht
+    // mehr absolut oben rechts über der Status-Pille. Vertikal überlappend
+    // mit dem Kill-Button, und unterhalb der oberen Card-Hälfte.
+    const killMidY = killBox.y + killBox.height / 2;
+    for (const b of [pinBox, muteBox]) {
+      expect(b.y).toBeLessThanOrEqual(killMidY);
+      expect(b.y + b.height).toBeGreaterThanOrEqual(killMidY);
+      expect(b.y).toBeGreaterThan(cardBox.y + cardBox.height / 2);
+      // rechts ausgerichtet, rechts vom Kill-Button
+      expect(b.x).toBeGreaterThan(killBox.x + killBox.width);
+    }
+  });
 });
