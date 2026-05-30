@@ -281,6 +281,10 @@ window.__I18N_BUNDLES.de = {
   // Diff view
   'diff.title': 'Diff: {name}',
   'diff.openTitle': 'Änderungen anzeigen',
+  'diff.toggle': 'Diff',
+  'diff.toggleAria': 'Diff-Panel umschalten',
+  'diff.refresh': 'Aktualisieren',
+  'diff.close': 'Schließen',
   'diff.group.unstaged': 'Unstaged',
   'diff.group.staged': 'Staged',
   'diff.group.untracked': 'Untracked',

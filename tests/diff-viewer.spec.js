@@ -59,39 +59,55 @@ test.describe('Diff-Viewer', () => {
     if (repoDir) { rmSync(repoDir, { recursive: true, force: true }); repoDir = null; }
   });
 
-  test('Git-Badge öffnet diff-view und rendert den Diff', async ({ authedPage }) => {
+  test('Git-Badge verbindet zur Session und öffnet das Diff-Panel', async ({ authedPage }) => {
     await authedPage.goto('/');
     const badge = authedPage.locator(`.git-badge[data-diff-session="${SESSION}"]`);
     await expect(badge).toBeVisible({ timeout: 15000 });
     await badge.click();
-    await expect(authedPage.locator('body')).toHaveAttribute('data-current-view', 'diff');
+    // Badge verbindet jetzt zur Session (Terminal-View) und öffnet das rechte
+    // Diff-Panel — die frühere Vollbild-Diff-View entfällt.
+    await expect(authedPage.locator('body')).toHaveAttribute('data-current-view', 'terminal');
+    await expect(authedPage.locator('#diff-panel')).toHaveClass(/open/, { timeout: 10000 });
 
     // Datei-Liste zeigt die geänderte + die untracked Datei
-    await expect(authedPage.locator('.diff-file', { hasText: 'a.txt' })).toBeVisible();
-    await expect(authedPage.locator('.diff-file', { hasText: 'new.txt' })).toBeVisible();
+    await expect(authedPage.locator('#diff-filelist .diff-file', { hasText: 'a.txt' })).toBeVisible();
+    await expect(authedPage.locator('#diff-filelist .diff-file', { hasText: 'new.txt' })).toBeVisible();
 
     // Diff der gewählten Datei rendert (diff2html .d2h-wrapper ODER <pre>-Fallback)
-    await authedPage.locator('.diff-file', { hasText: 'a.txt' }).click();
-    const rendered = authedPage.locator('.diff-pane .d2h-wrapper, .diff-pane pre');
+    await authedPage.locator('#diff-filelist .diff-file', { hasText: 'a.txt' }).click();
+    const rendered = authedPage.locator('#diff-pane .d2h-wrapper, #diff-pane pre');
     await expect(rendered).toBeVisible({ timeout: 15000 });
+  });
 
-    // Viewport-abhängiges Format NUR prüfen, wenn diff2html geladen wurde.
-    const d2hLoaded = await authedPage.locator('.diff-pane .d2h-wrapper').count() > 0;
-    if (d2hLoaded) {
-      const width = authedPage.viewportSize().width;
-      const sideCount = await authedPage.locator('.diff-pane .d2h-file-side-diff').count();
-      if (width >= 900) {
-        expect(sideCount, 'desktop → side-by-side').toBeGreaterThan(0);
-      } else {
-        expect(sideCount, 'mobile → line-by-line (kein side-by-side)').toBe(0);
-      }
-    }
+  test('Diff-Toggle ist mit dem Files-Panel gegenseitig exklusiv', async ({ authedPage, isTouch }) => {
+    // Auf Touch sind die Panels Vollbild-Overlays, die die Toolbar überdecken —
+    // die Toggles sind dann nicht per Klick erreichbar (wie bei Files/Preview).
+    test.skip(isTouch, 'panels are fullscreen overlays on touch — toolbar toggles not clickable');
+    await authedPage.goto('/');
+    await authedPage.click('#refresh-btn').catch(() => {});
+    await authedPage.click(`[data-session="${SESSION}"]`);
+    await expect(authedPage.locator('body')).toHaveAttribute('data-current-view', 'terminal');
+
+    const diffToggle = authedPage.locator('#btn-toggle-diff');
+    await expect(diffToggle).toBeVisible({ timeout: 8000 });
+    await diffToggle.click();
+    await expect(authedPage.locator('#diff-panel')).toHaveClass(/open/, { timeout: 8000 });
+
+    // Files öffnen → Diff schließt
+    await authedPage.click('#btn-toggle-files');
+    await expect(authedPage.locator('#files-sidebar')).toHaveClass(/open/, { timeout: 5000 });
+    await expect(authedPage.locator('#diff-panel')).not.toHaveClass(/open/);
+
+    // Diff wieder öffnen → Files schließt
+    await diffToggle.click();
+    await expect(authedPage.locator('#diff-panel')).toHaveClass(/open/);
+    await expect(authedPage.locator('#files-sidebar')).not.toHaveClass(/open/);
   });
 
   test('Live-Refresh aktualisiert die Datei-Liste', async ({ authedPage }) => {
     await authedPage.goto('/');
     await authedPage.locator(`.git-badge[data-diff-session="${SESSION}"]`).click();
-    await expect(authedPage.locator('.diff-file', { hasText: 'new.txt' })).toBeVisible({ timeout: 15000 });
+    await expect(authedPage.locator('#diff-filelist .diff-file', { hasText: 'new.txt' })).toBeVisible({ timeout: 15000 });
 
     // Neue untracked Datei im Repo → Live-Refresh über den File-Watcher.
     // Der Watcher (server-seitig) abonniert erst, wenn der WS-`subscribeSession`
@@ -102,7 +118,7 @@ test.describe('Diff-Viewer', () => {
     // Watcher-Event, also greift spätestens der erste nach dem Subscribe.
     await expect(async () => {
       writeFileSync(join(repoDir, 'live.txt'), 'added-live\n');
-      await expect(authedPage.locator('.diff-file', { hasText: 'live.txt' })).toBeVisible({ timeout: 1500 });
+      await expect(authedPage.locator('#diff-filelist .diff-file', { hasText: 'live.txt' })).toBeVisible({ timeout: 1500 });
     }).toPass({ timeout: 12000 });
   });
 });

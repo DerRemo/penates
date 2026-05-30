@@ -2319,7 +2319,6 @@
     body[data-current-view="terminal"]       .main-content [data-view="terminal"]       { display: flex; }
     body[data-current-view="project-detail"] .main-content [data-view="project-detail"] { display: flex; }
     body[data-current-view="settings"]       .main-content [data-view="settings"]       { display: block; }
-    body[data-current-view="diff"]           .main-content [data-view="diff"]           { display: flex; }
 
     /* ── Terminal View ─────────────────────────────────────────────── */
     /* --kb-inset wird von JS gesetzt wenn die iOS-Tastatur auftaucht —
@@ -3401,7 +3400,23 @@
     }
 
     /* ── Diff View ─────────────────────────────────────────────── */
-    .diff-view { flex-direction: column; height: 100%; min-height: 0; }
+    /* Diff-Panel: rechts gedockt, gespiegelt zum Preview-Panel (mutually exclusive). */
+    .diff-panel {
+      flex: 0 0 var(--diff-width, 460px);
+      min-width: 0; background: var(--bg-surface);
+      border-left: 1px solid var(--border);
+      display: none; flex-direction: column; overflow: hidden;
+    }
+    .diff-panel.open { display: flex; }
+    .diff-resizer { flex: 0 0 4px; background: transparent; cursor: col-resize; transition: background 150ms; }
+    .diff-resizer:hover, .diff-resizer.dragging { background: var(--accent); }
+    /* Im schmalen Panel: Filelist oben gestapelt statt 280px-Spalte. */
+    .diff-panel .diff-body { flex-direction: column; }
+    .diff-panel .diff-filelist { width: auto; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
+    @media (pointer: coarse) {
+      .diff-panel.open { position: fixed; inset: 0; z-index: 92; flex: 1; }
+      .diff-resizer { display: none; }
+    }
     .diff-header { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); flex: 0 0 auto; }
     .diff-title { font-weight: 600; color: var(--text-primary); }
     .diff-branch { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.85em; }
@@ -3887,6 +3902,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
           <span class="btn-label" data-i18n="preview.toggle">Preview</span>
         </button>
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-diff" type="button" style="display:none" aria-label="Toggle diff" title="Toggle diff" data-i18n-attr="aria-label:diff.toggleAria;title:diff.toggleAria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+          <span class="btn-label" data-i18n="diff.toggle">Diff</span>
+        </button>
         <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
           <span class="btn-label" data-i18n="terminal.toolbar.captureIdea">Capture idea</span>
@@ -3930,6 +3949,20 @@
         <div class="preview-body" id="preview-body">
           <div class="preview-overlay" id="preview-overlay"></div>
           <iframe id="preview-iframe" referrerpolicy="no-referrer" title="Preview"></iframe>
+        </div>
+      </aside>
+      <div class="diff-resizer" id="diff-resizer" style="display:none"></div>
+      <aside class="diff-panel" id="diff-panel">
+        <div class="diff-header">
+          <span class="diff-title" id="diff-title">Diff</span>
+          <span class="diff-branch" id="diff-branch"></span>
+          <span class="diff-live" id="diff-live" title="Live"></span>
+          <button class="btn btn-ghost diff-refresh" id="diff-refresh" type="button" aria-label="Refresh" title="Refresh" data-i18n-attr="aria-label:diff.refresh;title:diff.refresh">↻</button>
+          <button class="btn btn-ghost" id="diff-close" type="button" aria-label="Close" title="Close" data-i18n-attr="aria-label:diff.close;title:diff.close">×</button>
+        </div>
+        <div class="diff-body">
+          <aside class="diff-filelist" id="diff-filelist"></aside>
+          <section class="diff-pane" id="diff-pane"></section>
         </div>
       </aside>
     </div>
@@ -4023,20 +4056,6 @@
     </div>
   </div>
 
-  <!-- ── Diff View ──────────────────────────────────────────── -->
-  <div class="diff-view" id="diff-view" data-view="diff">
-    <div class="diff-header">
-      <button class="btn btn-ghost diff-back" id="diff-back" type="button" aria-label="Back">←</button>
-      <span class="diff-title" id="diff-title">Diff</span>
-      <span class="diff-branch" id="diff-branch"></span>
-      <span class="diff-live" id="diff-live" title="Live"></span>
-      <button class="btn btn-ghost diff-refresh" id="diff-refresh" type="button" aria-label="Refresh">↻</button>
-    </div>
-    <div class="diff-body">
-      <aside class="diff-filelist" id="diff-filelist"></aside>
-      <section class="diff-pane" id="diff-pane"></section>
-    </div>
-  </div>
 
     </main>
   </div>
@@ -4337,13 +4356,15 @@
     // um: body[data-current-view], History-Integration, Polling-Lifecycle,
     // view-spezifischen Init (Terminal-Attach / Project-Lade).
     let currentView = 'dashboard';
-    const VALID_VIEWS = new Set(['dashboard', 'terminal', 'project-detail', 'settings', 'diff']);
+    const VALID_VIEWS = new Set(['dashboard', 'terminal', 'project-detail', 'settings']);
 
     function setView(name, opts = {}) {
       if (!VALID_VIEWS.has(name)) name = 'dashboard';
       const { fromPopstate = false, sessionName = null, projectId = null } = opts;
       const prev = currentView;
-      if (prev === 'diff' && name !== 'diff') { try { DiffView._cleanup(); } catch {} }
+      // Diff ist jetzt ein rechtes Panel in der Terminal-View → WS trennen,
+      // sobald die Terminal-View verlassen wird.
+      if (prev === 'terminal' && name !== 'terminal') { try { DiffView._cleanup(); } catch {} }
       currentView = name;
       document.body.setAttribute('data-current-view', name);
       // Sidebar-Markierung nachziehen — beim Session-Wechsel und bei
@@ -6536,6 +6557,7 @@
       // v0.6.0: Filebrowser-Button einblenden und Sidebar-State wiederherstellen
       if (window.FileBrowser) window.FileBrowser.activateForSession(name);
       if (window.PreviewPanel) window.PreviewPanel.activateForSession(name);
+      if (window.DiffView) window.DiffView.activateForSession(name);
       hideIdeaPrompt();
 
       // Setup terminal
@@ -7098,6 +7120,8 @@
       if (window.FileBrowser) window.FileBrowser.close();
       const _ftBtn = document.getElementById('btn-toggle-files');
       if (_ftBtn) _ftBtn.style.display = 'none';
+      const _dfBtn = document.getElementById('btn-toggle-diff');
+      if (_dfBtn) _dfBtn.style.display = 'none';
       clipboardAbort?.abort();
       clipboardAbort = null;
     }
@@ -8577,8 +8601,9 @@
       }
 
       async function open(project) {
-        // Files + Preview sind gegenseitig exklusiv — nie beide offen.
+        // Files + Preview + Diff sind gegenseitig exklusiv — nie zwei offen.
         try { window.PreviewPanel?.close?.(); } catch {}
+        try { window.DiffView?.close?.(); } catch {}
         currentProject = project;
         window.__currentProjectForFiles = project;
         window.currentProjectId = project.id; // used by FileActions (Task 11)
@@ -9030,8 +9055,11 @@
       }
 
       function showPanel(v) {
-        // Files + Preview sind gegenseitig exklusiv — nie beide offen.
-        if (v) { try { window.FileBrowser?.close?.(); } catch {} }
+        // Files + Preview + Diff sind gegenseitig exklusiv — nie zwei offen.
+        if (v) {
+          try { window.FileBrowser?.close?.(); } catch {}
+          try { window.DiffView?.close?.(); } catch {}
+        }
         open = v;
         el('preview-panel').classList.toggle('open', v);
         el('preview-resizer').style.display = v ? '' : 'none';
@@ -9492,6 +9520,10 @@
       let d2hLoaded = null, cssInjected = false;
       let currentSession = null, currentFiles = [], selectedPath = null;
       let ws = null, refetchTimer = null;
+      let stateSession = null;
+      const WIDTH_KEY = 'cchub_diff_width';
+      const openKey = (s) => `cchub_diff_open:${s || ''}`; // per-session open/closed memory
+      const el = (id) => document.getElementById(id);
 
       async function ensureD2H() {
         if (d2hLoaded) return d2hLoaded;
@@ -9506,14 +9538,37 @@
         return d2hLoaded;
       }
 
+      // Öffnet das Diff-Panel für eine Session (Toggle/Badge).
       async function open(sessionName) {
         currentSession = sessionName;
         selectedPath = null;
-        setView('diff', { sessionName });
-        document.getElementById('diff-title').textContent = t('diff.title', { name: sessionName });
+        showPanel(true);
+        el('diff-title').textContent = t('diff.title', { name: sessionName });
         await refetch();
         connectWs(sessionName);
       }
+
+      function showPanel(v) {
+        // Files + Preview + Diff sind gegenseitig exklusiv — nie zwei offen.
+        if (v) {
+          try { window.FileBrowser?.close?.(); } catch {}
+          try { window.PreviewPanel?.close?.(); } catch {}
+        }
+        el('diff-panel').classList.toggle('open', v);
+        el('diff-resizer').style.display = v ? '' : 'none';
+        // Gegen window.currentSessionName persisten (autoritativ), da stateSession
+        // beim Cross-Close noch auf der vorigen Session laggen kann.
+        const sn = window.currentSessionName || stateSession || currentSession;
+        try { localStorage.setItem(openKey(sn), v ? '1' : '0'); } catch {}
+        if (!v) disconnectWs();
+      }
+
+      function toggle() {
+        if (el('diff-panel').classList.contains('open')) { close(); return; }
+        open(window.currentSessionName || currentSession);
+      }
+
+      function close() { showPanel(false); }
 
       async function refetch() {
         if (!currentSession) return;
@@ -9579,7 +9634,8 @@
         if (f.binary) { pane.innerHTML = `<div class="diff-empty">${t('diff.binary')}</div>`; return; }
         if (f.oversize) { pane.innerHTML = `<div class="diff-empty">${t('diff.oversize')}</div>`; return; }
         if (!f.diff) { pane.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`; return; }
-        const outputFormat = window.matchMedia('(max-width: 899px)').matches ? 'line-by-line' : 'side-by-side';
+        // Panel ist schmal → side-by-side nur bei genug Breite, sonst line-by-line.
+        const outputFormat = pane.clientWidth >= 760 ? 'side-by-side' : 'line-by-line';
         try {
           const html = await ensureD2H();
           pane.innerHTML = html(f.diff, { drawFileList: false, matching: 'lines', outputFormat });
@@ -9615,22 +9671,62 @@
         }
       }
 
-      function close() { disconnectWs(); currentSession = null; selectedPath = null; setView('dashboard'); }
+      function wireResizer() {
+        const resizer = el('diff-resizer');
+        if (!resizer) return;
+        resizer.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          resizer.classList.add('dragging');
+          const startX = e.clientX;
+          const startWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--diff-width')) || 460;
+          const onMove = (ev) => {
+            // Panel ist rechts → Breite wächst nach links (startX - clientX).
+            const w = Math.max(280, Math.min(window.innerWidth * 0.7, startWidth + (startX - ev.clientX)));
+            document.documentElement.style.setProperty('--diff-width', w + 'px');
+          };
+          const onUp = () => {
+            resizer.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            try { localStorage.setItem(WIDTH_KEY, getComputedStyle(document.documentElement).getPropertyValue('--diff-width').trim()); } catch {}
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      }
 
-      document.getElementById('diff-back').addEventListener('click', close);
-      document.getElementById('diff-refresh').addEventListener('click', refetch);
+      // Vom Terminal-View aufgerufen — Toggle einblenden + gemerkten Open-Zustand
+      // dieser Session wiederherstellen.
+      function activateForSession(name) {
+        stateSession = name;
+        const btn = el('btn-toggle-diff');
+        if (btn) btn.style.display = '';
+        const wasOpen = (() => { try { return localStorage.getItem(openKey(name)) === '1'; } catch { return false; } })();
+        if (wasOpen) open(name);
+        else showPanel(false);
+      }
 
-      // Delegated capture-phase badge click — opens diff, stops card→terminal nav.
+      try { const w = localStorage.getItem(WIDTH_KEY); if (w) document.documentElement.style.setProperty('--diff-width', w); } catch {}
+      el('diff-refresh').addEventListener('click', refetch);
+      el('diff-close').addEventListener('click', close);
+      el('btn-toggle-diff').addEventListener('click', toggle);
+      wireResizer();
+
+      // Delegated capture-phase badge click — verbindet zur Session und öffnet
+      // das Diff-Panel (ersetzt die frühere Vollbild-Ansicht).
       document.addEventListener('click', (e) => {
         const badge = e.target.closest && e.target.closest('.git-badge[data-diff-session]');
         if (!badge) return;
         e.stopPropagation();
         e.preventDefault();
-        DiffView.open(badge.getAttribute('data-diff-session'));
+        const name = badge.getAttribute('data-diff-session');
+        connectToSession(name);
+        open(name);
       }, true);
 
-      return { open, close, _cleanup: disconnectWs };
+      return { open, close, toggle, activateForSession, _cleanup: disconnectWs };
     })();
+    window.DiffView = DiffView;
 
     // ── v0.6.0 Task 11: FileActions (context menu, inline rename, delete confirm, mkdir) ──
     const FileActions = (() => {
