@@ -48,6 +48,7 @@ import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
 import { parseStatusV2, getDiff } from './lib/git-diff.js';
+import { captureScrollback } from './lib/scrollback.js';
 import { saveSessionImage } from './lib/session-images.js';
 import { isPreviewHost, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
 import * as voice from './lib/voice.js';
@@ -1186,6 +1187,18 @@ app.get('/api/sessions/:name/diff', (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'diff failed', message: String(e && e.message || e) });
   }
+});
+
+// GET /api/sessions/:name/scrollback?lines=N — tmux-History fürs Seeden eines
+// frischen xterm. Bearer-Auth via Middleware. Session-Existenz wie im Terminal-Handler.
+app.get('/api/sessions/:name/scrollback', (req, res) => {
+  const name = req.params.name;
+  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!getTmuxSessions().some(s => s.name === name)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  const lines = Math.max(1, Math.min(parseInt(req.query.lines) || 2000, 10000));
+  res.json({ data: captureScrollback(name, { lines, tmux: TMUX }) });
 });
 
 // Single-PNG body for the image-paste flow. 8 MB → express.raw answers 413
