@@ -3437,6 +3437,11 @@
       .image-annotator-modal .anno-tool, .image-annotator-modal .anno-undo { flex: 1 1 auto; }
     }
 
+    /* ── Voice Input ───────────────────────────────────────────── */
+    #voice-btn.voice-recording { color: #ff3b30; animation: voicePulse 1s ease-in-out infinite; }
+    #voice-btn.voice-busy { opacity: 0.6; pointer-events: none; }
+    @keyframes voicePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
     /* ── Diff View ─────────────────────────────────────────────── */
     /* Diff-Panel: rechts gedockt, gespiegelt zum Preview-Panel (mutually exclusive). */
     .diff-panel {
@@ -3950,6 +3955,10 @@
           <span class="btn-label" data-i18n="imagePaste.pickerTitle">Insert image</span>
         </button>
         <input type="file" id="image-picker-input" accept="image/*" style="display:none" />
+        <button class="btn btn-ghost btn-sm" id="voice-btn" type="button" style="display:none" aria-label="Speak" title="Speak" data-i18n-attr="aria-label:voice.btnTitle;title:voice.btnTitle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          <span class="btn-label" id="voice-btn-label" data-i18n="voice.btnTitle">Speak</span>
+        </button>
         <button class="btn btn-ghost btn-sm" id="btn-toggle-preview" type="button" style="display:none" aria-label="Toggle preview" title="Toggle preview" data-i18n-attr="aria-label:preview.toggleAria;title:preview.toggleAria">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
           <span class="btn-label" data-i18n="preview.toggle">Preview</span>
