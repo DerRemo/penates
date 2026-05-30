@@ -96,14 +96,14 @@ window.__I18N_BUNDLES.en = {
   // Terminal connection status labels
   'terminal.connStatus.connecting': 'Connecting',
   'terminal.connStatus.connected': 'Connected',
-  'terminal.connStatus.reconnecting': 'Reconnect {n}/{max}',
-  'terminal.connStatus.reconnectIn': 'Reconnect in 2s ({n}/{max})',
+  'terminal.connStatus.reconnecting': 'Reconnecting … (attempt {n})',
+  'terminal.connStatus.reconnectIn': 'Reconnecting … (attempt {n})',
   'terminal.connStatus.disconnected': 'Disconnected',
   'terminal.connStatus.authMissing': 'Auth missing',
   'terminal.connStatus.sessionGone': 'Session gone',
 
   // Terminal inline messages (written into PTY)
-  'terminal.msg.connLost': '── Connection lost, reconnect {n}/{max} ──',
+  'terminal.msg.connLost': '── Connection lost, reconnecting … ──',
   'terminal.msg.connClosed': '── Connection closed, reconnect limit reached ──',
 
   // Touch bar

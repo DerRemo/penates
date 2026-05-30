@@ -525,6 +525,37 @@ Eine Transkription gleichzeitig (Single-Flight). Batch-Transkription (kein Live-
 - Unit `lib/voice.test.js`: `isEnabled`-Gating (bin/Modell/`VOICE_ENABLED`), `transcribe` gegen Fake-whisper-Stub-Script (Argv, Trim, `lang`-Passthrough), Single-Flight-`BUSY` + Reset, Temp-Cleanup bei whisper-Fehler.
 - E2E `tests/voice-input.spec.js`: Config-Gating (Button sichtbar/versteckt), Permission-Denied-Toast, Toggle-`recording`-State. Mic-abhängige Tests werden auf **WebKit** geskippt (`navigator.mediaDevices` im http-Kontext undefined, Fake-Media nicht unterstützt) → nur Chromium; ein `fixme` für die echte Audio-Pipeline (Playwright emittiert keine echten Audio-Frames).
 
+## Connection-Robustness
+
+Mosh-grade Härtung des Terminal-Pfads (Browser ↔ Hub über den CF-Tunnel ist der fragile Hop — Mosh selbst geht im Browser nicht, da UDP). Zwei Teile: selbstheilender Reconnect + Scrollback-Replay.
+
+### Reconnect (Frontend, `openTerminalWebSocket`)
+
+- **Unbegrenzter Reconnect mit Exponential Backoff** (`lib/backoff.js` `nextBackoffMs`: Base 1s, Faktor 2, **Cap 20s**, ±20% Jitter; ins Frontend gespiegelt wie `createTranslator`). Kein `MAX_RECONNECT`-Cap mehr. Abbruch nur bei `4001` (Auth) / `4004` (Session weg). „Verbindung verloren"-Hinweis nur beim ersten Versuch.
+- **Resume-Trigger** (einmalig global registriert): `visibilitychange`(→visible) / `online` / `pageshow` → `maybeReconnectNow()` reconnectet sofort (Backoff-Reset), aber nur wenn Session aktiv UND `currentWs` nicht `OPEN`/`CONNECTING` (Guard gegen Parallel-Storm). `reconnectNow`-Thunk wird in `openTerminalWebSocket` gesetzt.
+- **Client-Heartbeat:** alle 15s `{type:'ping'}`; kein `{type:'pong'}` ≤10s → `ws.close()` (statt auf TCP-Timeout zu warten). `pong` ist ein String-Frame und wird in `onmessage` abgefangen (nie ins Terminal geschrieben). Timer via `startHeartbeat`/`stopHeartbeat`, in jedem Close-Pfad geräumt.
+
+### Server-Heartbeat (`server.js`, Terminal-WS)
+
+`terminalSockets`-Set (nur Terminal-WS, NICHT Files-Events). `ws.ping()` + `isAlive`-Interval (30s) terminiert tote Sockets → der `tmux attach`-PTY wird frei (statt bis zum TCP-Timeout zu hängen). App-Level `{type:'ping'}` → `{type:'pong'}`-Reply im Message-Handler. `clearInterval` im `shutdown()`.
+
+### Scrollback-Replay (`lib/scrollback.js` + Route)
+
+- `captureScrollback(name, {lines, tmux})` → `tmux capture-pane -p -e -S -<lines> -E -1` (History **oberhalb** des sichtbaren Panes; `-e` behält Farben). Best-effort, Fehler → `''`. `lines` 1..10000 (default 2000).
+- `GET /api/sessions/:name/scrollback?lines=N` → `{data}`. 400 (invalid name) / 404 (Session weg).
+- **Frontend seedet nur bei frischem Connect** (`connectToSession`): fetch → `term.write(data)` → **dann** WS öffnen (tmux-`attach` zeichnet den aktuellen Screen darunter). Reconnect-Pfad seedet **nicht** (xterm lebt weiter). Seed-`.finally` ist gegen Weg-Navigation geguarded (`currentSessionName === name && currentTerminal === term`), sonst Orphan-WS auf disposed Terminal.
+
+### Bekannte Grenzen / Verifikation
+
+- **Naht Seed→Live-Redraw:** `-E -1` schneidet am letzten History-Index ab, damit der Attach-Redraw nahtlos darunter landet — minimaler Versatz ist kosmetisch harmlos.
+- Predictive Echo (Mosh-Signature) ist **nicht** drin (bewusst: eigener großer Brocken, kein xterm-Addon, über den ~50–150ms-Tunnel nur moderater Gewinn).
+- Echte Mobile-Sleep/Wake-Matrix ist nur am Gerät verifizierbar (E2E `fixme`).
+
+### Tests
+
+- Unit `lib/scrollback.test.js` (fake-tmux argv + echte tmux-Session mit erzwungener History + missing→'') · `lib/backoff.test.js` (Monotonie, Cap 20s, Jitter-Bounds).
+- E2E `tests/connection-robustness.spec.js` (desktop+mobile): Scrollback-Seed sichtbar, Auto-Reconnect nach WS-Drop (Terminal-Objekt überlebt), `online`-Event triggert Sofort-Reconnect; ein `fixme` für die echte Mobile-Sleep/Wake-Matrix.
+
 ## Bekannte Einschränkungen
 
 - tmux-Socket wird beim ersten `tmux new-session` automatisch erstellt

@@ -48,6 +48,7 @@ import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
 import { parseStatusV2, getDiff } from './lib/git-diff.js';
+import { captureScrollback } from './lib/scrollback.js';
 import { saveSessionImage } from './lib/session-images.js';
 import { isPreviewHost, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
 import * as voice from './lib/voice.js';
@@ -1188,6 +1189,18 @@ app.get('/api/sessions/:name/diff', (req, res) => {
   }
 });
 
+// GET /api/sessions/:name/scrollback?lines=N — tmux-History fürs Seeden eines
+// frischen xterm. Bearer-Auth via Middleware. Session-Existenz wie im Terminal-Handler.
+app.get('/api/sessions/:name/scrollback', (req, res) => {
+  const name = req.params.name;
+  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!getTmuxSessions().some(s => s.name === name)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  const lines = Math.max(1, Math.min(parseInt(req.query.lines) || 2000, 10000));
+  res.json({ data: captureScrollback(name, { lines, tmux: TMUX }) });
+});
+
 // Single-PNG body for the image-paste flow. 8 MB → express.raw answers 413
 // on overflow (entity.too.large). type:'image/png' so other bodies don't match.
 const imageBody = express.raw({ type: 'image/png', limit: '8mb' });
@@ -1803,6 +1816,8 @@ app.post('/api/hooks/:event', hookBody, (req, res) => {
 // ── WebSocket terminal ──────────────────────────────────────────────────────
 // Tracking aller aktiven PTYs für Graceful Shutdown.
 const activePtys = new Set();
+// Nur Terminal-WS (NICHT die Files-Events-WS) — für den Heartbeat unten.
+const terminalSockets = new Set();
 
 app.ws('/api/terminal/:name', (ws, req) => {
   // Auth ist bereits durch die HTTP-Middleware geprüft worden (authMiddleware
@@ -1856,6 +1871,9 @@ app.ws('/api/terminal/:name', (ws, req) => {
   }
 
   activePtys.add(pty);
+  terminalSockets.add(ws);
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   attachTracker.noteAttach(sessionName);
 
   // ── Audit-Log: session.attach + session.detach ────────────────
@@ -1893,6 +1911,7 @@ app.ws('/api/terminal/:name', (ws, req) => {
   ws.on('message', msg => {
     try {
       const parsed = JSON.parse(msg);
+      if (parsed.type === 'ping') { try { ws.send(JSON.stringify({ type: 'pong' })); } catch {} return; }
       if (parsed.type === 'resize') pty.resize(parsed.cols, parsed.rows);
       else if (parsed.type === 'input') pty.write(parsed.data);
     } catch {
@@ -1901,11 +1920,29 @@ app.ws('/api/terminal/:name', (ws, req) => {
   });
 
   ws.on('close', () => {
+    terminalSockets.delete(ws);
     recordDetach();
     activePtys.delete(pty);
     try { pty.kill(); } catch {}
   });
 });
+
+// Server→Client-Heartbeat: tote Terminal-Sockets terminieren → PTY wird frei.
+// Browser antworten automatisch auf PING-Frames; bleibt der Pong aus, ist der
+// Link tot. 30s-Intervall (großzügig, keine Falsch-Positive bei kurzem Lag).
+const WS_HEARTBEAT_MS = 30_000;
+const wsHeartbeatTimer = setInterval(() => {
+  for (const ws of terminalSockets) {
+    if (ws.isAlive === false) {
+      try { ws.terminate(); } catch {}
+      terminalSockets.delete(ws);
+      continue;
+    }
+    ws.isAlive = false;
+    try { ws.ping(); } catch {}
+  }
+}, WS_HEARTBEAT_MS);
+wsHeartbeatTimer.unref();
 
 // ── WebSocket file-events ─────────────────────────────────────────────────────
 // Client sendet { subscribe: projectId } / { unsubscribe: projectId }.
@@ -2058,6 +2095,7 @@ heartbeatTimer.unref();
 function shutdown(signal) {
   console.log(`\n  ${signal} received — killing ${activePtys.size} active PTY(s) and shutting down`);
   clearInterval(heartbeatTimer);
+  clearInterval(wsHeartbeatTimer);
   clearInterval(usagePollTimer);
   for (const p of activePtys) { try { p.kill(); } catch {} }
   projectWatcher.closeAll();
