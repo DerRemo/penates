@@ -9660,12 +9660,16 @@
     const VoiceInput = (() => {
       let enabled = false;
       let recording = false;
+      let busy = false;
       let audioCtx = null, source = null, processor = null, stream = null;
       let chunks = [];
       let timerId = null, startedAt = 0;
       const MAX_SEC = 60;
 
-      function authHdr() { return AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}; }
+      function authHdr() {
+        const tok = AUTH_TOKEN || localStorage.getItem('cchub_token') || '';
+        return tok ? { Authorization: `Bearer ${tok}` } : {};
+      }
       function btn() { return document.getElementById('voice-btn'); }
       function label() { return document.getElementById('voice-btn-label'); }
       function toast(key) { if (typeof showToast === 'function') showToast(t(key), 'error'); }
@@ -9693,28 +9697,39 @@
       }
 
       async function start() {
+        if (busy || recording) return; // guard: ignore clicks while a start is in flight
+        busy = true;
         try {
           stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         } catch (e) {
+          busy = false;
           toast(e && e.name === 'NotFoundError' ? 'voice.errNoDevice' : 'voice.errPermission');
           return;
         }
-        chunks = [];
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new Ctx();
-        source = audioCtx.createMediaStreamSource(stream);
-        // ScriptProcessorNode: deprecated, aber überall (inkl. iOS-Safari) verfügbar.
-        processor = audioCtx.createScriptProcessor(4096, 1, 1);
-        processor.onaudioprocess = (e) => {
-          chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
-        };
-        source.connect(processor);
-        processor.connect(audioCtx.destination);
+        try {
+          chunks = [];
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new Ctx();
+          source = audioCtx.createMediaStreamSource(stream);
+          // ScriptProcessorNode: deprecated, aber überall (inkl. iOS-Safari) verfügbar.
+          processor = audioCtx.createScriptProcessor(4096, 1, 1);
+          processor.onaudioprocess = (e) => {
+            chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+          };
+          source.connect(processor);
+          processor.connect(audioCtx.destination);
+        } catch (e) {
+          teardown();          // räumt den bereits geholten Mic-Stream + ctx wieder auf
+          busy = false;
+          toast('voice.errFailed');
+          return;
+        }
         recording = true;
         startedAt = Date.now();
         setRecording();
         tick();
         timerId = setInterval(tick, 250);
+        busy = false;
       }
 
       function teardown() {
