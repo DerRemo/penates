@@ -295,6 +295,15 @@ async function secureMiddleware(req, res, next) {
   if (AUTH_TOKEN) {
     const token = extractToken(req);
     if (token !== AUTH_TOKEN) {
+      // Service-Worker OTP-Pfad: POST /api/approvals/<id>?token=<otp> darf
+      // ohne Bearer-Token durch — der Handler prüft das OTP selbst gegen
+      // das pending-Approval-Objekt. Enge Pfad-Regex, kein Blast-Radius.
+      if (req.method === 'POST' &&
+          /^\/approvals\/[^/]+$/.test(req.path) &&
+          req.query.token) {
+        req.cchContext = { ...rawMeta, user: jwtUser };
+        return next();
+      }
       await auditLog.record('auth.fail', {
         ...rawMeta,
         user: jwtUser,
@@ -1407,6 +1416,34 @@ async function sendPushForAttention(event) {
   }));
 }
 
+// Web-Push für eine ausstehende Freigabe — mit Allow/Deny-Action-Buttons.
+async function sendApprovalPush({ id, name, tool, preview, otp }) {
+  const subs = pushSubs.allSubs();
+  if (!subs.length) return;
+  const displayName = (name || '').replace(/^cc-/, '');
+  const payload = JSON.stringify({
+    type: 'approval',
+    title: `${displayName}: Freigabe für ${tool}`,
+    body: preview ? `${tool}: ${preview}` : `Claude will ${tool} ausführen.`,
+    name, approvalId: id, otp,
+  });
+  const opts = { TTL: 120, urgency: 'high' };
+  await Promise.allSettled(subs.map(async (sub) => {
+    if (pushSubs.isBroken(sub)) return;
+    try {
+      await webpush.sendNotification(sub, payload, opts);
+      await pushSubs.resetFailure(sub.endpoint).catch(() => {});
+    } catch (err) {
+      const status = err.statusCode ?? 0;
+      if (status === 410 || status === 404 || status === 401) {
+        await pushSubs.removeSub(sub.endpoint).catch(() => {});
+      } else {
+        await pushSubs.incrementFailure(sub.endpoint, { statusCode: status }).catch(() => {});
+      }
+    }
+  }));
+}
+
 // ── WebSocket: Notifications ─────────────────────────────────────────────────
 // Attention-Events (session-attention) aus lib/attention.js an alle
 // verbundenen Clients fan-outen. Eigener Channel statt Reuse von
@@ -1570,6 +1607,25 @@ app.post('/api/sessions/:name/pin', async (req, res) => {
   res.json({ success: true, name, pinned });
 });
 
+// ── Tool-Approvals ───────────────────────────────────────────────────────────
+// Entscheidung vom Dashboard (Bearer) ODER vom Service-Worker (?token=<otp>).
+app.post('/api/approvals/:id', express.json(), (req, res) => {
+  const { id } = req.params;
+  const p = approvals.get(id);
+  const token = req.query.token;
+  if (token && (!p || token !== p.otp)) return res.status(403).json({ error: 'bad-token' });
+  const decision = (req.body && req.body.decision) === 'deny' ? 'deny' : 'allow';
+  const ok = approvals.resolve(id, decision);
+  if (!ok) return res.status(404).json({ error: 'not-found-or-resolved' });
+  res.json({ ok: true, decision });
+});
+
+app.get('/api/approvals/config', (_req, res) => res.json({ enabled: remoteApprovalEnabled }));
+app.post('/api/approvals/config', express.json(), (req, res) => {
+  remoteApprovalEnabled = !!(req.body && req.body.enabled);
+  res.json({ enabled: remoteApprovalEnabled });
+});
+
 // ── Claude-Code Hooks ────────────────────────────────────────────────────────
 // Claude feuert in ~/.claude/settings.json konfigurierte Hooks für Events
 // wie Stop/Notification/UserPromptSubmit. Jedes Hook-Script POSTet hier
@@ -1579,6 +1635,9 @@ const HOOK_EVENTS = new Set([
   'UserPromptSubmit', 'Stop', 'SubagentStop', 'Notification',
   'SessionStart', 'SessionEnd',
 ]);
+// Remote-Freigabe global an/aus. Default aus .env (REMOTE_APPROVAL, default 'on').
+// In-memory, kein Datei-Persist (Neustart → .env-Default, wie activePreviewPort).
+let remoteApprovalEnabled = (process.env.REMOTE_APPROVAL ?? 'on').toLowerCase() !== 'off';
 // Eigener Body-Parser für Hook-Route: Claude's Hook-Stdin-JSON ist
 // gelegentlich syntaktisch kaputt (z.B. `"line":}`), was express.json()
 // mit 400 abbricht — unser Handler würde nie laufen und der State-Update
@@ -1615,11 +1674,82 @@ app.post('/api/hooks/statusline', hookBody, (req, res) => {
   res.json({ ok: true, name: sessionName });
 });
 
+// PreToolUse: Activity melden + ggf. die Allow/Deny-Entscheidung ans Dashboard
+// routen (Long-Poll). Antwort = hookSpecificOutput-JSON (allow/deny) oder leer
+// (defer → normaler Permission-Flow).
+app.post('/api/hooks/pre-tool-use', hookBody, (req, res) => {
+  const envName = req.get('X-CC-Hub-Session');
+  if (!envName || !SESSION_NAME_RE.test(envName)) {
+    return res.status(400).json({ error: 'Missing or invalid X-CC-Hub-Session' });
+  }
+  const name = resolveHookSession(envName);
+
+  let payload = {};
+  if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+    try { payload = JSON.parse(req.body.toString('utf8')); } catch { /* tolerant */ }
+  }
+  const tool = typeof payload.tool_name === 'string' ? payload.tool_name : '';
+  const mode = typeof payload.permission_mode === 'string' ? payload.permission_mode : 'default';
+  const toolInput = payload.tool_input && typeof payload.tool_input === 'object' ? payload.tool_input : {};
+  const cwd = typeof payload.cwd === 'string' ? payload.cwd : '';
+
+  if (tool) attention.reportToolStart(name, tool);
+
+  const route = approvals.shouldRoute({
+    mode,
+    hubAttached: attachTracker.hubAttachedCount(name),
+    tmuxAttached: tmuxSessionAttached(name),
+    tool,
+    enabled: remoteApprovalEnabled,
+  });
+
+  if (!route) return res.status(200).end(); // defer (leerer Body)
+
+  const id = approvals.create({ session: name, tool, toolInput, cwd }, (decision) => {
+    if (res.headersSent) return;
+    if (decision === 'allow' || decision === 'deny') {
+      res.json({ hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: decision,
+        permissionDecisionReason: decision === 'allow'
+          ? 'Approved via Claude Code Hub' : 'Denied via Claude Code Hub',
+      }});
+    } else {
+      res.status(200).end(); // defer
+    }
+    broadcastNotification({ type: 'tool-approval-resolved', id, name });
+  });
+
+  req.on('close', () => { if (!res.headersSent) approvals.resolve(id, 'defer'); });
+
+  const preview = approvalPreview(tool, toolInput);
+  broadcastNotification({ type: 'tool-approval-request', id, name, tool, preview, at: Date.now() });
+  sendApprovalPush({ id, name, tool, preview, otp: approvals.get(id)?.otp });
+});
+
+// Kurz-Preview des Tool-Inputs für Notification/Card.
+function approvalPreview(tool, input) {
+  if (!input || typeof input !== 'object') return '';
+  const s = (v) => String(v ?? '').slice(0, 200);
+  if (tool === 'Bash') return s(input.command);
+  if (tool === 'Edit' || tool === 'Write') return s(input.file_path);
+  if (tool === 'WebFetch') return s(input.url);
+  if (tool === 'WebSearch') return s(input.query);
+  if (tool === 'Task') return s(input.description || input.prompt);
+  try { return s(JSON.stringify(input)); } catch { return ''; }
+}
+
 app.post('/api/hooks/:event', hookBody, (req, res) => {
   const { event } = req.params;
   const envName = req.get('X-CC-Hub-Session');
   if (!envName || !SESSION_NAME_RE.test(envName)) {
     return res.status(400).json({ error: 'Missing or invalid X-CC-Hub-Session' });
+  }
+  if (event === 'PostToolUse') {
+    if (envName && SESSION_NAME_RE.test(envName)) {
+      attention.reportToolEnd(resolveHookSession(envName));
+    }
+    return res.json({ ok: true });
   }
   if (!HOOK_EVENTS.has(event)) return res.status(204).end();
   let payload = {};
