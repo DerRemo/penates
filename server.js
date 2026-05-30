@@ -1721,7 +1721,12 @@ app.post('/api/hooks/pre-tool-use', hookBody, (req, res) => {
     broadcastNotification({ type: 'tool-approval-resolved', id, name });
   });
 
-  req.on('close', () => { if (!res.headersSent) approvals.resolve(id, 'defer'); });
+  // req.on('close') fires after body consumption in modern Node.js (v18+) — not on
+  // actual TCP disconnect. Use res.on('close') which fires when the response stream
+  // is destroyed without completing (writableEnded=false), indicating client disconnect.
+  res.on('close', () => {
+    if (!res.writableEnded) approvals.resolve(id, 'defer');
+  });
 
   const preview = approvalPreview(tool, toolInput);
   broadcastNotification({ type: 'tool-approval-request', id, name, tool, preview, at: Date.now() });
