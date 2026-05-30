@@ -8432,8 +8432,10 @@
     window.FileBrowser = (() => {
       let currentProject = null;
       let sidebarOpen = false;
+      let stateSession = null; // active session for the per-session open/closed memory
       const openFolders = new Set();
       const storageKey = (id) => `cchub_files_open_${id}`;
+      const openKey = (s) => `cchub_files_sidebar_open:${s || ''}`; // per-session open/closed memory
       const WIDTH_KEY = 'cchub_files_width';
 
       // WS live-sync state
@@ -8571,7 +8573,7 @@
 
         loadOpenFolders(project.id);
         await renderRoot();
-        try { localStorage.setItem('cchub_files_sidebar_open', '1'); } catch {}
+        try { localStorage.setItem(openKey(stateSession), '1'); } catch {}
         connectWs(project.id);
       }
 
@@ -8597,14 +8599,16 @@
         }
       }
 
-      function close() {
+      // persist=false → reiner Teardown beim Session-Wechsel (gemerkten
+      // Zustand der vorigen Session nicht überschreiben).
+      function close(persist = true) {
         disconnectWs();
         currentProject = null; // ensure reconnect loop bails
         sidebarOpen = false;
         window.currentProjectId = null;
         document.getElementById('files-sidebar').classList.remove('open');
         document.getElementById('files-resizer').style.display = 'none';
-        try { localStorage.setItem('cchub_files_sidebar_open', '0'); } catch {}
+        if (persist) { try { localStorage.setItem(openKey(stateSession), '0'); } catch {} }
       }
 
       function toggle(project) {
@@ -8705,13 +8709,16 @@
         }
         toggleBtn.style.display = '';
         window.__currentProjectForFiles = { id: match.id, path: match.path, name: match.displayName || match.name };
-        // If sidebar was open for a different project, close it
+        stateSession = sessionName;
+        // If sidebar was open for a different project, tear it down (no persist —
+        // keep the previous session's remembered state intact)
         if (sidebarOpen && currentProject && currentProject.id !== match.id) {
-          close();
+          close(false);
         }
-        // Restore open state from previous visit
-        const wasOpen = localStorage.getItem('cchub_files_sidebar_open') === '1';
+        // Restore THIS session's remembered open state
+        const wasOpen = localStorage.getItem(openKey(sessionName)) === '1';
         if (wasOpen && !sidebarOpen) open(window.__currentProjectForFiles);
+        else if (!wasOpen && sidebarOpen) close(false);
       }
 
       // ── WS live-sync helpers ─────────────────────────────────────
@@ -8866,7 +8873,7 @@
     // ── Browser-Preview: Split-Panel rechts vom Terminal (Reverse-Proxy-iframe) ──
     const PreviewPanel = (() => {
       const WIDTH_KEY = 'cchub_preview_width';
-      const OPEN_KEY = 'cchub_preview_open';        // global open/closed memory
+      const openKey = (s) => `cchub_preview_open:${s || ''}`;  // per-session open/closed memory
       const portKey = (s) => `cchub_preview_port:${s || ''}`;
       let config = null;                            // { enabled, host, activePort }
       let ports = [];                               // [{port, process}]
@@ -9001,7 +9008,7 @@
         open = v;
         el('preview-panel').classList.toggle('open', v);
         el('preview-resizer').style.display = v ? '' : 'none';
-        try { localStorage.setItem(OPEN_KEY, v ? '1' : '0'); } catch {}
+        try { localStorage.setItem(openKey(sessionName), v ? '1' : '0'); } catch {}
       }
 
       async function refresh() {
@@ -9085,7 +9092,7 @@
         sessionName = name;
         const btn = el('btn-toggle-preview');
         if (btn) btn.style.display = '';
-        const wasOpen = (() => { try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; } })();
+        const wasOpen = (() => { try { return localStorage.getItem(openKey(name)) === '1'; } catch { return false; } })();
         if (wasOpen) { showPanel(true); refresh(); }
         else showPanel(false);
       }
