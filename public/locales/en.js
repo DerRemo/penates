@@ -434,6 +434,8 @@ window.__I18N_BUNDLES.en = {
 
   // Common / shared
   'common.errorWithMessage': 'Error: {message}',
+  'common.on': 'On',
+  'common.off': 'Off',
 
   // Settings — sidebar entry + page
   'settings.sidebarEntry': 'Settings',
@@ -513,4 +515,7 @@ window.__I18N_BUNDLES.en = {
   'preview.header.ports': 'Ports',
   'preview.empty.noMatch': 'No matching port',
   'preview.empty.noPorts': 'No ports detected',
+  // Remote-Approval
+  'settings.remoteApproval': 'Remote approval',
+  'settings.remoteApprovalDesc': 'Route tool approvals to the dashboard/phone when nobody is at the terminal (normal mode only).',
 };

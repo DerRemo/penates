@@ -434,6 +434,8 @@ window.__I18N_BUNDLES.de = {
 
   // Common / shared
   'common.errorWithMessage': 'Fehler: {message}',
+  'common.on': 'An',
+  'common.off': 'Aus',
 
   // Settings — sidebar entry + page
   'settings.sidebarEntry': 'Einstellungen',
@@ -513,4 +515,7 @@ window.__I18N_BUNDLES.de = {
   'preview.header.ports': 'Ports',
   'preview.empty.noMatch': 'Kein Port passt',
   'preview.empty.noPorts': 'Keine Ports erkannt',
+  // Remote-Approval
+  'settings.remoteApproval': 'Remote-Freigabe',
+  'settings.remoteApprovalDesc': 'Tool-Freigaben ans Dashboard/Handy routen, wenn niemand am Terminal ist (nur im normalen Modus).',
 };

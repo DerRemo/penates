@@ -4034,6 +4034,13 @@
             <span class="settings-row__meta" id="settings-push-permission"></span>
           </div>
         </div>
+        <div class="settings-row" id="settings-remote-approval">
+          <label data-i18n="settings.remoteApproval">Remote approval</label>
+          <div class="settings-row__control">
+            <button type="button" class="toggle-btn" aria-pressed="true">On</button>
+          </div>
+        </div>
+        <p class="settings-row__hint" data-i18n="settings.remoteApprovalDesc"></p>
       </section>
 
       <!-- Help -->
@@ -8390,6 +8397,38 @@
       updatePermissionDisplay();
     }
 
+    // ── Settings: Remote Approval ─────────────────────────────────
+    // Reads GET /api/approvals/config on init; toggles via POST.
+    function initSettingsRemoteApproval() {
+      const wrap = document.getElementById('settings-remote-approval');
+      if (!wrap) return;
+      const btn = wrap.querySelector('button');
+      function sync(on) {
+        btn.setAttribute('aria-pressed', String(!!on));
+        btn.textContent = on ? t('common.on') : t('common.off');
+      }
+      (async () => {
+        let cfg = { enabled: true };
+        try {
+          const headers = AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {};
+          cfg = await (await fetch('/api/approvals/config', { headers })).json();
+        } catch {}
+        sync(!!cfg.enabled);
+      })();
+      btn.addEventListener('click', async () => {
+        const next = btn.getAttribute('aria-pressed') !== 'true';
+        try {
+          const headers = { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) };
+          const r = await fetch('/api/approvals/config', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ enabled: next }),
+          });
+          sync(!!(await r.json()).enabled);
+        } catch {}
+      });
+    }
+
     // ── Settings: Help ────────────────────────────────────────────
     // Wires the "Keyboard shortcuts" row to open the kbd-help overlay.
     // Uses window.openKbdHelpModal which is set up in the D4 section.
@@ -8516,6 +8555,7 @@
     initSettingsLanguage();
     initSettingsSound();
     initSettingsPush();
+    initSettingsRemoteApproval();
     initSettingsHelp();
     initSettingsAbout(); // async, fire-and-forget
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
