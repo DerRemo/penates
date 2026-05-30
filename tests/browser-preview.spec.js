@@ -93,6 +93,28 @@ test.describe('Browser-Preview (single host)', () => {
     await expect(page.locator('#preview-overlay')).toContainText('PREVIEW_DOMAIN');
   });
 
+  test('Öffnen zeigt ALLE Ports trotz vorbefülltem Wert; Tippen filtert', async ({ authedPage }) => {
+    const page = authedPage;
+    await mockConfig(page, { enabled: true, host: 'preview.example.com', activePort: 5173 });
+    await mockPorts(page, [{ port: 5173, process: 'node' }, { port: 3000, process: 'next' }, { port: 8080, process: 'py' }]);
+    await page.route('**/api/preview/select', (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, port: 5173 }) }));
+    // Letzten Port vorbelegen → Feld ist beim Öffnen befüllt (das war der Bug-Auslöser).
+    await page.evaluate(() => localStorage.setItem('cchub_preview_port:cc-preview-e2e', '5173'));
+
+    await activate(page);
+    await page.evaluate(() => window.PreviewPanel.toggle());
+    await expect(page.locator('#preview-port-input')).toHaveValue('5173');
+    // Chevron öffnen → ALLE drei Ports sichtbar (nicht auf "5173" gefiltert).
+    await page.click('#preview-port-toggle');
+    const list = page.locator('#preview-port-list');
+    await expect(list.locator('li[data-port]')).toHaveCount(3);
+    // Tippen filtert: "30" → nur 3000.
+    await page.fill('#preview-port-input', '30');
+    await expect(list.locator('li[data-port]')).toHaveCount(1);
+    await expect(list.locator('li[data-port="3000"]')).toBeVisible();
+  });
+
   // Echter Proxy/HMR-Round-Trip + CF-Routing ist in Playwright nicht reproduzierbar
   // (keine echte DNS/Tunnel/Access-Kette). Lokal end-to-end gegen echtes Vite verifiziert
   // (siehe finale Verifikation / Commit-Log).
