@@ -3250,6 +3250,49 @@
       .files-resizer { display: none; }
     }
 
+    /* ── Browser-Preview Panel (Split rechts vom Terminal) ─────────── */
+    .preview-panel {
+      flex: 0 0 var(--preview-width, 420px);
+      min-width: 0;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .preview-panel.open { display: flex; }
+    .preview-toolbar {
+      display: flex; gap: 6px; align-items: center;
+      padding: 6px 8px; border-bottom: 1px solid var(--border);
+    }
+    .preview-toolbar select, .preview-toolbar input, .preview-toolbar button {
+      background: var(--bg-elevated, #16181d); color: var(--text-primary, #e5e7eb);
+      border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
+      font: inherit; min-height: 32px; cursor: pointer;
+    }
+    .preview-toolbar .preview-port-select { flex: 1 1 auto; }
+    .preview-toolbar .preview-port-input { flex: 0 0 84px; cursor: text; }
+    .preview-toolbar button:hover { border-color: var(--accent, #2dd4bf); }
+    .preview-body { position: relative; flex: 1; min-height: 0; }
+    .preview-body #preview-iframe {
+      width: 100%; height: 100%; border: 0; background: #fff; display: block;
+    }
+    .preview-overlay {
+      position: absolute; inset: 0; display: none;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 1.5rem; color: var(--text-muted, #9aa0ab);
+      background: var(--bg-surface); font-size: 0.92rem; line-height: 1.5;
+    }
+    .preview-overlay.show { display: flex; }
+    .preview-resizer {
+      flex: 0 0 4px; background: transparent; cursor: col-resize; transition: background 150ms;
+    }
+    .preview-resizer:hover, .preview-resizer.dragging { background: var(--accent); }
+    @media (pointer: coarse) {
+      .preview-panel.open { position: fixed; inset: 0; z-index: 91; flex: 1; }
+      .preview-resizer { display: none; }
+    }
+
     /* ── v0.6.0 FilePreview Modal ───────────────────────────────── */
     .file-preview-modal {
       position: fixed; inset: 0; z-index: 200;
@@ -3814,6 +3857,10 @@
           <span class="btn-label" data-i18n="imagePaste.pickerTitle">Insert image</span>
         </button>
         <input type="file" id="image-picker-input" accept="image/*" style="display:none" />
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-preview" type="button" style="display:none" aria-label="Toggle preview" title="Toggle preview" data-i18n-attr="aria-label:preview.toggleAria;title:preview.toggleAria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          <span class="btn-label" data-i18n="preview.toggle">Preview</span>
+        </button>
         <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
           <span class="btn-label" data-i18n="terminal.toolbar.captureIdea">Capture idea</span>
@@ -3837,6 +3884,20 @@
       </aside>
       <div class="files-resizer" id="files-resizer" style="display:none"></div>
       <div class="terminal-container" id="terminal-container"></div>
+      <div class="preview-resizer" id="preview-resizer" style="display:none"></div>
+      <aside class="preview-panel" id="preview-panel">
+        <div class="preview-toolbar">
+          <select id="preview-port-select" class="preview-port-select" title="Port"></select>
+          <input id="preview-port-input" class="preview-port-input" type="text" inputmode="numeric" data-i18n-attr="placeholder:preview.header.portPlaceholder" placeholder="Port…" />
+          <button id="preview-reload" title="Reload" data-i18n-attr="title:preview.header.reload">⟳</button>
+          <button id="preview-open-tab" title="Open in new tab" data-i18n-attr="title:preview.header.openTab">↗</button>
+          <button id="preview-close" title="Close" data-i18n-attr="title:preview.header.close">×</button>
+        </div>
+        <div class="preview-body" id="preview-body">
+          <div class="preview-overlay" id="preview-overlay"></div>
+          <iframe id="preview-iframe" referrerpolicy="no-referrer" title="Preview"></iframe>
+        </div>
+      </aside>
     </div>
   </div>
 
@@ -6440,6 +6501,7 @@
       updateIdeaCaptureButton(name);
       // v0.6.0: Filebrowser-Button einblenden und Sidebar-State wiederherstellen
       if (window.FileBrowser) window.FileBrowser.activateForSession(name);
+      if (window.PreviewPanel) window.PreviewPanel.activateForSession(name);
       hideIdeaPrompt();
 
       // Setup terminal
@@ -8766,6 +8828,161 @@
 
       return { open, close, toggle, activateForSession, wireButtons, wireResizer, wireTreeDnD };
     })();
+
+    // ── Browser-Preview: Split-Panel rechts vom Terminal (Reverse-Proxy-iframe) ──
+    const PreviewPanel = (() => {
+      const WIDTH_KEY = 'cchub_preview_width';
+      const OPEN_KEY = 'cchub_preview_open';        // global open/closed memory
+      const portKey = (s) => `cchub_preview_port:${s || ''}`;
+      let config = null;                            // { enabled, baseDomain }
+      let ports = [];                               // [{port, process}]
+      let sessionName = null;
+      let open = false;
+      let wired = false;
+
+      const el = (id) => document.getElementById(id);
+
+      function setOverlay(text) {
+        const ov = el('preview-overlay');
+        if (!text) { ov.classList.remove('show'); ov.textContent = ''; return; }
+        ov.textContent = text;
+        ov.classList.add('show');
+      }
+
+      function selectedPort() {
+        const typed = (el('preview-port-input').value || '').trim();
+        if (/^\d+$/.test(typed)) return parseInt(typed, 10);
+        const sel = el('preview-port-select').value;
+        return /^\d+$/.test(sel) ? parseInt(sel, 10) : null;
+      }
+
+      function iframeUrl(port) {
+        return `https://${port}.${config.baseDomain}/`;
+      }
+
+      function loadPort(port) {
+        if (!config || !config.enabled || !config.baseDomain) return;
+        if (!port) { setOverlay(t('preview.empty.choosePort')); el('preview-iframe').src = 'about:blank'; return; }
+        setOverlay(null);
+        el('preview-iframe').src = iframeUrl(port);
+        try { localStorage.setItem(portKey(sessionName), String(port)); } catch {}
+      }
+
+      function renderPortOptions() {
+        const sel = el('preview-port-select');
+        const last = (() => { try { return localStorage.getItem(portKey(sessionName)); } catch { return null; } })();
+        sel.innerHTML = '';
+        const ph = document.createElement('option');
+        ph.value = ''; ph.textContent = t('preview.header.portPlaceholder');
+        sel.appendChild(ph);
+        for (const p of ports) {
+          const o = document.createElement('option');
+          o.value = String(p.port);
+          o.textContent = `:${p.port}${p.process ? ' — ' + p.process : ''}`;
+          if (last && String(p.port) === last) o.selected = true;
+          sel.appendChild(o);
+        }
+        if (last && !ports.some((p) => String(p.port) === last)) {
+          el('preview-port-input').value = last;       // last port not in list → free-text
+        }
+      }
+
+      async function fetchConfig() {
+        if (config) return config;
+        try {
+          const r = await fetch('/api/preview/config', { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
+          config = await r.json();
+        } catch { config = { enabled: false, baseDomain: null }; }
+        return config;
+      }
+      async function fetchPorts() {
+        try {
+          const r = await fetch('/api/preview/ports', { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
+          const body = await r.json();
+          ports = Array.isArray(body.ports) ? body.ports : [];
+        } catch { ports = []; }
+        return ports;
+      }
+
+      function showPanel(v) {
+        open = v;
+        el('preview-panel').classList.toggle('open', v);
+        el('preview-resizer').style.display = v ? '' : 'none';
+        try { localStorage.setItem(OPEN_KEY, v ? '1' : '0'); } catch {}
+      }
+
+      async function refresh() {
+        await fetchConfig();
+        if (!config.enabled) { setOverlay(t('preview.empty.notConfigured')); el('preview-iframe').src = 'about:blank'; return; }
+        await fetchPorts();
+        renderPortOptions();
+        const last = (() => { try { return localStorage.getItem(portKey(sessionName)); } catch { return null; } })();
+        if (last && /^\d+$/.test(last)) loadPort(parseInt(last, 10));
+        else setOverlay(t('preview.empty.choosePort'));
+      }
+
+      function toggle() {
+        if (open) { showPanel(false); return; }
+        showPanel(true);
+        refresh();
+      }
+
+      function wireResizer() {
+        const resizer = el('preview-resizer');
+        if (!resizer) return;
+        resizer.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          resizer.classList.add('dragging');
+          const startX = e.clientX;
+          const startWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--preview-width')) || 420;
+          const onMove = (ev) => {
+            // Panel ist rechts → Breite wächst nach links (startX - clientX).
+            const w = Math.max(240, Math.min(window.innerWidth / 2, startWidth + (startX - ev.clientX)));
+            document.documentElement.style.setProperty('--preview-width', w + 'px');
+          };
+          const onUp = () => {
+            resizer.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            try {
+              localStorage.setItem(WIDTH_KEY, getComputedStyle(document.documentElement).getPropertyValue('--preview-width').trim());
+            } catch {}
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      }
+
+      function wire() {
+        if (wired) return; wired = true;
+        try { const w = localStorage.getItem(WIDTH_KEY); if (w) document.documentElement.style.setProperty('--preview-width', w); } catch {}
+        el('btn-toggle-preview').addEventListener('click', toggle);
+        el('preview-close').addEventListener('click', () => showPanel(false));
+        el('preview-reload').addEventListener('click', () => loadPort(selectedPort()));
+        el('preview-open-tab').addEventListener('click', () => {
+          const p = selectedPort();
+          if (p && config && config.baseDomain) window.open(iframeUrl(p), '_blank', 'noopener');
+        });
+        el('preview-port-select').addEventListener('change', () => { el('preview-port-input').value = ''; loadPort(selectedPort()); });
+        el('preview-port-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPort(selectedPort()); });
+        wireResizer();
+      }
+
+      // Vom Terminal-View aufgerufen — zeigt den Toggle-Button und stellt den
+      // letzten Open-Zustand wieder her (lazy config/ports erst beim Öffnen).
+      function activateForSession(name) {
+        sessionName = name;
+        const btn = el('btn-toggle-preview');
+        if (btn) btn.style.display = '';
+        const wasOpen = (() => { try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; } })();
+        if (wasOpen) { showPanel(true); refresh(); }
+        else showPanel(false);
+      }
+
+      return { wire, toggle, activateForSession, _refresh: refresh };
+    })();
+    window.PreviewPanel = PreviewPanel;
+    document.addEventListener('DOMContentLoaded', () => PreviewPanel.wire());
 
     // ── v0.7.1 Task 15: Download helper ──────────────────────────
     async function downloadFile(projectId, relPath, filename) {

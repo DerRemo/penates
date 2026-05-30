@@ -75,6 +75,8 @@ Rekursives `fs.watch` pro Projekt, on-demand: `attachWatcher(projectDir)` / `det
 | DELETE | `/api/projects/:id/files` | In Trash löschen (`?path=rel`) |
 | POST | `/api/sessions/:name/upload` | Upload in Session-cwd (Busboy multipart) |
 | POST | `/api/sessions/:name/image` | Einzelnes PNG (`express.raw image/png`, ≤8 MB) → `.cch-images/`, liefert `{rel}` für die `@`-Mention |
+| GET | `/api/preview/config` | Browser-Preview: `{enabled, baseDomain}` (ob `PREVIEW_DOMAIN` gesetzt) |
+| GET | `/api/preview/ports` | Browser-Preview: lauschende localhost-Ports (`lsof`), Hub-Port ausgeblendet |
 | WS | `/api/files/events` | Live-Updates; `{ type: subscribe/unsubscribe, projectId }` — bearer-Subprotocol wie Terminal |
 
 ### Frontend-Module (inline in index.html)
@@ -439,6 +441,45 @@ Der `@`-Mention-Mechanismus ist Claude-spezifisch. Für codex/gemini hängt `@` 
 
 - Unit `lib/session-images.test.js`: Save+Dateiname-Format, idempotenter `.gitignore`-Ensure (+ Erhalt bestehender), Path-Guard-Escape, `cleanupOldImages`-Age-Filter.
 - E2E `tests/image-paste.spec.js` (desktop+mobile): Picker öffnet Annotator, Toolbar, Tool-Auswahl, Senden trifft Endpoint + schließt Modal, 404→noCwd-Toast; ein `fixme` für präzise Canvas-Strich-Pixel.
+## Browser-Preview
+
+In-App Live-Vorschau eines lokalen Dev-Servers (mit HMR) als Split-Panel rechts vom Terminal. Da der Remote-Browser `localhost:<port>` des Macs nicht direkt erreicht, **reverse-proxied der Hub** den Dev-Server über eine Wildcard-Subdomain `<port>.preview.<PREVIEW_DOMAIN>`. Feature ist aus, wenn `PREVIEW_DOMAIN` (`.env`) leer ist.
+
+### lib/preview-proxy.js
+
+- `hostToPort(host, baseDomain)` — reiner Parser: `<port>.preview.<domain>` → Port oder `null` (Range 1024–65535, lehnt Fremd-Hosts + nicht-numerische Labels ab, strippt `:port`-Suffix).
+- `proxyHttp(req,res,port)` / `proxyWs(req,socket,head,port)` — Forwarding via `http-proxy` mit `changeOrigin:true` (schreibt den Upstream-Host auf `localhost:<port>` → umgeht Vites `allowedHosts`-Reject; der Browser-HMR-Client bildet seine WS-URL aus `location` = die Subdomain).
+- `attachUpgrade(server, {baseDomain, isListening})` — **koexistiert mit express-ws**: greift dessen `upgrade`-Listener ab, entfernt sie und installiert einen Dispatcher, der Preview-Hosts an `proxyWs` gibt und alle anderen Upgrades (Hub-WS) an die ursprünglichen Listener **delegiert** (genau ein Pfad pro Upgrade — blosses `prependListener` würde doppelt handshaken). Muss nach `const server = app.listen()` aufgerufen werden.
+
+### lib/port-scan.js
+
+`parseLsof(raw,{excludePort})` + `listListeningPorts({excludePort})` über `lsof -nP -iTCP -sTCP:LISTEN` (Absolutpfad-Fallback `/usr/sbin/lsof`, da im LaunchAgent-PATH nicht vorhanden). Dedup IPv4/IPv6, Hub-Port + `<1024` raus, fehlertolerant `[]`.
+
+### server.js
+
+- **Host-Dispatch-Middleware** ganz oben (vor Auth/Static/JSON/Catch-all): Preview-Subdomain → SSRF-Guard (`isPreviewPortListening`, nur lauschende Ports; sonst 403) → `proxyHttp`. CF Access hat am Tunnel-Edge schon authentifiziert.
+- **`server.on('upgrade')`** via `attachUpgrade` (nur wenn `PREVIEW_ENABLED`).
+- Routen `GET /api/preview/config` (`{enabled, baseDomain}`) + `GET /api/preview/ports` (`{ports:[{port,process}]}`).
+- Dynamisches CSP `frame-src blob: https://*.preview.<domain>` wenn aktiviert.
+
+### Frontend (public/index.html)
+
+- **`PreviewPanel` IIFE** — Split-Panel rechts vom Terminal mit FileBrowser-artigem Resizer (`--preview-width`) + Toggle-Button. Header: Port-Dropdown (aus `/api/preview/ports`) + Freitext, Reload, „In neuem Tab", Schließen. iframe `https://<port>.preview.<domain>/`. Zuletzt genutzter Port pro Session in `localStorage`; „nicht konfiguriert"-Overlay wenn `config.enabled:false`. Aktiviert in `connectToSession`.
+
+### Auth / Infra
+
+CF Access auf der Wildcard-Subdomain (dieselbe Policy wie der Hub → SSO-Cookie geteilt, iframe lädt authentifiziert). `setup.sh`-Schritt `[4/8]` ist halb-automatisch: setzt `PREVIEW_DOMAIN`, schlägt die cloudflared-Ingress-Regel vor und druckt eine Wildcard-DNS-/CF-Access-Checkliste (keine stille CF-Mutation).
+
+### Bekannte Grenzen
+
+- **Staging triggert keinen Proxy-Wechsel** — Port-Wahl ist manuell/Detector-basiert.
+- **Apps mit hartkodierten absoluten Origin-URLs** können fehlrouten (kein Body-Rewriting).
+- **HMR ist der load-bearing Manual-Verify-Fall** (CF-Subdomain-Kette nicht in Playwright nachstellbar).
+
+### Tests
+
+- Unit `lib/preview-proxy.test.js` (`hostToPort`-Fälle, echter HTTP-Round-Trip inkl. `changeOrigin`, WS-Upgrade-Proxy + express-ws-Koexistenz) + `lib/port-scan.test.js` (lsof-Fixture).
+- E2E `tests/browser-preview.spec.js` (desktop+mobile): Panel öffnet/toggelt, Port-Dropdown aus gemocktem Endpoint, iframe-`src`-Bildung, „nicht konfiguriert"-State; ein `fixme` für echtes Proxy/HMR/CF-Subdomain.
 
 ## Bekannte Einschränkungen
 

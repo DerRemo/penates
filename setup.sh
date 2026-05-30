@@ -16,7 +16,7 @@ echo -e "${DIM}  ─────────────────────
 echo ""
 
 # 1. Check prerequisites
-echo -e "${BOLD}[1/7]${RESET} Prüfe Voraussetzungen..."
+echo -e "${BOLD}[1/8]${RESET} Prüfe Voraussetzungen..."
 
 if ! command -v node &> /dev/null; then
   echo "  ✕ Node.js nicht gefunden. Installiere mit: brew install node"
@@ -42,12 +42,12 @@ fi
 
 # 2. Install dependencies
 echo ""
-echo -e "${BOLD}[2/7]${RESET} Installiere Abhängigkeiten..."
+echo -e "${BOLD}[2/8]${RESET} Installiere Abhängigkeiten..."
 npm install
 
 # 3. Configure .env
 echo ""
-echo -e "${BOLD}[3/7]${RESET} Konfiguration..."
+echo -e "${BOLD}[3/8]${RESET} Konfiguration..."
 
 if [ ! -f .env ]; then
   TOKEN=$(openssl rand -hex 32)
@@ -63,9 +63,55 @@ else
   echo "  ✓ .env existiert bereits"
 fi
 
+# 3b. Browser-Preview (optional)
+echo ""
+echo -e "${BOLD}[4/8]${RESET} Browser-Preview (optional)..."
+CURRENT_PREVIEW=$(grep '^PREVIEW_DOMAIN=' .env 2>/dev/null | cut -d= -f2-)
+if [ -z "$CURRENT_PREVIEW" ]; then
+  echo "  Wildcard-Subdomain für den Live-Dev-Server-Reverse-Proxy."
+  echo "  Leer lassen = Feature aus (kann später in .env nachgetragen werden)."
+  printf "  PREVIEW_DOMAIN (z.B. hub.example.com, leer = aus): "
+  read -r PREVIEW_DOMAIN_IN
+  if [ -n "$PREVIEW_DOMAIN_IN" ]; then
+    if grep -q '^PREVIEW_DOMAIN=' .env; then
+      sed -i '' "s#^PREVIEW_DOMAIN=.*#PREVIEW_DOMAIN=${PREVIEW_DOMAIN_IN}#" .env
+    else
+      printf '\nPREVIEW_DOMAIN=%s\n' "$PREVIEW_DOMAIN_IN" >> .env
+    fi
+    HUB_PORT=$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2-); HUB_PORT=${HUB_PORT:-3333}
+
+    # Falls der Tunnel über eine lokale cloudflared config.yml verwaltet wird:
+    # Ingress-Regel für *.preview.<domain> manuell einfügen (vor der Catch-all-404-Regel).
+    CF_CONFIG=""
+    for c in "$HOME/.cloudflared/config.yml" "$HOME/.cloudflared/config.yaml" "/etc/cloudflared/config.yml"; do
+      [ -f "$c" ] && CF_CONFIG="$c" && break
+    done
+    if [ -n "$CF_CONFIG" ] && ! grep -q "\*.preview.${PREVIEW_DOMAIN_IN}" "$CF_CONFIG"; then
+      echo "  → cloudflared-Config gefunden: $CF_CONFIG"
+      echo "    Füge MANUELL diese Ingress-Regel VOR der Catch-all (service: http_status:404) ein:"
+      echo "      - hostname: \"*.preview.${PREVIEW_DOMAIN_IN}\""
+      echo "        service: http://localhost:${HUB_PORT}"
+      echo "    (Automatisches Editieren der Ingress-Liste übersprungen — YAML-Reihenfolge ist load-bearing.)"
+    fi
+
+    echo ""
+    echo "  ── CHECKLISTE (manuell, braucht Cloudflare-Dashboard/API-Token) ──"
+    echo "  1. Wildcard-DNS: CNAME  *.preview.${PREVIEW_DOMAIN_IN}  →  <tunnel-id>.cfargotunnel.com  (proxied)."
+    echo "  2. CF Access: die Wildcard-Subdomain *.preview.${PREVIEW_DOMAIN_IN} zur BESTEHENDEN"
+    echo "     CF-Access-Application/Policy des Hubs hinzufügen (selbe Policy → SSO-Cookie geteilt,"
+    echo "     das iframe lädt bereits authentifiziert)."
+    echo "  3. Ohne CF Access ist die Subdomain so offen wie der Hub selbst — gleiche Vertrauensgrenze."
+    echo ""
+  else
+    echo "  → übersprungen (PREVIEW_DOMAIN bleibt leer, Feature aus)."
+  fi
+else
+  echo "  → PREVIEW_DOMAIN bereits gesetzt (${CURRENT_PREVIEW}) — unverändert."
+fi
+
 # 4. Create LaunchAgent for auto-start
 echo ""
-echo -e "${BOLD}[4/7]${RESET} LaunchAgent einrichten..."
+echo -e "${BOLD}[5/8]${RESET} LaunchAgent einrichten..."
 
 PLIST_DIR="$HOME/Library/LaunchAgents"
 LAUNCHAGENT_ID="${LAUNCHAGENT_ID:-com.claude-code-hub}"
@@ -128,7 +174,7 @@ echo "  ✓ LaunchAgent erstellt: $PLIST_FILE"
 
 # 5. Claude-Code Hook-Installation
 echo ""
-echo -e "${BOLD}[5/7]${RESET} Claude-Code Hooks installieren..."
+echo -e "${BOLD}[6/8]${RESET} Claude-Code Hooks installieren..."
 
 SETTINGS_FILE="$HOME/.claude/settings.json"
 if ! command -v jq &> /dev/null; then
@@ -196,7 +242,7 @@ fi
 
 # 6. StatusLine-Script — Hub-Reporting
 echo ""
-echo -e "${BOLD}[6/7]${RESET} StatusLine-Script einrichten..."
+echo -e "${BOLD}[7/8]${RESET} StatusLine-Script einrichten..."
 
 SL_SCRIPT="$HOME/.claude/statusline-command.sh"
 SL_SENTINEL_START="#CCH-SL-START#"
@@ -256,7 +302,7 @@ fi
 
 # 7. Load and start
 echo ""
-echo -e "${BOLD}[7/7]${RESET} Starte Claude Code Hub..."
+echo -e "${BOLD}[8/8]${RESET} Starte Claude Code Hub..."
 
 # Vorherige Version (auch unter altem com.derremo-Namen) entladen
 launchctl bootout gui/$(id -u) "$PLIST_FILE" 2>/dev/null || true

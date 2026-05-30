@@ -488,4 +488,15 @@ window.__I18N_BUNDLES.en = {
   'imagePaste.error.noCwd': 'Session directory unavailable',
   'imagePaste.error.tooLarge': 'Image too large',
   'imagePaste.error.failed': 'Image upload failed',
+  // Browser-Preview
+  'preview.toggle': 'Preview',
+  'preview.toggleAria': 'Toggle preview',
+  'preview.header.portLabel': 'Port',
+  'preview.header.portPlaceholder': 'Port…',
+  'preview.header.reload': 'Reload',
+  'preview.header.openTab': 'Open in new tab',
+  'preview.header.close': 'Close',
+  'preview.empty.choosePort': 'Pick or enter a port to load the preview.',
+  'preview.empty.notConfigured': 'Preview not configured. Set PREVIEW_DOMAIN in .env (see setup.sh).',
+  'preview.error.noServer': 'No server on port {n} — is your dev server running?',
 };
