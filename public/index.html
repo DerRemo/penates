@@ -6297,47 +6297,30 @@
 
       const renderRunningCard = (s) => {
         const displayName = s.name.replace(/^cc-/, '');
-        const age = formatAge(s.created);
         const safeName = escapeHtml(s.name);
         const act = activityMap[s.activity] || activityMap.unknown;
         const label = s.activity === 'unknown' && !s.attached ? t('sessionCard.status.dormant') : act.label;
         const unreadCls = unreadSessions.has(s.name) ? ' unread' : '';
+        const activityAttr = escapeHtml(s.activity || 'unknown');
         return `
-          <div class="session-card${unreadCls}" data-status="running" data-name="${safeName}" data-attached="${s.attached}">
-            ${renderMuteButton(s.muted)}
-            ${renderPinButton(s.pinned)}
+          <div class="session-card${unreadCls}" data-status="running" data-name="${safeName}" data-attached="${s.attached}" data-activity="${activityAttr}">
+            <span class="card-accent" aria-hidden="true"></span>
             <div class="session-card-header">
               <div class="session-name">
-                <span class="icon">&gt;_</span>
-                ${escapeHtml(displayName)}
-                <span class="session-project-badge" data-project="${escapeHtml(s.projectId || '')}">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                  <span class="session-project-name">${escapeHtml(s.projectName || '')}</span>
-                </span>
+                ${cardCliLogo(s.command)}
+                <span class="session-name-text">${escapeHtml(displayName)}</span>
               </div>
               <div class="session-status ${act.cls}" title="${escapeHtml(act.title)}">${label}</div>
             </div>
-            <div class="session-meta">
-              ${cardCliBadge(s.command) ? `<div class="session-meta-item">${cardCliBadge(s.command)}</div>` : ''}
-              <div class="session-meta-item">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                ${age}
-              </div>
-              <div class="session-meta-item" title="${formatContextTooltip(s)}">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
-                ${formatContextPct(s.contextPct)}
-              </div>
-              ${renderGitBadge(s.git, s.name)}
-            </div>
             <div class="session-actions" data-stop-propagation>
-              <button class="btn btn-ghost btn-sm" data-action="connect">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                ${t('sessionCard.action.connect')}
-              </button>
               <button class="btn btn-danger btn-sm" data-action="kill">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 ${t('sessionCard.action.kill')}
               </button>
+              <span class="session-card-tools">
+                ${renderPinButton(s.pinned)}
+                ${renderMuteButton(s.muted)}
+              </span>
             </div>
           </div>
         `;
