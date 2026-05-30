@@ -7029,7 +7029,16 @@
         fitAddon.fit();
 
         reconnectAttempts = 0;
-        openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/false);
+        // Scrollback-History ins frische xterm seeden BEVOR der Live-Attach läuft
+        // (tmux zeichnet den aktuellen Screen darunter). Nur frischer Connect — der
+        // Reconnect-Pfad seedet nicht (das xterm-Objekt lebt dort weiter).
+        fetch('/api/sessions/' + encodeURIComponent(name) + '/scrollback?lines=2000', { headers: apiHeaders() })
+          .then(r => (r.ok ? r.json() : { data: '' }))
+          .then(({ data }) => { if (data) term.write(data); })
+          .catch(() => {})
+          .finally(() => {
+            openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/false);
+          });
 
         // Handle resize — Observer wird in disconnectTerminal aufgeräumt.
         const resizeObserver = new ResizeObserver(() => {
