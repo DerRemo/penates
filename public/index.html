@@ -4345,6 +4345,32 @@
     let reconnectTimer = null;
     let reconnectAttempts = 0;
     const MAX_RECONNECT = 3;
+    let pingTimer = null;       // Client→Server app-level ping interval
+    let pongTimer = null;       // erwartet {type:'pong'} innerhalb der Frist
+    let reconnectNow = null;    // gesetzt in openTerminalWebSocket → von Resume-Triggern genutzt
+
+    // Mirror von lib/backoff.js (dort unit-getestet). Base 1s, Faktor 2, Cap 20s, ±20% Jitter.
+    function nextBackoffMs(attempt) {
+      const base = Math.min(1000 * 2 ** attempt, 20000);
+      const jitter = base * 0.2;
+      return Math.round(base - jitter + Math.random() * 2 * jitter);
+    }
+
+    function stopHeartbeat() {
+      clearInterval(pingTimer); pingTimer = null;
+      clearTimeout(pongTimer); pongTimer = null;
+    }
+    // Client schickt alle 15s einen app-level ping; bleibt der pong >10s aus, ist
+    // der Link tot → close() (triggert Reconnect), statt auf den TCP-Timeout zu warten.
+    function startHeartbeat(ws) {
+      stopHeartbeat();
+      pingTimer = setInterval(() => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        try { ws.send(JSON.stringify({ type: 'ping' })); } catch {}
+        clearTimeout(pongTimer);
+        pongTimer = setTimeout(() => { try { ws.close(); } catch {} }, 10000);
+      }, 15000);
+    }
     let pendingCtrl = false;       // Touch-Toolbar: sticky Ctrl-Modifier
     let touchScrollAbort = null;   // AbortController für Touch-Scroll-Listener
     let clipboardAbort = null;     // AbortController für Document-level Clipboard-Keys
@@ -7050,6 +7076,7 @@
 
       ws.onopen = () => {
         reconnectAttempts = 0;
+        startHeartbeat(ws);
         setConnStatus('connected', t('terminal.connStatus.connected'));
         ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
         if (!isReconnect) showToast(t('toast.connected', { name: displayName }), 'success');
@@ -7057,16 +7084,21 @@
 
       ws.onmessage = (event) => {
         if (typeof event.data === 'string') {
-          term.write(event.data);
-        } else {
-          term.write(new Uint8Array(event.data));
+          // String-Frames sind Control-Messages (pong/error), keine PTY-Bytes.
+          let m = null;
+          try { m = JSON.parse(event.data); } catch {}
+          if (m && m.type === 'pong') { clearTimeout(pongTimer); return; }
+          term.write(event.data); // unbekannte String-Frames (z.B. error) wie bisher
+          return;
         }
+        term.write(new Uint8Array(event.data));
       };
 
       ws.onerror = () => { /* close folgt sowieso */ };
 
       ws.onclose = (ev) => {
-        // 4001 = Auth failed, 4004 = Session gone → beide NICHT reconnecten
+        stopHeartbeat();
+        // 4001 = Auth failed, 4004 = Session gone → beide terminal, kein Reconnect
         if (ev.code === 4001) {
           setConnStatus('disconnected', t('terminal.connStatus.authMissing'));
           showToast(t('toast.authFailed'), 'error');
@@ -7077,22 +7109,20 @@
           showToast(t('toast.sessionGone'), 'error');
           return;
         }
-        // User-initiated disconnect (currentWs auf null gesetzt in disconnectTerminal) → ruhe
+        // User-initiierter Disconnect (currentWs in disconnectTerminal auf null) → Ruhe
         if (currentWs !== ws) return;
 
-        if (reconnectAttempts < MAX_RECONNECT) {
-          reconnectAttempts++;
-          setConnStatus('connecting', t('terminal.connStatus.reconnectIn', { n: reconnectAttempts, max: MAX_RECONNECT }));
-          term.write(`\r\n\x1b[90m${t('terminal.msg.connLost', { n: reconnectAttempts, max: MAX_RECONNECT })}\x1b[0m\r\n`);
-          clearTimeout(reconnectTimer);
-          reconnectTimer = setTimeout(() => {
-            // Session existiert noch? Vorher prüfen.
-            openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/true);
-          }, 2000);
-        } else {
-          setConnStatus('disconnected', t('terminal.connStatus.disconnected'));
-          term.write(`\r\n\x1b[90m${t('terminal.msg.connClosed')}\x1b[0m\r\n`);
+        reconnectAttempts++;
+        const delay = nextBackoffMs(reconnectAttempts);
+        setConnStatus('connecting', t('terminal.connStatus.reconnecting', { n: reconnectAttempts }));
+        // "Verbindung verloren"-Hinweis nur EINMAL (erster Versuch), nicht bei jedem Backoff
+        if (reconnectAttempts === 1) {
+          term.write(`\r\n\x1b[90m${t('terminal.msg.connLost')}\x1b[0m\r\n`);
         }
+        clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => {
+          openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/true);
+        }, delay);
       };
 
       // Terminal input → WebSocket. Wenn sticky-Ctrl von der Touch-Toolbar
@@ -7104,6 +7134,13 @@
         ws.send(JSON.stringify({ type: 'input', data: out }));
       });
 
+      // Resume-Trigger (visibilitychange/online/pageshow) nutzen diesen Thunk für
+      // einen Sofort-Reconnect mit Backoff-Reset.
+      reconnectNow = () => {
+        clearTimeout(reconnectTimer);
+        reconnectAttempts = 0;
+        openTerminalWebSocket(name, term, fitAddon, container, /*isReconnect=*/true);
+      };
       currentWs = ws;
       window.currentWs = ws;
     }
