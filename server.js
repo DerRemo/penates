@@ -42,6 +42,7 @@ import {
 } from './lib/file-watcher.js';
 import * as attention from './lib/attention.js';
 import * as attachTracker from './lib/attach-tracker.js';
+import * as approvals from './lib/approvals.js';
 import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
@@ -1118,6 +1119,7 @@ app.delete('/api/sessions/:name', (req, res) => {
     attention.forget(name);
     usageLimits.forget(name);
     attachTracker.forget(name);
+    approvals.forget(name);
     // Alias-Einträge aufräumen, die auf diese Session zeigten.
     for (const [k, v] of hookAlias.entries()) {
       if (v === name || k === name) hookAlias.delete(k);
@@ -1148,6 +1150,7 @@ app.patch('/api/sessions/:name', async (req, res) => {
     attention.rename(name, fullNewName);
     usageLimits.rename(name, fullNewName);
     attachTracker.rename(name, fullNewName);
+    approvals.rename(name, fullNewName);
     aliasOnRename(name, fullNewName);
     // known-sessions mitziehen, damit Restore nach Rename den neuen Namen findet.
     try { await knownSessions.rename(name, fullNewName); } catch (e) { console.error('[known-sessions] rename failed:', e); }
@@ -1438,13 +1441,19 @@ function isDeviceFocused(deviceId, sessionName) {
 }
 
 const notificationClients = new Set();
-attention.subscribe((event) => {
+
+// Fan-out eines Events an alle Notifications-WS-Clients (Dashboard).
+function broadcastNotification(event) {
   const payload = JSON.stringify(event);
   for (const ws of notificationClients) {
     if (ws.readyState === 1) {
       try { ws.send(payload); } catch {}
     }
   }
+}
+
+attention.subscribe((event) => {
+  broadcastNotification(event);
   // Web-Push: nur bei echten Attention-Events (nicht bei activity-only Updates).
   if (event.type === 'session-attention') {
     sendPushForAttention(event).catch((e) => console.error('[push] broadcast error:', e));
