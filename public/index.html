@@ -794,9 +794,6 @@
       flex-wrap: wrap;
     }
 
-    /* Legacy .dashboard-tabs — Navigation wandert in die Sidebar */
-    .dashboard-tabs { display: none !important; }
-
     /* ── View Container ───────────────────────────────────────────── */
     .container {
       position: relative;
@@ -807,47 +804,12 @@
     }
 
     /* ── Dashboard View ───────────────────────────────────────────── */
-    .dashboard-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 28px;
-    }
-
     .dashboard-title {
       font-size: 14px;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       font-weight: 600;
       color: var(--text-muted);
-    }
-
-    /* ── Dashboard-Tabs (Sessions / Usage) ─────────────────────────── */
-    .dashboard-tabs {
-      display: inline-flex;
-      gap: 4px;
-      padding: 4px;
-      background: var(--bg-elevated);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-    }
-    .dashboard-tab {
-      padding: 8px 18px;
-      border-radius: 8px;
-      border: none;
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-family: var(--font-ui);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.3px;
-      transition: color 0.15s ease, background 0.15s ease;
-    }
-    .dashboard-tab:hover { color: var(--text-secondary); }
-    .dashboard-tab.active {
-      color: var(--bg-deep);
-      background: var(--teal);
     }
 
     /* Elemente mit data-tab-scope nur sichtbar, wenn passender Tab aktiv.
@@ -1662,27 +1624,6 @@
       flex: 1;
       overflow-y: auto;
       padding: 32px max(24px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
-    }
-
-    /* ── Dashboard-Tab Phase-Indikator-Dot ─────────────────────────── */
-    .dashboard-tab--new {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .dashboard-tab-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--text-muted);
-      display: inline-block;
-      opacity: 0.7;
-      transition: background 0.2s ease, box-shadow 0.2s ease;
-    }
-    .dashboard-tab--new:hover .dashboard-tab-dot,
-    .dashboard-tab--new.active .dashboard-tab-dot {
-      background: var(--bg-deep);
-      opacity: 1;
     }
 
     /* ── Attention-Flash: 2s Peak-Animation direkt bei eingehendem
@@ -2737,11 +2678,7 @@
       .container { padding: 20px max(16px, env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
       .sessions-grid { grid-template-columns: 1fr; }
       .header { padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
-      .dashboard-header { flex-direction: column; gap: 12px; align-items: flex-start; }
-      .dashboard-header-left { flex-wrap: wrap; width: 100%; }
       .search-wrapper { max-width: none; flex: 1 1 100%; }
-      .dashboard-header-right { width: 100%; flex-wrap: wrap; gap: 6px; }
-      .dashboard-header-right .btn { flex: 1 1 auto; min-width: max-content; }
 
       /* Terminal-Toolbar auf Mobile: platzsparende Zwei-Reihen-Anordnung.
          Connection-Status-Label wird zum reinen Dot, Button-Labels verkürzt. */
@@ -2856,13 +2793,6 @@
     }
 
     /* ── D3: Search-Filter ─────────────────────────────────────────── */
-    .dashboard-header-left {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex: 1;
-      min-width: 0;
-    }
     .search-wrapper {
       position: relative;
       flex: 1;
@@ -3837,6 +3767,70 @@
       font-family: var(--font-mono);
     }
     .settings-about-changelog a { color: var(--accent, #2dd4bf); text-decoration: underline; }
+
+    /* ===== App-Shell-Primitive (Redesign) ===== */
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      font: 600 11px var(--font-ui); padding: 3px 10px;
+      border-radius: var(--radius-pill); white-space: nowrap;
+      color: var(--text-secondary); background: var(--bg-card-hover);
+    }
+    .pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .pill--plain::before { display: none; }
+    .pill--work { color: var(--status-working); background: var(--work-soft); }
+    .pill--wait { color: var(--status-waiting); background: var(--wait-soft); }
+    .pill--idle { color: var(--status-idle);    background: var(--idle-soft); }
+    .pill--neutral { color: var(--text-muted); background: var(--bg-card-hover); }
+
+    .section-bar {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-6);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .section-bar__label { font: 600 10px var(--font-ui); letter-spacing: .13em; text-transform: uppercase; color: var(--text-muted); }
+    .section-bar__actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+
+    .app-topbar {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky; top: 0; z-index: 10;
+      background: color-mix(in srgb, var(--bg-base) 82%, transparent);
+      backdrop-filter: blur(12px);
+    }
+    .app-topbar__title { margin: 0; font: 600 19px var(--font-display); letter-spacing: -.01em; }
+    .app-topbar__summary { font-size: 12.5px; color: var(--text-secondary); }
+    .app-topbar__summary b { color: var(--text-primary); }
+    .app-topbar__summary .sep { color: var(--text-muted); margin: 0 6px; }
+    .app-topbar__search { margin-left: auto; }
+    .field {
+      display: flex; align-items: center; gap: 9px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 8px 12px; color: var(--text-muted);
+    }
+    .field:focus-within { box-shadow: var(--focus-ring); border-color: var(--accent); }
+    .field input { border: 0; background: transparent; color: var(--text-primary); font: 500 13px var(--font-ui); outline: none; width: 200px; }
+    .field kbd { font: 600 10px var(--font-mono); color: var(--text-muted); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
+
+    .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px var(--space-2); }
+    .sidebar__brand-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); color: var(--accent-contrast); display: grid; place-items: center; font: 700 13px var(--font-mono); }
+    .sidebar__brand-name { font: 700 15px var(--font-display); letter-spacing: -.01em; }
+    .sidebar__brand-name small { display: block; font: 500 11px var(--font-ui); color: var(--text-muted); }
+    .sidebar__count { margin-left: auto; font: 600 11px var(--font-mono); color: var(--text-muted); }
+    .sidebar__limit { margin-top: auto; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 10px; background: var(--bg-base); }
+    .sidebar__limit[hidden] { display: none; }
+    .sidebar__limit-ring { --p: 0; width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--border) 0); display: grid; place-items: center; }
+    .sidebar__limit-ring i { width: 27px; height: 27px; border-radius: 50%; background: var(--bg-base); display: grid; place-items: center; font: 600 9px var(--font-mono); color: var(--text-secondary); font-style: normal; }
+    .sidebar__limit-ring.usage-limit-amber { --p-color: var(--status-waiting); }
+    .sidebar__limit-meta b { display: block; font: 600 12px var(--font-ui); }
+    .sidebar__limit-meta span { font: 500 10.5px var(--font-ui); color: var(--text-muted); }
+
+    @media (max-width: 900px) {
+      .app-topbar { flex-wrap: wrap; }
+      .app-topbar__search { margin-left: 0; order: 3; flex: 1 1 100%; }
+      .section-bar { flex-wrap: wrap; }
+    }
+    @media (min-width: 900px) { .header { display: none; } }
   </style>
   <script src="/locales/en.js"></script>
   <script src="/locales/de.js"></script>
@@ -3890,6 +3884,38 @@
   <div class="app-layout">
 
     <aside class="sidebar" id="sidebar" aria-label="Navigation">
+      <div class="sidebar__brand">
+        <div class="sidebar__brand-mark">&gt;_</div>
+        <div class="sidebar__brand-name">
+          <span data-i18n="header.logoProduct">Claude</span> Hub
+          <small id="sidebar-brand-subtitle"></small>
+        </div>
+      </div>
+
+      <div class="sidebar__label" data-i18n="sidebar.navigationLabel">Navigation</div>
+      <button class="sidebar__item" type="button" data-sidebar-nav="sessions">
+        <span class="sidebar__nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.overview">Overview</span>
+        <span class="sidebar__count" id="nav-count-sessions"></span>
+      </button>
+      <button class="sidebar__item" type="button" data-sidebar-nav="projects">
+        <span class="sidebar__nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+        </span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.projects">Projects</span>
+        <span class="sidebar__count" id="nav-count-projects"></span>
+      </button>
+      <button class="sidebar__item" type="button" data-sidebar-nav="usage">
+        <span class="sidebar__nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
+        </span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.usage">Usage</span>
+      </button>
+
+      <div class="sidebar__divider"></div>
+
       <div class="sidebar__label" data-i18n="sidebar.sessionsLabel">Sessions</div>
       <div class="sidebar__filter" role="group" aria-label="Session filter">
         <button class="sidebar__filter-btn" type="button" data-sidebar-filter="active"
@@ -3901,27 +3927,13 @@
         <div class="sidebar__empty" data-i18n="sidebar.loading">Loading…</div>
       </div>
 
-      <div class="sidebar__divider"></div>
-
-      <div class="sidebar__label" data-i18n="sidebar.navigationLabel">Navigation</div>
-      <button class="sidebar__item" type="button" data-sidebar-nav="sessions">
-        <span class="sidebar__nav-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        </span>
-        <span class="sidebar__nav-label" data-i18n="sidebar.nav.overview">Overview</span>
-      </button>
-      <button class="sidebar__item" type="button" data-sidebar-nav="projects">
-        <span class="sidebar__nav-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
-        </span>
-        <span class="sidebar__nav-label" data-i18n="sidebar.nav.projects">Projects</span>
-      </button>
-      <button class="sidebar__item" type="button" data-sidebar-nav="usage">
-        <span class="sidebar__nav-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
-        </span>
-        <span class="sidebar__nav-label" data-i18n="sidebar.nav.usage">Usage</span>
-      </button>
+      <div class="sidebar__limit" id="sidebar-limit" hidden>
+        <div class="sidebar__limit-ring" id="sidebar-limit-ring"><i id="sidebar-limit-pct"></i></div>
+        <div class="sidebar__limit-meta">
+          <b data-i18n="sidebar.limit.label">5h-Limit</b>
+          <span id="sidebar-limit-reset"></span>
+        </div>
+      </div>
 
       <div class="sidebar__settings-section">
         <button class="sidebar__settings-entry" id="sidebar-settings-entry" type="button"
@@ -3944,46 +3956,35 @@
   <!-- ── Dashboard View ───────────────────────────────────────── -->
   <div class="dashboard-view" id="dashboard-view" data-view="dashboard">
     <div class="container">
-      <div class="dashboard-header">
-        <div class="dashboard-header-left">
-          <div class="dashboard-tabs" role="tablist" data-i18n-attr="aria-label:dashboard.tablistAria" aria-label="Dashboard tabs">
-            <button class="dashboard-tab" id="tab-sessions" data-tab="sessions" type="button" role="tab" data-i18n="dashboard.tab.sessions">Sessions</button>
-            <button class="dashboard-tab" id="tab-usage" data-tab="usage" type="button" role="tab" data-i18n="dashboard.tab.usage">Usage</button>
-            <button class="dashboard-tab dashboard-tab--new" id="tab-projects" data-tab="projects" type="button" role="tab" title="Project management (Phase 1 Step 2a — Mutations)">
-              <span data-i18n="dashboard.tab.projects">Projects</span>
-              <span class="dashboard-tab-dot" aria-hidden="true"></span>
-            </button>
-          </div>
-          <div class="search-wrapper" data-tab-scope="sessions projects">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="search" class="search-input" id="session-search" data-i18n-attr="placeholder:dashboard.filterPlaceholder" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
-          </div>
+      <header class="app-topbar">
+        <div>
+          <h1 class="app-topbar__title" id="shell-title" data-i18n="shell.title.overview">Übersicht</h1>
+          <div class="app-topbar__summary" id="shell-summary" data-tab-scope="sessions"></div>
         </div>
-        <div class="dashboard-header-right" style="display: flex; gap: 8px; align-items: center;">
+        <div class="app-topbar__search field" data-tab-scope="sessions projects">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" id="session-search" data-i18n-attr="placeholder:dashboard.filterPlaceholder" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
+          <kbd>/</kbd>
+        </div>
+        <button class="btn btn-primary btn-sm" id="new-session-btn" type="button" data-tab-scope="sessions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span data-i18n="dashboard.newSession">New Session</span>
+        </button>
+        <button class="btn btn-primary btn-sm" id="new-project-btn" type="button" data-tab-scope="projects">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span data-i18n="dashboard.newProject">New Project</span>
+        </button>
+      </header>
+      <div class="section-bar">
+        <span class="section-bar__label" id="shell-section-label"></span>
+        <span class="pill pill--plain pill--neutral" id="shell-section-count"></span>
+        <div class="section-bar__actions">
           <div class="layout-toggle" role="group" data-i18n-attr="aria-label:dashboard.layoutAria" aria-label="Layout" data-tab-scope="sessions">
-            <button class="layout-toggle-btn" id="layout-grid-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.gridAria;title:dashboard.layout.gridTitle" aria-label="Grid view" title="Grid (g)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-            </button>
-            <button class="layout-toggle-btn" id="layout-list-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.listAria;title:dashboard.layout.listTitle" aria-label="List view" title="List (l)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
-            </button>
+            <button class="layout-toggle-btn" id="layout-grid-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.gridAria;title:dashboard.layout.gridTitle" aria-label="Grid view" title="Grid (g)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
+            <button class="layout-toggle-btn" id="layout-list-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.listAria;title:dashboard.layout.listTitle" aria-label="List view" title="List (l)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></button>
           </div>
-          <button class="btn btn-ghost btn-sm" id="refresh-btn" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-            <span data-i18n="dashboard.refresh">Refresh</span>
-          </button>
-          <button class="btn btn-ghost btn-sm" id="bulk-kill-btn" type="button" data-tab-scope="sessions">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            <span data-i18n="dashboard.bulkKill">Bulk Kill</span>
-          </button>
-          <button class="btn btn-primary btn-sm" id="new-session-btn" type="button" data-tab-scope="sessions">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            <span data-i18n="dashboard.newSession">New Session</span>
-          </button>
-          <button class="btn btn-primary btn-sm" id="new-project-btn" type="button" data-tab-scope="projects">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            <span data-i18n="dashboard.newProject">New Project</span>
-          </button>
+          <button class="btn btn-ghost btn-sm" id="refresh-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg><span data-i18n="dashboard.refresh">Refresh</span></button>
+          <button class="btn btn-ghost btn-sm" id="bulk-kill-btn" type="button" data-tab-scope="sessions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg><span data-i18n="dashboard.bulkKill">Bulk Kill</span></button>
         </div>
       </div>
       <div class="sessions-grid" id="sessions-grid" data-tab-panel="sessions">
@@ -4487,12 +4488,30 @@
     let currentSessionName = null;
     let currentResizeObserver = null;
     let refreshInterval = null;
+    let sidebarLimitInterval = null;
     let reconnectTimer = null;
     let reconnectAttempts = 0;
     const MAX_RECONNECT = 3;
     let pingTimer = null;       // Client→Server app-level ping interval
     let pongTimer = null;       // erwartet {type:'pong'} innerhalb der Frist
     let reconnectNow = null;    // gesetzt in openTerminalWebSocket → von Resume-Triggern genutzt
+
+    // gespiegelt aus lib/shell-counts.js — bei Änderung beide pflegen
+    function deriveShellCounts(sessions) {
+      const c = { total: 0, active: 0, dormant: 0, working: 0, waiting: 0, idle: 0, unknown: 0 };
+      for (const s of sessions || []) {
+        c.total++;
+        if (s && s.status === 'dormant') { c.dormant++; continue; }
+        c.active++;
+        switch (s && s.activity) {
+          case 'working': c.working++; break;
+          case 'waiting': c.waiting++; break;
+          case 'idle':    c.idle++;    break;
+          default:        c.unknown++; break;
+        }
+      }
+      return c;
+    }
 
     // Mirror von lib/backoff.js (dort unit-getestet). Base 1s, Faktor 2, Cap 20s, ±20% Jitter.
     function nextBackoffMs(attempt) {
@@ -4688,9 +4707,6 @@
       if (!VALID_TABS.has(tab)) tab = 'sessions';
       localStorage.setItem(TAB_KEY, tab);
       document.body.setAttribute('data-active-tab', tab);
-      document.getElementById('tab-sessions').classList.toggle('active', tab === 'sessions');
-      document.getElementById('tab-usage').classList.toggle('active', tab === 'usage');
-      document.getElementById('tab-projects').classList.toggle('active', tab === 'projects');
       document.getElementById('sessions-grid').hidden = tab !== 'sessions';
       document.getElementById('usage-view').hidden = tab !== 'usage';
       document.getElementById('projects-view').hidden = tab !== 'projects';
@@ -4702,6 +4718,52 @@
       if (tab === 'usage') renderUsage();
       if (tab === 'projects') { renderProjectsWithSearch(searchQuery); openProjectEventsWs(); }
       updateSidebarNavActive();
+      updateShellChrome();
+    }
+
+    // ── Shell-Chrome Helpers ───────────────────────────────────────
+    const SHELL_TITLES = { sessions: 'shell.title.overview', projects: 'shell.title.projects', usage: 'shell.title.usage' };
+    function updateShellChrome() {
+      const tab = getTab();
+      const c = deriveShellCounts(sessions || []);
+      const titleKey = SHELL_TITLES[tab] || SHELL_TITLES.sessions;
+      const titleEl = document.getElementById('shell-title');
+      if (titleEl) { titleEl.setAttribute('data-i18n', titleKey); titleEl.textContent = t(titleKey); }
+      const sub = document.getElementById('sidebar-brand-subtitle');
+      if (sub) sub.textContent = t('sidebar.brand.subtitle', { active: c.active, dormant: c.dormant });
+      const sum = document.getElementById('shell-summary');
+      if (sum) sum.innerHTML = `<b>${c.working}</b> ${t('shell.summary.working')}<span class="sep">·</span><b>${c.waiting}</b> ${t('shell.summary.waiting')}<span class="sep">·</span><b>${c.idle}</b> ${t('shell.summary.idle')}`;
+      const navS = document.getElementById('nav-count-sessions');
+      if (navS) navS.textContent = c.active || '';
+      const lbl = document.getElementById('shell-section-label');
+      const cnt = document.getElementById('shell-section-count');
+      if (lbl && cnt) {
+        if (tab === 'sessions') { lbl.textContent = t('sidebar.filterActive').toUpperCase(); cnt.textContent = c.active; cnt.hidden = false; }
+        else { lbl.textContent = t(SHELL_TITLES[tab]).toUpperCase(); cnt.hidden = true; }
+      }
+    }
+
+    function updateSidebarLimit(pct, resetTs) {
+      const box = document.getElementById('sidebar-limit');
+      if (!box) return;
+      if (pct == null) { box.hidden = true; return; }
+      box.hidden = false;
+      const ring = document.getElementById('sidebar-limit-ring');
+      if (ring) { ring.style.setProperty('--p', pct); ring.className = 'sidebar__limit-ring ' + limitColorClass(pct); }
+      const pctEl = document.getElementById('sidebar-limit-pct');
+      if (pctEl) pctEl.textContent = pct + '%';
+      const resetEl = document.getElementById('sidebar-limit-reset');
+      if (resetEl) resetEl.textContent = resetTs ? t('sidebar.limit.reset', { time: formatResetCountdown(resetTs) }) : '';
+    }
+    async function refreshSidebarLimit() {
+      try {
+        const res = await fetch('/api/usage/limits?days=7', { headers: apiHeaders() });
+        if (!res.ok) { updateSidebarLimit(null); return; }
+        const lim = await res.json();
+        const acc = (lim.accounts || [])[0];
+        const w5 = acc && (acc.windows || []).find(w => w.label === '5h');
+        updateSidebarLimit(w5 ? Math.round(w5.usedPercentage ?? 0) : null, w5 && w5.resetsAt);
+      } catch (_) { updateSidebarLimit(null); }
     }
 
     // ── Token-Formatter ────────────────────────────────────────────
@@ -4857,6 +4919,8 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const projects = data.projects || [];
+        const np = document.getElementById('nav-count-projects');
+        if (np) np.textContent = projects.length || '';
 
         if (projects.length === 0) {
           view.innerHTML = buildProjectsEmptyHtml();
@@ -5138,6 +5202,8 @@
       // beim nächsten refreshSessions(), daher reicht hier ein Inline-Patch.
       const sidebarItem = document.querySelector(`.sidebar__item[data-session="${CSS.escape(name)}"] .sidebar__dot`);
       if (sidebarItem) sidebarItem.setAttribute('data-activity', activity || 'unknown');
+      // Topbar-Summary + Nav-Counts sofort nachziehen (nicht erst beim 5s-Poll)
+      if (typeof updateShellChrome === 'function') updateShellChrome();
     }
 
     // ── Sidebar-Filter ─────────────────────────────────────────────
@@ -6355,6 +6421,7 @@
           });
         }
         updateTabBadge();
+        updateShellChrome();
       } catch (err) {
         if (sessions === null) sessions = []; // erster Fetch fehlgeschlagen → nicht ewig Skeleton zeigen
         renderSessions();
@@ -8433,10 +8500,6 @@
     });
     updateSoundToggleUi();
 
-    document.getElementById('tab-sessions').addEventListener('click', () => setTab('sessions'));
-    document.getElementById('tab-usage').addEventListener('click', () => setTab('usage'));
-    document.getElementById('tab-projects').addEventListener('click', () => setTab('projects'));
-
     // Sidebar: Event-Delegation für Session-Clicks + Nav-Items. Ein
     // einzelner Listener reicht — renderSidebar() schreibt die Buttons
     // bei jedem Render neu, aber dieser Container bleibt stabil.
@@ -8815,6 +8878,11 @@
     // damit Attention-Events auch dann ankommen wenn der User gerade
     // im Projekte- oder Usage-Tab ist.
     openNotifyWs();
+    // Sidebar-Limit-Ring: einmaliger Fetch + 60s-Polling.
+    if (!sidebarLimitInterval) {
+      refreshSidebarLimit();
+      sidebarLimitInterval = setInterval(refreshSidebarLimit, 60000);
+    }
     // Web Push: Service Worker registrieren + VAPID-Key holen.
     initPush();
     // Settings page: wire controls.

@@ -15,6 +15,19 @@ window.__I18N_BUNDLES.de = {
   'sidebar.nav.overview': 'Übersicht',
   'sidebar.nav.projects': 'Projekte',
   'sidebar.nav.usage': 'Usage',
+  'sidebar.brand.subtitle': '{active} aktiv · {dormant} ruhend',
+  'sidebar.limit.label': '5h-Limit',
+  'sidebar.limit.reset': 'Reset in {time}',
+
+  // Shell — titles
+  'shell.title.overview': 'Übersicht',
+  'shell.title.projects': 'Projekte',
+  'shell.title.usage': 'Auslastung',
+
+  // Shell — summary
+  'shell.summary.working': 'arbeiten',
+  'shell.summary.waiting': 'wartet',
+  'shell.summary.idle': 'ruht',
 
   // Dashboard toolbar
   'dashboard.tablistAria': 'Dashboard-Tabs',
