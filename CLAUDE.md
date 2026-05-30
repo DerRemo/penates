@@ -485,6 +485,46 @@ CF Access auf dem fixen Host `preview.<domain>` (dieselbe Policy wie der Hub →
 - Unit `lib/preview-proxy.test.js` (`isPreviewHost`-Fälle, echter HTTP-Round-Trip inkl. `changeOrigin`, WS-Upgrade-Proxy + express-ws-Koexistenz, kein-aktiver-Port-Kill) + `lib/port-scan.test.js` (lsof-Fixture).
 - E2E `tests/browser-preview.spec.js` (desktop+mobile): Panel öffnet/toggelt, Port-Dropdown aus gemocktem Endpoint, Port-Wahl POSTet an `/select` + lädt den fixen Host, „nicht konfiguriert"-State; ein `fixme` für echtes Proxy/HMR/CF.
 
+## Voice-Input
+
+Sprache ins Terminal diktieren: Mic-Button in der Terminal-Toolbar (Toggle: Klick an / Klick aus), lokale Transkription via whisper.cpp auf dem Mac, der deutsche Text landet **ohne Enter** in der Eingabezeile (gleiches Inject-Muster wie die `@`-Mention) — der User reviewt und schickt selbst ab.
+
+### lib/voice.js
+
+Express-frei, unit-testbar. Liest Env **in** den Funktionen (nicht modul-top), damit Tests pro Fall frische Werte setzen.
+
+- `resolveBin()` — whisper-cli-Pfad. **`WHISPER_BIN` ist autoritativ** (gesetzt → nur dieser Pfad, kein Fallback); sonst `/opt/homebrew/bin/whisper-cli` → `/usr/local/bin/whisper-cli`; sonst `null`.
+- `modelPath()` / `langDefault()` — `WHISPER_MODEL` (default `~/.claude-code-hub/models/ggml-large-v3-turbo-q5_0.bin`) bzw. `VOICE_LANG` (default `de`).
+- `isEnabled()` — `false` wenn `VOICE_ENABLED=false`; sonst `true` gdw. bin auflösbar **und** Modell-Datei existiert. Gated den Button (Button versteckt wenn aus) — Muster wie `PREVIEW_DOMAIN`.
+- `transcribe(wavBuffer, {lang})` — schreibt Buffer in ein frisches Temp-Verzeichnis (`cch-voice-`), ruft whisper via **async `execFile`** (promisified, argv-array — **NICHT** `execFileSync`: eine 1–2s-Transkription darf den Event-Loop nicht blockieren; Argv erfüllt die No-Shell-Interp-Konvention) mit `-m <model> -l <lang> -nt -otxt -of <base> -f <wav>`, liest `<base>.txt`, liefert `{text}`. **Single-Flight-Guard** (`inFlight`): parallele Aufrufe → `code:'BUSY'`. Temp-Cleanup + `inFlight`-Reset im äußeren `finally` (auch wenn `mkdtempSync` wirft). Timeout 30s.
+
+### Engine / Modell
+
+Homebrew `whisper-cpp` (**Metal**-Build out-of-the-box auf Apple Silicon), Modell **`ggml-large-v3-turbo-q5_0`** (~574 MB / 547 MiB, multilingual, gute Deutsch-Genauigkeit) — auf M-Series ~1–2s/kurzer Clip. **CoreML/ANE** (~3× Encoder-Speedup) ist ein optionaler späterer Tune (Source-Build `-DWHISPER_COREML=1` + CoreML-Modell), bewusst **nicht** in v1. `setup.sh`-Schritt `[8/9]` installiert Binary + lädt das Modell idempotent + schreibt `.env`-Vars.
+
+### Routen
+
+| Method | Route | Beschreibung |
+|--------|-------|-------------|
+| GET | `/api/voice/config` | `{enabled}` — Feature-Gate fürs Frontend |
+| POST | `/api/voice/transcribe` | Roher `audio/wav`-Body (`express.raw`, ≤10 MB → 413). Bearer-Auth, session-agnostisch. Liefert `{text}`. `BUSY`→429, bin/Modell fehlt→503, Fehler→500. |
+
+### Frontend (`VoiceInput` IIFE, public/index.html)
+
+- Mic-Button `#voice-btn` neben `#image-picker-btn`, nur sichtbar wenn `/api/voice/config` `{enabled:true}` (Fetch in `connectToSession` → `refreshConfig()`).
+- **Audio-Capture client-seitig:** `getUserMedia` → `AudioContext` + `ScriptProcessorNode` (iOS-Safari-kompatibel), Float32-PCM gesammelt, beim Stop auf **16 kHz Mono downsamplet + 16-bit-PCM-WAV** encodet (vanilla JS, **kein ffmpeg**). POST an `/api/voice/transcribe`.
+- States: idle / `voice-recording` (pulsierend rot + Sekunden-Timer, Auto-Stop bei 60s) / `voice-busy` (Spinner). **Re-Entrancy-Guard** (`busy`-Flag) verhindert Doppel-Start während des `getUserMedia`-await; AudioContext-Setup in eigenem try/catch → `teardown()` räumt einen schon geholten Mic-Stream wieder auf.
+- Inject: `currentWs.send({type:'input', data: text+' '})` (Trailing-Space, **kein** `\r`). Fehler-Toasts (DE-UI / EN-API): Permission/NoDevice/Empty/Busy/TooLong/Disabled/Failed.
+
+### v1-Grenzen
+
+Eine Transkription gleichzeitig (Single-Flight). Batch-Transkription (kein Live-Streaming). `@`-Mention-Inject ist Claude-spezifisch — für codex/gemini hängt es nichts an (wie bei Image-Paste), der Text landet aber trotzdem in der Eingabezeile. CoreML/ANE nicht in v1.
+
+### Tests
+
+- Unit `lib/voice.test.js`: `isEnabled`-Gating (bin/Modell/`VOICE_ENABLED`), `transcribe` gegen Fake-whisper-Stub-Script (Argv, Trim, `lang`-Passthrough), Single-Flight-`BUSY` + Reset, Temp-Cleanup bei whisper-Fehler.
+- E2E `tests/voice-input.spec.js`: Config-Gating (Button sichtbar/versteckt), Permission-Denied-Toast, Toggle-`recording`-State. Mic-abhängige Tests werden auf **WebKit** geskippt (`navigator.mediaDevices` im http-Kontext undefined, Fake-Media nicht unterstützt) → nur Chromium; ein `fixme` für die echte Audio-Pipeline (Playwright emittiert keine echten Audio-Frames).
+
 ## Bekannte Einschränkungen
 
 - tmux-Socket wird beim ersten `tmux new-session` automatisch erstellt

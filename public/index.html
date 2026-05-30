@@ -3437,6 +3437,11 @@
       .image-annotator-modal .anno-tool, .image-annotator-modal .anno-undo { flex: 1 1 auto; }
     }
 
+    /* ── Voice Input ───────────────────────────────────────────── */
+    #voice-btn.voice-recording { color: #ff3b30; animation: voicePulse 1s ease-in-out infinite; }
+    #voice-btn.voice-busy { opacity: 0.6; pointer-events: none; }
+    @keyframes voicePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
     /* ── Diff View ─────────────────────────────────────────────── */
     /* Diff-Panel: rechts gedockt, gespiegelt zum Preview-Panel (mutually exclusive). */
     .diff-panel {
@@ -3950,6 +3955,10 @@
           <span class="btn-label" data-i18n="imagePaste.pickerTitle">Insert image</span>
         </button>
         <input type="file" id="image-picker-input" accept="image/*" style="display:none" />
+        <button class="btn btn-ghost btn-sm" id="voice-btn" type="button" style="display:none" aria-label="Speak" title="Speak" data-i18n-attr="aria-label:voice.btnTitle;title:voice.btnTitle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          <span class="btn-label" id="voice-btn-label" data-i18n="voice.btnTitle">Speak</span>
+        </button>
         <button class="btn btn-ghost btn-sm" id="btn-toggle-preview" type="button" style="display:none" aria-label="Toggle preview" title="Toggle preview" data-i18n-attr="aria-label:preview.toggleAria;title:preview.toggleAria">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
           <span class="btn-label" data-i18n="preview.toggle">Preview</span>
@@ -6642,6 +6651,7 @@
       if (window.FileBrowser) window.FileBrowser.activateForSession(name);
       if (window.PreviewPanel) window.PreviewPanel.activateForSession(name);
       if (window.DiffView) window.DiffView.activateForSession(name);
+      if (window.VoiceInput) window.VoiceInput.refreshConfig();
       hideIdeaPrompt();
 
       // Setup terminal
@@ -9645,6 +9655,189 @@
     })();
     window.ImagePaste = ImagePaste;
     document.addEventListener('DOMContentLoaded', () => ImagePaste.wire());
+
+    // ── Voice-Input: Aufnahme → 16kHz-Mono-WAV → /api/voice/transcribe → Inject ──
+    const VoiceInput = (() => {
+      let enabled = false;
+      let recording = false;
+      let busy = false;
+      let audioCtx = null, source = null, processor = null, stream = null;
+      let chunks = [];
+      let timerId = null, startedAt = 0;
+      const MAX_SEC = 60;
+
+      function authHdr() {
+        const tok = AUTH_TOKEN || localStorage.getItem('cchub_token') || '';
+        return tok ? { Authorization: `Bearer ${tok}` } : {};
+      }
+      function btn() { return document.getElementById('voice-btn'); }
+      function label() { return document.getElementById('voice-btn-label'); }
+      function toast(key) { if (typeof showToast === 'function') showToast(t(key), 'error'); }
+
+      function setIdle() {
+        recording = false;
+        const b = btn(); if (!b) return;
+        b.classList.remove('voice-recording', 'voice-busy');
+        if (label()) label().textContent = t('voice.btnTitle');
+      }
+      function setRecording() {
+        const b = btn(); if (!b) return;
+        b.classList.add('voice-recording'); b.classList.remove('voice-busy');
+      }
+      function setBusy() {
+        const b = btn(); if (!b) return;
+        b.classList.add('voice-busy'); b.classList.remove('voice-recording');
+        if (label()) label().textContent = t('voice.transcribing');
+      }
+
+      function tick() {
+        const sec = Math.floor((Date.now() - startedAt) / 1000);
+        if (label()) label().textContent = t('voice.recording', { sec });
+        if (sec >= MAX_SEC) stop();
+      }
+
+      async function start() {
+        if (busy || recording) return; // guard: ignore clicks while a start is in flight
+        busy = true;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+          busy = false;
+          toast(e && e.name === 'NotFoundError' ? 'voice.errNoDevice' : 'voice.errPermission');
+          return;
+        }
+        try {
+          chunks = [];
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new Ctx();
+          source = audioCtx.createMediaStreamSource(stream);
+          // ScriptProcessorNode: deprecated, aber überall (inkl. iOS-Safari) verfügbar.
+          processor = audioCtx.createScriptProcessor(4096, 1, 1);
+          processor.onaudioprocess = (e) => {
+            chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+          };
+          source.connect(processor);
+          processor.connect(audioCtx.destination);
+        } catch (e) {
+          teardown();          // räumt den bereits geholten Mic-Stream + ctx wieder auf
+          busy = false;
+          toast('voice.errFailed');
+          return;
+        }
+        recording = true;
+        startedAt = Date.now();
+        setRecording();
+        tick();
+        timerId = setInterval(tick, 250);
+        busy = false;
+      }
+
+      function teardown() {
+        if (timerId) { clearInterval(timerId); timerId = null; }
+        try { if (processor) { processor.disconnect(); processor.onaudioprocess = null; } } catch {}
+        try { if (source) source.disconnect(); } catch {}
+        try { if (stream) stream.getTracks().forEach((tr) => tr.stop()); } catch {}
+        const sr = audioCtx ? audioCtx.sampleRate : 48000;
+        try { if (audioCtx) audioCtx.close(); } catch {}
+        processor = source = stream = audioCtx = null;
+        return sr;
+      }
+
+      async function stop() {
+        if (!recording) return;
+        recording = false;
+        const sampleRate = teardown();
+        const wav = encodeWAV(downsample(mergeChunks(chunks), sampleRate, 16000), 16000);
+        chunks = [];
+        if (wav.size <= 44) { setIdle(); toast('voice.errEmpty'); return; }
+        setBusy();
+        try {
+          const res = await fetch('/api/voice/transcribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'audio/wav', ...authHdr() },
+            body: wav,
+          });
+          if (res.status === 429) { setIdle(); toast('voice.errBusy'); return; }
+          if (res.status === 503) { setIdle(); toast('voice.errDisabled'); return; }
+          if (res.status === 413) { setIdle(); toast('voice.errTooLong'); return; }
+          if (!res.ok) { setIdle(); toast('voice.errFailed'); return; }
+          const body = await res.json();
+          injectText(body.text || '');
+        } catch {
+          toast('voice.errFailed');
+        } finally {
+          setIdle();
+        }
+      }
+
+      function injectText(text) {
+        const s = (text || '').trim();
+        if (!s) return;
+        if (window.currentWs && window.currentWs.readyState === WebSocket.OPEN) {
+          window.currentWs.send(JSON.stringify({ type: 'input', data: s + ' ' })); // KEIN \r
+        }
+        try { if (window.term) window.term.focus(); } catch {}
+      }
+
+      // ── WAV-Helfer (vanilla, kein ffmpeg) ──
+      function mergeChunks(list) {
+        let len = 0; for (const c of list) len += c.length;
+        const out = new Float32Array(len);
+        let off = 0; for (const c of list) { out.set(c, off); off += c.length; }
+        return out;
+      }
+      function downsample(buf, inRate, outRate) {
+        if (outRate >= inRate) return buf;
+        const ratio = inRate / outRate;
+        const newLen = Math.round(buf.length / ratio);
+        const out = new Float32Array(newLen);
+        let oR = 0, oB = 0;
+        while (oR < newLen) {
+          const next = Math.round((oR + 1) * ratio);
+          let acc = 0, cnt = 0;
+          for (let i = oB; i < next && i < buf.length; i++) { acc += buf[i]; cnt++; }
+          out[oR++] = cnt ? acc / cnt : 0;
+          oB = next;
+        }
+        return out;
+      }
+      function encodeWAV(samples, rate) {
+        const ab = new ArrayBuffer(44 + samples.length * 2);
+        const v = new DataView(ab);
+        const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+        ws(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); ws(8, 'WAVE');
+        ws(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+        v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+        ws(36, 'data'); v.setUint32(40, samples.length * 2, true);
+        let o = 44;
+        for (let i = 0; i < samples.length; i++, o += 2) {
+          const x = Math.max(-1, Math.min(1, samples[i]));
+          v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7fff, true);
+        }
+        return new Blob([v], { type: 'audio/wav' });
+      }
+
+      function onClick() { if (recording) stop(); else start(); }
+
+      async function refreshConfig() {
+        try {
+          const res = await fetch('/api/voice/config', { headers: authHdr() });
+          const body = await res.json();
+          enabled = !!body.enabled;
+        } catch { enabled = false; }
+        const b = btn();
+        if (b) b.style.display = enabled ? '' : 'none';
+      }
+
+      function wire() {
+        const b = btn();
+        if (b) b.addEventListener('click', onClick);
+      }
+
+      return { wire, refreshConfig };
+    })();
+    window.VoiceInput = VoiceInput;
+    document.addEventListener('DOMContentLoaded', () => VoiceInput.wire());
 
     // ── Diff View (Task 6): clickable git badge → diff2html, live refresh ──
     const DiffView = (() => {
