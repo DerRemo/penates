@@ -7977,6 +7977,12 @@
       if (e.key === 'Enter') submitNewProject();
     });
 
+    // Enter im Session-Namen-Feld startet die Session (mobiler Schnell-Flow,
+    // spiegelt das New-Project-Modal). createSession validiert leeren Namen selbst.
+    document.getElementById('new-session-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') createSession();
+    });
+
     // Close modal on Escape — aber nur, wenn eins auch offen ist.
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
