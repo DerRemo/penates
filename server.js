@@ -50,6 +50,7 @@ import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
 import { parseStatusV2, getDiff } from './lib/git-diff.js';
 import { saveSessionImage } from './lib/session-images.js';
 import { isPreviewHost, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
+import * as voice from './lib/voice.js';
 import { listListeningPorts } from './lib/port-scan.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1216,6 +1217,38 @@ app.post('/api/sessions/:name/image', imageBody, (req, res) => {
 app.use('/api/sessions/:name/image', (err, req, res, next) => {
   if (err && (err.type === 'entity.too.large' || err.status === 413)) {
     return res.status(413).json({ error: 'Image too large' });
+  }
+  next(err);
+});
+
+// ── Voice-Input: lokale whisper.cpp-Transkription ──
+// Body = roher audio/wav (≤10 MB). type:'audio/wav' damit andere Bodies nicht matchen.
+const voiceBody = express.raw({ type: 'audio/wav', limit: '10mb' });
+
+// Feature-Gate fürs Frontend (Button nur sichtbar wenn enabled).
+app.get('/api/voice/config', (_req, res) => {
+  res.json({ enabled: voice.isEnabled() });
+});
+
+// Audio → Text. Session-agnostisch (Transkription berührt keine Session).
+app.post('/api/voice/transcribe', voiceBody, async (req, res) => {
+  if (!voice.isEnabled()) return res.status(503).json({ error: 'voice disabled' });
+  const buf = req.body;
+  if (!buf || !buf.length) return res.status(400).json({ error: 'Empty audio body' });
+  try {
+    const { text } = await voice.transcribe(buf, {});
+    res.json({ text });
+  } catch (e) {
+    if (e && e.code === 'BUSY') return res.status(429).json({ error: 'transcription busy' });
+    if (e && e.code === 'DISABLED') return res.status(503).json({ error: 'voice disabled' });
+    res.status(500).json({ error: 'transcription failed', message: String((e && e.message) || e) });
+  }
+});
+
+// express.raw → 413 bei Overflow → unsere JSON-Form.
+app.use('/api/voice/transcribe', (err, req, res, next) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({ error: 'Audio too large' });
   }
   next(err);
 });
