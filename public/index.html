@@ -1825,7 +1825,12 @@
       max-height: 0;
       opacity: 0;
       overflow: hidden;
-      transition: max-height 0.18s ease, opacity 0.18s ease, margin-top 0.18s ease;
+      /* visibility:hidden nimmt die geclippten Buttons sauber aus dem
+         Hit-/A11y-Tree (max-height:0 allein lässt sie zentriert über die
+         0px-Linie überlappen → Buttons gälten als sichtbar). Verzögert,
+         damit der Opacity-Fade-Out beim Verlassen sichtbar bleibt. */
+      visibility: hidden;
+      transition: max-height 0.18s ease, opacity 0.18s ease, margin-top 0.18s ease, visibility 0s linear 0.18s;
       margin-top: 0;
     }
     .session-card:hover .session-actions,
@@ -1833,6 +1838,8 @@
       max-height: 52px;
       opacity: 1;
       margin-top: var(--space-3);
+      visibility: visible;
+      transition: max-height 0.18s ease, opacity 0.18s ease, margin-top 0.18s ease, visibility 0s linear 0s;
     }
     /* Pin/Mute als kompakte Icon-Buttons, an den rechten Rand der Leiste */
     .session-card .session-actions .session-card-tools {
@@ -1844,11 +1851,13 @@
     @media (hover: none), (pointer: coarse) {
       .session-card .session-actions {
         max-height: none; opacity: 1; margin-top: var(--space-3);
+        visibility: visible; transition: none;
       }
     }
     /* Foreign-Cards zeigen Aktionen immer (kein Status-Lifecycle) */
     .session-card[data-status="foreign"] .session-actions {
       max-height: none; opacity: 1; margin-top: var(--space-3);
+      visibility: visible; transition: none;
     }
 
     .session-card-header {
