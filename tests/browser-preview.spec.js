@@ -25,7 +25,7 @@ function mockPorts(page, ports) {
 }
 
 test.describe('Browser-Preview (single host)', () => {
-  test('Panel öffnet sich und befüllt das Port-Dropdown aus /api/preview/ports', async ({ authedPage }) => {
+  test('Combobox öffnet sich und listet die erkannten Ports', async ({ authedPage }) => {
     const page = authedPage;
     await mockConfig(page, { enabled: true, host: 'preview.example.com', activePort: null });
     await mockPorts(page, [{ port: 5173, process: 'node' }, { port: 3000, process: 'next' }]);
@@ -33,13 +33,14 @@ test.describe('Browser-Preview (single host)', () => {
     await activate(page);
     await page.evaluate(() => window.PreviewPanel.toggle());
     await expect(page.locator('#preview-panel')).toHaveClass(/open/);
-    const opts = page.locator('#preview-port-select option');
-    await expect(opts).toHaveCount(3);                 // placeholder + 2 ports
-    await expect(page.locator('#preview-port-select')).toContainText(':5173');
-    await expect(page.locator('#preview-port-select')).toContainText(':3000');
+    await page.click('#preview-port-toggle');                       // Liste aufklappen
+    const list = page.locator('#preview-port-list');
+    await expect(list).toBeVisible();
+    await expect(list.locator('li[data-port="5173"]')).toContainText(':5173');
+    await expect(list.locator('li[data-port="3000"]')).toContainText(':3000');
   });
 
-  test('Port-Auswahl POSTet an /select und lädt den fixen Host ins iframe', async ({ authedPage }) => {
+  test('Port-Wahl in der Combobox POSTet an /select und lädt den fixen Host', async ({ authedPage }) => {
     const page = authedPage;
     await mockConfig(page, { enabled: true, host: 'preview.example.com', activePort: null });
     await mockPorts(page, [{ port: 5173, process: 'node' }]);
@@ -53,12 +54,32 @@ test.describe('Browser-Preview (single host)', () => {
     await activate(page);
     await page.evaluate(() => window.PreviewPanel.toggle());
     await expect(page.locator('#preview-panel')).toHaveClass(/open/);
-    await page.selectOption('#preview-port-select', '5173');
+    await page.click('#preview-port-toggle');
+    await page.click('#preview-port-list li[data-port="5173"]');
 
-    // Hub bekam den Port mitgeteilt …
+    // Feld übernimmt den Port, Hub bekam ihn mitgeteilt …
+    await expect(page.locator('#preview-port-input')).toHaveValue('5173');
     await expect.poll(() => selectedPort).toBe(5173);
-    // … und das iframe zeigt auf den FIXEN Host (kein <port>.-Präfix), Port nur als Cache-Bust-Query.
+    // … und das iframe zeigt auf den FIXEN Host, Port nur als Cache-Bust-Query.
     await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/?__cchub=5173');
+  });
+
+  test('Freitext-Port + Enter lädt ebenfalls', async ({ authedPage }) => {
+    const page = authedPage;
+    await mockConfig(page, { enabled: true, host: 'preview.example.com', activePort: null });
+    await mockPorts(page, []);
+    let selectedPort = null;
+    await page.route('**/api/preview/select', async (r) => {
+      selectedPort = JSON.parse(r.request().postData() || '{}').port;
+      await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, port: selectedPort }) });
+    });
+
+    await activate(page);
+    await page.evaluate(() => window.PreviewPanel.toggle());
+    await page.fill('#preview-port-input', '8080');
+    await page.press('#preview-port-input', 'Enter');
+    await expect.poll(() => selectedPort).toBe(8080);
+    await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/?__cchub=8080');
   });
 
   test('"nicht konfiguriert"-State bei config.enabled:false', async ({ authedPage }) => {

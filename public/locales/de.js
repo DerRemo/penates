@@ -499,4 +499,7 @@ window.__I18N_BUNDLES.de = {
   'preview.empty.choosePort': 'Wähle einen Port oder gib ihn ein, um die Vorschau zu laden.',
   'preview.empty.notConfigured': 'Preview nicht konfiguriert. Setze PREVIEW_DOMAIN in .env (siehe setup.sh).',
   'preview.error.noServer': 'Kein Server auf Port {n} — läuft dein Dev-Server?',
+  'preview.header.ports': 'Ports',
+  'preview.empty.noMatch': 'Kein Port passt',
+  'preview.empty.noPorts': 'Keine Ports erkannt',
 };

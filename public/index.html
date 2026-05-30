@@ -3270,9 +3270,35 @@
       border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
       font: inherit; min-height: 32px; cursor: pointer;
     }
-    .preview-toolbar .preview-port-select { flex: 1 1 auto; }
-    .preview-toolbar .preview-port-input { flex: 0 0 84px; cursor: text; }
     .preview-toolbar button:hover { border-color: var(--accent, #2dd4bf); }
+    /* Port-Combobox: ein Eingabefeld + Chevron, der eine themengetreue Liste öffnet. */
+    .preview-toolbar .preview-port-combo { position: relative; flex: 1 1 auto; display: flex; }
+    .preview-toolbar .preview-port-combo .preview-port-input {
+      flex: 1 1 auto; width: 100%; padding-right: 28px; cursor: text;
+    }
+    .preview-toolbar .preview-port-toggle {
+      position: absolute; right: 1px; top: 1px; bottom: 1px; width: 26px; min-height: 0;
+      border: 0; background: transparent; color: var(--text-muted, #9aa0ab);
+      display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer;
+      border-radius: 0 6px 6px 0;
+    }
+    .preview-toolbar .preview-port-combo:focus-within .preview-port-input { border-color: var(--accent, #2dd4bf); }
+    .preview-toolbar .preview-port-combo:focus-within .preview-port-toggle,
+    .preview-toolbar .preview-port-toggle:hover { color: var(--accent, #2dd4bf); }
+    .preview-port-list {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
+      margin: 0; padding: 4px; list-style: none; max-height: 220px; overflow: auto;
+      background: var(--bg-elevated, #16181d); border: 1px solid var(--border, #2a2d35);
+      border-radius: 8px; box-shadow: 0 10px 28px rgba(0,0,0,.5);
+    }
+    .preview-port-list[hidden] { display: none; }
+    .preview-port-list li {
+      padding: 7px 10px; border-radius: 6px; cursor: pointer; display: flex; gap: 8px; align-items: baseline;
+    }
+    .preview-port-list li .pp-port { color: var(--accent, #2dd4bf); font-weight: 600; font-family: var(--font-mono, "JetBrains Mono", monospace); }
+    .preview-port-list li .pp-proc { color: var(--text-muted, #9aa0ab); font-size: .85em; }
+    .preview-port-list li:hover, .preview-port-list li.active { background: rgba(45,212,191,.13); }
+    .preview-port-list .pp-empty { padding: 7px 10px; color: var(--text-muted, #9aa0ab); font-size: .85em; }
     .preview-body { position: relative; flex: 1; min-height: 0; }
     .preview-body #preview-iframe {
       width: 100%; height: 100%; border: 0; background: #fff; display: block;
@@ -3887,8 +3913,16 @@
       <div class="preview-resizer" id="preview-resizer" style="display:none"></div>
       <aside class="preview-panel" id="preview-panel">
         <div class="preview-toolbar">
-          <select id="preview-port-select" class="preview-port-select" title="Port"></select>
-          <input id="preview-port-input" class="preview-port-input" type="text" inputmode="numeric" data-i18n-attr="placeholder:preview.header.portPlaceholder" placeholder="Port…" />
+          <div class="preview-port-combo" id="preview-port-combo">
+            <input id="preview-port-input" class="preview-port-input" type="text" inputmode="numeric"
+                   role="combobox" aria-expanded="false" aria-controls="preview-port-list" aria-autocomplete="list"
+                   autocomplete="off" spellcheck="false"
+                   data-i18n-attr="placeholder:preview.header.portPlaceholder" placeholder="Port…" />
+            <button id="preview-port-toggle" class="preview-port-toggle" type="button" tabindex="-1" aria-label="Ports" data-i18n-attr="aria-label:preview.header.ports">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <ul id="preview-port-list" class="preview-port-list" role="listbox" hidden></ul>
+          </div>
           <button id="preview-reload" title="Reload" data-i18n-attr="title:preview.header.reload">⟳</button>
           <button id="preview-open-tab" title="Open in new tab" data-i18n-attr="title:preview.header.openTab">↗</button>
           <button id="preview-close" title="Close" data-i18n-attr="title:preview.header.close">×</button>
@@ -8849,11 +8883,10 @@
         ov.classList.add('show');
       }
 
+      // Single source of truth: das Eingabefeld der Combobox.
       function selectedPort() {
-        const typed = (el('preview-port-input').value || '').trim();
-        if (/^\d+$/.test(typed)) return parseInt(typed, 10);
-        const sel = el('preview-port-select').value;
-        return /^\d+$/.test(sel) ? parseInt(sel, 10) : null;
+        const v = (el('preview-port-input').value || '').trim();
+        return /^\d+$/.test(v) ? parseInt(v, 10) : null;
       }
 
       // Fixer Host; der Port-Query erzwingt nur ein Reload des iframes beim Wechsel
@@ -8880,23 +8913,63 @@
         try { localStorage.setItem(portKey(sessionName), String(port)); } catch {}
       }
 
-      function renderPortOptions() {
-        const sel = el('preview-port-select');
-        const last = (() => { try { return localStorage.getItem(portKey(sessionName)); } catch { return null; } })();
-        sel.innerHTML = '';
-        const ph = document.createElement('option');
-        ph.value = ''; ph.textContent = t('preview.header.portPlaceholder');
-        sel.appendChild(ph);
-        for (const p of ports) {
-          const o = document.createElement('option');
-          o.value = String(p.port);
-          o.textContent = `:${p.port}${p.process ? ' — ' + p.process : ''}`;
-          if (last && String(p.port) === last) o.selected = true;
-          sel.appendChild(o);
+      // ── Combobox: ein Feld, das die erkannten Ports als themengetreue Liste zeigt ──
+      // Baut die Vorschlagsliste (optional nach getipptem Präfix gefiltert).
+      function renderPortList(filter) {
+        const list = el('preview-port-list');
+        list.innerHTML = '';
+        const f = (filter || '').trim();
+        const shown = ports.filter((p) => !f || String(p.port).startsWith(f));
+        if (!shown.length) {
+          const li = document.createElement('li');
+          li.className = 'pp-empty';
+          li.textContent = ports.length ? t('preview.empty.noMatch') : t('preview.empty.noPorts');
+          list.appendChild(li);
+          return;
         }
-        if (last && !ports.some((p) => String(p.port) === last)) {
-          el('preview-port-input').value = last;       // last port not in list → free-text
+        for (const p of shown) {
+          const li = document.createElement('li');
+          li.setAttribute('role', 'option');
+          li.dataset.port = String(p.port);
+          const port = document.createElement('span');
+          port.className = 'pp-port'; port.textContent = ':' + p.port;
+          li.appendChild(port);
+          if (p.process) {
+            const pr = document.createElement('span');
+            pr.className = 'pp-proc'; pr.textContent = p.process;
+            li.appendChild(pr);
+          }
+          // mousedown (nicht click): feuert vor dem blur des Inputs, sonst schließt
+          // der outside-click-Handler die Liste bevor die Auswahl greift.
+          li.addEventListener('mousedown', (e) => { e.preventDefault(); choose(p.port); });
+          list.appendChild(li);
         }
+      }
+
+      function listOpen() { return !el('preview-port-list').hidden; }
+      function openList() {
+        renderPortList(el('preview-port-input').value);
+        el('preview-port-list').hidden = false;
+        el('preview-port-input').setAttribute('aria-expanded', 'true');
+      }
+      function closeList() {
+        el('preview-port-list').hidden = true;
+        el('preview-port-input').setAttribute('aria-expanded', 'false');
+      }
+      function choose(port) {
+        el('preview-port-input').value = String(port);
+        closeList();
+        loadPort(port);
+      }
+      // Tastatur-Navigation: hebt das aktive <li> hervor.
+      function moveActive(dir) {
+        const items = [...el('preview-port-list').querySelectorAll('li[data-port]')];
+        if (!items.length) return;
+        let i = items.findIndex((li) => li.classList.contains('active'));
+        items.forEach((li) => li.classList.remove('active'));
+        i = dir > 0 ? (i + 1) % items.length : (i <= 0 ? items.length - 1 : i - 1);
+        items[i].classList.add('active');
+        items[i].scrollIntoView({ block: 'nearest' });
       }
 
       async function fetchConfig() {
@@ -8927,9 +9000,9 @@
         await fetchConfig();
         if (!config.enabled) { setOverlay(t('preview.empty.notConfigured')); el('preview-iframe').src = 'about:blank'; return; }
         await fetchPorts();
-        renderPortOptions();
+        renderPortList();
         const last = (() => { try { return localStorage.getItem(portKey(sessionName)); } catch { return null; } })();
-        if (last && /^\d+$/.test(last)) loadPort(parseInt(last, 10));
+        if (last && /^\d+$/.test(last)) { el('preview-port-input').value = last; loadPort(parseInt(last, 10)); }
         else setOverlay(t('preview.empty.choosePort'));
       }
 
@@ -8975,8 +9048,26 @@
           const p = selectedPort();
           if (p && config && config.host) { await loadPort(p); window.open(iframeUrl(p), '_blank', 'noopener'); }
         });
-        el('preview-port-select').addEventListener('change', () => { el('preview-port-input').value = ''; loadPort(selectedPort()); });
-        el('preview-port-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPort(selectedPort()); });
+        const input = el('preview-port-input');
+        el('preview-port-toggle').addEventListener('click', () => {
+          if (listOpen()) { closeList(); } else { input.focus(); openList(); }
+        });
+        input.addEventListener('focus', openList);
+        input.addEventListener('input', () => openList());        // tippen filtert die Liste
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const active = el('preview-port-list').querySelector('li[data-port].active');
+            if (listOpen() && active) { choose(parseInt(active.dataset.port, 10)); }
+            else { closeList(); loadPort(selectedPort()); }
+          } else if (e.key === 'Escape') { closeList(); }
+          else if (e.key === 'ArrowDown') { e.preventDefault(); if (!listOpen()) openList(); moveActive(1); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); if (listOpen()) moveActive(-1); }
+        });
+        // Klick außerhalb der Combobox schließt die Liste.
+        document.addEventListener('mousedown', (e) => {
+          if (!el('preview-port-combo').contains(e.target)) closeList();
+        });
         wireResizer();
       }
 

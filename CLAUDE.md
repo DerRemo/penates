@@ -467,7 +467,7 @@ In-App Live-Vorschau eines lokalen Dev-Servers (mit HMR) als Split-Panel rechts 
 
 ### Frontend (public/index.html)
 
-- **`PreviewPanel` IIFE** — Split-Panel rechts vom Terminal mit FileBrowser-artigem Resizer (`--preview-width`) + Toggle-Button. Header: Port-Dropdown (aus `/api/preview/ports`) + Freitext, Reload, „In neuem Tab", Schließen. Port-Wahl → `POST /api/preview/select {port}`, dann iframe auf den **fixen** Host `https://preview.<domain>/?__cchub=<port>` (Query nur als Cache-Bust fürs Reload). Zuletzt genutzter Port pro Session in `localStorage`; „nicht konfiguriert"-Overlay wenn `config.enabled:false`. Aktiviert in `connectToSession`.
+- **`PreviewPanel` IIFE** — Split-Panel rechts vom Terminal mit FileBrowser-artigem Resizer (`--preview-width`) + Toggle-Button. Header: **Port-Combobox** (ein Feld `#preview-port-input` + Chevron → themengetreue Liste `#preview-port-list` der erkannten Ports aus `/api/preview/ports`; frei tippbar, Tippen filtert, ↑/↓/Enter/Klick wählt), Reload, „In neuem Tab", Schließen. Port-Wahl → `POST /api/preview/select {port}`, dann iframe auf den **fixen** Host `https://preview.<domain>/?__cchub=<port>` (Query nur als Cache-Bust fürs Reload). Zuletzt genutzter Port pro Session in `localStorage`; „nicht konfiguriert"-Overlay wenn `config.enabled:false`. Aktiviert in `connectToSession`.
 
 ### Auth / Infra
 
