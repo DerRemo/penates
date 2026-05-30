@@ -105,3 +105,38 @@ test.describe('New-session mkdir', () => {
     await expect(page.locator('.tree-row-new input')).toHaveValue('a/b');
   });
 });
+
+test.describe('New-session Enter-to-submit', () => {
+  test('Enter in the name field starts the session (no real tmux session created)', async ({ authedPage: page }) => {
+    // Nur den POST abfangen (keine echte Session anlegen); GET fällt an den
+    // echten Server durch, damit die Dashboard-Liste ein echtes Array bleibt.
+    let posted = false;
+    await page.route('**/api/sessions', async (route) => {
+      if (route.request().method() === 'POST') {
+        posted = true;
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      }
+      return route.fallback();
+    });
+
+    await page.click('#new-session-btn');
+    await page.fill('#new-session-name', 'cc-e2e-enter-' + Date.now());
+    await page.locator('#new-session-name').press('Enter');
+
+    await expect.poll(() => posted, { timeout: 5_000 }).toBe(true);
+  });
+
+  test('Enter with empty name does NOT submit', async ({ authedPage: page }) => {
+    let posted = false;
+    await page.route('**/api/sessions', async (route) => {
+      if (route.request().method() === 'POST') { posted = true; return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); }
+      return route.fallback();
+    });
+
+    await page.click('#new-session-btn');
+    await page.locator('#new-session-name').fill('');
+    await page.locator('#new-session-name').press('Enter');
+    await page.waitForTimeout(500);
+    expect(posted).toBe(false);
+  });
+});
