@@ -3900,6 +3900,7 @@
       .app-topbar__search { margin-left: 0; order: 3; flex: 1 1 100%; }
       .section-bar { flex-wrap: wrap; }
     }
+    @media (min-width: 900px) { .header { display: none; } }
   </style>
   <script src="/locales/en.js"></script>
   <script src="/locales/de.js"></script>
@@ -4025,46 +4026,35 @@
   <!-- ── Dashboard View ───────────────────────────────────────── -->
   <div class="dashboard-view" id="dashboard-view" data-view="dashboard">
     <div class="container">
-      <div class="dashboard-header">
-        <div class="dashboard-header-left">
-          <div class="dashboard-tabs" role="tablist" data-i18n-attr="aria-label:dashboard.tablistAria" aria-label="Dashboard tabs">
-            <button class="dashboard-tab" id="tab-sessions" data-tab="sessions" type="button" role="tab" data-i18n="dashboard.tab.sessions">Sessions</button>
-            <button class="dashboard-tab" id="tab-usage" data-tab="usage" type="button" role="tab" data-i18n="dashboard.tab.usage">Usage</button>
-            <button class="dashboard-tab dashboard-tab--new" id="tab-projects" data-tab="projects" type="button" role="tab" title="Project management (Phase 1 Step 2a — Mutations)">
-              <span data-i18n="dashboard.tab.projects">Projects</span>
-              <span class="dashboard-tab-dot" aria-hidden="true"></span>
-            </button>
-          </div>
-          <div class="search-wrapper" data-tab-scope="sessions projects">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="search" class="search-input" id="session-search" data-i18n-attr="placeholder:dashboard.filterPlaceholder" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
-          </div>
+      <header class="app-topbar">
+        <div>
+          <h1 class="app-topbar__title" id="shell-title" data-i18n="shell.title.overview">Übersicht</h1>
+          <div class="app-topbar__summary" id="shell-summary" data-tab-scope="sessions"></div>
         </div>
-        <div class="dashboard-header-right" style="display: flex; gap: 8px; align-items: center;">
+        <div class="app-topbar__search field" data-tab-scope="sessions projects">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" id="session-search" data-i18n-attr="placeholder:dashboard.filterPlaceholder" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
+          <kbd>/</kbd>
+        </div>
+        <button class="btn btn-primary btn-sm" id="new-session-btn" type="button" data-tab-scope="sessions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span data-i18n="dashboard.newSession">New Session</span>
+        </button>
+        <button class="btn btn-primary btn-sm" id="new-project-btn" type="button" data-tab-scope="projects">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span data-i18n="dashboard.newProject">New Project</span>
+        </button>
+      </header>
+      <div class="section-bar">
+        <span class="section-bar__label" id="shell-section-label"></span>
+        <span class="pill pill--plain pill--neutral" id="shell-section-count"></span>
+        <div class="section-bar__actions">
           <div class="layout-toggle" role="group" data-i18n-attr="aria-label:dashboard.layoutAria" aria-label="Layout" data-tab-scope="sessions">
-            <button class="layout-toggle-btn" id="layout-grid-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.gridAria;title:dashboard.layout.gridTitle" aria-label="Grid view" title="Grid (g)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-            </button>
-            <button class="layout-toggle-btn" id="layout-list-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.listAria;title:dashboard.layout.listTitle" aria-label="List view" title="List (l)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
-            </button>
+            <button class="layout-toggle-btn" id="layout-grid-btn" type="button" title="Grid (g)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
+            <button class="layout-toggle-btn" id="layout-list-btn" type="button" title="List (l)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></button>
           </div>
-          <button class="btn btn-ghost btn-sm" id="refresh-btn" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-            <span data-i18n="dashboard.refresh">Refresh</span>
-          </button>
-          <button class="btn btn-ghost btn-sm" id="bulk-kill-btn" type="button" data-tab-scope="sessions">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            <span data-i18n="dashboard.bulkKill">Bulk Kill</span>
-          </button>
-          <button class="btn btn-primary btn-sm" id="new-session-btn" type="button" data-tab-scope="sessions">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            <span data-i18n="dashboard.newSession">New Session</span>
-          </button>
-          <button class="btn btn-primary btn-sm" id="new-project-btn" type="button" data-tab-scope="projects">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            <span data-i18n="dashboard.newProject">New Project</span>
-          </button>
+          <button class="btn btn-ghost btn-sm" id="refresh-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg><span data-i18n="dashboard.refresh">Refresh</span></button>
+          <button class="btn btn-ghost btn-sm" id="bulk-kill-btn" type="button" data-tab-scope="sessions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg><span data-i18n="dashboard.bulkKill">Bulk Kill</span></button>
         </div>
       </div>
       <div class="sessions-grid" id="sessions-grid" data-tab-panel="sessions">
@@ -4769,9 +4759,6 @@
       if (!VALID_TABS.has(tab)) tab = 'sessions';
       localStorage.setItem(TAB_KEY, tab);
       document.body.setAttribute('data-active-tab', tab);
-      document.getElementById('tab-sessions').classList.toggle('active', tab === 'sessions');
-      document.getElementById('tab-usage').classList.toggle('active', tab === 'usage');
-      document.getElementById('tab-projects').classList.toggle('active', tab === 'projects');
       document.getElementById('sessions-grid').hidden = tab !== 'sessions';
       document.getElementById('usage-view').hidden = tab !== 'usage';
       document.getElementById('projects-view').hidden = tab !== 'projects';
@@ -8513,10 +8500,6 @@
       if (sessions === null) renderSkeleton();
     });
     updateSoundToggleUi();
-
-    document.getElementById('tab-sessions').addEventListener('click', () => setTab('sessions'));
-    document.getElementById('tab-usage').addEventListener('click', () => setTab('usage'));
-    document.getElementById('tab-projects').addEventListener('click', () => setTab('projects'));
 
     // Sidebar: Event-Delegation für Session-Clicks + Nav-Items. Ein
     // einzelner Listener reicht — renderSidebar() schreibt die Buttons
