@@ -3837,6 +3837,69 @@
       font-family: var(--font-mono);
     }
     .settings-about-changelog a { color: var(--accent, #2dd4bf); text-decoration: underline; }
+
+    /* ===== App-Shell-Primitive (Redesign) ===== */
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      font: 600 11px var(--font-ui); padding: 3px 10px;
+      border-radius: var(--radius-pill); white-space: nowrap;
+      color: var(--text-secondary); background: var(--bg-card-hover);
+    }
+    .pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .pill--plain::before { display: none; }
+    .pill--work { color: var(--status-working); background: var(--work-soft); }
+    .pill--wait { color: var(--status-waiting); background: var(--wait-soft); }
+    .pill--idle { color: var(--status-idle);    background: var(--idle-soft); }
+    .pill--neutral { color: var(--text-muted); background: var(--bg-card-hover); }
+
+    .section-bar {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-6);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .section-bar__label { font: 600 10px var(--font-ui); letter-spacing: .13em; text-transform: uppercase; color: var(--text-muted); }
+    .section-bar__actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+
+    .app-topbar {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky; top: 0; z-index: 10;
+      background: color-mix(in srgb, var(--bg-base) 82%, transparent);
+      backdrop-filter: blur(12px);
+    }
+    .app-topbar__title { margin: 0; font: 600 19px var(--font-display); letter-spacing: -.01em; }
+    .app-topbar__summary { font-size: 12.5px; color: var(--text-secondary); }
+    .app-topbar__summary b { color: var(--text-primary); }
+    .app-topbar__summary .sep { color: var(--text-muted); margin: 0 6px; }
+    .app-topbar__search { margin-left: auto; }
+    .field {
+      display: flex; align-items: center; gap: 9px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 8px 12px; color: var(--text-muted);
+    }
+    .field:focus-within { box-shadow: var(--focus-ring); border-color: var(--accent); }
+    .field input { border: 0; background: transparent; color: var(--text-primary); font: 500 13px var(--font-ui); outline: none; width: 200px; }
+    .field kbd { font: 600 10px var(--font-mono); color: var(--text-muted); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
+
+    .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px var(--space-2); }
+    .sidebar__brand-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); color: var(--accent-contrast); display: grid; place-items: center; font: 700 13px var(--font-mono); }
+    .sidebar__brand-name { font: 700 15px var(--font-display); letter-spacing: -.01em; }
+    .sidebar__brand-name small { display: block; font: 500 11px var(--font-ui); color: var(--text-muted); }
+    .sidebar__count { margin-left: auto; font: 600 11px var(--font-mono); color: var(--text-muted); }
+    .sidebar__limit { margin-top: auto; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 10px; background: var(--bg-base); }
+    .sidebar__limit[hidden] { display: none; }
+    .sidebar__limit-ring { --p: 0; width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--border) 0); display: grid; place-items: center; }
+    .sidebar__limit-ring i { width: 27px; height: 27px; border-radius: 50%; background: var(--bg-base); display: grid; place-items: center; font: 600 9px var(--font-mono); color: var(--text-secondary); font-style: normal; }
+    .sidebar__limit-ring.usage-limit-amber { --p-color: var(--status-waiting); }
+    .sidebar__limit-meta b { display: block; font: 600 12px var(--font-ui); }
+    .sidebar__limit-meta span { font: 500 10.5px var(--font-ui); color: var(--text-muted); }
+
+    @media (max-width: 900px) {
+      .app-topbar { flex-wrap: wrap; }
+      .app-topbar__search { margin-left: 0; order: 3; flex: 1 1 100%; }
+      .section-bar { flex-wrap: wrap; }
+    }
   </style>
   <script src="/locales/en.js"></script>
   <script src="/locales/de.js"></script>
