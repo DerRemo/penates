@@ -37,7 +37,10 @@ test.describe('Voice-Input', () => {
     await expect(page.locator('#voice-btn')).toBeVisible({ timeout: 3000 });
   });
 
-  test('Mikrofon-Permission verweigert → Fehler-Toast, kein voice-recording', async ({ authedPage }) => {
+  test('Mikrofon-Permission verweigert → Fehler-Toast, kein voice-recording', async ({ authedPage, browserName }) => {
+    // WebKit: navigator.mediaDevices ist im unsicheren (http) Kontext undefined und
+    // Fake-Media wird nicht unterstützt → Mic-Pfad nur auf Chromium testbar.
+    test.skip(browserName === 'webkit', 'WebKit: kein mediaDevices/Fake-Media im http-Kontext');
     const page = authedPage;
     await activateVoice(page, { enabled: true });
     await expect(page.locator('#voice-btn')).toBeVisible({ timeout: 3000 });
@@ -58,7 +61,10 @@ test.describe('Voice-Input', () => {
     await expect(page.locator('#voice-btn')).not.toHaveClass(/voice-recording/);
   });
 
-  test('Toggle startet Aufnahme und stoppt sie wieder', async ({ authedPage }) => {
+  test('Toggle startet Aufnahme und stoppt sie wieder', async ({ authedPage, browserName }) => {
+    // WebKit: Fake getUserMedia/AudioContext-Override greift nicht (mediaDevices im
+    // http-Kontext undefined) → Toggle-Mic-Pfad nur auf Chromium testbar.
+    test.skip(browserName === 'webkit', 'WebKit: kein mediaDevices/Fake-Media im http-Kontext');
     const page = authedPage;
 
     // Transcribe-Endpoint: gibt Text zurück (wird nach Stop aufgerufen)
