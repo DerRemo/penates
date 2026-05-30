@@ -310,9 +310,36 @@ else
   echo -e "  ${DIM}  StatusLine-Reporting erfordert ein konfiguriertes statusline-command.sh.${RESET}"
 fi
 
-# 7. Load and start
+# 8. Voice-Input: whisper.cpp + Modell
 echo ""
-echo -e "${BOLD}[8/8]${RESET} Starte Claude Code Hub..."
+echo -e "${BOLD}[8/9]${RESET} Voice-Input: whisper.cpp + Modell …"
+
+# 1) Binary via Homebrew (Metal-Build out-of-the-box auf Apple Silicon)
+if ! command -v whisper-cli >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/whisper-cli ]; then
+  brew install whisper-cpp || echo "  ⚠︎ brew install whisper-cpp fehlgeschlagen — Voice-Input bleibt aus."
+fi
+
+# 2) Multilinguales Turbo-Modell (quantisiert ~574 MB), idempotent
+MODEL_DIR="$HOME/.claude-code-hub/models"
+MODEL_FILE="$MODEL_DIR/ggml-large-v3-turbo-q5_0.bin"
+mkdir -p "$MODEL_DIR"
+if [ ! -f "$MODEL_FILE" ]; then
+  echo "  Lade ggml-large-v3-turbo-q5_0.bin (~574 MB, einmalig) …"
+  curl -L --fail --progress-bar \
+    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin" \
+    -o "$MODEL_FILE" || { echo "  ⚠︎ Modell-Download fehlgeschlagen."; rm -f "$MODEL_FILE"; }
+fi
+
+# 3) .env-Vars setzen (nur wenn nicht vorhanden — User-Werte nicht überschreiben)
+grep -q '^WHISPER_MODEL=' .env 2>/dev/null || echo "WHISPER_MODEL=$MODEL_FILE" >> .env
+grep -q '^VOICE_LANG=' .env 2>/dev/null || echo "VOICE_LANG=de" >> .env
+
+echo "  Hinweis: CoreML/ANE (~3× Encoder-Speedup) ist ein optionaler späterer Tune"
+echo "  (whisper.cpp Source-Build mit -DWHISPER_COREML=1 + CoreML-Modell). Metal reicht auf M-Series."
+
+# 9. Load and start
+echo ""
+echo -e "${BOLD}[9/9]${RESET} Starte Claude Code Hub..."
 
 # Vorherige Version (auch unter altem com.derremo-Namen) entladen
 launchctl bootout gui/$(id -u) "$PLIST_FILE" 2>/dev/null || true
