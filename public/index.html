@@ -3151,7 +3151,7 @@
       flex: 0 0 var(--files-width, 280px);
       min-width: 0;
       background: var(--bg-surface);
-      border-right: 1px solid var(--border);
+      border-left: 1px solid var(--border);
       display: none;
       flex-direction: column;
       overflow: hidden;
@@ -3898,6 +3898,8 @@
       </div>
     </div>
     <div class="terminal-layout">
+      <div class="terminal-container" id="terminal-container"></div>
+      <div class="files-resizer" id="files-resizer" style="display:none"></div>
       <aside class="files-sidebar" id="files-sidebar">
         <div class="files-toolbar">
           <span class="breadcrumb" id="files-breadcrumb">/</span>
@@ -3908,8 +3910,6 @@
         </div>
         <div class="files-tree" id="files-tree"></div>
       </aside>
-      <div class="files-resizer" id="files-resizer" style="display:none"></div>
-      <div class="terminal-container" id="terminal-container"></div>
       <div class="preview-resizer" id="preview-resizer" style="display:none"></div>
       <aside class="preview-panel" id="preview-panel">
         <div class="preview-toolbar">
@@ -8678,7 +8678,8 @@
             getComputedStyle(document.documentElement).getPropertyValue('--files-width')
           ) || 280;
           const onMove = (ev) => {
-            const w = Math.max(180, Math.min(window.innerWidth / 2, startWidth + (ev.clientX - startX)));
+            // Panel ist jetzt rechts → Breite wächst nach links (startX - clientX).
+            const w = Math.max(180, Math.min(window.innerWidth / 2, startWidth + (startX - ev.clientX)));
             document.documentElement.style.setProperty('--files-width', w + 'px');
           };
           const onUp = () => {
