@@ -8566,6 +8566,8 @@
       }
 
       async function open(project) {
+        // Files + Preview sind gegenseitig exklusiv — nie beide offen.
+        try { window.PreviewPanel?.close?.(); } catch {}
         currentProject = project;
         window.__currentProjectForFiles = project;
         window.currentProjectId = project.id; // used by FileActions (Task 11)
@@ -9013,10 +9015,15 @@
       }
 
       function showPanel(v) {
+        // Files + Preview sind gegenseitig exklusiv — nie beide offen.
+        if (v) { try { window.FileBrowser?.close?.(); } catch {} }
         open = v;
         el('preview-panel').classList.toggle('open', v);
         el('preview-resizer').style.display = v ? '' : 'none';
-        try { localStorage.setItem(openKey(sessionName), v ? '1' : '0'); } catch {}
+        // Gegen window.currentSessionName persisten (autoritativ), da sessionName
+        // beim Cross-Close aus FileBrowser.open noch auf der vorigen Session laggen kann.
+        const sn = window.currentSessionName || sessionName;
+        try { localStorage.setItem(openKey(sn), v ? '1' : '0'); } catch {}
       }
 
       async function refresh() {
@@ -9105,7 +9112,7 @@
         else showPanel(false);
       }
 
-      return { wire, toggle, activateForSession, _refresh: refresh };
+      return { wire, toggle, close: () => showPanel(false), activateForSession, _refresh: refresh };
     })();
     window.PreviewPanel = PreviewPanel;
     document.addEventListener('DOMContentLoaded', () => PreviewPanel.wire());
