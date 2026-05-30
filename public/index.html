@@ -8405,6 +8405,13 @@
     }
 
     // ── Init ─────────────────────────────────────────────────────
+    // Einmaliger Cleanup: die früheren globalen Open-State-Keys sind durch
+    // per-Session-Keys (cchub_files_sidebar_open:<s> / cchub_preview_open:<s>)
+    // ersetzt — die alten Globals als Leichen entfernen (idempotent).
+    try {
+      localStorage.removeItem('cchub_files_sidebar_open');
+      localStorage.removeItem('cchub_preview_open');
+    } catch {}
     // setView() zuerst — setzt body[data-current-view] und damit die
     // Sichtbarkeit aller drei Top-Level-Views. Default: Dashboard.
     setView('dashboard');
