@@ -1833,9 +1833,7 @@
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      /* rechts extra Platz für den absolut positionierten Mute-Button,
-         sonst überlappt er die Action-Buttons und den Status-Pill. */
-      padding: var(--space-4) calc(var(--space-4) + var(--space-5)) var(--space-4) var(--space-4);
+      padding: var(--space-4);
       cursor: pointer;
       transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
       position: relative;
@@ -1982,9 +1980,8 @@
       gap: var(--space-1);
       font-size: var(--text-xs);
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      padding: var(--space-1) var(--space-3);
+      letter-spacing: 0.2px;
+      padding: 3px var(--space-3);
       border-radius: 999px;
       white-space: nowrap;
       flex-shrink: 0;
@@ -3005,36 +3002,18 @@
     }
 
     /* ── Dormant ────────────────────────────────────────────────────────
-       Diagonaler Stripe-Overlay signalisiert "archiviert", ohne die
-       Card-Struktur zu dimmen — Border und Restore-CTA bleiben crisp.
-       Opacity liegt nur auf dem Inhalt, nicht auf der ganzen Card.      */
+       Ruhende Sessions/Projekte: ruhige, zurückgenommene Karte — kein
+       Schraffur-Overlay, kein geboxter Pfad. Solider weicher Rand,
+       gedämpfter Inhalt, der Pfad als ruhige Mono-Subzeile. Die
+       Restore-CTA (unten, on-hover) bleibt der klare Fokus.            */
     .session-card[data-status="dormant"] {
       cursor: default;
-      border-style: dashed;
-      border-color: var(--border);
+      border-color: var(--border-subtle);
       background: var(--bg-card);
-    }
-    .session-card[data-status="dormant"]::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: repeating-linear-gradient(
-        135deg,
-        transparent 0,
-        transparent 10px,
-        var(--teal-glow) 10px,
-        var(--teal-glow) 11px
-      );
-      pointer-events: none;
-      opacity: 0.55;
-    }
-    .session-card[data-status="dormant"] > * {
-      position: relative;
-      z-index: 1;
     }
     .session-card[data-status="dormant"]:hover {
       transform: none;
-      border-color: var(--teal-dim);
+      border-color: var(--border);
       background: var(--bg-card);
     }
     .session-card[data-status="dormant"]:hover::before {
@@ -3044,10 +3023,8 @@
       color: var(--text-secondary);
     }
     .session-card[data-status="dormant"] .session-status {
-      background: transparent;
+      background: var(--bg-card-hover);
       color: var(--text-muted);
-      border: 1px solid var(--border);
-      letter-spacing: 0.12em;
     }
     .session-card[data-status="dormant"] .session-status::before {
       background: var(--text-muted);
@@ -3055,34 +3032,24 @@
       animation: none;
     }
     .session-card[data-status="dormant"] .dormant-stub {
-      padding: var(--space-2) var(--space-3);
       font-size: var(--text-sm);
       font-family: var(--font-mono);
-      line-height: 1.65;
       color: var(--text-muted);
-      border-left: 2px solid var(--teal-dim);
-      background: linear-gradient(
-        to right,
-        var(--accent-muted) 0%,
-        transparent 60%
-      );
-      word-break: break-word;
       min-width: 0;
     }
     .session-card[data-status="dormant"] .dormant-stub .path {
-      color: var(--text-secondary);
-      word-break: break-all;
+      color: var(--text-muted);
       display: block;
-      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .session-card[data-status="dormant"] .dormant-stub div:nth-child(2) {
-      color: var(--teal);
-      opacity: 0.85;
+      color: var(--text-muted);
     }
     .session-card[data-status="dormant"] .dormant-stub div:nth-child(3) {
-      margin-top: 4px;
-      font-size: 10.5px;
-      letter-spacing: 0.03em;
+      margin-top: 2px;
+      font-size: var(--text-xs);
     }
     /* Restore-CTA leuchtet als primärer Fokus — etwas kräftiger als
        ein normaler btn-primary, damit die Aktion auf der grauen Karte
@@ -8975,14 +8942,9 @@
 
         btn.appendChild(icon);
         btn.appendChild(label);
-        btn.addEventListener('click', () => {
-          if (entry.type === 'dir') onRowClick(btn, entry);
-        });
-        btn.addEventListener('dblclick', () => {
-          if (entry.type !== 'dir' && window.FilePreview) {
-            window.FilePreview.open(currentProject.id, btn.dataset.path, entry);
-          }
-        });
+        // Single click opens files (preview) or toggles folders — works on
+        // touch too, where dblclick never fires. onRowClick handles both.
+        btn.addEventListener('click', () => onRowClick(btn, entry));
         return btn;
       }
 
@@ -9646,9 +9608,9 @@
 
       async function open(projectId, relPath, entry) {
         const modal = document.getElementById('file-preview-modal');
-        const body = document.getElementById('preview-body');
-        document.getElementById('preview-name').textContent = entry.name || relPath.split('/').pop();
-        document.getElementById('preview-size').textContent = entry.size != null ? formatSize(entry.size) : '';
+        const body = document.getElementById('file-preview-body');
+        document.getElementById('file-preview-name').textContent = entry.name || relPath.split('/').pop();
+        document.getElementById('file-preview-size').textContent = entry.size != null ? formatSize(entry.size) : '';
         body.innerHTML = `<div class="preview-oversize">${t('preview.loading')}</div>`;
         modal.classList.add('open');
         try {
@@ -9711,15 +9673,15 @@
       function close() {
         const modal = document.getElementById('file-preview-modal');
         modal.classList.remove('open');
-        document.getElementById('preview-body').innerHTML = '';
+        document.getElementById('file-preview-body').innerHTML = '';
       }
 
       function wire() {
         const modal = document.getElementById('file-preview-modal');
         modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
-        document.getElementById('preview-close').addEventListener('click', close);
-        document.getElementById('preview-copy-path').addEventListener('click', () => {
-          const name = document.getElementById('preview-name').textContent;
+        document.getElementById('file-preview-close').addEventListener('click', close);
+        document.getElementById('file-preview-copy-path').addEventListener('click', () => {
+          const name = document.getElementById('file-preview-name').textContent;
           navigator.clipboard?.writeText(name).catch(() => {});
         });
         document.addEventListener('keydown', (e) => {
@@ -10832,13 +10794,13 @@
   <div class="file-preview-modal" id="file-preview-modal">
     <div class="preview-card" onclick="event.stopPropagation()">
       <div class="preview-header">
-        <span class="name" id="preview-name"></span>
-        <span class="size" id="preview-size"></span>
+        <span class="name" id="file-preview-name"></span>
+        <span class="size" id="file-preview-size"></span>
         <span class="spacer"></span>
-        <button id="preview-copy-path" title="Copy Path" data-i18n-attr="title:preview.copyPathTitle" data-i18n="preview.copyPathLabel">Path</button>
-        <button id="preview-close" title="Close" data-i18n-attr="title:preview.closeTitle" data-i18n="preview.closeLabel">×</button>
+        <button id="file-preview-copy-path" title="Copy Path" data-i18n-attr="title:preview.copyPathTitle" data-i18n="preview.copyPathLabel">Path</button>
+        <button id="file-preview-close" title="Close" data-i18n-attr="title:preview.closeTitle" data-i18n="preview.closeLabel">×</button>
       </div>
-      <div class="preview-body" id="preview-body"></div>
+      <div class="preview-body" id="file-preview-body"></div>
     </div>
   </div>
 
