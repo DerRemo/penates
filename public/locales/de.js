@@ -53,6 +53,7 @@ window.__I18N_BUNDLES.de = {
   'sessionCard.status.needsInputTitle': 'Claude wartet auf deinen Input',
   'sessionCard.status.readyTitle': 'Claude ist bereit für den nächsten Auftrag',
   'sessionCard.status.activeTitle': 'Session läuft, Zustand nicht erkennbar',
+  'sessionCard.status.runningTool': 'läuft: {tool}',
   'sessionCard.dormantBadgeTitle': 'Session ist nicht in tmux aktiv, kann wiederhergestellt werden',
 
   // Session card — mute button

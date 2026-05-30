@@ -4679,7 +4679,7 @@
           let msg;
           try { msg = JSON.parse(ev.data); } catch { return; }
           if (msg.type === 'session-activity') {
-            if (msg.activity) patchActivityBadge(msg.name, msg.activity);
+            if (msg.activity) patchActivityBadge(msg.name, msg.activity, msg.tool);
             return;
           }
           if (msg.type !== 'session-attention') return;
@@ -4824,15 +4824,21 @@
       idle:    { cls: 'ready',   get label() { return t('sessionCard.status.ready'); },        get title() { return t('sessionCard.status.readyTitle'); } },
       unknown: { cls: 'unknown', get label() { return t('sessionCard.status.active'); },       get title() { return t('sessionCard.status.activeTitle'); } },
     };
-    function patchActivityBadge(name, activity) {
+    function patchActivityBadge(name, activity, tool) {
       const card = document.querySelector(`.session-card[data-name="${CSS.escape(name)}"]`);
       if (card) {
         const badge = card.querySelector('.session-status');
         if (badge) {
-          const cfg = ACTIVITY_BADGE[activity] || ACTIVITY_BADGE.unknown;
-          badge.className = `session-status ${cfg.cls}`;
-          badge.textContent = cfg.label;
-          badge.title = cfg.title;
+          if (tool) {
+            badge.className = 'session-status working';
+            badge.textContent = t('sessionCard.status.runningTool', { tool });
+            badge.title = badge.textContent;
+          } else {
+            const cfg = ACTIVITY_BADGE[activity] || ACTIVITY_BADGE.unknown;
+            badge.className = `session-status ${cfg.cls}`;
+            badge.textContent = cfg.label;
+            badge.title = cfg.title;
+          }
         }
       }
       // Sidebar-Dot synchron halten — Sichtbarkeit hängt am session.status
