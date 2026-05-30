@@ -1,9 +1,9 @@
 import { test, expect } from './fixtures.js';
 import { getToken } from './helpers.js';
 
-// Navigation to projects tab is done via the sidebar nav button.
-// The old .dashboard-tabs container is hidden (display:none !important)
-// and was replaced by sidebar navigation.
+// Navigation to projects tab is done via the sidebar nav button [data-sidebar-nav].
+// The old .dashboard-tabs strip no longer exists — it was removed entirely in the
+// app-shell redesign; sidebar navigation is the sole nav mechanism.
 const NAV_PROJECTS = '[data-sidebar-nav="projects"]';
 
 async function goToProjects(page) {

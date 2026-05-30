@@ -157,6 +157,25 @@ test.describe('Dashboard', () => {
     await expect(page.locator('#new-session-modal')).not.toHaveClass(/open/, { timeout: 3_000 });
   });
 
+  test('app-shell: no tab strip, sidebar nav switches views', async ({ authedPage: page }) => {
+    // The old .dashboard-tabs strip is gone — navigation lives only in the sidebar.
+    await expect(page.locator('.dashboard-tabs')).toHaveCount(0);
+    await expect(page.locator('#tab-sessions, #tab-usage, #tab-projects')).toHaveCount(0);
+
+    await page.locator('[data-sidebar-nav="projects"]').click();
+    await expect(page.locator('#projects-view')).toBeVisible();
+    await page.locator('[data-sidebar-nav="sessions"]').click();
+    await expect(page.locator('#sessions-grid')).toBeVisible();
+  });
+
+  test('app-shell: topbar carries title, search and primary action', async ({ authedPage: page }) => {
+    await expect(page.locator('.app-topbar #shell-title')).toBeVisible();
+    await expect(page.locator('.app-topbar #session-search')).toBeVisible();
+    await expect(page.locator('.section-bar')).toBeVisible();
+    await page.locator('.app-topbar #new-session-btn').click();
+    await expect(page.locator('#new-session-modal')).toHaveClass(/open/, { timeout: 3000 });
+  });
+
   test('bulk kill modal opens and closes', async ({ authedPage: page }) => {
     await page.click('#bulk-kill-btn');
     await expect(page.locator('#bulk-kill-modal')).toHaveClass(/open/, { timeout: 3_000 });
