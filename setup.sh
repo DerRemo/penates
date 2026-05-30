@@ -68,9 +68,10 @@ echo ""
 echo -e "${BOLD}[4/8]${RESET} Browser-Preview (optional)..."
 CURRENT_PREVIEW=$(grep '^PREVIEW_DOMAIN=' .env 2>/dev/null | cut -d= -f2-)
 if [ -z "$CURRENT_PREVIEW" ]; then
-  echo "  Wildcard-Subdomain für den Live-Dev-Server-Reverse-Proxy."
+  echo "  Live-Dev-Server-Reverse-Proxy über EINEN festen Host: preview.<domain>."
+  echo "  Eine Ebene flach → vom Universal-SSL *.<domain> gedeckt (kein ACM, kein Wildcard)."
   echo "  Leer lassen = Feature aus (kann später in .env nachgetragen werden)."
-  printf "  PREVIEW_DOMAIN (z.B. hub.example.com, leer = aus): "
+  printf "  PREVIEW_DOMAIN (z.B. code.derremo.xyz, leer = aus): "
   read -r PREVIEW_DOMAIN_IN
   if [ -n "$PREVIEW_DOMAIN_IN" ]; then
     if grep -q '^PREVIEW_DOMAIN=' .env; then
@@ -80,27 +81,16 @@ if [ -z "$CURRENT_PREVIEW" ]; then
     fi
     HUB_PORT=$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2-); HUB_PORT=${HUB_PORT:-3333}
 
-    # Falls der Tunnel über eine lokale cloudflared config.yml verwaltet wird:
-    # Ingress-Regel für *.preview.<domain> manuell einfügen (vor der Catch-all-404-Regel).
-    CF_CONFIG=""
-    for c in "$HOME/.cloudflared/config.yml" "$HOME/.cloudflared/config.yaml" "/etc/cloudflared/config.yml"; do
-      [ -f "$c" ] && CF_CONFIG="$c" && break
-    done
-    if [ -n "$CF_CONFIG" ] && ! grep -q "\*.preview.${PREVIEW_DOMAIN_IN}" "$CF_CONFIG"; then
-      echo "  → cloudflared-Config gefunden: $CF_CONFIG"
-      echo "    Füge MANUELL diese Ingress-Regel VOR der Catch-all (service: http_status:404) ein:"
-      echo "      - hostname: \"*.preview.${PREVIEW_DOMAIN_IN}\""
-      echo "        service: http://localhost:${HUB_PORT}"
-      echo "    (Automatisches Editieren der Ingress-Liste übersprungen — YAML-Reihenfolge ist load-bearing.)"
-    fi
-
     echo ""
-    echo "  ── CHECKLISTE (manuell, braucht Cloudflare-Dashboard/API-Token) ──"
-    echo "  1. Wildcard-DNS: CNAME  *.preview.${PREVIEW_DOMAIN_IN}  →  <tunnel-id>.cfargotunnel.com  (proxied)."
-    echo "  2. CF Access: die Wildcard-Subdomain *.preview.${PREVIEW_DOMAIN_IN} zur BESTEHENDEN"
-    echo "     CF-Access-Application/Policy des Hubs hinzufügen (selbe Policy → SSO-Cookie geteilt,"
-    echo "     das iframe lädt bereits authentifiziert)."
-    echo "  3. Ohne CF Access ist die Subdomain so offen wie der Hub selbst — gleiche Vertrauensgrenze."
+    echo "  ── CLOUDFLARE-CHECKLISTE (manuell, EIN fixer Host preview.${PREVIEW_DOMAIN_IN}) ──"
+    echo "  1. Tunnel → Public Hostname: preview.${PREVIEW_DOMAIN_IN}  →  HTTP  localhost:${HUB_PORT}"
+    echo "  2. DNS: CNAME  preview  →  <tunnel-id>.cfargotunnel.com  (proxied/orange)."
+    echo "     (Single-Label-Host → vom bestehenden Universal-SSL *.${PREVIEW_DOMAIN_IN#*.} gedeckt, kein ACM nötig.)"
+    echo "  3. CF Access: preview.${PREVIEW_DOMAIN_IN} zur BESTEHENDEN Access-App/Policy des Hubs"
+    echo "     hinzufügen (selbe Policy → SSO-Cookie geteilt, iframe lädt bereits authentifiziert)."
+    echo "  4. Ohne CF Access ist der Host so offen wie der Hub selbst — gleiche Vertrauensgrenze."
+    echo ""
+    echo "  Kein Wildcard, kein Catch-all. Eine Preview zur Zeit (Port im Hub-Panel wählbar)."
     echo ""
   else
     echo "  → übersprungen (PREVIEW_DOMAIN bleibt leer, Feature aus)."
