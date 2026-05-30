@@ -19,14 +19,14 @@ test.describe('multi-CLI picker', () => {
     await expect(sel.locator('option')).toHaveCount(2, { timeout: 5_000 });
     await expect(sel).toContainText('Dangerous (skip permissions)');
 
-    // Switch to gemini → 3 variants
-    await picker.locator('.cli-pick-btn[data-cli="gemini"]').click();
-    await expect(sel.locator('option')).toHaveCount(3, { timeout: 5_000 });
-    await expect(sel).toContainText('YOLO');
+    // Switch to antigravity → 2 variants
+    await picker.locator('.cli-pick-btn[data-cli="antigravity"]').click();
+    await expect(sel.locator('option')).toHaveCount(2, { timeout: 5_000 });
+    await expect(sel).toContainText('Dangerous (skip permissions)');
 
-    // Verify gemini --yolo is among the option values
+    // Verify agy --dangerously-skip-permissions is among the option values
     const vals = await sel.locator('option').evaluateAll(os => os.map(o => o.value));
-    expect(vals).toContain('gemini --yolo');
+    expect(vals).toContain('agy --dangerously-skip-permissions');
 
     await page.keyboard.press('Escape');
   });

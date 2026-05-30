@@ -6,11 +6,11 @@ test('cliFromCommand maps first token to cli id', () => {
   assert.equal(cliFromCommand('claude'), 'claude');
   assert.equal(cliFromCommand('claude --dangerously-skip-permissions'), 'claude');
   assert.equal(cliFromCommand('codex --yolo'), 'codex');
-  assert.equal(cliFromCommand('gemini --approval-mode auto_edit'), 'gemini');
+  assert.equal(cliFromCommand('agy --dangerously-skip-permissions'), 'antigravity');
 });
 
 test('cliFromCommand strips a path prefix from the binary', () => {
-  assert.equal(cliFromCommand('/opt/homebrew/bin/gemini'), 'gemini');
+  assert.equal(cliFromCommand('/opt/homebrew/bin/agy'), 'antigravity');
   assert.equal(cliFromCommand('/usr/local/bin/codex --full-auto'), 'codex');
 });
 
@@ -24,7 +24,7 @@ test('cliFromCommand returns null for unknown or empty', () => {
 test('CLIS registry integrity', () => {
   assert.ok(Array.isArray(CLIS) && CLIS.length === 3);
   const ids = CLIS.map(c => c.id);
-  assert.deepEqual(ids, ['claude', 'codex', 'gemini']);
+  assert.deepEqual(ids, ['claude', 'codex', 'antigravity']);
   for (const c of CLIS) {
     assert.ok(c.id && c.label && c.binary && c.color, `cli ${c.id} has core fields`);
     assert.ok(Array.isArray(c.variants) && c.variants.length >= 1, `cli ${c.id} has variants`);
