@@ -794,9 +794,6 @@
       flex-wrap: wrap;
     }
 
-    /* Legacy .dashboard-tabs — Navigation wandert in die Sidebar */
-    .dashboard-tabs { display: none !important; }
-
     /* ── View Container ───────────────────────────────────────────── */
     .container {
       position: relative;
@@ -807,47 +804,12 @@
     }
 
     /* ── Dashboard View ───────────────────────────────────────────── */
-    .dashboard-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 28px;
-    }
-
     .dashboard-title {
       font-size: 14px;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       font-weight: 600;
       color: var(--text-muted);
-    }
-
-    /* ── Dashboard-Tabs (Sessions / Usage) ─────────────────────────── */
-    .dashboard-tabs {
-      display: inline-flex;
-      gap: 4px;
-      padding: 4px;
-      background: var(--bg-elevated);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-    }
-    .dashboard-tab {
-      padding: 8px 18px;
-      border-radius: 8px;
-      border: none;
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-family: var(--font-ui);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.3px;
-      transition: color 0.15s ease, background 0.15s ease;
-    }
-    .dashboard-tab:hover { color: var(--text-secondary); }
-    .dashboard-tab.active {
-      color: var(--bg-deep);
-      background: var(--teal);
     }
 
     /* Elemente mit data-tab-scope nur sichtbar, wenn passender Tab aktiv.
@@ -1662,27 +1624,6 @@
       flex: 1;
       overflow-y: auto;
       padding: 32px max(24px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
-    }
-
-    /* ── Dashboard-Tab Phase-Indikator-Dot ─────────────────────────── */
-    .dashboard-tab--new {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .dashboard-tab-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--text-muted);
-      display: inline-block;
-      opacity: 0.7;
-      transition: background 0.2s ease, box-shadow 0.2s ease;
-    }
-    .dashboard-tab--new:hover .dashboard-tab-dot,
-    .dashboard-tab--new.active .dashboard-tab-dot {
-      background: var(--bg-deep);
-      opacity: 1;
     }
 
     /* ── Attention-Flash: 2s Peak-Animation direkt bei eingehendem
@@ -2737,11 +2678,7 @@
       .container { padding: 20px max(16px, env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
       .sessions-grid { grid-template-columns: 1fr; }
       .header { padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
-      .dashboard-header { flex-direction: column; gap: 12px; align-items: flex-start; }
-      .dashboard-header-left { flex-wrap: wrap; width: 100%; }
       .search-wrapper { max-width: none; flex: 1 1 100%; }
-      .dashboard-header-right { width: 100%; flex-wrap: wrap; gap: 6px; }
-      .dashboard-header-right .btn { flex: 1 1 auto; min-width: max-content; }
 
       /* Terminal-Toolbar auf Mobile: platzsparende Zwei-Reihen-Anordnung.
          Connection-Status-Label wird zum reinen Dot, Button-Labels verkürzt. */
@@ -2856,13 +2793,6 @@
     }
 
     /* ── D3: Search-Filter ─────────────────────────────────────────── */
-    .dashboard-header-left {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex: 1;
-      min-width: 0;
-    }
     .search-wrapper {
       position: relative;
       flex: 1;
