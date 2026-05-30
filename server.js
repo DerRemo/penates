@@ -48,7 +48,7 @@ import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
 import { parseStatusV2, getDiff } from './lib/git-diff.js';
 import { saveSessionImage } from './lib/session-images.js';
-import { hostToPort, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
+import { isPreviewHost, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
 import { listListeningPorts } from './lib/port-scan.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -59,14 +59,23 @@ const updateChecker = createChecker({ current: pkgJson.version });
 
 const PORT = process.env.PORT || 3333;
 const AUTH_TOKEN = process.env.AUTH_TOKEN || '';
-// Browser-Preview: Reverse-Proxy für lokale Dev-Server über <port>.preview.<domain>.
-// PREVIEW_DOMAIN unset → Feature komplett aus (kein Routen-Effekt, Panel zeigt Hinweis).
+// Browser-Preview: Reverse-Proxy für EINEN lokalen Dev-Server über den festen
+// Host preview.<PREVIEW_DOMAIN> (z.B. preview.code.derremo.xyz). Single-Host-
+// Modell → eine Ebene flach, vom Universal-SSL-Wildcard *.<domain> gedeckt
+// (kein ACM, kein Catch-all). PREVIEW_DOMAIN unset → Feature komplett aus.
 const PREVIEW_DOMAIN = process.env.PREVIEW_DOMAIN || '';
 const PREVIEW_ENABLED = !!PREVIEW_DOMAIN;
-const PREVIEW_BASE = PREVIEW_ENABLED ? 'preview.' + PREVIEW_DOMAIN : '';
+const PREVIEW_HOST = PREVIEW_ENABLED ? 'preview.' + PREVIEW_DOMAIN : '';
+// Aktuell gewählter Dev-Server-Port hinter dem fixen Preview-Host (eine Preview
+// zur Zeit). Wird über POST /api/preview/select gesetzt.
+let activePreviewPort = null;
 // SSRF-Guard: nur Ports proxen, die der Detektor aktuell als lauschend meldet.
 function isPreviewPortListening(port) {
   return listListeningPorts({ excludePort: PORT }).some((p) => p.port === port);
+}
+// Liefert den aktiven Port nur, wenn gesetzt UND noch lauschend — sonst null.
+function previewPortReady() {
+  return activePreviewPort != null && isPreviewPortListening(activePreviewPort) ? activePreviewPort : null;
 }
 const SESSION_PREFIX = process.env.SESSION_PREFIX || 'cc-';
 const TMUX = process.env.TMUX_PATH || (() => {
@@ -120,16 +129,17 @@ expressWs(app, null, {
 });
 
 // ── Browser-Preview Host-Dispatch (VOR Auth/Static/Catch-all/JSON) ───────────
-// Greift NUR bei <port>.preview.<PREVIEW_DOMAIN>. Normale Hub-Hosts fallen
+// Greift NUR beim fixen Host preview.<PREVIEW_DOMAIN>. Normale Hub-Hosts fallen
 // durch (next()) und laufen die bestehende Kette. CF Access hat am Tunnel-Edge
-// bereits authentifiziert; der Hub-Bearer-Token ist hier irrelevant.
+// bereits authentifiziert; der Hub-Bearer-Token ist hier irrelevant. Der Zielport
+// kommt aus activePreviewPort (per POST /api/preview/select gesetzt).
 app.use((req, res, next) => {
   if (!PREVIEW_ENABLED) return next();
-  const port = hostToPort(req.headers.host, PREVIEW_BASE);
-  if (port == null) return next();                       // → normaler Hub-Pfad
-  if (!isPreviewPortListening(port)) {
-    res.status(403).set('Content-Type', 'text/html; charset=utf-8');
-    return res.end(`<!doctype html><meta charset=utf-8><body style="font:16px system-ui;padding:2rem;background:#0f1115;color:#e5e7eb">Kein Server auf Port ${port} — läuft dein Dev-Server?</body>`);
+  if (!isPreviewHost(req.headers.host, PREVIEW_HOST)) return next();   // → normaler Hub-Pfad
+  const port = previewPortReady();
+  if (port == null) {
+    res.status(503).set('Content-Type', 'text/html; charset=utf-8');
+    return res.end(`<!doctype html><meta charset=utf-8><body style="font:16px system-ui;padding:2rem;background:#0f1115;color:#e5e7eb">Keine Preview aktiv — wähle im Hub einen Port (läuft dein Dev-Server?).</body>`);
   }
   return proxyHttp(req, res, port);                      // kein next() — Proxy übernimmt
 });
@@ -164,7 +174,7 @@ const CSP = [
   "manifest-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
-  PREVIEW_ENABLED ? `frame-src blob: https://*.${PREVIEW_BASE}` : "frame-src blob:",
+  PREVIEW_ENABLED ? `frame-src blob: https://${PREVIEW_HOST}` : "frame-src blob:",
   "frame-ancestors 'none'",
 ].join('; ');
 app.use((_req, res, next) => {
@@ -337,13 +347,32 @@ app.use('/api', (req, res, next) => {
   return writeLimiter(req, res, next);
 });
 
-// Browser-Preview: Config (ist das Feature an? + Basis-Domain) + Port-Liste.
-// Hub-Domain-Calls — durch secureMiddleware (Auth) + readLimiter gedeckt.
+// Browser-Preview: Config (Feature an? + fixer Host + aktiver Port) + Port-Liste
+// + Port-Auswahl. Hub-Domain-Calls — durch secureMiddleware (Auth) + Limiter gedeckt.
 app.get('/api/preview/config', (_req, res) => {
-  res.json({ enabled: PREVIEW_ENABLED, baseDomain: PREVIEW_ENABLED ? PREVIEW_BASE : null });
+  res.json({ enabled: PREVIEW_ENABLED, host: PREVIEW_ENABLED ? PREVIEW_HOST : null, activePort: activePreviewPort });
 });
 app.get('/api/preview/ports', (_req, res) => {
   res.json({ ports: listListeningPorts({ excludePort: PORT }) });
+});
+// Setzt den Port, auf den der fixe Preview-Host proxied. { port: <n> } oder
+// { port: null } zum Leeren. SSRF-Guard: Port muss aktuell lauschen.
+app.post('/api/preview/select', (req, res) => {
+  if (!PREVIEW_ENABLED) return res.status(409).json({ error: 'preview disabled' });
+  const raw = req.body && req.body.port;
+  if (raw === null || raw === undefined || raw === '') {
+    activePreviewPort = null;
+    return res.json({ ok: true, port: null });
+  }
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+    return res.status(400).json({ error: 'invalid port' });
+  }
+  if (!isPreviewPortListening(port)) {
+    return res.status(409).json({ error: 'port not listening', port });
+  }
+  activePreviewPort = port;
+  res.json({ ok: true, port });
 });
 
 // ── Validation ───────────────────────────────────────────────────────────────
@@ -1802,11 +1831,12 @@ const server = app.listen(PORT, async () => {
 
 // Browser-Preview: HMR-WS-Upgrade vor express-ws abfangen. attachUpgrade greift
 // die express-ws-Listener ab und delegiert Nicht-Preview-Upgrades zurück, sodass
-// Preview-Subdomains exklusiv über proxyWs laufen und der Hub-WS (/api/terminal,
-// /api/files/events) unverändert bedient wird. Siehe lib/preview-proxy.test.js.
+// der fixe Preview-Host exklusiv über proxyWs (zum aktiven Port) läuft und der
+// Hub-WS (/api/terminal, /api/files/events) unverändert bedient wird.
+// Siehe lib/preview-proxy.test.js (Koexistenz-Test).
 if (PREVIEW_ENABLED) {
-  attachUpgrade(server, { baseDomain: PREVIEW_BASE, isListening: isPreviewPortListening });
-  console.log(`  ▸ browser-preview: proxy aktiv für *.${PREVIEW_BASE}`);
+  attachUpgrade(server, { previewHost: PREVIEW_HOST, getPort: previewPortReady });
+  console.log(`  ▸ browser-preview: proxy aktiv für ${PREVIEW_HOST} (Port serverseitig gewählt)`);
 }
 
 // Leiser 5-min-Poll: hält die account-weite Limit-History auch ohne offene
