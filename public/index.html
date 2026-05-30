@@ -139,45 +139,52 @@
     /* Dark-Theme. Alle Farben gehen durch CSS-Variablen, damit
        Light-Theme weiter unten nur die Werte überschreibt. */
     :root[data-theme="dark"] {
-      --bg-deep: #0a0e14;
-      --bg-surface: #111720;
-      --bg-surface-translucent: rgba(10, 14, 20, 0.85);
-      --bg-card: #161d28;
-      --bg-card-hover: #1a2332;
-      --bg-elevated: #1e2738;
-      --border: #1e2a3a;
-      --border-subtle: #152030;
-      --text-primary: #e4e8ee;
-      --text-secondary: #7a8ba0;
-      --text-muted: #4a5a6e;
-      --teal: #2dd4bf;
-      --teal-dim: #1a9e8e;
-      --teal-glow: rgba(45, 212, 191, 0.12);
-      --teal-glow-strong: rgba(45, 212, 191, 0.25);
-      --orange: #f59e0b;
-      --orange-dim: rgba(245, 158, 11, 0.15);
-      --red: #ef4444;
-      --red-dim: rgba(239, 68, 68, 0.12);
-      --green: #22c55e;
-      --green-dim: rgba(34, 197, 94, 0.12);
+      --bg-deep: #1e1e2e;
+      --bg-surface: #181825;
+      --bg-surface-translucent: rgba(30, 30, 46, 0.80);
+      --bg-card: #181825;
+      --bg-card-hover: #313244;
+      --bg-elevated: #313244;
+      --border: #313244;
+      --border-subtle: #181825;
+      --text-primary: #cdd6f4;
+      --text-secondary: #a6adc8;
+      --text-muted: #6c7086;
+      --teal: #94e2d5;
+      --teal-dim: #74c7ec;
+      --teal-glow: rgba(148, 226, 213, 0.12);
+      --teal-glow-strong: rgba(148, 226, 213, 0.25);
+      --orange: #fab387;
+      --orange-dim: rgba(250, 179, 135, 0.14);
+      --red: #f38ba8;
+      --red-dim: rgba(243, 139, 168, 0.12);
+      --green: #a6e3a1;
+      --green-dim: rgba(166, 227, 161, 0.13);
       --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.3);
       --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
       --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
-      --modal-backdrop: rgba(0, 0, 0, 0.7);
-      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(45, 212, 191, 0.04) 0%, transparent 60%);
-      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 60%);
-      --scanline-display: block;
+      --modal-backdrop: rgba(17, 17, 27, 0.72);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(148, 226, 213, 0.04) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(180, 190, 254, 0.03) 0%, transparent 60%);
+      --scanline-display: none;
 
       /* Neue Token-Aliase (Phase 1 Compat-Layer) */
       --bg-base: var(--bg-deep);
       --bg-overlay: var(--modal-backdrop);
-      --text-inverse: #0a0e14;
+      --text-inverse: #11111b;
       --border-default: var(--border);
-      --border-strong: #2a3a4f;
+      --border-strong: #45475a;
       --accent: var(--teal);
-      --accent-hover: #5eead4;
+      --accent-hover: #a6e9dd;
       --accent-muted: var(--teal-glow);
-      --accent-contrast: #0a0e14;
+      --accent-contrast: #11111b;
+      --accent-soft: rgba(148, 226, 213, 0.12);
+      --work-soft: rgba(137, 180, 250, 0.13);
+      --wait-soft: rgba(250, 179, 135, 0.14);
+      --idle-soft: rgba(166, 227, 161, 0.13);
+      /* Mauve-Akzent (Catppuccin-Signature) — zum Umschalten einkommentieren:
+         --teal: #cba6f7; --accent-hover: #d9bdfa; --accent-contrast: #11111b;
+         --teal-glow: rgba(203,166,247,.12); --accent-soft: rgba(203,166,247,.12); */
       --status-idle: var(--green);
       --status-working: var(--teal);
       --status-waiting: var(--orange);
@@ -186,8 +193,8 @@
       --amber-muted: var(--orange-dim);
       --red-muted: var(--red-dim);
       --green-muted: var(--green-dim);
-      --blue: #60a5fa;
-      --blue-muted: rgba(96, 165, 250, 0.15);
+      --blue: #89b4fa;
+      --blue-muted: rgba(137, 180, 250, 0.13);
       --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.25);
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
@@ -197,33 +204,33 @@
     /* Light-Theme (Default). Weichere Paper-Farben, dunkleres Teal für
        Kontrast, Scanline aus (sieht auf hellem BG hässlich aus). */
     :root, :root[data-theme="light"] {
-      --bg-deep: #f6f7f9;
-      --bg-surface: #ffffff;
-      --bg-surface-translucent: rgba(255, 255, 255, 0.85);
-      --bg-card: #ffffff;
-      --bg-card-hover: #f2f4f7;
-      --bg-elevated: #ffffff;
-      --border: #e2e6ec;
-      --border-subtle: #edf0f4;
-      --text-primary: #0f1623;
-      --text-secondary: #4b5a70;
-      --text-muted: #8795a8;
-      --teal: #0d9488;
-      --teal-dim: #0f766e;
-      --teal-glow: rgba(13, 148, 136, 0.10);
-      --teal-glow-strong: rgba(13, 148, 136, 0.22);
-      --orange: #c2660a;
-      --orange-dim: rgba(194, 102, 10, 0.10);
-      --red: #dc2626;
-      --red-dim: rgba(220, 38, 38, 0.08);
-      --green: #15803d;
-      --green-dim: rgba(21, 128, 61, 0.10);
+      --bg-deep: #e6e9ef;
+      --bg-surface: #eff1f5;
+      --bg-surface-translucent: rgba(230, 233, 239, 0.80);
+      --bg-card: #eff1f5;
+      --bg-card-hover: #dce0e8;
+      --bg-elevated: #eff1f5;
+      --border: #ccd0da;
+      --border-subtle: #dce0e8;
+      --text-primary: #4c4f69;
+      --text-secondary: #6c6f85;
+      --text-muted: #8c8fa1;
+      --teal: #179299;
+      --teal-dim: #137a80;
+      --teal-glow: rgba(23, 146, 153, 0.10);
+      --teal-glow-strong: rgba(23, 146, 153, 0.22);
+      --orange: #fe640b;
+      --orange-dim: rgba(254, 100, 11, 0.12);
+      --red: #d20f39;
+      --red-dim: rgba(210, 15, 57, 0.08);
+      --green: #40a02b;
+      --green-dim: rgba(64, 160, 43, 0.10);
       --shadow-card: 0 4px 14px rgba(15, 22, 35, 0.06);
       --shadow-modal: 0 20px 60px rgba(15, 22, 35, 0.18);
       --shadow-toast: 0 8px 24px rgba(15, 22, 35, 0.12);
-      --modal-backdrop: rgba(15, 22, 35, 0.35);
-      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(13, 148, 136, 0.06) 0%, transparent 60%);
-      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(99, 102, 241, 0.04) 0%, transparent 60%);
+      --modal-backdrop: rgba(76, 79, 105, 0.30);
+      --bg-gradient-1: radial-gradient(ellipse 80% 60% at 10% 20%, rgba(23, 146, 153, 0.05) 0%, transparent 60%);
+      --bg-gradient-2: radial-gradient(ellipse 60% 50% at 90% 80%, rgba(114, 135, 253, 0.04) 0%, transparent 60%);
       --scanline-display: none;
 
       /* Neue Token-Aliase (Phase 1 Compat-Layer) */
@@ -231,11 +238,18 @@
       --bg-overlay: var(--modal-backdrop);
       --text-inverse: #ffffff;
       --border-default: var(--border);
-      --border-strong: #c8cfda;
+      --border-strong: #bcc0cc;
       --accent: var(--teal);
-      --accent-hover: #0f766e;
+      --accent-hover: #137a80;
       --accent-muted: var(--teal-glow);
       --accent-contrast: #ffffff;
+      --accent-soft: rgba(23, 146, 153, 0.10);
+      --work-soft: rgba(30, 102, 245, 0.10);
+      --wait-soft: rgba(254, 100, 11, 0.12);
+      --idle-soft: rgba(64, 160, 43, 0.10);
+      /* Mauve-Akzent (Catppuccin-Signature) — zum Umschalten einkommentieren:
+         --teal: #8839ef; --accent-hover: #7a2fd6; --accent-contrast: #ffffff;
+         --teal-glow: rgba(136,57,239,.10); --accent-soft: rgba(136,57,239,.10); */
       --status-idle: var(--green);
       --status-working: var(--teal);
       --status-waiting: var(--orange);
@@ -244,8 +258,8 @@
       --amber-muted: var(--orange-dim);
       --red-muted: var(--red-dim);
       --green-muted: var(--green-dim);
-      --blue: #2563eb;
-      --blue-muted: rgba(37, 99, 235, 0.10);
+      --blue: #1e66f5;
+      --blue-muted: rgba(30, 102, 245, 0.10);
       --shadow-sm: 0 2px 6px rgba(15, 22, 35, 0.06);
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
