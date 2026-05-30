@@ -19,14 +19,14 @@ test.describe('multi-CLI picker', () => {
     await expect(sel.locator('option')).toHaveCount(2, { timeout: 5_000 });
     await expect(sel).toContainText('Dangerous (skip permissions)');
 
-    // Switch to gemini → 3 variants
-    await picker.locator('.cli-pick-btn[data-cli="gemini"]').click();
-    await expect(sel.locator('option')).toHaveCount(3, { timeout: 5_000 });
-    await expect(sel).toContainText('YOLO');
+    // Switch to antigravity → 2 variants
+    await picker.locator('.cli-pick-btn[data-cli="antigravity"]').click();
+    await expect(sel.locator('option')).toHaveCount(2, { timeout: 5_000 });
+    await expect(sel).toContainText('Dangerous (skip permissions)');
 
-    // Verify gemini --yolo is among the option values
+    // Verify agy --dangerously-skip-permissions is among the option values
     const vals = await sel.locator('option').evaluateAll(os => os.map(o => o.value));
-    expect(vals).toContain('gemini --yolo');
+    expect(vals).toContain('agy --dangerously-skip-permissions');
 
     await page.keyboard.press('Escape');
   });
@@ -105,13 +105,14 @@ test.describe('multi-CLI picker', () => {
     // The card must exist first
     await expect(page.locator('.session-card[data-name="cc-codexsess"]')).toBeVisible({ timeout: 10_000 });
 
-    // The cli-badge depends on _clisMod being loaded (async import).
-    // Wait for it via waitForFunction, then assert via locator.
+    // Redesign: Der Text-Badge (.cli-badge) auf der Card wurde durch das
+    // CLI-Brand-Logo (.cli-logo svg) ersetzt. Das Logo hängt am async
+    // geladenen _clisMod — via waitForFunction abwarten, dann asserten.
     await page.waitForFunction(
-      () => document.querySelector('.session-card[data-name="cc-codexsess"] .cli-badge') !== null,
+      () => document.querySelector('.session-card[data-name="cc-codexsess"] .cli-logo svg') !== null,
       { timeout: 10_000 },
     );
 
-    await expect(page.locator('.session-card[data-name="cc-codexsess"] .cli-badge').first()).toBeVisible();
+    await expect(page.locator('.session-card[data-name="cc-codexsess"] .cli-logo').first()).toBeVisible();
   });
 });

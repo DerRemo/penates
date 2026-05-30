@@ -123,6 +123,9 @@ test.describe('Dashboard', () => {
     const card = page.locator(`.session-card[data-name="${hubSession.name}"]`);
     await card.waitFor({ timeout: 10_000 });
 
+    // Redesign: Pin/Mute leben in der hover-eingeblendeten Aktionsleiste.
+    // Auf Desktop erst nach Hover sichtbar/klickbar.
+    await card.hover();
     const muteBtn = card.locator('.session-mute-btn');
     const wasMuted = await muteBtn.getAttribute('data-muted');
     await muteBtn.click();
@@ -136,6 +139,8 @@ test.describe('Dashboard', () => {
     const card = page.locator(`.session-card[data-name="${hubSession.name}"]`);
     await card.waitFor({ timeout: 10_000 });
 
+    // Redesign: Pin/Mute leben in der hover-eingeblendeten Aktionsleiste.
+    await card.hover();
     const pinBtn = card.locator('.session-pin-btn');
     const wasPinned = await pinBtn.getAttribute('data-pinned');
     await pinBtn.click();
