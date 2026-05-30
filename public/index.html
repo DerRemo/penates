@@ -4749,11 +4749,11 @@
       if (pct == null) { box.hidden = true; return; }
       box.hidden = false;
       const ring = document.getElementById('sidebar-limit-ring');
-      ring.style.setProperty('--p', pct);
-      ring.className = 'sidebar__limit-ring ' + limitColorClass(pct);
-      document.getElementById('sidebar-limit-pct').textContent = pct + '%';
+      if (ring) { ring.style.setProperty('--p', pct); ring.className = 'sidebar__limit-ring ' + limitColorClass(pct); }
+      const pctEl = document.getElementById('sidebar-limit-pct');
+      if (pctEl) pctEl.textContent = pct + '%';
       const resetEl = document.getElementById('sidebar-limit-reset');
-      resetEl.textContent = resetTs ? t('sidebar.limit.reset', { time: formatResetCountdown(resetTs) }) : '';
+      if (resetEl) resetEl.textContent = resetTs ? t('sidebar.limit.reset', { time: formatResetCountdown(resetTs) }) : '';
     }
     async function refreshSidebarLimit() {
       try {
