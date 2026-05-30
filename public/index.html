@@ -1794,6 +1794,63 @@
       opacity: 1;
     }
 
+    /* ── Redesign: Status-Streifen am linken Rand (Farbe = Pillen-Farbe) ── */
+    .session-card .card-accent {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: transparent;
+      border-top-left-radius: var(--radius);
+      border-bottom-left-radius: var(--radius);
+    }
+    .session-card[data-activity="working"] .card-accent { background: var(--blue); }
+    .session-card[data-activity="waiting"] .card-accent { background: var(--amber); }
+    .session-card[data-activity="idle"]    .card-accent { background: var(--green); }
+
+    /* CLI-Brand-Logo links vom Namen */
+    .cli-logo {
+      width: 18px; height: 18px;
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .cli-logo svg { width: 100%; height: 100%; }
+    .cli-logo--fallback { color: var(--text-muted); }
+    .session-card[data-status="dormant"] .cli-logo { filter: grayscale(0.5); opacity: 0.7; }
+
+    /* Aktionsleiste: Desktop per Hover eingeblendet, Touch dauerhaft */
+    .session-card .session-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.18s ease, opacity 0.18s ease, margin-top 0.18s ease;
+      margin-top: 0;
+    }
+    .session-card:hover .session-actions,
+    .session-card:focus-within .session-actions {
+      max-height: 52px;
+      opacity: 1;
+      margin-top: var(--space-3);
+    }
+    /* Pin/Mute als kompakte Icon-Buttons, an den rechten Rand der Leiste */
+    .session-card .session-actions .session-card-tools {
+      margin-left: auto;
+      display: inline-flex;
+      gap: var(--space-1);
+    }
+    /* Touch: kein Hover → Aktionen immer sichtbar */
+    @media (hover: none), (pointer: coarse) {
+      .session-card .session-actions {
+        max-height: none; opacity: 1; margin-top: var(--space-3);
+      }
+    }
+    /* Foreign-Cards zeigen Aktionen immer (kein Status-Lifecycle) */
+    .session-card[data-status="foreign"] .session-actions {
+      max-height: none; opacity: 1; margin-top: var(--space-3);
+    }
+
     .session-card-header {
       display: flex;
       align-items: flex-start;
@@ -1807,7 +1864,7 @@
        Reserviere den Platz, damit die session-status-Pill nicht
        drunter läuft. Foreign-Cards haben keine Buttons → kein padding. */
     .session-card:not([data-status="foreign"]) .session-card-header {
-      padding-right: 76px;
+      padding-right: 0;
     }
 
     .session-name {
