@@ -500,7 +500,7 @@ Express-frei, unit-testbar. Liest Env **in** den Funktionen (nicht modul-top), d
 
 ### Engine / Modell
 
-Homebrew `whisper-cpp` (**Metal**-Build out-of-the-box auf Apple Silicon), Modell **`ggml-large-v3-turbo-q5_0`** (~547 MB, multilingual, gute Deutsch-Genauigkeit) — auf M-Series ~1–2s/kurzer Clip. **CoreML/ANE** (~3× Encoder-Speedup) ist ein optionaler späterer Tune (Source-Build `-DWHISPER_COREML=1` + CoreML-Modell), bewusst **nicht** in v1. `setup.sh`-Schritt `[8/9]` installiert Binary + lädt das Modell idempotent + schreibt `.env`-Vars.
+Homebrew `whisper-cpp` (**Metal**-Build out-of-the-box auf Apple Silicon), Modell **`ggml-large-v3-turbo-q5_0`** (~574 MB / 547 MiB, multilingual, gute Deutsch-Genauigkeit) — auf M-Series ~1–2s/kurzer Clip. **CoreML/ANE** (~3× Encoder-Speedup) ist ein optionaler späterer Tune (Source-Build `-DWHISPER_COREML=1` + CoreML-Modell), bewusst **nicht** in v1. `setup.sh`-Schritt `[8/9]` installiert Binary + lädt das Modell idempotent + schreibt `.env`-Vars.
 
 ### Routen
 
