@@ -8710,30 +8710,34 @@
         });
       }
 
-      // Called from connectToSession — sets the project context for the toggle btn
+      // Called from connectToSession — sets the file-source context for the toggle btn.
+      // Quelle ist ein registriertes Projekt ODER (Fallback) die Session selbst
+      // (Pseudo-id `session:<name>`, cwd serverseitig live aufgelöst), damit der
+      // Picker für JEDE Session funktioniert — nicht nur projekt-gebundene.
       function activateForSession(sessionName) {
         const session = Array.isArray(sessions) ? sessions.find(s => s.name === sessionName) : null;
         const toggleBtn = document.getElementById('btn-toggle-files');
         if (!toggleBtn) return;
-        if (!session) { toggleBtn.style.display = 'none'; return; }
-        const match = Array.isArray(projectsCache)
+        const match = (session && Array.isArray(projectsCache))
           ? findMatchingProject(session.path, projectsCache)
           : null;
-        if (!match) {
-          toggleBtn.style.display = 'none';
-          window.__currentProjectForFiles = null;
-          // If cache was cold, try again once projects are loaded
-          if (!projectsCache) {
+        let source;
+        if (match) {
+          source = { id: match.id, path: match.path, name: match.displayName || match.name };
+        } else {
+          source = { id: 'session:' + sessionName, path: (session && session.path) || '', name: (session && session.name) || sessionName };
+          // Cache noch kalt → später erneut versuchen, ob doch ein Projekt matcht
+          // (registriertes Projekt hat Vorrang vor der Session-Quelle).
+          if (session && !projectsCache) {
             ensureProjectsLoaded().then(() => activateForSession(sessionName));
           }
-          return;
         }
         toggleBtn.style.display = '';
-        window.__currentProjectForFiles = { id: match.id, path: match.path, name: match.displayName || match.name };
+        window.__currentProjectForFiles = source;
         stateSession = sessionName;
-        // If sidebar was open for a different project, tear it down (no persist —
+        // If sidebar was open for a different source, tear it down (no persist —
         // keep the previous session's remembered state intact)
-        if (sidebarOpen && currentProject && currentProject.id !== match.id) {
+        if (sidebarOpen && currentProject && currentProject.id !== source.id) {
           close(false);
         }
         // Restore THIS session's remembered open state

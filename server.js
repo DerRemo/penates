@@ -476,6 +476,19 @@ function resolveSessionCwd(name) {
   return entry ? entry.directory : null;
 }
 
+// File-Quelle für die /api/projects/:id/files*-Routen: ein registriertes
+// Projekt ODER eine Session (Pseudo-id `session:<name>`, cwd live aufgelöst).
+// Dadurch funktioniert der Files-Picker für JEDE Session, nicht nur für
+// solche mit angelegtem Projekt. Liefert { id, path } oder null.
+async function resolveFileSource(id) {
+  if (typeof id === 'string' && id.startsWith('session:')) {
+    const name = id.slice('session:'.length);
+    const cwd = resolveSessionCwd(name);
+    return cwd ? { id, path: cwd } : null;
+  }
+  return getProject(id);
+}
+
 // ── Hub-Env für Claude-Hooks ─────────────────────────────────────────────────
 // Injiziert beim tmux new-session Variablen, damit der Claude-Hook (in
 // ~/.claude/settings.json) per curl an /api/hooks/:event POSTen kann.
@@ -837,7 +850,7 @@ function handleFileError(res, err) {
 
 app.get('/api/projects/:id/files', async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    const project = await resolveFileSource(req.params.id);
     if (!project) return res.status(404).json({ error: 'not-found' });
     const all = req.query.all === '1';
     const result = filesListDir(project.path, String(req.query.path || ''), { all });
@@ -847,7 +860,7 @@ app.get('/api/projects/:id/files', async (req, res) => {
 
 app.get('/api/projects/:id/files/content', async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    const project = await resolveFileSource(req.params.id);
     if (!project) return res.status(404).json({ error: 'not-found' });
     const result = await filesReadFile(project.path, String(req.query.path || ''));
     res.setHeader('Content-Type', result.mime);
@@ -861,7 +874,7 @@ app.get('/api/projects/:id/files/content', async (req, res) => {
 
 app.post('/api/projects/:id/files/mkdir', async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    const project = await resolveFileSource(req.params.id);
     if (!project) return res.status(404).json({ error: 'not-found' });
     const { path: parent, name } = req.body || {};
     const result = await filesMkdir(project.path, String(parent || ''), String(name || ''));
@@ -871,7 +884,7 @@ app.post('/api/projects/:id/files/mkdir', async (req, res) => {
 
 app.patch('/api/projects/:id/files', async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    const project = await resolveFileSource(req.params.id);
     if (!project) return res.status(404).json({ error: 'not-found' });
     const { op, from, to } = req.body || {};
     if (!['rename', 'move', 'copy'].includes(op)) return res.status(400).json({ error: 'bad-op' });
@@ -884,7 +897,7 @@ app.patch('/api/projects/:id/files', async (req, res) => {
 
 app.delete('/api/projects/:id/files', async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    const project = await resolveFileSource(req.params.id);
     if (!project) return res.status(404).json({ error: 'not-found' });
     const paths = Array.isArray(req.body?.paths) ? req.body.paths.map(String) : [];
     if (paths.length === 0) return res.status(400).json({ error: 'no-paths' });
@@ -895,7 +908,7 @@ app.delete('/api/projects/:id/files', async (req, res) => {
 
 app.get('/api/projects/:id/files/download', async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    const project = await resolveFileSource(req.params.id);
     if (!project) return res.status(404).json({ error: 'not-found' });
     const rel = typeof req.query.path === 'string' ? req.query.path : '';
     filesStreamToResponse(project.path, rel, res);
@@ -964,7 +977,7 @@ function handleUpload(req, res, resolveTargetDir) {
 
 app.post('/api/projects/:id/files/upload', (req, res) => {
   handleUpload(req, res, async () => {
-    const project = await getProject(req.params.id);
+    const project = await resolveFileSource(req.params.id);
     if (!project) throw new Error('project-not-found');
     return { root: project.path, rel: String(req.query.path || '') };
   });
@@ -1729,7 +1742,7 @@ app.ws('/api/files/events', (ws, req) => {
     let msg;
     try { msg = JSON.parse(String(raw)); } catch { return; }
     if (msg.subscribe) {
-      const project = await getProject(String(msg.subscribe));
+      const project = await resolveFileSource(String(msg.subscribe));
       if (!project) return;
       if (subs.has(project.id)) return;
       const handler = (event) => {
