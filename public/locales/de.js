@@ -53,6 +53,7 @@ window.__I18N_BUNDLES.de = {
   'sessionCard.status.needsInputTitle': 'Claude wartet auf deinen Input',
   'sessionCard.status.readyTitle': 'Claude ist bereit für den nächsten Auftrag',
   'sessionCard.status.activeTitle': 'Session läuft, Zustand nicht erkennbar',
+  'sessionCard.status.runningTool': 'läuft: {tool}',
   'sessionCard.dormantBadgeTitle': 'Session ist nicht in tmux aktiv, kann wiederhergestellt werden',
 
   // Session card — mute button
@@ -168,6 +169,11 @@ window.__I18N_BUNDLES.de = {
   // Terminal drop overlay
   'terminal.dropOverlay.label': 'In Session-cwd hochladen',
   'terminal.dropOverlay.mentionLabel': 'Als @-Mention einfügen',
+
+  // Approvals
+  'approval.wants': 'Claude will {tool} ausführen',
+  'approval.allow': 'Zulassen',
+  'approval.deny': 'Ablehnen',
 
   // Modals — New Session
   'modal.newSession.title': 'Neue Session starten',
@@ -428,6 +434,8 @@ window.__I18N_BUNDLES.de = {
 
   // Common / shared
   'common.errorWithMessage': 'Fehler: {message}',
+  'common.on': 'An',
+  'common.off': 'Aus',
 
   // Settings — sidebar entry + page
   'settings.sidebarEntry': 'Einstellungen',
@@ -507,4 +515,7 @@ window.__I18N_BUNDLES.de = {
   'preview.header.ports': 'Ports',
   'preview.empty.noMatch': 'Kein Port passt',
   'preview.empty.noPorts': 'Keine Ports erkannt',
+  // Remote-Approval
+  'settings.remoteApproval': 'Remote-Freigabe',
+  'settings.remoteApprovalDesc': 'Tool-Freigaben ans Dashboard/Handy routen, wenn niemand am Terminal ist (nur im normalen Modus).',
 };

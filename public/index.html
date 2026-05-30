@@ -3465,6 +3465,20 @@
     }
     .file-row.pending-delete { background: rgba(239, 68, 68, .16); }
 
+    /* ── Approval stack (Task 7) ─────────────────────────────── */
+    .approval-stack { position: fixed; right: 16px; bottom: 16px; z-index: 320;
+      display: flex; flex-direction: column; gap: 10px; max-width: min(92vw, 420px); }
+    .approval-card { background: var(--bg-card, #14161b); border: 1px solid var(--accent, #2dd4bf);
+      border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+    .approval-card__title { font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .approval-card__preview { font-family: var(--font-mono, monospace); font-size: .8em;
+      color: var(--text-muted); white-space: pre-wrap; word-break: break-word;
+      max-height: 5.5em; overflow: auto; margin-bottom: 10px; }
+    .approval-card__actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .approval-card__actions button { border-radius: 6px; padding: 6px 14px; font: inherit; cursor: pointer; border: 1px solid var(--border); }
+    .approval-card__actions button.approval-card__allow { background: var(--accent, #2dd4bf); color: var(--accent-contrast, #06201c); border-color: var(--accent); }
+    .approval-card__actions button.approval-card__deny { background: transparent; color: var(--text-primary); }
+
     /* ── Upload toast stack (Task 13) ────────────────────────── */
     .upload-toast-stack {
       position: fixed; right: 16px; bottom: 16px; z-index: 250;
@@ -4020,6 +4034,13 @@
             <span class="settings-row__meta" id="settings-push-permission"></span>
           </div>
         </div>
+        <div class="settings-row" id="settings-remote-approval">
+          <label data-i18n="settings.remoteApproval">Remote approval</label>
+          <div class="settings-row__control">
+            <button type="button" class="toggle-btn" aria-pressed="true">On</button>
+          </div>
+        </div>
+        <p class="settings-row__hint" data-i18n="settings.remoteApprovalDesc"></p>
       </section>
 
       <!-- Help -->
@@ -4654,6 +4675,45 @@
       }
     }
 
+    // ── Tool Approvals ────────────────────────────────────────────
+    // Rendert eingehende tool-approval-request Events als Approval-Cards
+    // im `#approval-stack`. Entscheidung wird per POST /api/approvals/:id
+    // an den Server gemeldet.
+    const Approvals = (() => {
+      const stack = () => document.getElementById('approval-stack');
+      function render(req) {
+        if (!stack() || document.getElementById('approval-' + req.id)) return;
+        const card = document.createElement('div');
+        card.className = 'approval-card';
+        card.id = 'approval-' + req.id;
+        const name = (req.name || '').replace(/^cc-/, '');
+        card.innerHTML =
+          `<div class="approval-card__title">${escapeHtml(name)} — ${escapeHtml(t('approval.wants', { tool: req.tool }))}</div>`
+          + (req.preview ? `<div class="approval-card__preview">${escapeHtml(req.preview)}</div>` : '')
+          + `<div class="approval-card__actions">`
+          + `<button class="approval-card__deny">${escapeHtml(t('approval.deny'))}</button>`
+          + `<button class="approval-card__allow">${escapeHtml(t('approval.allow'))}</button>`
+          + `</div>`;
+        card.querySelector('.approval-card__allow').addEventListener('click', () => decide(req.id, 'allow'));
+        card.querySelector('.approval-card__deny').addEventListener('click', () => decide(req.id, 'deny'));
+        stack().appendChild(card);
+        try { playAttentionBeep(); } catch {}
+      }
+      function remove(id) { document.getElementById('approval-' + id)?.remove(); }
+      async function decide(id, decision) {
+        remove(id);
+        try {
+          await fetch('/api/approvals/' + encodeURIComponent(id), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            body: JSON.stringify({ decision }),
+          });
+        } catch (e) { console.warn('[approval] decide failed', e); }
+      }
+      return { render, remove };
+    })();
+    window.Approvals = Approvals;
+
     // ── Notifications WebSocket (session-attention) ───────────────
     // Öffnet on-demand wenn erstmal ein User-Kontext vorhanden ist.
     // Broadcastet der Server `{type: 'session-attention', name, at}`,
@@ -4678,8 +4738,10 @@
         ws.addEventListener('message', (ev) => {
           let msg;
           try { msg = JSON.parse(ev.data); } catch { return; }
+          if (msg.type === 'tool-approval-request') { window.Approvals?.render(msg); return; }
+          if (msg.type === 'tool-approval-resolved') { window.Approvals?.remove(msg.id); return; }
           if (msg.type === 'session-activity') {
-            if (msg.activity) patchActivityBadge(msg.name, msg.activity);
+            if (msg.activity) patchActivityBadge(msg.name, msg.activity, msg.tool);
             return;
           }
           if (msg.type !== 'session-attention') return;
@@ -4824,15 +4886,21 @@
       idle:    { cls: 'ready',   get label() { return t('sessionCard.status.ready'); },        get title() { return t('sessionCard.status.readyTitle'); } },
       unknown: { cls: 'unknown', get label() { return t('sessionCard.status.active'); },       get title() { return t('sessionCard.status.activeTitle'); } },
     };
-    function patchActivityBadge(name, activity) {
+    function patchActivityBadge(name, activity, tool) {
       const card = document.querySelector(`.session-card[data-name="${CSS.escape(name)}"]`);
       if (card) {
         const badge = card.querySelector('.session-status');
         if (badge) {
-          const cfg = ACTIVITY_BADGE[activity] || ACTIVITY_BADGE.unknown;
-          badge.className = `session-status ${cfg.cls}`;
-          badge.textContent = cfg.label;
-          badge.title = cfg.title;
+          if (tool) {
+            badge.className = 'session-status working';
+            badge.textContent = t('sessionCard.status.runningTool', { tool });
+            badge.title = badge.textContent;
+          } else {
+            const cfg = ACTIVITY_BADGE[activity] || ACTIVITY_BADGE.unknown;
+            badge.className = `session-status ${cfg.cls}`;
+            badge.textContent = cfg.label;
+            badge.title = cfg.title;
+          }
         }
       }
       // Sidebar-Dot synchron halten — Sichtbarkeit hängt am session.status
@@ -8329,6 +8397,38 @@
       updatePermissionDisplay();
     }
 
+    // ── Settings: Remote Approval ─────────────────────────────────
+    // Reads GET /api/approvals/config on init; toggles via POST.
+    function initSettingsRemoteApproval() {
+      const wrap = document.getElementById('settings-remote-approval');
+      if (!wrap) return;
+      const btn = wrap.querySelector('button');
+      function sync(on) {
+        btn.setAttribute('aria-pressed', String(!!on));
+        btn.textContent = on ? t('common.on') : t('common.off');
+      }
+      (async () => {
+        let cfg = { enabled: true };
+        try {
+          const headers = AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {};
+          cfg = await (await fetch('/api/approvals/config', { headers })).json();
+        } catch {}
+        sync(!!cfg.enabled);
+      })();
+      btn.addEventListener('click', async () => {
+        const next = btn.getAttribute('aria-pressed') !== 'true';
+        try {
+          const headers = { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) };
+          const r = await fetch('/api/approvals/config', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ enabled: next }),
+          });
+          sync(!!(await r.json()).enabled);
+        } catch {}
+      });
+    }
+
     // ── Settings: Help ────────────────────────────────────────────
     // Wires the "Keyboard shortcuts" row to open the kbd-help overlay.
     // Uses window.openKbdHelpModal which is set up in the D4 section.
@@ -8455,6 +8555,7 @@
     initSettingsLanguage();
     initSettingsSound();
     initSettingsPush();
+    initSettingsRemoteApproval();
     initSettingsHelp();
     initSettingsAbout(); // async, fire-and-forget
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
@@ -10237,5 +10338,6 @@
   </div>
 
   <div class="upload-toast-stack" id="upload-toast-stack"></div>
+  <div id="approval-stack" class="approval-stack"></div>
 </body>
 </html>

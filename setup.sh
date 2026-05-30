@@ -193,7 +193,7 @@ else
 
   # Events die der Hub konsumiert. Jeder Event bekommt denselben curl-
   # Payload: POST an /api/hooks/:event mit Auth + Session-Header.
-  HOOK_EVENTS=(UserPromptSubmit Stop SubagentStop Notification SessionStart SessionEnd)
+  HOOK_EVENTS=(UserPromptSubmit Stop SubagentStop Notification SessionStart SessionEnd PostToolUse)
 
   # Sentinel-Marker pro Entry, damit Re-Runs nur Hub-Einträge ersetzen
   # und niemals User-eigene Hooks löschen.
@@ -225,9 +225,29 @@ else
     ' "$TMP" > "$TMP.new" && mv "$TMP.new" "$TMP"
   done
 
+  # PreToolUse — blockierender curl, schreibt den Decision-Body nach stdout
+  # (KEIN >/dev/null auf stdout!). Bei Fehler/leer → defer. Matcher auf das
+  # impactful-Set, timeout > curl -m.
+  PRETOOL_CMD='{ [ -r "$HOME/.claude-code-hub/hook.env" ] && . "$HOME/.claude-code-hub/hook.env"; S="$(tmux display-message -p "#S" 2>/dev/null)"; S="${S:-$CC_HUB_SESSION}"; curl -fsS -m 120 -X POST "$CC_HUB_URL/api/hooks/pre-tool-use" -H "Authorization: Bearer $CC_HUB_TOKEN" -H "X-CC-Hub-Session: $S" -H "Content-Type: application/json" --data-binary @- 2>/dev/null; } || true'
+
+  jq --arg cmd "$PRETOOL_CMD" '
+    .hooks //= {}
+    | .hooks["PreToolUse"] //= []
+    | .hooks["PreToolUse"] |= map(select(
+        (.hooks // [] | any(
+          (._owner // "") == "claude-code-hub"
+          or ((.command // "") | contains("/api/hooks/"))
+        )) | not
+      ))
+    | .hooks["PreToolUse"] += [{
+        matcher: "Bash|Edit|Write|WebFetch|WebSearch|Task",
+        hooks: [{ type: "command", command: $cmd, timeout: 125, _owner: "claude-code-hub" }]
+      }]
+  ' "$TMP" > "$TMP.new" && mv "$TMP.new" "$TMP"
+
   mv "$TMP" "$SETTINGS_FILE"
   echo "  ✓ Hooks geschrieben nach $SETTINGS_FILE"
-  echo -e "  ${DIM}  (${#HOOK_EVENTS[@]} Events: ${HOOK_EVENTS[*]})${RESET}"
+  echo -e "  ${DIM}  (${#HOOK_EVENTS[@]} Events: ${HOOK_EVENTS[*]}; PreToolUse: Bash|Edit|Write|WebFetch|WebSearch|Task)${RESET}"
 fi
 
 # 6. StatusLine-Script — Hub-Reporting

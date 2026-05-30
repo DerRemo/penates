@@ -53,6 +53,7 @@ window.__I18N_BUNDLES.en = {
   'sessionCard.status.needsInputTitle': 'Claude is waiting for your input',
   'sessionCard.status.readyTitle': 'Claude is ready for the next task',
   'sessionCard.status.activeTitle': 'Session running, state unknown',
+  'sessionCard.status.runningTool': 'running: {tool}',
   'sessionCard.dormantBadgeTitle': 'Session is not active in tmux, can be restored',
 
   // Session card — mute button
@@ -168,6 +169,11 @@ window.__I18N_BUNDLES.en = {
   // Terminal drop overlay
   'terminal.dropOverlay.label': 'Upload to session directory',
   'terminal.dropOverlay.mentionLabel': 'Insert as @-mention',
+
+  // Approvals
+  'approval.wants': 'Claude wants to run {tool}',
+  'approval.allow': 'Allow',
+  'approval.deny': 'Deny',
 
   // Modals — New Session
   'modal.newSession.title': 'Start New Session',
@@ -428,6 +434,8 @@ window.__I18N_BUNDLES.en = {
 
   // Common / shared
   'common.errorWithMessage': 'Error: {message}',
+  'common.on': 'On',
+  'common.off': 'Off',
 
   // Settings — sidebar entry + page
   'settings.sidebarEntry': 'Settings',
@@ -507,4 +515,7 @@ window.__I18N_BUNDLES.en = {
   'preview.header.ports': 'Ports',
   'preview.empty.noMatch': 'No matching port',
   'preview.empty.noPorts': 'No ports detected',
+  // Remote-Approval
+  'settings.remoteApproval': 'Remote approval',
+  'settings.remoteApprovalDesc': 'Route tool approvals to the dashboard/phone when nobody is at the terminal (normal mode only).',
 };
