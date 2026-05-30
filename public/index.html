@@ -7690,6 +7690,20 @@
       return cliBadgeHtml(_clisMod, id);
     }
 
+    // CLI-Brand-Logo fürs Card-Rendering. Fällt auf einen Terminal-Glyph
+    // zurück, solange clis.js noch lädt oder die CLI unbekannt ist.
+    const TERMINAL_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
+    function cardCliLogo(command) {
+      let svg = TERMINAL_GLYPH;
+      let cls = 'cli-logo cli-logo--fallback';
+      if (_clisMod && _clisMod.cliFromCommand) {
+        const id = _clisMod.cliFromCommand(command);
+        const c = id && _clisMod.CLIS.find(x => x.id === id);
+        if (c && c.logo) { svg = c.logo; cls = 'cli-logo'; }
+      }
+      return `<span class="${cls}" aria-hidden="true">${svg}</span>`;
+    }
+
     let _activeCli = 'claude';
     function fillVariants(mod, cliId) {
       const sel = document.getElementById('new-session-cmd');
