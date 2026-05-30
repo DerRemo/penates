@@ -170,6 +170,11 @@ window.__I18N_BUNDLES.en = {
   'terminal.dropOverlay.label': 'Upload to session directory',
   'terminal.dropOverlay.mentionLabel': 'Insert as @-mention',
 
+  // Approvals
+  'approval.wants': 'Claude wants to run {tool}',
+  'approval.allow': 'Allow',
+  'approval.deny': 'Deny',
+
   // Modals — New Session
   'modal.newSession.title': 'Start New Session',
   'modal.newSession.nameLabel': 'Session Name',

@@ -3465,6 +3465,20 @@
     }
     .file-row.pending-delete { background: rgba(239, 68, 68, .16); }
 
+    /* ── Approval stack (Task 7) ─────────────────────────────── */
+    .approval-stack { position: fixed; right: 16px; bottom: 16px; z-index: 320;
+      display: flex; flex-direction: column; gap: 10px; max-width: min(92vw, 420px); }
+    .approval-card { background: var(--bg-card, #14161b); border: 1px solid var(--accent, #2dd4bf);
+      border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+    .approval-card__title { font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .approval-card__preview { font-family: var(--font-mono, monospace); font-size: .8em;
+      color: var(--text-muted); white-space: pre-wrap; word-break: break-word;
+      max-height: 5.5em; overflow: auto; margin-bottom: 10px; }
+    .approval-card__actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .approval-card__actions button { border-radius: 6px; padding: 6px 14px; font: inherit; cursor: pointer; border: 1px solid var(--border); }
+    .approval-card__allow { background: var(--accent, #2dd4bf); color: var(--accent-contrast, #06201c); border-color: var(--accent); }
+    .approval-card__deny { background: transparent; color: var(--text-primary); }
+
     /* ── Upload toast stack (Task 13) ────────────────────────── */
     .upload-toast-stack {
       position: fixed; right: 16px; bottom: 16px; z-index: 250;
@@ -4654,6 +4668,45 @@
       }
     }
 
+    // ── Tool Approvals ────────────────────────────────────────────
+    // Rendert eingehende tool-approval-request Events als Approval-Cards
+    // im `#approval-stack`. Entscheidung wird per POST /api/approvals/:id
+    // an den Server gemeldet.
+    const Approvals = (() => {
+      const stack = () => document.getElementById('approval-stack');
+      function render(req) {
+        if (!stack() || document.getElementById('approval-' + req.id)) return;
+        const card = document.createElement('div');
+        card.className = 'approval-card';
+        card.id = 'approval-' + req.id;
+        const name = (req.name || '').replace(/^cc-/, '');
+        card.innerHTML =
+          `<div class="approval-card__title">${escapeHtml(name)} — ${escapeHtml(t('approval.wants', { tool: req.tool }))}</div>`
+          + (req.preview ? `<div class="approval-card__preview">${escapeHtml(req.preview)}</div>` : '')
+          + `<div class="approval-card__actions">`
+          + `<button class="approval-card__deny">${escapeHtml(t('approval.deny'))}</button>`
+          + `<button class="approval-card__allow">${escapeHtml(t('approval.allow'))}</button>`
+          + `</div>`;
+        card.querySelector('.approval-card__allow').addEventListener('click', () => decide(req.id, 'allow'));
+        card.querySelector('.approval-card__deny').addEventListener('click', () => decide(req.id, 'deny'));
+        stack().appendChild(card);
+        try { playAttentionBeep(); } catch {}
+      }
+      function remove(id) { document.getElementById('approval-' + id)?.remove(); }
+      async function decide(id, decision) {
+        remove(id);
+        try {
+          await fetch('/api/approvals/' + encodeURIComponent(id), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            body: JSON.stringify({ decision }),
+          });
+        } catch (e) { console.warn('[approval] decide failed', e); }
+      }
+      return { render, remove };
+    })();
+    window.Approvals = Approvals;
+
     // ── Notifications WebSocket (session-attention) ───────────────
     // Öffnet on-demand wenn erstmal ein User-Kontext vorhanden ist.
     // Broadcastet der Server `{type: 'session-attention', name, at}`,
@@ -4678,6 +4731,8 @@
         ws.addEventListener('message', (ev) => {
           let msg;
           try { msg = JSON.parse(ev.data); } catch { return; }
+          if (msg.type === 'tool-approval-request') { window.Approvals?.render(msg); return; }
+          if (msg.type === 'tool-approval-resolved') { window.Approvals?.remove(msg.id); return; }
           if (msg.type === 'session-activity') {
             if (msg.activity) patchActivityBadge(msg.name, msg.activity, msg.tool);
             return;
@@ -10243,5 +10298,6 @@
   </div>
 
   <div class="upload-toast-stack" id="upload-toast-stack"></div>
+  <div id="approval-stack" class="approval-stack"></div>
 </body>
 </html>

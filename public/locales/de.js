@@ -170,6 +170,11 @@ window.__I18N_BUNDLES.de = {
   'terminal.dropOverlay.label': 'In Session-cwd hochladen',
   'terminal.dropOverlay.mentionLabel': 'Als @-Mention einfügen',
 
+  // Approvals
+  'approval.wants': 'Claude will {tool} ausführen',
+  'approval.allow': 'Zulassen',
+  'approval.deny': 'Ablehnen',
+
   // Modals — New Session
   'modal.newSession.title': 'Neue Session starten',
   'modal.newSession.nameLabel': 'Session Name',
