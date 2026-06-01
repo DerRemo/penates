@@ -4424,46 +4424,61 @@
   </div>
 
   <div class="modal-overlay" id="new-session-modal" role="dialog" aria-modal="true" aria-labelledby="new-session-title">
-    <div class="modal">
-      <h2 id="new-session-title" data-i18n="modal.newSession.title">Start New Session</h2>
-      <div class="form-group">
-        <label class="form-label" data-i18n="modal.newSession.nameLabel">Session Name</label>
-        <input class="form-input" id="new-session-name" placeholder="e.g. kalvo-feature" autocomplete="off" spellcheck="false" data-i18n-attr="placeholder:modal.newSession.namePlaceholder">
+    <div class="modal modal--wide">
+      <div class="ns-header">
+        <span class="ns-header-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span>
+        <h2 id="new-session-title" data-i18n="modal.newSession.title">Start New Session</h2>
       </div>
-      <div class="form-group">
-        <label class="form-label" data-i18n="modal.newSession.dirLabel">Project Directory</label>
-        <div class="recent-dirs" id="recent-dirs" hidden>
-          <div class="recent-dirs-label" data-i18n="modal.newSession.recentLabel">Zuletzt benutzt</div>
-          <div class="recent-dirs-list" id="recent-dirs-list"></div>
+      <div class="ns-split">
+        <!-- LEFT: directory -->
+        <div class="ns-left">
+          <label class="form-label" data-i18n="modal.newSession.dirLabel">Project Directory</label>
+          <div class="ns-seg" id="dir-tabs" role="group" aria-label="Directory source">
+            <button type="button" data-tab="browse" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h6l2 2h10v9a1 1 0 0 1-1 1H3z"/></svg><span data-i18n="modal.newSession.dirTabBrowse">Browse</span></button>
+            <button type="button" data-tab="recent" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span data-i18n="modal.newSession.dirTabRecent">Recent</span></button>
+          </div>
+          <div id="dir-panel-browse">
+            <div class="tree-picker" id="tree-picker">
+              <div class="tree-picker-header">
+                <div class="tree-selected" id="tree-selected" dir="rtl">~</div>
+                <button class="tree-mkdir-btn" id="tree-mkdir-btn" type="button"
+                        data-i18n-attr="title:treePicker.mkdir.title" title="Neuer Ordner">
+                  <span data-i18n="treePicker.mkdir.button">+ Ordner</span>
+                </button>
+              </div>
+              <div class="tree-list" id="tree-root">
+                <div class="tree-empty" data-i18n="treePicker.loading">Loading…</div>
+              </div>
+            </div>
+          </div>
+          <div id="dir-panel-recent" hidden>
+            <div class="recent-dirs-list" id="recent-dirs-list"></div>
+            <div class="ns-recent-empty" id="recent-empty" hidden data-i18n="modal.newSession.recentEmpty">No recent directories</div>
+          </div>
         </div>
-        <div class="tree-picker" id="tree-picker">
-          <div class="tree-picker-header">
-            <div class="tree-selected" id="tree-selected" dir="rtl">~</div>
-            <button class="tree-mkdir-btn" id="tree-mkdir-btn" type="button"
-                    data-i18n-attr="title:treePicker.mkdir.title"
-                    title="Neuer Ordner">
-              <span data-i18n="treePicker.mkdir.button">+ Ordner</span>
+        <!-- RIGHT: name · cli · mode · actions -->
+        <div class="ns-right">
+          <div class="form-group">
+            <label class="form-label" data-i18n="modal.newSession.nameLabel">Session Name</label>
+            <input class="form-input" id="new-session-name" placeholder="e.g. feature-login" autocomplete="off" spellcheck="false" data-i18n-attr="placeholder:modal.newSession.namePlaceholder">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="modal.newSession.cliLabel">CLI</label>
+            <div class="cli-picker" id="cli-picker" role="group" aria-label="CLI"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="modal.newSession.modeLabel">Mode</label>
+            <div class="modus" id="modus-control" role="group" aria-label="Mode"></div>
+          </div>
+          <input type="hidden" id="new-session-cmd" value="claude --permission-mode auto">
+          <div class="modal-actions">
+            <button class="btn btn-ghost" type="button" data-i18n="modal.newSession.cancel">Cancel</button>
+            <button class="btn btn-primary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <span data-i18n="modal.newSession.start">Start</span>
             </button>
           </div>
-          <div class="tree-list" id="tree-root">
-            <div class="tree-empty" data-i18n="treePicker.loading">Loading…</div>
-          </div>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" data-i18n="modal.newSession.cliLabel">CLI</label>
-        <div class="cli-picker" id="cli-picker" role="group" aria-label="CLI"></div>
-        <label class="form-label" for="new-session-cmd" data-i18n="modal.newSession.variantLabel" style="margin-top:10px">Variante</label>
-        <div class="select-wrapper">
-          <select class="form-input" id="new-session-cmd"></select>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-ghost" type="button" data-i18n="modal.newSession.cancel">Cancel</button>
-        <button class="btn btn-primary" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          <span data-i18n="modal.newSession.start">Start</span>
-        </button>
       </div>
     </div>
   </div>
