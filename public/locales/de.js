@@ -410,6 +410,7 @@ window.__I18N_BUNDLES.de = {
   'projects.detail.collapseSection': 'Sektion einklappen',
   'projects.detail.expandSection': 'Sektion ausklappen',
   'projects.detail.editItem': 'Item bearbeiten',
+  'projects.detail.dragHandle': 'Ziehen zum Sortieren',
   'projects.detail.editSave': 'Speichern (Enter)',
   'projects.detail.moveItem': 'In Sektion verschieben',
   'projects.detail.moveTo': 'Verschieben nach',

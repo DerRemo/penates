@@ -410,6 +410,7 @@ window.__I18N_BUNDLES.en = {
   'projects.detail.collapseSection': 'Collapse section',
   'projects.detail.expandSection': 'Expand section',
   'projects.detail.editItem': 'Edit item',
+  'projects.detail.dragHandle': 'Drag to reorder',
   'projects.detail.editSave': 'Save (Enter)',
   'projects.detail.moveItem': 'Move to section',
   'projects.detail.moveTo': 'Move to',
