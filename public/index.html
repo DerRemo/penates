@@ -5959,6 +5959,15 @@
     }
 
     // ── Project-Detail-View ────────────────────────────────────────
+    // Collapse-Zustand pro Projekt+Sektion, render-getrieben (überlebt Re-Render).
+    const COLLAPSE_KEY = 'cchub_proj_collapsed';
+    function loadCollapsedMap() { try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '{}'); } catch { return {}; } }
+    function isSectionCollapsed(id, section) { return !!loadCollapsedMap()[`${id}::${section}`]; }
+    function setSectionCollapsed(id, section, val) {
+      const m = loadCollapsedMap(); const k = `${id}::${section}`;
+      if (val) m[k] = true; else delete m[k];
+      try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(m)); } catch {}
+    }
     let projectDetailReq = 0;
     async function renderProjectDetail(id) {
       const body  = document.querySelector('#project-detail-view .detail-body');
@@ -6049,14 +6058,26 @@
             <button class="roadmap-item-delete" type="button" aria-label="${t('projects.detail.deleteItem')}" title="${t('projects.detail.deleteTitle')}">×</button>
           </li>`;
 
-        const section = (label, version, items, sectionKey) => `
-          <section class="roadmap-section" data-section="${sectionKey}">
-            <h3>${label}${version ? ` · <span class="roadmap-version">v${escapeHtml(version)}</span>` : ''}</h3>
-            ${items.length
-              ? `<ul class="roadmap-list">${items.map(it => renderItem(it, sectionKey)).join('')}</ul>`
-              : `<p class="roadmap-empty">${t('projects.detail.sectionEmpty')}</p>`}
-            <button class="roadmap-add-btn" type="button" data-section="${sectionKey}">${t('projects.detail.addItem')}</button>
-          </section>`;
+        const section = (label, version, items, sectionKey) => {
+          const doneN = items.filter(i => i.done).length;
+          const count = (sectionKey === 'released' || sectionKey === 'dev') ? `${doneN}/${items.length}` : `${items.length}`;
+          const collapsed = isSectionCollapsed(p.id, sectionKey);
+          return `
+            <section class="roadmap-section${collapsed ? ' collapsed' : ''}" data-section="${sectionKey}">
+              <button class="roadmap-section-head" type="button" data-section="${sectionKey}"
+                      aria-expanded="${collapsed ? 'false' : 'true'}"
+                      aria-label="${collapsed ? t('projects.detail.expandSection') : t('projects.detail.collapseSection')}">
+                <span class="roadmap-chevron" aria-hidden="true">▾</span>
+                <span class="roadmap-section-label">${label}</span>
+                ${version ? `<span class="roadmap-version">v${escapeHtml(version)}</span>` : ''}
+                <span class="roadmap-section-count">${count}</span>
+              </button>
+              ${items.length
+                ? `<ul class="roadmap-list">${items.map(it => renderItem(it, sectionKey)).join('')}</ul>`
+                : `<p class="roadmap-empty">${t('projects.detail.sectionEmpty')}</p>`}
+              <button class="roadmap-add-btn" type="button" data-section="${sectionKey}">${t('projects.detail.addItem')}</button>
+            </section>`;
+        };
 
         // Sessions im cwd — wird aus globalem sessions-Cache gerendert.
         // Wenn noch nichts geladen ist, zeigen wir einen Lade-Hint und
@@ -6114,7 +6135,14 @@
           ${section(t('projects.detail.sectionDev'),          p.dev?.version,      p.dev?.items      || [], 'dev')}
           ${section(t('projects.detail.sectionBacklog'), null,               p.backlog         || [], 'backlog')}
           ${p.changelog
-            ? `<section class="roadmap-section"><h3>${t('projects.detail.sectionChangelog')}</h3><pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre></section>`
+            ? `<section class="roadmap-section${isSectionCollapsed(p.id, 'changelog') ? ' collapsed' : ''}" data-section="changelog">
+                 <button class="roadmap-section-head" type="button" data-section="changelog"
+                         aria-expanded="${isSectionCollapsed(p.id, 'changelog') ? 'false' : 'true'}">
+                   <span class="roadmap-chevron" aria-hidden="true">▾</span>
+                   <span class="roadmap-section-label">${t('projects.detail.sectionChangelog')}</span>
+                 </button>
+                 <pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre>
+               </section>`
             : ''}`;
 
         // Click-Delegation für die Session-Items
@@ -6127,6 +6155,21 @@
             } else {
               connectToSession(name);
             }
+          });
+        });
+
+        // Collapse-Toggle: in-DOM togglen + persistieren (überlebt den nächsten
+        // Mutation-Re-Render, weil section() den State aus localStorage liest).
+        body.querySelectorAll('.roadmap-section-head').forEach(head => {
+          head.addEventListener('click', () => {
+            const sec = head.closest('.roadmap-section');
+            const key = head.getAttribute('data-section');
+            if (!sec || !key) return;
+            const nowCollapsed = !sec.classList.contains('collapsed');
+            sec.classList.toggle('collapsed', nowCollapsed);
+            head.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+            head.setAttribute('aria-label', nowCollapsed ? t('projects.detail.expandSection') : t('projects.detail.collapseSection'));
+            setSectionCollapsed(p.id, key, nowCollapsed);
           });
         });
 
