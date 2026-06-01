@@ -2227,7 +2227,10 @@
 
     /* minmax(0, …) statt 1fr: pinnt die Spalten strikt aufs Verhältnis, sonst
        zieht breiter Inhalt (lange Recent-Pfade) die Spalte auf → Breiten-Sprung. */
-    .ns-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr); }
+    /* Feste Split-Höhe (Desktop): Tree UND Recent-Liste scrollen in einer
+       konstanten Fläche → Modal-Höhe springt beim Tab-Wechsel nicht mehr.
+       Auf Mobile (gestackt) wieder auto. */
+    .ns-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr); height: 430px; }
     .ns-left { padding: 18px 20px; border-right: 1px solid var(--border-subtle);
       display: flex; flex-direction: column; min-height: 0; min-width: 0; }
     .ns-right { padding: 18px 22px; display: flex; flex-direction: column; min-width: 0; }
@@ -2279,7 +2282,7 @@
     .modus-btn[aria-pressed="true"] .modus-sub { color: inherit; opacity: .8; }
 
     @media (max-width: 580px) {
-      .ns-split { grid-template-columns: 1fr; }
+      .ns-split { grid-template-columns: 1fr; height: auto; }
       .ns-left { border-right: none; border-bottom: 1px solid var(--border-subtle); }
       .ns-left .tree-list { max-height: 200px; }
     }
