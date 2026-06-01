@@ -1542,12 +1542,43 @@
     .roadmap-checkbox:hover { background: var(--accent-muted); }
     .roadmap-item-delete {
       background: none; border: none; color: inherit;
-      font-size: var(--text-md); line-height: 1; padding: 2px var(--space-2); margin-left: auto;
+      font-size: var(--text-md); line-height: 1; padding: 2px var(--space-2);
       opacity: 0; cursor: pointer; border-radius: 4px;
       transition: opacity 120ms, color 120ms, background 120ms;
     }
     .roadmap-item:hover .roadmap-item-delete { opacity: 0.5; }
     .roadmap-item-delete:hover { opacity: 1; color: var(--red); background: var(--red-muted); }
+
+    /* Phase 4: Edit/Move-Cluster + Inline-Edit + Move-Menü + Versions-Edit */
+    .roadmap-item-actions { display: inline-flex; gap: var(--space-1); margin-left: auto; align-items: center; }
+    .roadmap-item-move, .roadmap-item-edit {
+      background: none; border: none; color: var(--text-muted);
+      font-size: var(--text-sm); line-height: 1; padding: 2px var(--space-2); cursor: pointer;
+      opacity: 0; border-radius: var(--radius-sm); transition: opacity 120ms, color 120ms, background 120ms;
+    }
+    .roadmap-item:hover .roadmap-item-move, .roadmap-item:hover .roadmap-item-edit { opacity: 0.6; }
+    .roadmap-item-move:hover, .roadmap-item-edit:hover { opacity: 1; color: var(--accent); background: var(--accent-muted); }
+    .roadmap-text[role="button"] { cursor: text; border-radius: var(--radius-sm); }
+    .roadmap-text[role="button"]:hover { background: var(--bg-card-hover); }
+    .roadmap-edit-input {
+      flex: 1; background: var(--accent-muted); border: 1px solid var(--accent);
+      border-radius: var(--radius-sm); color: inherit; font: inherit; font-size: var(--text-base);
+      padding: 2px var(--space-2); outline: none;
+    }
+    .roadmap-move-menu {
+      position: absolute; z-index: 20; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow-card); padding: var(--space-1); min-width: 190px;
+    }
+    .roadmap-move-menu .mm-h { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); padding: var(--space-1) var(--space-2); }
+    .roadmap-move-menu .mm-i { font-size: var(--text-sm); padding: var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
+    .roadmap-move-menu .mm-i:hover { background: var(--bg-surface); }
+    .roadmap-move-menu .mm-i.cur { color: var(--text-muted); cursor: default; }
+    .roadmap-version[role="button"] { cursor: pointer; }
+    .roadmap-version[role="button"]:hover { text-decoration: underline; }
+    .roadmap-version-input {
+      width: 90px; background: var(--accent-muted); border: 1px solid var(--accent); border-radius: 999px;
+      color: var(--accent); font-family: var(--font-mono); font-size: var(--text-xs); padding: 1px var(--space-2); outline: none;
+    }
     .roadmap-add-btn {
       display: inline-block; margin: var(--space-2) var(--space-3) 0;
       background: none; border: 1px dashed var(--accent-muted);
@@ -5969,10 +6000,17 @@
       try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(m)); } catch {}
     }
     let projectDetailReq = 0;
+    // Phase 4 Move-Menü: an document.body angehängt → muss bei Outside-Click
+    // UND bei jedem Re-Render aufgeräumt werden (closeMoveMenu am Render-Anfang).
+    let openMoveMenuEl = null;
+    function closeMoveMenu() {
+      if (openMoveMenuEl) { openMoveMenuEl.remove(); openMoveMenuEl = null; document.removeEventListener('click', closeMoveMenu); }
+    }
     async function renderProjectDetail(id) {
       const body  = document.querySelector('#project-detail-view .detail-body');
       const title = document.getElementById('project-detail-title');
       if (!body || !title) return;
+      closeMoveMenu();
 
       const reqId = ++projectDetailReq;
 
@@ -6053,9 +6091,13 @@
         const renderItem = (it, sectionKey) => `
           <li class="roadmap-item${it.done ? ' done' : ''}" data-section="${sectionKey}" data-line="${it.line}">
             <button class="roadmap-checkbox" type="button" aria-label="${it.done ? t('projects.detail.markAsOpen') : t('projects.detail.markAsDone')}">${it.done ? '[x]' : '[ ]'}</button>
-            <span class="roadmap-text">${escapeHtml(it.text)}</span>
+            <span class="roadmap-text" tabindex="0" role="button" title="${t('projects.detail.editItem')}">${escapeHtml(it.text)}</span>
             ${renderMetaPills(it.meta)}
-            <button class="roadmap-item-delete" type="button" aria-label="${t('projects.detail.deleteItem')}" title="${t('projects.detail.deleteTitle')}">×</button>
+            <span class="roadmap-item-actions">
+              <button class="roadmap-item-move" type="button" aria-label="${t('projects.detail.moveItem')}" title="${t('projects.detail.moveItem')}">⤴</button>
+              <button class="roadmap-item-edit" type="button" aria-label="${t('projects.detail.editItem')}" title="${t('projects.detail.editItem')}">✎</button>
+              <button class="roadmap-item-delete" type="button" aria-label="${t('projects.detail.deleteItem')}" title="${t('projects.detail.deleteTitle')}">×</button>
+            </span>
           </li>`;
 
         const section = (label, version, items, sectionKey) => {
@@ -6068,7 +6110,7 @@
                       aria-expanded="${collapsed ? 'false' : 'true'}">
                 <span class="roadmap-chevron" aria-hidden="true">▾</span>
                 <span class="roadmap-section-label">${label}</span>
-                ${version ? `<span class="roadmap-version">v${escapeHtml(version)}</span>` : ''}
+                ${version ? `<span class="roadmap-version" role="button" tabindex="0" data-version-edit data-section="${sectionKey}" title="${t('projects.detail.editVersion')}">v${escapeHtml(version)}</span>` : ''}
                 <span class="roadmap-section-count">${count}</span>
               </button>
               ${items.length
@@ -6160,7 +6202,8 @@
         // Collapse-Toggle: in-DOM togglen + persistieren (überlebt den nächsten
         // Mutation-Re-Render, weil section() den State aus localStorage liest).
         body.querySelectorAll('.roadmap-section-head').forEach(head => {
-          head.addEventListener('click', () => {
+          head.addEventListener('click', (e) => {
+            if (e.target.closest('[data-version-edit]')) return; // Versions-Edit, kein Collapse
             const sec = head.closest('.roadmap-section');
             const key = head.getAttribute('data-section');
             if (!sec || !key) return;
@@ -6363,6 +6406,130 @@
             }, 0);
           });
         }
+
+        // ── Phase 4: Inline-Edit des Item-Texts ───────────────────
+        // Klick auf ✎ oder den Text selbst ersetzt den Text durch ein
+        // Input. Enter/Blur committen, Escape cancelt; done-Guard gegen
+        // Doppel-Submit (Enter feuert Blur direkt hinterher).
+        const startInlineEdit = (li) => {
+          if (!li) return;
+          if (li.querySelector('.roadmap-edit-input')) return;
+          const textEl = li.querySelector('.roadmap-text');
+          const sectionKey = li.getAttribute('data-section');
+          const line = parseInt(li.getAttribute('data-line'), 10);
+          if (!textEl || !sectionKey || !Number.isInteger(line)) return;
+          const current = textEl.textContent;
+          const input = document.createElement('input');
+          input.className = 'roadmap-edit-input';
+          input.value = current;
+          input.setAttribute('aria-label', t('projects.detail.editSave'));
+          textEl.replaceWith(input);
+          input.focus(); input.select();
+          let done = false;
+          const cancel = () => { if (done) return; done = true; renderProjectDetail(p.id); };
+          const commit = async () => {
+            if (done) return; done = true;
+            const val = input.value.trim();
+            if (!val || val === current) { renderProjectDetail(p.id); return; }
+            try { await patchItem(p.id, { action: 'edit', section: sectionKey, line, text: val }); renderProjectDetail(p.id); }
+            catch (err) {
+              if (err.status === 409) { showProjectToast(t('projects.detail.conflict')); }
+              else if (err.status !== 401) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
+              renderProjectDetail(p.id);
+            }
+          };
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+          });
+          input.addEventListener('blur', commit);
+        };
+        body.querySelectorAll('.roadmap-item-edit').forEach(btn => {
+          btn.addEventListener('click', (e) => { e.stopPropagation(); startInlineEdit(btn.closest('.roadmap-item')); });
+        });
+        body.querySelectorAll('.roadmap-text[role="button"]').forEach(el => {
+          el.addEventListener('click', (e) => { e.stopPropagation(); startInlineEdit(el.closest('.roadmap-item')); });
+        });
+
+        // ── Phase 4: Move-Menü (Item zwischen Sektionen verschieben) ─
+        // Das Menü hängt an document.body (kann die Sektions-Grenze
+        // überlaufen); Outside-Click + closeMoveMenu() am Render-Anfang
+        // räumen es auf, damit keine Instanz einen Re-Render überlebt.
+        const SECTIONS = [
+          { key: 'released', label: t('projects.detail.sectionReleased') },
+          { key: 'dev',      label: t('projects.detail.sectionDev') },
+          { key: 'backlog',  label: t('projects.detail.sectionBacklog') },
+        ];
+        closeMoveMenu();
+        body.querySelectorAll('.roadmap-item-move').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeMoveMenu();
+            const li = btn.closest('.roadmap-item');
+            const cur = li.getAttribute('data-section');
+            const line = parseInt(li.getAttribute('data-line'), 10);
+            if (!cur || !Number.isInteger(line)) return;
+            const menu = document.createElement('div');
+            menu.className = 'roadmap-move-menu';
+            menu.innerHTML = `<div class="mm-h">${t('projects.detail.moveTo')}</div>` +
+              SECTIONS.map(s => s.key === cur
+                ? `<div class="mm-i cur">${s.label} ${t('projects.detail.moveCurrent')}</div>`
+                : `<div class="mm-i" data-to="${s.key}">${s.label}</div>`).join('');
+            // Positionieren relativ zum Button
+            const r = btn.getBoundingClientRect();
+            menu.style.top = `${window.scrollY + r.bottom + 4}px`;
+            menu.style.left = `${window.scrollX + r.left}px`;
+            document.body.appendChild(menu);
+            openMoveMenuEl = menu;
+            menu.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              const to = ev.target.getAttribute && ev.target.getAttribute('data-to');
+              if (!to) return;
+              closeMoveMenu();
+              try { await patchItem(p.id, { action: 'move', section: cur, line, toSection: to }); renderProjectDetail(p.id); }
+              catch (err) {
+                if (err.status === 409) { showProjectToast(t('projects.detail.conflict')); renderProjectDetail(p.id); }
+                else if (err.status !== 401) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
+              }
+            });
+            setTimeout(() => document.addEventListener('click', closeMoveMenu), 0);
+          });
+        });
+
+        // ── Phase 4: Versions-Edit an der Section-Head-Pille ──────────
+        // Klick auf die Pille (Released/Dev) öffnet ein Input statt den
+        // Header einzuklappen (Collapse-Handler hat dafür einen Guard).
+        body.querySelectorAll('[data-version-edit]').forEach(pill => {
+          pill.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (pill.querySelector('input')) return;
+            const sectionKey = pill.getAttribute('data-section');
+            const current = pill.textContent.replace(/^v/, '');
+            const input = document.createElement('input');
+            input.className = 'roadmap-version-input';
+            input.value = current;
+            pill.replaceWith(input);
+            input.focus(); input.select();
+            let done = false;
+            const finish = async (commit) => {
+              if (done) return; done = true;
+              const val = input.value.trim();
+              if (!commit || !val || val === current) { renderProjectDetail(p.id); return; }
+              try { await patchItem(p.id, { action: 'set-version', section: sectionKey, version: val }); renderProjectDetail(p.id); }
+              catch (err) {
+                if (err.status === 409) { showProjectToast(t('projects.detail.conflict')); }
+                else if (err.status === 400) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
+                else if (err.status !== 401) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
+                renderProjectDetail(p.id);
+              }
+            };
+            input.addEventListener('keydown', (e2) => {
+              if (e2.key === 'Enter') { e2.preventDefault(); finish(true); }
+              else if (e2.key === 'Escape') { e2.preventDefault(); finish(false); }
+            });
+            input.addEventListener('blur', () => finish(true));
+          });
+        });
       } catch (e) {
         body.innerHTML = `<div class="usage-empty">${t('common.errorWithMessage', { message: escapeHtml(e.message) })}</div>`;
       }
