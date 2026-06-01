@@ -8245,9 +8245,10 @@
       }
       wrap.innerHTML = c.variants.map(v => {
         const m = MODUS_META[v.tier] || MODUS_META.safe;
+        const short = v.label.replace(/\s*\(.*\)\s*$/, '');   // "Dangerous (skip permissions)" → "Dangerous"
         return `<button type="button" class="modus-btn" data-tier="${v.tier}" `
-          + `aria-pressed="${v.tier === _activeTier}">`
-          + `${m.icon}<span>${escapeHtml(v.label)}</span>`
+          + `aria-pressed="${v.tier === _activeTier}" title="${escapeHtml(v.label)}">`
+          + `${m.icon}<span>${escapeHtml(short)}</span>`
           + `<span class="modus-sub">${escapeHtml(t(m.subKey))}</span></button>`;
       }).join('');
       wrap.querySelectorAll('.modus-btn').forEach(btn => {
