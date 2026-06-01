@@ -1427,6 +1427,10 @@
     @media (hover: none), (pointer: coarse) {
       .project-card-actions { max-height: none; opacity: 1; visibility: visible; padding-top: var(--space-3); transition: none; }
     }
+    .project-pin-dot { font-size: 11px; margin-right: 2px; }
+    .project-card[data-pinned="true"] .project-card-accent { box-shadow: inset 2px 0 0 var(--accent); }
+    .project-forget-btn.confirm-pending { color: var(--red); background: var(--red-muted); }
+    .project-card-actions .btn[data-action="pin"][data-pinned="true"] { color: var(--accent); }
     /* Liste-Layout (analog .sessions-grid.layout-list) */
     .project-list.layout-list { grid-template-columns: 1fr; }
     .project-list.layout-list .project-card { flex-direction: row; align-items: center; gap: var(--space-4); }
@@ -4855,7 +4859,8 @@
         modified: (a, b) => (b.mtimeMs ?? 0) - (a.mtimeMs ?? 0),
       }[mode] || cmp_name_fallback;
       function cmp_name_fallback(a, b) { return a.displayName.localeCompare(b.displayName); }
-      return arr.sort(cmp);
+      // Angeheftete zuerst (stabil); innerhalb der Gruppen nach Modus.
+      return arr.sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || cmp(a, b));
     }
     function filterProjects(list) {
       const f = getProjectsFilter();
@@ -5234,10 +5239,13 @@
             ? `<span class="project-missing">${t('projects.missingBadge')}</span>`
             : (active > 0 ? `<span class="project-card-sessions">${t('projects.activeSessions', { n: active })}</span>` : '');
           return `
-            <div class="project-card" data-project-id="${escapeHtml(p.id)}" data-activity="${activity}" tabindex="0" role="button">
+            <div class="project-card" data-project-id="${escapeHtml(p.id)}" data-activity="${activity}" data-pinned="${p.pinned ? 'true' : 'false'}" tabindex="0" role="button">
               <span class="project-card-accent" aria-hidden="true"></span>
               <div class="project-card-head">
-                <span class="project-card-name"><span class="project-card-glyph" aria-hidden="true">▸</span>${escapeHtml(p.displayName)}</span>
+                <span class="project-card-name">
+                  ${p.pinned ? `<span class="project-pin-dot" aria-label="${t('projects.pinned')}" title="${t('projects.pinned')}">📌</span>` : ''}
+                  <span class="project-card-glyph" aria-hidden="true">▸</span>${escapeHtml(p.displayName)}
+                </span>
                 ${headRight}
               </div>
               <div class="project-card-body">
@@ -5252,6 +5260,12 @@
                 <button class="btn btn-ghost btn-sm" data-action="start-session" data-path="${escapeHtml(p.path)}" data-stop-propagation>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
                   ${t('projects.startSessionHere')}
+                </button>
+                <button class="btn btn-ghost btn-sm" data-action="pin" data-pinned="${p.pinned ? 'true' : 'false'}" data-stop-propagation aria-label="${p.pinned ? t('projects.unpin') : t('projects.pin')}" title="${p.pinned ? t('projects.unpin') : t('projects.pin')}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-sm project-forget-btn" data-action="forget" data-stop-propagation aria-label="${t('projects.forget')}" title="${t('projects.forgetTitle')}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
                 </button>
               </div>
             </div>`;
@@ -5275,6 +5289,42 @@
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
             openNewSessionModal(btn.dataset.path);
+          });
+        });
+        view.querySelectorAll('.project-card [data-action="pin"]').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (btn.disabled) return; btn.disabled = true;
+            const id = btn.closest('.project-card').dataset.projectId;
+            const next = btn.dataset.pinned !== 'true';
+            try {
+              await fetch('/api/projects/' + encodeURIComponent(id), {
+                method: 'PATCH',
+                headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pinned: next }),
+              });
+              renderProjects();
+            } catch (err) { btn.disabled = false; showProjectToast(t('common.errorWithMessage', { message: err.message })); }
+          });
+        });
+        // Forget: 2-Klick-Confirm (wie Session-Forget). Erster Klick primt, zweiter committed.
+        view.querySelectorAll('.project-card [data-action="forget"]').forEach(btn => {
+          let revertTimer = null;
+          const reset = () => { btn.classList.remove('confirm-pending'); btn.setAttribute('title', t('projects.forgetTitle')); if (revertTimer) { clearTimeout(revertTimer); revertTimer = null; } };
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (!btn.classList.contains('confirm-pending')) {
+              btn.classList.add('confirm-pending'); btn.setAttribute('title', t('projects.forgetConfirm'));
+              revertTimer = setTimeout(reset, 3000);
+              return;
+            }
+            if (revertTimer) { clearTimeout(revertTimer); revertTimer = null; }
+            btn.disabled = true;
+            const id = btn.closest('.project-card').dataset.projectId;
+            try {
+              await fetch('/api/projects/' + encodeURIComponent(id), { method: 'DELETE', headers: apiHeaders() });
+              renderProjects();
+            } catch (err) { btn.disabled = false; reset(); showProjectToast(t('common.errorWithMessage', { message: err.message })); }
           });
         });
       } catch (e) {
