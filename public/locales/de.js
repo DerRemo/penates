@@ -204,7 +204,7 @@ window.__I18N_BUNDLES.de = {
   'modal.newSession.modeLabel': 'Modus',
   'modal.newSession.modeStandardSub': 'fragt nach',
   'modal.newSession.modeAutoSub': 'meist autonom',
-  'modal.newSession.modeDangerSub': 'skip all',
+  'modal.newSession.modeDangerSub': 'überspringt alles',
   'modal.newSession.cancel': 'Abbrechen',
   'modal.newSession.start': 'Starten',
 

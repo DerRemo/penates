@@ -2230,7 +2230,6 @@
     .ns-left { padding: 18px 20px; border-right: 1px solid var(--border-subtle);
       display: flex; flex-direction: column; min-height: 0; }
     .ns-right { padding: 18px 22px; display: flex; flex-direction: column; }
-    .ns-right .form-group:last-of-type { margin-bottom: 0; }
     .ns-right .modal-actions { margin-top: auto; }
 
     .ns-seg { display: flex; background: var(--bg-deep); border: 1px solid var(--border);
@@ -8247,7 +8246,7 @@
       wrap.innerHTML = c.variants.map(v => {
         const m = MODUS_META[v.tier] || MODUS_META.safe;
         return `<button type="button" class="modus-btn" data-tier="${v.tier}" `
-          + `aria-pressed="${v.tier === _activeTier}" aria-label="${escapeHtml(v.label)}">`
+          + `aria-pressed="${v.tier === _activeTier}">`
           + `${m.icon}<span>${escapeHtml(v.label)}</span>`
           + `<span class="modus-sub">${escapeHtml(t(m.subKey))}</span></button>`;
       }).join('');
