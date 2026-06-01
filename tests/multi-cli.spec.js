@@ -1,46 +1,40 @@
 import { test, expect } from './fixtures.js';
 
 test.describe('multi-CLI picker', () => {
-  // ── Test 1: picker renders 3 CLIs, claude is default, variants switch ───
-  test('picker shows three CLIs, claude default, variants switch', async ({ authedPage: page }) => {
+  // ── Test 1: picker renders 3 CLIs, claude+auto default, modus switches ───
+  test('picker: three CLIs, claude default, modus reflects CLI + auto default', async ({ authedPage: page }) => {
     await page.click('#new-session-btn');
     await page.waitForSelector('#new-session-modal.open', { timeout: 5_000 });
 
     const picker = page.locator('#cli-picker');
-
-    // Wait for the async clis.js import to resolve and populate the picker
     await expect(picker.locator('.cli-pick-btn')).toHaveCount(3, { timeout: 5_000 });
 
-    // Claude must be the default (aria-pressed="true")
+    // Claude is the default CLI
     await expect(picker.locator('.cli-pick-btn[data-cli="claude"]')).toHaveAttribute('aria-pressed', 'true');
 
-    // Claude has 2 variants by default
-    const sel = page.locator('#new-session-cmd');
-    await expect(sel.locator('option')).toHaveCount(2, { timeout: 5_000 });
-    await expect(sel).toContainText('Dangerous (skip permissions)');
+    // Modus shows claude's 3 tiers, with "auto" preselected → command auto
+    const modus = page.locator('#modus-control');
+    await expect(modus.locator('.modus-btn')).toHaveCount(3, { timeout: 5_000 });
+    await expect(modus.locator('.modus-btn[data-tier="auto"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#new-session-cmd')).toHaveValue('claude --permission-mode auto');
 
-    // Switch to antigravity → 2 variants
+    // Switch to antigravity → only 2 tiers, default falls back to safe
     await picker.locator('.cli-pick-btn[data-cli="antigravity"]').click();
-    await expect(sel.locator('option')).toHaveCount(2, { timeout: 5_000 });
-    await expect(sel).toContainText('Dangerous (skip permissions)');
-
-    // Verify agy --dangerously-skip-permissions is among the option values
-    const vals = await sel.locator('option').evaluateAll(os => os.map(o => o.value));
-    expect(vals).toContain('agy --dangerously-skip-permissions');
+    await expect(modus.locator('.modus-btn')).toHaveCount(2, { timeout: 5_000 });
+    await expect(modus.locator('.modus-btn[data-tier="safe"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#new-session-cmd')).toHaveValue('agy');
 
     await page.keyboard.press('Escape');
   });
 
-  // ── Test 2: selected variant command is POSTed ────────────────────────────
-  test('selecting a variant sends the right command to POST /api/sessions', async ({ authedPage: page }) => {
+  // ── Test 2: composed (CLI × Modus) command is POSTed ──────────────────────
+  test('CLI + modus compose the command sent to POST /api/sessions', async ({ authedPage: page }) => {
     let posted = null;
-
     await page.route('**/api/sessions', async route => {
       if (route.request().method() === 'POST') {
         posted = route.request().postDataJSON();
         return route.fulfill({
-          status: 201,
-          contentType: 'application/json',
+          status: 201, contentType: 'application/json',
           body: JSON.stringify({ name: 'cc-x', status: 'running' }),
         });
       }
@@ -49,22 +43,20 @@ test.describe('multi-CLI picker', () => {
 
     await page.click('#new-session-btn');
     await page.waitForSelector('#new-session-modal.open', { timeout: 5_000 });
-
     await page.fill('#new-session-name', 'x');
 
-    // Wait for picker to load, then switch to codex
     const picker = page.locator('#cli-picker');
     await expect(picker.locator('.cli-pick-btn')).toHaveCount(3, { timeout: 5_000 });
     await picker.locator('.cli-pick-btn[data-cli="codex"]').click();
 
-    // Wait for codex variants, then select YOLO
-    const sel = page.locator('#new-session-cmd');
-    await expect(sel.locator('option')).toHaveCount(3, { timeout: 5_000 });
-    await sel.selectOption({ label: 'YOLO (bypass)' });
+    // codex default = full-auto; hidden command reflects it
+    await expect(page.locator('#new-session-cmd')).toHaveValue('codex --full-auto', { timeout: 5_000 });
 
-    // Click the Start button inside the modal (btn-primary in modal-actions)
+    // pick the danger tier → YOLO
+    await page.locator('#modus-control .modus-btn[data-tier="danger"]').click();
+    await expect(page.locator('#new-session-cmd')).toHaveValue('codex --yolo');
+
     await page.locator('#new-session-modal .modal-actions .btn-primary').click();
-
     await expect.poll(() => posted && posted.command, { timeout: 5_000 }).toBe('codex --yolo');
   });
 
@@ -114,5 +106,23 @@ test.describe('multi-CLI picker', () => {
     );
 
     await expect(page.locator('.session-card[data-name="cc-codexsess"] .cli-logo').first()).toBeVisible();
+  });
+
+  // ── Test 4: directory tabs — Browse is default, Recent swaps the panel ─────
+  test('directory tabs: Browse default, Recent reveals the recent panel', async ({ authedPage: page }) => {
+    await page.click('#new-session-btn');
+    await page.waitForSelector('#new-session-modal.open', { timeout: 5_000 });
+
+    // Browse panel visible by default, recent hidden
+    await expect(page.locator('#dir-tabs button[data-tab="browse"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#dir-panel-browse')).toBeVisible();
+    await expect(page.locator('#dir-panel-recent')).toBeHidden();
+
+    // Click "Recent" → panel swaps
+    await page.locator('#dir-tabs button[data-tab="recent"]').click();
+    await expect(page.locator('#dir-panel-recent')).toBeVisible();
+    await expect(page.locator('#dir-panel-browse')).toBeHidden();
+
+    await page.keyboard.press('Escape');
   });
 });
