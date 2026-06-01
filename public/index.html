@@ -822,16 +822,6 @@
       color: var(--text-muted);
     }
 
-    /* Elemente mit data-tab-scope nur sichtbar, wenn passender Tab aktiv.
-       JS setzt beim Tab-Wechsel das `data-active-tab`-Attribut auf <body>. */
-    /* Tab-Scope-Elemente nur sichtbar wenn der passende Tab aktiv ist.
-       `:not()` skaliert sauber auf N Tabs ohne O(N²)-Ausdrücke. */
-    body:not([data-active-tab="sessions"]) [data-tab-scope="sessions"] { display: none !important; }
-    body:not([data-active-tab="usage"]) [data-tab-scope="usage"] { display: none !important; }
-    body:not([data-active-tab="projects"]) [data-tab-scope="projects"] { display: none !important; }
-    /* Multi-Tab-Scope: sichtbar auf Sessions UND Projekten (das Such-Input). */
-    body:not([data-active-tab="sessions"]):not([data-active-tab="projects"]) [data-tab-scope="sessions projects"] { display: none !important; }
-
     /* ── Usage-View ────────────────────────────────────────────────── */
     .usage-view { display: flex; flex-direction: column; gap: 20px; }
     .usage-empty {
@@ -1833,10 +1823,6 @@
       grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
       gap: var(--space-4);
     }
-    /* `hidden`-Attribut überschreibt explizite display-Regeln nicht von
-       selbst — Specificity-Issue. Für alle Tab-Panels hart durchsetzen. */
-    [data-tab-panel][hidden] { display: none !important; }
-
     .session-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -2520,6 +2506,8 @@
        Scale-out-ready für project-detail (Phase 0) und mehr. */
     .main-content [data-view] { display: none; }
     body[data-current-view="dashboard"]      .main-content [data-view="dashboard"]      { display: block; }
+    body[data-current-view="projects"]       .main-content [data-view="projects"]       { display: block; }
+    body[data-current-view="usage"]          .main-content [data-view="usage"]          { display: block; }
     body[data-current-view="terminal"]       .main-content [data-view="terminal"]       { display: flex; }
     body[data-current-view="project-detail"] .main-content [data-view="project-detail"] { display: flex; }
     body[data-current-view="settings"]       .main-content [data-view="settings"]       { display: block; }
@@ -3852,11 +3840,10 @@
       padding: var(--space-3) 0;
       border-bottom: 1px solid var(--border-subtle);
     }
-    /* Sessions-Tab: Layout-Toggle ist in die Topbar gewandert, Refresh/Bulk-Kill
-       sind weg (auto-poll bzw. Settings). Das Grid rendert eigene Gruppenheader
-       → die Section-Bar ist hier leer und entfällt komplett. Auf Usage/Projekte
-       bleibt sie (zeigt das Section-Label). */
-    body[data-active-tab="sessions"] .section-bar {
+    /* Dashboard (Sessions-Übersicht): Layout-Toggle ist in die Topbar gewandert,
+       Refresh/Bulk-Kill sind weg (auto-poll bzw. Settings). Das Grid rendert eigene
+       Gruppenheader → die Section-Bar ist hier leer und entfällt komplett. */
+    body[data-current-view="dashboard"] .section-bar {
       display: none;
     }
     .section-bar__label { font: 600 10px var(--font-ui); letter-spacing: .13em; text-transform: uppercase; color: var(--text-muted); }
