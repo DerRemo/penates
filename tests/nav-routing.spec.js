@@ -29,4 +29,19 @@ test.describe('Nav routing (Phase 1)', () => {
     await expect(page.locator('body')).toHaveAttribute('data-current-view', 'usage');
     await expect(page.locator('[data-view="usage"]')).toBeVisible();
   });
+
+  test('restores last nav view after reload', async ({ authedPage: page, isMobile }) => {
+    await openSidebarIfMobile(page, isMobile);
+    await page.click(NAV('projects'));
+    await expect(page.locator('body')).toHaveAttribute('data-current-view', 'projects');
+    await page.reload();
+    await expect(page.locator('body')).toHaveAttribute('data-current-view', 'projects');
+
+    // …and switching back to the dashboard persists too (no stale 'projects').
+    await openSidebarIfMobile(page, isMobile);
+    await page.click(NAV('sessions'));
+    await expect(page.locator('body')).toHaveAttribute('data-current-view', 'dashboard');
+    await page.reload();
+    await expect(page.locator('body')).toHaveAttribute('data-current-view', 'dashboard');
+  });
 });

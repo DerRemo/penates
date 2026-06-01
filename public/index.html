@@ -9096,14 +9096,15 @@
       localStorage.removeItem('cchub_files_sidebar_open');
       localStorage.removeItem('cchub_preview_open');
     } catch {}
-    // setView() zuerst — setzt body[data-current-view] und damit die
-    // Sichtbarkeit aller drei Top-Level-Views. Default: Dashboard.
-    setView('dashboard');
     setLayout(getLayout());
     renderSkeleton();
-    // Start-View setzen — stellt die zuletzt benutzte Top-Level-Nav-View
-    // wieder her (Sessions/Projekte/Usage). setView() startet das
-    // Session-Polling nur im Dashboard.
+    // Start-View setzen — setzt body[data-current-view] und stellt die
+    // zuletzt benutzte Top-Level-Nav-View wieder her (Sessions/Projekte/
+    // Usage). setView() startet das Session-Polling nur im Dashboard.
+    // WICHTIG: kein vorgeschalteter setView('dashboard') — der würde über
+    // den Persistenz-Block in setView() das gespeicherte 'projects'/'usage'
+    // überschreiben, bevor initialNavView() es lesen kann (Reload-Restore
+    // würde sonst immer auf dashboard landen).
     setView(initialNavView());
     // Notifications-WS direkt beim Start — unabhängig vom aktiven Tab,
     // damit Attention-Events auch dann ankommen wenn der User gerade
