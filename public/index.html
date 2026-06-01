@@ -3824,13 +3824,26 @@
     .sidebar__brand-name small { display: block; font: 500 11px var(--font-ui); color: var(--text-muted); }
     .sidebar__count { margin-left: auto; font: 600 11px var(--font-mono); color: var(--text-muted); }
     #sidebar-sessions { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
-    .sidebar__limit { display: flex; align-items: center; gap: 10px; margin: var(--space-2) var(--space-2) 0; border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 10px; background: var(--bg-base); }
-    .sidebar__limit[hidden] { display: none; }
-    .sidebar__limit-ring { --p: 0; width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--border) 0); display: grid; place-items: center; }
-    .sidebar__limit-ring i { width: 27px; height: 27px; border-radius: 50%; background: var(--bg-base); display: grid; place-items: center; font: 600 9px var(--font-mono); color: var(--text-secondary); font-style: normal; }
-    .sidebar__limit-ring.usage-limit-amber { --p-color: var(--status-waiting); }
-    .sidebar__limit-meta b { display: block; font: 600 12px var(--font-ui); }
-    .sidebar__limit-meta span { font: 500 10.5px var(--font-ui); color: var(--text-muted); }
+    /* Multi-Usage-Panel: ein 5h-Balken pro Agent (Claude/Codex/Antigravity).
+       Gespeist aus /api/usage/limits accounts[]. Severity-Farbe via limitColorClass. */
+    #sidebar-usage { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-2); max-height: 38vh; overflow-y: auto; }
+    #sidebar-usage[hidden], .sidebar__usage-label[hidden] { display: none; }
+    .sidebar__usage-label { padding-bottom: var(--space-1); }
+    .sidebar__usage-agent { display: flex; flex-direction: column; gap: 5px; padding: 0 var(--space-3); }
+    .sidebar__usage-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .sidebar__usage-logo { width: 16px; height: 16px; flex-shrink: 0; display: grid; place-items: center; color: var(--cli-color, var(--text-secondary)); }
+    .sidebar__usage-logo svg { width: 16px; height: 16px; display: block; }
+    .sidebar__usage-name { font: 600 12px var(--font-ui); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .sidebar__usage-acct { font: 500 10.5px var(--font-ui); color: var(--text-muted); flex-shrink: 0; }
+    .sidebar__usage-track { position: relative; height: 6px; border-radius: 3px; background: var(--border-subtle); overflow: hidden; }
+    .sidebar__usage-fill { position: absolute; inset: 0 auto 0 0; min-width: 2px; border-radius: 3px; transition: width .3s ease, background .2s ease; }
+    .sidebar__usage-fill.usage-limit-green { background: var(--teal); }
+    .sidebar__usage-fill.usage-limit-amber { background: var(--amber); }
+    .sidebar__usage-fill.usage-limit-red   { background: var(--red); }
+    .sidebar__usage-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .sidebar__usage-reset { font: 500 10.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar__usage-pct { font: 600 11px var(--font-mono); color: var(--text-secondary); flex-shrink: 0; }
+    .sidebar__usage-pct.is-limited { color: var(--red); font-family: var(--font-ui); }
 
     @media (max-width: 900px) {
       .app-topbar { flex-wrap: wrap; }
@@ -3844,6 +3857,7 @@
       .sidebar { top: env(safe-area-inset-top, 0px); height: calc(100dvh - env(safe-area-inset-top)); }
       .app-layout { min-height: calc(100dvh - env(safe-area-inset-top)); }
       .detail-view { height: calc(100dvh - env(safe-area-inset-top)); }
+      .terminal-view { height: calc(100dvh - env(safe-area-inset-top) - var(--kb-inset, 0px)); }
     }
   </style>
   <script src="/locales/en.js"></script>
@@ -3941,13 +3955,8 @@
         <div class="sidebar__empty" data-i18n="sidebar.loading">Loading…</div>
       </div>
 
-      <div class="sidebar__limit" id="sidebar-limit" hidden>
-        <div class="sidebar__limit-ring" id="sidebar-limit-ring"><i id="sidebar-limit-pct"></i></div>
-        <div class="sidebar__limit-meta">
-          <b data-i18n="sidebar.limit.label">5h-Limit</b>
-          <span id="sidebar-limit-reset"></span>
-        </div>
-      </div>
+      <div class="sidebar__label sidebar__usage-label" id="sidebar-usage-label" data-i18n="sidebar.usage.label" hidden>Usage</div>
+      <div id="sidebar-usage" hidden></div>
 
       <div class="sidebar__settings-section">
         <button class="sidebar__settings-entry" id="sidebar-settings-entry" type="button"
@@ -4513,7 +4522,7 @@
     let currentSessionName = null;
     let currentResizeObserver = null;
     let refreshInterval = null;
-    let sidebarLimitInterval = null;
+    let sidebarUsageInterval = null;
     let reconnectTimer = null;
     let reconnectAttempts = 0;
     const MAX_RECONNECT = 3;
@@ -4773,27 +4782,80 @@
       }
     }
 
-    function updateSidebarLimit(pct, resetTs) {
-      const box = document.getElementById('sidebar-limit');
-      if (!box) return;
-      if (pct == null) { box.hidden = true; return; }
-      box.hidden = false;
-      const ring = document.getElementById('sidebar-limit-ring');
-      if (ring) { ring.style.setProperty('--p', pct); ring.className = 'sidebar__limit-ring ' + limitColorClass(pct); }
-      const pctEl = document.getElementById('sidebar-limit-pct');
-      if (pctEl) pctEl.textContent = pct + '%';
-      const resetEl = document.getElementById('sidebar-limit-reset');
-      if (resetEl) resetEl.textContent = resetTs ? t('sidebar.limit.reset', { time: formatResetCountdown(resetTs) }) : '';
+    // moshi-Agent-Kennung → clis.js-id (für Icon/Label/Brand-Farbe).
+    const AGENT_TO_CLI = {
+      'claude-code': 'claude', 'claude': 'claude',
+      'codex': 'codex', 'openai-codex': 'codex',
+      'antigravity': 'antigravity', 'agy': 'antigravity',
+      'gemini': 'gemini',
+    };
+    function agentToCliId(agent) {
+      if (!agent) return null;
+      const a = String(agent).toLowerCase();
+      if (AGENT_TO_CLI[a]) return AGENT_TO_CLI[a];
+      if (AGENT_TO_CLI[a.replace(/-code$/, '')]) return AGENT_TO_CLI[a.replace(/-code$/, '')];
+      // Substring-Fallback: deckt künftige Kennungen wie "openai/codex" oder
+      // "google-antigravity" ab, ohne dass die Map exakt stimmen muss.
+      for (const key of ['antigravity', 'codex', 'claude', 'gemini']) {
+        if (a.includes(key)) return AGENT_TO_CLI[key];
+      }
+      return null;
     }
-    async function refreshSidebarLimit() {
+    function usageAgentMeta(agent) {
+      const id = agentToCliId(agent);
+      const c = _clisMod && id && _clisMod.CLIS.find(x => x.id === id);
+      return {
+        label: c ? c.label : (agent || '—'),
+        color: c ? c.color : 'var(--text-secondary)',
+        logo: c && c.logo ? c.logo : TERMINAL_GLYPH,
+      };
+    }
+    // Rendert einen 5h-Balken pro Agent aus accounts[]. Heute fließt nur
+    // claude-code; Codex/Antigravity erscheinen automatisch sobald gemeldet.
+    function renderSidebarUsage(accounts) {
+      const box = document.getElementById('sidebar-usage');
+      const label = document.getElementById('sidebar-usage-label');
+      if (!box) return;
+      // Pro Account die anzuzeigende Zeile bestimmen: 5h-Fenster (Claude/Codex,
+      // mit %) ODER limitiert-Zustand (Antigravity, nur Reset, kein %).
+      const rowOf = (a) => {
+        const w5 = (a.windows || []).find(w => w.label === '5h');
+        if (w5) return { pct: Math.round(w5.usedPercentage ?? 0), resetsAt: w5.resetsAt, limited: false };
+        const lim = (a.windows || []).find(w => w.limited);
+        if (lim || a.limited) return { pct: 100, resetsAt: (lim && lim.resetsAt) || a.resetsAt, limited: true };
+        return null;
+      };
+      const list = (Array.isArray(accounts) ? accounts : [])
+        .map(a => ({ a, row: rowOf(a) })).filter(x => x.row);
+      if (!list.length) { box.hidden = true; if (label) label.hidden = true; box.innerHTML = ''; return; }
+      box.hidden = false; if (label) label.hidden = false;
+      box.innerHTML = list.map(({ a, row }) => {
+        const m = usageAgentMeta(a.agent);
+        const cls = row.limited ? 'usage-limit-red' : limitColorClass(row.pct);
+        const acct = a.accountLabel
+          ? `<span class="sidebar__usage-acct">${escapeHtml(a.accountLabel)}</span>` : '';
+        const reset = row.resetsAt
+          ? escapeHtml(t('sidebar.limit.reset', { time: formatResetCountdown(row.resetsAt) })) : '';
+        const pctLabel = row.limited ? escapeHtml(t('sidebar.usage.limited')) : row.pct + '%';
+        return `<div class="sidebar__usage-agent">
+          <div class="sidebar__usage-head" style="--cli-color:${m.color}">
+            <span class="sidebar__usage-logo" aria-hidden="true">${m.logo}</span>
+            <span class="sidebar__usage-name">${escapeHtml(m.label)}</span>
+            ${acct}
+          </div>
+          <div class="sidebar__usage-track"><div class="sidebar__usage-fill ${cls}" style="width:${row.limited ? 100 : row.pct}%"></div></div>
+          <div class="sidebar__usage-meta"><span class="sidebar__usage-reset">${reset}</span><span class="sidebar__usage-pct${row.limited ? ' is-limited' : ''}">${pctLabel}</span></div>
+        </div>`;
+      }).join('');
+    }
+    async function refreshSidebarUsage() {
       try {
+        _clisMod = (await ensureClis()) || _clisMod; // Icons sicher geladen
         const res = await fetch('/api/usage/limits?days=7', { headers: apiHeaders() });
-        if (!res.ok) { updateSidebarLimit(null); return; }
+        if (!res.ok) { renderSidebarUsage([]); return; }
         const lim = await res.json();
-        const acc = (lim.accounts || [])[0];
-        const w5 = acc && (acc.windows || []).find(w => w.label === '5h');
-        updateSidebarLimit(w5 ? Math.round(w5.usedPercentage ?? 0) : null, w5 && w5.resetsAt);
-      } catch (_) { updateSidebarLimit(null); }
+        renderSidebarUsage(lim.accounts || []);
+      } catch (_) { renderSidebarUsage([]); }
     }
 
     // ── Token-Formatter ────────────────────────────────────────────
@@ -6126,7 +6188,7 @@
                 <span class="usage-limit-reset ${cc}${urgent}" data-reset-ts="${w.resetsAt || ''}">${t('usage.reset', { time: formatResetCountdown(w.resetsAt) })}</span>
               </div>`;
           };
-          const accRows = accounts.map(a => {
+          const accRows = accounts.filter(a => (a.windows || []).some(w => w.label === '5h' || w.label === '7d')).map(a => {
             const w5 = (a.windows || []).find(w => w.label === '5h');
             const w7 = (a.windows || []).find(w => w.label === '7d');
             const label = escapeHtml([a.accountLabel, a.agent].filter(Boolean).join(' · ') || 'Account');
@@ -8932,10 +8994,10 @@
     // damit Attention-Events auch dann ankommen wenn der User gerade
     // im Projekte- oder Usage-Tab ist.
     openNotifyWs();
-    // Sidebar-Limit-Ring: einmaliger Fetch + 60s-Polling.
-    if (!sidebarLimitInterval) {
-      refreshSidebarLimit();
-      sidebarLimitInterval = setInterval(refreshSidebarLimit, 60000);
+    // Sidebar-Usage-Panel: einmaliger Fetch + 60s-Polling.
+    if (!sidebarUsageInterval) {
+      refreshSidebarUsage();
+      sidebarUsageInterval = setInterval(refreshSidebarUsage, 60000);
     }
     // Web Push: Service Worker registrieren + VAPID-Key holen.
     initPush();

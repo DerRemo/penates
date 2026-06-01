@@ -18,6 +18,8 @@ window.__I18N_BUNDLES.de = {
   'sidebar.brand.subtitle': '{active} aktiv · {dormant} ruhend',
   'sidebar.limit.label': '5h-Limit',
   'sidebar.limit.reset': 'Reset in {time}',
+  'sidebar.usage.label': 'Usage',
+  'sidebar.usage.limited': 'Limit',
 
   // Shell — titles
   'shell.title.overview': 'Übersicht',

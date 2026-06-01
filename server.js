@@ -16,6 +16,7 @@ import { homedir } from 'os';
 import { getCurrentContext, getDailyUsageV2 } from './lib/usage.js';
 import * as usageLimits from './lib/usage-limits.js';
 import * as moshiHook from './lib/moshi-hook.js';
+import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
@@ -669,6 +670,10 @@ app.get('/api/usage/limits', async (req, res) => {
     const usage = moshiHook.getUsage();
     if (usage) usageLimits.recordUsageSnapshot(usage);
     const data = await usageLimits.getLimitHistory({ days });
+    // Antigravity läuft nicht über moshi-hook (kein Support) — separat aus den
+    // CLI-Logs ableiten. Erscheint nur wenn aktuell quota-limitiert.
+    const agy = getAntigravityUsage();
+    if (agy) data.accounts = [...(data.accounts || []), agy];
     limitsCache = { ts: now, key, data };
     res.json(data);
   } catch (e) {

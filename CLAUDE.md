@@ -366,6 +366,28 @@ im jsonl; alte Punkte ohne `acct` → `default`), gespeist on-demand
 (`GET /api/usage/limits`) + 5-min-Poll. Routen: `GET /api/usage/limits`
 (account-level), `GET /api/recent-dirs`.
 
+### Antigravity-Usage (lib/antigravity-usage.js)
+
+Antigravity (Google `agy`-CLI, Gemini-Free-Tier) läuft **nicht** über moshi-hook.
+Eine saubere Prozent-Quota ist für ein Always-on-Dashboard nicht verfügbar: die
+Cloud-Code-API (`POST cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels`
+mit `quotaInfo.remainingFraction`) liefert für Free-Tier **403 PERMISSION_DENIED**
+(Token-Refresh + `loadCodeAssist` gehen mit dem offiziellen gemini-cli-OAuth-Client
+und der refresh_token aus `~/.gemini/oauth_creds.json`, aber das Quota-Endpoint ist
+gated); ein echtes % gibt nur der lokale Antigravity-Language-Server, der bloß
+läuft solange die IDE offen ist.
+
+Das einzige persistente Signal ist der 429-Eintrag, den der CLI ins Log schreibt
+wenn die Quota erschöpft ist (`~/.gemini/antigravity-cli/log/cli-*.log`:
+`RESOURCE_EXHAUSTED (code 429) … Resets in 129h55m4s`). `getAntigravityUsage()`
+scrapt die jüngsten Logs, parst Reset-Dauer + glog-Zeitstempel (Jahr aus dem
+Dateinamen) → absoluter Reset, und liefert **nur wenn aktuell limitiert** ein
+account-förmiges Objekt (`{ agent:'antigravity', limited:true, windows:[{ limited:true,
+resetsAt }] }`), sonst `null`. `server.js` hängt es in `GET /api/usage/limits`
+an `accounts[]` an. Das Sidebar-Usage-Panel rendert limited-Accounts als vollen
+roten Balken + „Limit" + Reset-Text (kein %); die Usage-View überspringt Accounts
+ohne 5h/7d-Fenster. Fehlt Antigravity/das Log-Verzeichnis → `null` (harmlos).
+
 ## Multi-CLI Spawn (Kern-Drei)
 
 `public/clis.js` ist die einzige Registry der unterstützten Coding-CLIs
