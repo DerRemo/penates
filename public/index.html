@@ -1562,6 +1562,15 @@
     }
     .roadmap-item:hover .roadmap-item-move, .roadmap-item:hover .roadmap-item-edit { opacity: 0.6; }
     .roadmap-item-move:hover, .roadmap-item-edit:hover { opacity: 1; color: var(--accent); background: var(--accent-muted); }
+
+    /* Phase 6: Drag-Reorder Greifer + Drop-Marker */
+    .roadmap-grip { color: var(--text-muted); cursor: grab; opacity: 0; flex-shrink: 0; font-size: var(--text-sm); user-select: none; }
+    .roadmap-item:hover .roadmap-grip { opacity: 0.6; }
+    .roadmap-grip:active { cursor: grabbing; }
+    .roadmap-item.dragging { opacity: 0.4; }
+    .roadmap-item.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+    .roadmap-item.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+    @media (hover: none), (pointer: coarse) { .roadmap-grip { opacity: 0.5; } }
     .roadmap-text[role="button"] { cursor: text; border-radius: var(--radius-sm); }
     .roadmap-text[role="button"]:hover { background: var(--bg-card-hover); }
     .roadmap-edit-input {
@@ -6138,8 +6147,9 @@
           return;
         }
 
-        const renderItem = (it, sectionKey) => `
-          <li class="roadmap-item${it.done ? ' done' : ''}" data-section="${sectionKey}" data-line="${it.line}">
+        const renderItem = (it, sectionKey, index) => `
+          <li class="roadmap-item${it.done ? ' done' : ''}" data-section="${sectionKey}" data-line="${it.line}" data-index="${index}" draggable="true">
+            <span class="roadmap-grip" aria-hidden="true" title="${t('projects.detail.dragHandle')}">⠿</span>
             <button class="roadmap-checkbox" type="button" aria-label="${it.done ? t('projects.detail.markAsOpen') : t('projects.detail.markAsDone')}">${it.done ? '[x]' : '[ ]'}</button>
             <span class="roadmap-text" tabindex="0" role="button" title="${t('projects.detail.editItem')}">${escapeHtml(it.text)}</span>
             ${renderMetaPills(it.meta)}
@@ -6164,7 +6174,7 @@
                 <span class="roadmap-section-count">${count}</span>
               </button>
               ${items.length
-                ? `<ul class="roadmap-list">${items.map(it => renderItem(it, sectionKey)).join('')}</ul>`
+                ? `<ul class="roadmap-list">${items.map((it, i) => renderItem(it, sectionKey, i)).join('')}</ul>`
                 : `<p class="roadmap-empty">${t('projects.detail.sectionEmpty')}</p>`}
               <button class="roadmap-add-btn" type="button" data-section="${sectionKey}">${t('projects.detail.addItem')}</button>
             </section>`;
@@ -6588,6 +6598,47 @@
           pill.addEventListener('click', (e) => { e.stopPropagation(); startVersionEdit(pill); });
           pill.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); startVersionEdit(pill); }
+          });
+        });
+
+        // ── Phase 6: Drag-Reorder INNERHALB einer Sektion ────────────
+        // HTML5-DnD; Drop schreibt via reorder-Action. Cross-Section wird
+        // ignoriert (dafür gibt es das ⤴-Menü).
+        let dragSrc = null; // { section, line, index }
+        const clearDropMarkers = () => body.querySelectorAll('.drop-before,.drop-after').forEach(el => el.classList.remove('drop-before','drop-after'));
+        body.querySelectorAll('.roadmap-item[draggable="true"]').forEach(li => {
+          li.addEventListener('dragstart', (e) => {
+            dragSrc = { section: li.dataset.section, line: parseInt(li.dataset.line,10), index: parseInt(li.dataset.index,10) };
+            e.dataTransfer.effectAllowed = 'move';
+            try { e.dataTransfer.setData('text/plain', li.dataset.line); } catch {}
+            li.classList.add('dragging');
+          });
+          li.addEventListener('dragend', () => { li.classList.remove('dragging'); clearDropMarkers(); dragSrc = null; });
+          li.addEventListener('dragover', (e) => {
+            if (!dragSrc || li.dataset.section !== dragSrc.section) return; // nur gleiche Sektion
+            e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+            const r = li.getBoundingClientRect();
+            const after = (e.clientY - r.top) > r.height / 2;
+            clearDropMarkers();
+            li.classList.add(after ? 'drop-after' : 'drop-before');
+          });
+          li.addEventListener('dragleave', () => li.classList.remove('drop-before','drop-after'));
+          li.addEventListener('drop', async (e) => {
+            if (!dragSrc || li.dataset.section !== dragSrc.section) return;
+            e.preventDefault();
+            const targetIdx = parseInt(li.dataset.index, 10);
+            const after = li.classList.contains('drop-after');
+            clearDropMarkers();
+            let toIndex = after ? targetIdx + 1 : targetIdx;
+            // Beim Verschieben nach unten verschiebt das Entfernen die Zielposition um 1.
+            if (dragSrc.index < toIndex) toIndex -= 1;
+            if (toIndex === dragSrc.index) return; // no-op
+            const { section, line } = dragSrc;
+            try { await patchItem(p.id, { action: 'reorder', section, line, toIndex }); renderProjectDetail(p.id); }
+            catch (err) {
+              if (err.status === 409) { showProjectToast(t('projects.detail.conflict')); renderProjectDetail(p.id); }
+              else if (err.status !== 401) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
+            }
           });
         });
       } catch (e) {
