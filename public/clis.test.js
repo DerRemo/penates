@@ -52,3 +52,32 @@ test('claude logo is the Claude sunburst, not the Anthropic A', () => {
   assert.ok(claude.logo.includes('256 257'), 'claude uses the sunburst viewBox');
   assert.ok(claude.logo.includes('#D97757'), 'claude uses the brand orange');
 });
+
+// Task 1: tier field on variants
+test('every variant carries a tier, ordered safe → danger', () => {
+  for (const c of CLIS) {
+    const tiers = c.variants.map(v => v.tier);
+    assert.ok(tiers.every(Boolean), `${c.id}: every variant has a tier`);
+    assert.equal(tiers[0], 'safe', `${c.id}: first variant is safe`);
+    assert.equal(tiers[tiers.length - 1], 'danger', `${c.id}: last variant is danger`);
+  }
+});
+
+test('claude has an Auto variant = "claude --permission-mode auto"', () => {
+  const claude = CLIS.find(c => c.id === 'claude');
+  const auto = claude.variants.find(v => v.tier === 'auto');
+  assert.ok(auto, 'claude has an auto-tier variant');
+  assert.equal(auto.command, 'claude --permission-mode auto');
+});
+
+test('codex auto tier is Full-Auto, danger is YOLO', () => {
+  const codex = CLIS.find(c => c.id === 'codex');
+  assert.equal(codex.variants.find(v => v.tier === 'auto').command, 'codex --full-auto');
+  assert.equal(codex.variants.find(v => v.tier === 'danger').command, 'codex --yolo');
+});
+
+test('antigravity has no auto tier (safe + danger only)', () => {
+  const agy = CLIS.find(c => c.id === 'antigravity');
+  assert.equal(agy.variants.some(v => v.tier === 'auto'), false);
+  assert.deepEqual(agy.variants.map(v => v.tier), ['safe', 'danger']);
+});
