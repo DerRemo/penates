@@ -38,6 +38,18 @@ test.describe('Detail editing affordances (Phase 4)', () => {
     await expect(page.locator('.roadmap-item').first().locator('.roadmap-text')).toHaveText(before);
   });
 
+  test('inline-edit input opens via keyboard (Enter on focused text) and cancels with Escape (no mutation)', async ({ authedPage: page, isMobile }) => {
+    if (!await openFirstProjectWithItems(page, isMobile)) test.skip(true, 'no project items');
+    const item = page.locator('.roadmap-item').first();
+    const text = item.locator('.roadmap-text');
+    const before = (await text.textContent())?.trim();
+    await text.focus();
+    await page.keyboard.press('Enter');
+    await expect(item.locator('.roadmap-edit-input')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.roadmap-item').first().locator('.roadmap-text')).toHaveText(before);
+  });
+
   test('move menu opens and closes without selecting', async ({ authedPage: page, isMobile }) => {
     if (!await openFirstProjectWithItems(page, isMobile)) test.skip(true, 'no project items');
     const item = page.locator('.roadmap-item').first();

@@ -6449,6 +6449,9 @@
         });
         body.querySelectorAll('.roadmap-text[role="button"]').forEach(el => {
           el.addEventListener('click', (e) => { e.stopPropagation(); startInlineEdit(el.closest('.roadmap-item')); });
+          el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startInlineEdit(el.closest('.roadmap-item')); }
+          });
         });
 
         // ── Phase 4: Move-Menü (Item zwischen Sektionen verschieben) ─
@@ -6504,35 +6507,37 @@
         // ── Phase 4: Versions-Edit an der Section-Head-Pille ──────────
         // Klick auf die Pille (Released/Dev) öffnet ein Input statt den
         // Header einzuklappen (Collapse-Handler hat dafür einen Guard).
+        const startVersionEdit = (pill) => {
+          if (pill.querySelector('input')) return;
+          const sectionKey = pill.getAttribute('data-section');
+          const current = pill.textContent.replace(/^v/, '');
+          const input = document.createElement('input');
+          input.className = 'roadmap-version-input';
+          input.value = current;
+          pill.replaceWith(input);
+          input.focus(); input.select();
+          let done = false;
+          const finish = async (commit) => {
+            if (done) return; done = true;
+            const val = input.value.trim();
+            if (!commit || !val || val === current) { renderProjectDetail(p.id); return; }
+            try { await patchItem(p.id, { action: 'set-version', section: sectionKey, version: val }); renderProjectDetail(p.id); }
+            catch (err) {
+              if (err.status === 409) { showProjectToast(t('projects.detail.conflict')); }
+              else if (err.status !== 401) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
+              renderProjectDetail(p.id);
+            }
+          };
+          input.addEventListener('keydown', (e2) => {
+            if (e2.key === 'Enter') { e2.preventDefault(); finish(true); }
+            else if (e2.key === 'Escape') { e2.preventDefault(); finish(false); }
+          });
+          input.addEventListener('blur', () => finish(true));
+        };
         body.querySelectorAll('[data-version-edit]').forEach(pill => {
-          pill.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (pill.querySelector('input')) return;
-            const sectionKey = pill.getAttribute('data-section');
-            const current = pill.textContent.replace(/^v/, '');
-            const input = document.createElement('input');
-            input.className = 'roadmap-version-input';
-            input.value = current;
-            pill.replaceWith(input);
-            input.focus(); input.select();
-            let done = false;
-            const finish = async (commit) => {
-              if (done) return; done = true;
-              const val = input.value.trim();
-              if (!commit || !val || val === current) { renderProjectDetail(p.id); return; }
-              try { await patchItem(p.id, { action: 'set-version', section: sectionKey, version: val }); renderProjectDetail(p.id); }
-              catch (err) {
-                if (err.status === 409) { showProjectToast(t('projects.detail.conflict')); }
-                else if (err.status === 400) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
-                else if (err.status !== 401) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
-                renderProjectDetail(p.id);
-              }
-            };
-            input.addEventListener('keydown', (e2) => {
-              if (e2.key === 'Enter') { e2.preventDefault(); finish(true); }
-              else if (e2.key === 'Escape') { e2.preventDefault(); finish(false); }
-            });
-            input.addEventListener('blur', () => finish(true));
+          pill.addEventListener('click', (e) => { e.stopPropagation(); startVersionEdit(pill); });
+          pill.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); startVersionEdit(pill); }
           });
         });
       } catch (e) {
