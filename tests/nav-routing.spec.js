@@ -30,6 +30,14 @@ test.describe('Nav routing (Phase 1)', () => {
     await expect(page.locator('[data-view="usage"]')).toBeVisible();
   });
 
+  test('"/" focuses the projects search on the projects view', async ({ authedPage: page, isMobile }) => {
+    await openSidebarIfMobile(page, isMobile);
+    await page.click(NAV('projects'));
+    await expect(page.locator('body')).toHaveAttribute('data-current-view', 'projects');
+    await page.keyboard.press('/');
+    await expect(page.locator('#projects-search')).toBeFocused();
+  });
+
   test('restores last nav view after reload', async ({ authedPage: page, isMobile }) => {
     await openSidebarIfMobile(page, isMobile);
     await page.click(NAV('projects'));

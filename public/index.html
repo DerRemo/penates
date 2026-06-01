@@ -8821,7 +8821,13 @@
 
       switch (e.key) {
         case 'n': e.preventDefault(); openNewSessionModal(); break;
-        case '/': e.preventDefault(); searchEl.focus(); searchEl.select(); break;
+        case '/': {
+          // '/' fokussiert das Suchfeld der aktiven View (dashboard ↔ projects).
+          // Auf anderen Views (usage/settings/…) gibt es kein Suchfeld → no-op.
+          const target = currentView === 'projects' ? projectsSearchEl : searchEl;
+          if (target) { e.preventDefault(); target.focus(); target.select?.(); }
+          break;
+        }
         case 'r': e.preventDefault(); refreshSessions(); break;
         case 'g': e.preventDefault(); setLayout('grid'); break;
         case 'l': e.preventDefault(); setLayout('list'); break;
