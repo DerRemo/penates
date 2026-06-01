@@ -43,3 +43,18 @@ export function cliFromCommand(cmd) {
   const hit = CLIS.find(c => c.binary === bin);
   return hit ? hit.id : null;
 }
+
+// Default-Variante einer CLI: 'auto'-Tier falls vorhanden, sonst die erste
+// (safe). Unbekannte CLI → null.
+export function defaultVariant(cliId) {
+  const c = CLIS.find(x => x.id === cliId);
+  if (!c) return null;
+  return c.variants.find(v => v.tier === 'auto') || c.variants[0] || null;
+}
+
+// Variante einer CLI nach Tier ('safe'|'auto'|'danger'). Kein Treffer → null.
+export function variantByTier(cliId, tier) {
+  const c = CLIS.find(x => x.id === cliId);
+  if (!c) return null;
+  return c.variants.find(v => v.tier === tier) || null;
+}

@@ -81,3 +81,19 @@ test('antigravity has no auto tier (safe + danger only)', () => {
   assert.equal(agy.variants.some(v => v.tier === 'auto'), false);
   assert.deepEqual(agy.variants.map(v => v.tier), ['safe', 'danger']);
 });
+
+// Task 2: defaultVariant + variantByTier helpers
+import { defaultVariant, variantByTier } from './clis.js';
+
+test('defaultVariant prefers the auto tier, else the first variant', () => {
+  assert.equal(defaultVariant('claude').command, 'claude --permission-mode auto');
+  assert.equal(defaultVariant('codex').command, 'codex --full-auto');
+  assert.equal(defaultVariant('antigravity').command, 'agy');      // no auto → first (safe)
+  assert.equal(defaultVariant('nope'), null);
+});
+
+test('variantByTier returns the matching variant or null', () => {
+  assert.equal(variantByTier('claude', 'danger').command, 'claude --dangerously-skip-permissions');
+  assert.equal(variantByTier('antigravity', 'auto'), null);        // no such tier
+  assert.equal(variantByTier('nope', 'safe'), null);
+});
