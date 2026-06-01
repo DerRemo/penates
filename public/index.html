@@ -4589,6 +4589,7 @@
     // ── State ─────────────────────────────────────────────────────
     let sessions = null;          // null = noch nicht geladen (Skeleton)
     let searchQuery = '';          // D3
+    let projectSearchQuery = '';   // Projekte-View-Suche
     let currentTerminal = null;
     let currentWs = null;
     let currentSessionName = null;
@@ -4728,7 +4729,7 @@
     // um: body[data-current-view], History-Integration, Polling-Lifecycle,
     // view-spezifischen Init (Terminal-Attach / Project-Lade).
     let currentView = 'dashboard';
-    const VALID_VIEWS = new Set(['dashboard', 'terminal', 'project-detail', 'settings']);
+    const VALID_VIEWS = new Set(['dashboard', 'projects', 'usage', 'terminal', 'project-detail', 'settings']);
 
     function setView(name, opts = {}) {
       if (!VALID_VIEWS.has(name)) name = 'dashboard';
@@ -4758,6 +4759,10 @@
           history.pushState({ view: 'settings' }, '');
         } else if (name === 'diff' && history.state?.view !== 'diff') {
           history.pushState({ view: 'diff', sessionName }, '');
+        } else if (name === 'projects' && history.state?.view !== 'projects') {
+          history.pushState({ view: 'projects' }, '');
+        } else if (name === 'usage' && history.state?.view !== 'usage') {
+          history.pushState({ view: 'usage' }, '');
         } else if (name === 'dashboard' && history.state?.view && history.state.view !== 'dashboard') {
           // Zurück zu Dashboard ohne fromPopstate → history.back() auslösen,
           // damit der Eintrag aus dem History-Stack geräumt wird. popstate
@@ -4775,18 +4780,20 @@
         else setView('dashboard');
       }
 
-      // Polling-Lifecycle: läuft genau dann, wenn Dashboard+Sessions-Tab aktiv.
-      if (name === 'dashboard' && getTab() === 'sessions') {
+      // Polling-Lifecycle: läuft genau dann, wenn die Sessions-Übersicht aktiv ist.
+      if (name === 'dashboard') {
         startSessionPolling();
       } else {
         stopSessionPolling();
       }
 
-      // Beim Zurückkehren aufs Dashboard den Projekte-Tab neu laden — sonst
-      // sieht der User nach dem Create-Flow oder nach Toggle/Add im Detail
-      // die alte Liste.
-      if (name === 'dashboard' && getTab() === 'projects') {
-        renderProjects();
+      // View-spezifischer Render beim Betreten.
+      if (name === 'projects') { renderProjectsWithSearch(projectSearchQuery); openProjectEventsWs(); }
+      if (name === 'usage')    { renderUsage(); }
+
+      // Letzte Nav-View merken (nur die drei Top-Level-Nav-Ziele) für den Init-Restore.
+      if (name === 'dashboard' || name === 'projects' || name === 'usage') {
+        try { localStorage.setItem(NAV_VIEW_KEY, name); } catch {}
       }
     }
 
@@ -4802,39 +4809,19 @@
       refreshInterval = null;
     }
 
-    // ── Tabs (Sessions / Usage / Projekte) ─────────────────────────
-    const TAB_KEY = 'cchub_tab';
-    const VALID_TABS = new Set(['sessions', 'usage', 'projects']);
-    function getTab() {
-      const t = localStorage.getItem(TAB_KEY);
-      return VALID_TABS.has(t) ? t : 'sessions';
-    }
-    function setTab(tab) {
-      if (!VALID_TABS.has(tab)) tab = 'sessions';
-      localStorage.setItem(TAB_KEY, tab);
-      document.body.setAttribute('data-active-tab', tab);
-      document.getElementById('sessions-grid').hidden = tab !== 'sessions';
-      document.getElementById('usage-view').hidden = tab !== 'usage';
-      document.getElementById('projects-view').hidden = tab !== 'projects';
-      if (tab === 'sessions' && currentView === 'dashboard') {
-        startSessionPolling();
-      } else {
-        stopSessionPolling();
-      }
-      if (tab === 'usage') renderUsage();
-      if (tab === 'projects') { renderProjectsWithSearch(searchQuery); openProjectEventsWs(); }
-      updateSidebarNavActive();
-      updateShellChrome();
+    // ── Top-Level-Nav (Sessions / Projekte / Usage) als eigene Views ───
+    const NAV_VIEW_KEY = 'cchub_nav_view';
+    function initialNavView() {
+      try {
+        const v = localStorage.getItem(NAV_VIEW_KEY);
+        if (v === 'projects' || v === 'usage') return v;
+      } catch {}
+      return 'dashboard';
     }
 
     // ── Shell-Chrome Helpers ───────────────────────────────────────
-    const SHELL_TITLES = { sessions: 'shell.title.overview', projects: 'shell.title.projects', usage: 'shell.title.usage' };
     function updateShellChrome() {
-      const tab = getTab();
       const c = deriveShellCounts(sessions || []);
-      const titleKey = SHELL_TITLES[tab] || SHELL_TITLES.sessions;
-      const titleEl = document.getElementById('shell-title');
-      if (titleEl) { titleEl.setAttribute('data-i18n', titleKey); titleEl.textContent = t(titleKey); }
       const sub = document.getElementById('sidebar-brand-subtitle');
       if (sub) sub.textContent = t('sidebar.brand.subtitle', { active: c.active, dormant: c.dormant });
       const sum = document.getElementById('shell-summary');
@@ -4843,15 +4830,8 @@
       if (navS) navS.textContent = c.active || '';
       const lbl = document.getElementById('shell-section-label');
       const cnt = document.getElementById('shell-section-count');
-      if (lbl && cnt) {
-        // Sessions-Tab: das Grid rendert pro Gruppe eigene Header (Aktiv/
-        // Ruhend/Foreign). Das Section-Bar-Label würde direkt darüber ein
-        // zweites "AKTIV" doppeln — daher hier ausblenden, nur die Actions
-        // (Layout/Refresh/Bulk-Kill) bleiben in der Bar. Auf Usage/Projekte
-        // gibt es keine Grid-Header → Label bleibt der einzige Indikator.
-        if (tab === 'sessions') { lbl.textContent = ''; lbl.hidden = true; cnt.hidden = true; }
-        else { lbl.hidden = false; lbl.textContent = t(SHELL_TITLES[tab]).toUpperCase(); cnt.hidden = true; }
-      }
+      if (lbl) { lbl.textContent = ''; lbl.hidden = true; }
+      if (cnt) cnt.hidden = true;
     }
 
     // moshi-Agent-Kennung → clis.js-id (für Icon/Label/Brand-Farbe).
@@ -5444,20 +5424,20 @@
     }
 
     // Hebt das passende Nav-Item in der Sidebar hervor — richtet sich nach
-    // currentView und aktivem Tab. Muss bei jedem setView/setTab aufgerufen
-    // werden, damit die Active-Markierung mit dem Main-Content übereinstimmt.
+    // currentView. Muss bei jedem setView aufgerufen werden, damit die
+    // Active-Markierung mit dem Main-Content übereinstimmt.
     function updateSidebarNavActive() {
       const navItems = document.querySelectorAll('.sidebar__item[data-sidebar-nav]');
       navItems.forEach(el => el.classList.remove('sidebar__item--active'));
       const settingsEntry = document.getElementById('sidebar-settings-entry');
       if (settingsEntry) settingsEntry.classList.toggle('is-active', currentView === 'settings');
-      if (currentView !== 'dashboard') {
-        // Im Terminal-/Project-Detail-/Settings-View ist das aktive Element entweder
-        // eine Session (data-session) oder der Settings-Button — kein Tab-Nav-Highlight.
-        return;
-      }
-      const tab = getTab();
-      const target = document.querySelector(`.sidebar__item[data-sidebar-nav="${tab}"]`);
+      // View → Nav-Key: dashboard==Sessions-Übersicht.
+      const navKey = currentView === 'dashboard' ? 'sessions'
+        : currentView === 'projects' ? 'projects'
+        : currentView === 'usage' ? 'usage'
+        : null;
+      if (!navKey) return; // terminal/project-detail/settings: kein Nav-Highlight
+      const target = document.querySelector(`.sidebar__item[data-sidebar-nav="${navKey}"]`);
       if (target) target.classList.add('sidebar__item--active');
     }
 
@@ -5684,7 +5664,7 @@
         renderProjectDetail(id);
         return;
       }
-      if (currentView === 'dashboard' && getTab() === 'projects') {
+      if (currentView === 'projects') {
         renderProjects();
       }
     }
@@ -8765,10 +8745,10 @@
       const navBtn = e.target.closest('.sidebar__item[data-sidebar-nav]');
       if (navBtn) {
         const nav = navBtn.getAttribute('data-sidebar-nav');
-        if (nav === 'sessions' || nav === 'projects' || nav === 'usage') {
-          if (currentView !== 'dashboard') setView('dashboard');
-          setTab(nav);
-        }
+        if (nav === 'sessions') setView('dashboard');
+        else if (nav === 'projects') setView('projects');
+        else if (nav === 'usage') setView('usage');
+        return;
       }
       const settingsBtn = e.target.closest('#sidebar-settings-entry');
       if (settingsBtn) {
@@ -8789,17 +8769,21 @@
     // D3: Such-Filter — läuft clientseitig über das sessions-Array und
     // serverseitig über /api/projects/search für Roadmap-Items.
     const searchEl = document.getElementById('session-search');
-    let projectSearchTimer = null;
     searchEl.addEventListener('input', (e) => {
       searchQuery = e.target.value;
       if (sessions !== null) renderSessions();
-      // Projects-Search ist debounced (200ms) damit schnelles Tippen
-      // nicht N Requests an den Server feuert.
-      if (getTab() === 'projects') {
-        clearTimeout(projectSearchTimer);
-        projectSearchTimer = setTimeout(() => renderProjectsWithSearch(searchQuery), 200);
-      }
     });
+
+    // Projekte haben jetzt ein eigenes Suchfeld in ihrem View-Header.
+    let projectSearchTimer = null;
+    const projectsSearchEl = document.getElementById('projects-search');
+    if (projectsSearchEl) {
+      projectsSearchEl.addEventListener('input', (e) => {
+        projectSearchQuery = e.target.value;
+        clearTimeout(projectSearchTimer);
+        projectSearchTimer = setTimeout(() => renderProjectsWithSearch(projectSearchQuery), 200);
+      });
+    }
 
     // D4: Keyboard-Help-Overlay
     const helpOverlay = document.getElementById('kbd-help-overlay');
@@ -9117,9 +9101,10 @@
     setView('dashboard');
     setLayout(getLayout());
     renderSkeleton();
-    // Tab initial setzen — setTab() ruft startSessionPolling() wenn
-    // Sessions-Tab + Dashboard-View aktiv sind, oder renderUsage() bei Usage.
-    setTab(getTab());
+    // Start-View setzen — stellt die zuletzt benutzte Top-Level-Nav-View
+    // wieder her (Sessions/Projekte/Usage). setView() startet das
+    // Session-Polling nur im Dashboard.
+    setView(initialNavView());
     // Notifications-WS direkt beim Start — unabhängig vom aktiven Tab,
     // damit Attention-Events auch dann ankommen wenn der User gerade
     // im Projekte- oder Usage-Tab ist.
