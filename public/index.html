@@ -4041,66 +4041,64 @@
       <header class="app-topbar">
         <div>
           <h1 class="app-topbar__title" id="shell-title" data-i18n="shell.title.overview">Übersicht</h1>
-          <div class="app-topbar__summary" id="shell-summary" data-tab-scope="sessions"></div>
+          <div class="app-topbar__summary" id="shell-summary"></div>
         </div>
-        <div class="app-topbar__search field" data-tab-scope="sessions projects">
+        <div class="app-topbar__search field">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="search" id="session-search" data-i18n-attr="placeholder:dashboard.filterPlaceholder" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
           <kbd>/</kbd>
         </div>
-        <div class="layout-toggle" role="group" data-i18n-attr="aria-label:dashboard.layoutAria" aria-label="Layout" data-tab-scope="sessions">
+        <div class="layout-toggle" role="group" data-i18n-attr="aria-label:dashboard.layoutAria" aria-label="Layout">
           <button class="layout-toggle-btn" id="layout-grid-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.gridAria;title:dashboard.layout.gridTitle" aria-label="Grid view" title="Grid (g)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
           <button class="layout-toggle-btn" id="layout-list-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.listAria;title:dashboard.layout.listTitle" aria-label="List view" title="List (l)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></button>
         </div>
-        <button class="btn btn-primary btn-sm" id="new-session-btn" type="button" data-tab-scope="sessions">
+        <button class="btn btn-primary btn-sm" id="new-session-btn" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           <span data-i18n="dashboard.newSession">New Session</span>
-        </button>
-        <button class="btn btn-primary btn-sm" id="new-project-btn" type="button" data-tab-scope="projects">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          <span data-i18n="dashboard.newProject">New Project</span>
         </button>
       </header>
       <div class="section-bar">
         <span class="section-bar__label" id="shell-section-label"></span>
         <span class="pill pill--plain pill--neutral" id="shell-section-count"></span>
       </div>
-      <div class="sessions-grid" id="sessions-grid" data-tab-panel="sessions">
+      <div class="sessions-grid" id="sessions-grid">
         <!-- Sessions will be rendered here -->
       </div>
-      <div class="usage-view" id="usage-view" data-tab-panel="usage" hidden>
-        <!-- renderUsage() injected -->
-      </div>
-      <div class="projects-view" id="projects-view" data-tab-panel="projects" hidden>
-        <div class="cmd-output-block" role="region" aria-label="Projects — Phase 0 Empty State">
-          <div class="cmd-line cmd-line--prompt">
-            <span class="cmd-prompt">$</span>
-            <span class="cmd-command">hub projects list</span>
-          </div>
-          <hr class="cmd-rule">
-          <div class="cmd-line cmd-line--lead">
-            <span class="cmd-marker">›</span>
-            <span>no ROADMAP.md files discovered yet.</span>
-          </div>
-          <div class="cmd-block">
-            <p>Auto-Discovery will hook in at Phase 1:<br>
-               <span class="cmd-path">~/Projects/*/ROADMAP.md</span></p>
-            <p>Planned features:</p>
-            <ul class="cmd-bullets">
-              <li>Backlog + Changelog per project</li>
-              <li>Session ↔ Project linking</li>
-              <li>File-Watcher for live-sync</li>
-              <li>"Finalize version" generates release-notes markdown</li>
-            </ul>
-          </div>
-          <hr class="cmd-rule">
-          <div class="cmd-status">
-            <span class="cmd-status-item"><span class="cmd-status-dot"></span>status:&nbsp;<strong>pending</strong></span>
-            <span class="cmd-status-sep">·</span>
-            <span class="cmd-status-item"><span class="cmd-status-dot"></span>phase:&nbsp;<strong>0 of 2</strong></span>
-            <span class="cmd-cursor" aria-hidden="true">▊</span>
-          </div>
+    </div>
+  </div>
+
+  <!-- ── Projects View (Phase 1: own route; cards redesigned in Phase 2) ── -->
+  <div class="projects-view-page" id="projects-view-page" data-view="projects">
+    <div class="container">
+      <header class="app-topbar">
+        <div>
+          <h1 class="app-topbar__title" data-i18n="shell.title.projects">Projekte</h1>
         </div>
+        <div class="app-topbar__search field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" id="projects-search" data-i18n-attr="placeholder:dashboard.filterPlaceholder" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn btn-primary btn-sm" id="new-project-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span data-i18n="dashboard.newProject">New Project</span>
+        </button>
+      </header>
+      <div class="projects-view" id="projects-view">
+        <!-- renderProjects() injected -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Usage View (Phase 1: own route; content unchanged) ── -->
+  <div class="usage-view-page" id="usage-view-page" data-view="usage">
+    <div class="container">
+      <header class="app-topbar">
+        <div>
+          <h1 class="app-topbar__title" data-i18n="shell.title.usage">Usage</h1>
+        </div>
+      </header>
+      <div class="usage-view" id="usage-view">
+        <!-- renderUsage() injected -->
       </div>
     </div>
   </div>
