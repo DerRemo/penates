@@ -95,15 +95,16 @@ test.describe('moshi-hook Daten-Schicht', () => {
       });
     });
 
-    // Usage-Tab aktivieren — Navigation ist in der Sidebar (nicht in .dashboard-tabs).
-    // Auf Mobile/Tablet muss die Sidebar zuerst geöffnet werden.
+    // Usage-View öffnen — Navigation ist in der Sidebar (Phase-1: eigene
+    // Top-Level-View, kein Tab mehr). Auf Mobile/Tablet muss die Sidebar
+    // zuerst geöffnet werden.
     const sidebarToggle = page.locator('#sidebar-toggle');
     if (await sidebarToggle.isVisible()) {
       await sidebarToggle.click();
       await page.waitForTimeout(300);
     }
     await page.click('[data-sidebar-nav="usage"]');
-    await page.waitForSelector('body[data-active-tab="usage"]', { timeout: 5_000 });
+    await page.waitForSelector('body[data-current-view="usage"]', { timeout: 5_000 });
 
     // Account-Label muss "Max 5x" enthalten
     await expect(page.locator('.usage-account-label').first()).toContainText('Max 5x', { timeout: 5_000 });

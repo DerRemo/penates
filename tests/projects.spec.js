@@ -26,7 +26,8 @@ async function goToProjects(page) {
 test.describe('Projects', () => {
   test('projects tab shows project list', async ({ authedPage: page }) => {
     await goToProjects(page);
-    const projectsPanel = page.locator('[data-tab-panel="projects"]');
+    await expect(page.locator('body')).toHaveAttribute('data-current-view', 'projects');
+    const projectsPanel = page.locator('[data-view="projects"]');
     await expect(projectsPanel).toBeVisible({ timeout: 5_000 });
   });
 
@@ -70,7 +71,7 @@ test.describe('Projects', () => {
     await expect(page.locator('#project-detail-view')).toBeVisible();
   });
 
-  test('back button returns to dashboard from project detail', async ({ authedPage: page }) => {
+  test('back button returns to projects view from project detail', async ({ authedPage: page }) => {
     await goToProjects(page);
 
     const projectCard = page.locator('.project-card').first();
@@ -82,8 +83,11 @@ test.describe('Projects', () => {
     await projectCard.click();
     await page.waitForSelector('body[data-current-view="project-detail"]', { timeout: 5_000 });
 
+    // Phase-1-Refactor: Projekte sind eine eigene Top-Level-View mit eigenem
+    // History-Eintrag → Zurück aus dem Detail kehrt in die Projekte-View zurück
+    // (history.back() popt zum {view:projects}-Eintrag), nicht aufs Dashboard.
     await page.click('#project-back-btn');
-    await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 5_000 });
+    await page.waitForSelector('body[data-current-view="projects"]', { timeout: 5_000 });
   });
 
   test('roadmap checkbox toggle', async ({ authedPage: page }) => {
