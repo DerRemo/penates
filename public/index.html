@@ -6065,8 +6065,7 @@
           return `
             <section class="roadmap-section${collapsed ? ' collapsed' : ''}" data-section="${sectionKey}">
               <button class="roadmap-section-head" type="button" data-section="${sectionKey}"
-                      aria-expanded="${collapsed ? 'false' : 'true'}"
-                      aria-label="${collapsed ? t('projects.detail.expandSection') : t('projects.detail.collapseSection')}">
+                      aria-expanded="${collapsed ? 'false' : 'true'}">
                 <span class="roadmap-chevron" aria-hidden="true">▾</span>
                 <span class="roadmap-section-label">${label}</span>
                 ${version ? `<span class="roadmap-version">v${escapeHtml(version)}</span>` : ''}
@@ -6168,7 +6167,6 @@
             const nowCollapsed = !sec.classList.contains('collapsed');
             sec.classList.toggle('collapsed', nowCollapsed);
             head.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
-            head.setAttribute('aria-label', nowCollapsed ? t('projects.detail.expandSection') : t('projects.detail.collapseSection'));
             setSectionCollapsed(p.id, key, nowCollapsed);
           });
         });
