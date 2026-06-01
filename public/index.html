@@ -1644,13 +1644,8 @@
        solange der User die Session nicht geöffnet hat. Auch der
        Session-Name leuchtet amber, damit man's auf den ersten Blick
        sieht — nicht nur ein feiner Border. */
-    @keyframes unread-breathe {
-      0%, 100% { box-shadow: 0 0 0 1px rgba(251,191,36,0.55), 0 0 14px 2px rgba(251,191,36,0.2); }
-      50%      { box-shadow: 0 0 0 1px rgba(251,191,36,0.75), 0 0 22px 4px rgba(251,191,36,0.35); }
-    }
     .session-card.unread {
       border-color: rgba(251,191,36,0.6);
-      animation: unread-breathe 2.4s ease-in-out infinite;
     }
     .session-card.unread .session-name {
       color: var(--amber);
@@ -3782,7 +3777,7 @@
 
     .section-bar {
       display: flex; align-items: center; gap: var(--space-3);
-      padding: var(--space-3) var(--space-6);
+      padding: var(--space-3) 0;
       border-bottom: 1px solid var(--border-subtle);
     }
     /* Sessions-Tab: Layout-Toggle ist in die Topbar gewandert, Refresh/Bulk-Kill
@@ -3797,8 +3792,7 @@
 
     .app-topbar {
       display: flex; align-items: center; gap: var(--space-4);
-      padding: var(--space-4) var(--space-6);
-      border-bottom: 1px solid var(--border-subtle);
+      padding: var(--space-4) 0;
       position: sticky; top: 0; z-index: 10;
       background: color-mix(in srgb, var(--bg-base) 82%, transparent);
       backdrop-filter: blur(12px);

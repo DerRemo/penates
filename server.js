@@ -592,17 +592,31 @@ app.get('/api/sessions', (req, res) => {
     };
     // attached-Flag bleibt in s.attached (UI-Anzeige), wird aber nicht mehr
     // zur Attention-Suppression verwendet — siehe Device-Presence in der Push-Schicht.
-    try {
-      const ctx = getCurrentContext(s.path);
-      base.contextTokens = ctx.tokens;
-      base.contextModel = ctx.model;
-      base.contextLimit = ctx.limit;
-      base.contextPct = ctx.pct;
-    } catch {
-      base.contextTokens = null;
-      base.contextModel = null;
-      base.contextLimit = null;
-      base.contextPct = null;
+    // Context-Anzeige: Claudes eigener Statusline-Wert
+    // (context_window.used_percentage) ist autoritativ und matcht exakt, was
+    // unten in der Session steht. Den bevorzugen, solange er frisch ist; nur
+    // wenn kein frischer Statusline-Wert vorliegt (z.B. dormant, alte Claude-
+    // Version ohne context_window), auf die JSONL-Schätzung zurückfallen.
+    if (sl && sl.contextPct != null) {
+      base.contextPct = sl.contextPct;
+      base.contextLimit = sl.contextSize ?? null;
+      base.contextTokens = sl.contextSize != null
+        ? Math.round(sl.contextSize * sl.contextPct / 100)
+        : null;
+      base.contextModel = sl.model ?? null;
+    } else {
+      try {
+        const ctx = getCurrentContext(s.path);
+        base.contextTokens = ctx.tokens;
+        base.contextModel = ctx.model;
+        base.contextLimit = ctx.limit;
+        base.contextPct = ctx.pct;
+      } catch {
+        base.contextTokens = null;
+        base.contextModel = null;
+        base.contextLimit = null;
+        base.contextPct = null;
+      }
     }
     base.muted = knownSessions.isMuted(s.name);
     base.pinned = knownSessions.isPinned(s.name);
