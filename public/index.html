@@ -4819,9 +4819,11 @@
       // Pro Account die anzuzeigende Zeile bestimmen: 5h-Fenster (Claude/Codex,
       // mit %) ODER limitiert-Zustand (Antigravity, nur Reset, kein %).
       const rowOf = (a) => {
-        const w5 = (a.windows || []).find(w => w.label === '5h');
-        if (w5) return { pct: Math.round(w5.usedPercentage ?? 0), resetsAt: w5.resetsAt, limited: false };
-        const lim = (a.windows || []).find(w => w.limited);
+        // Primärfenster: 5h bevorzugt (Claude/Codex-Paid), sonst 7d (Codex-Free
+        // hat nur ein Wochenlimit). Reset-Countdown macht den Zeitraum klar.
+        const w = (a.windows || []).find(x => x.label === '5h') || (a.windows || []).find(x => x.label === '7d');
+        if (w) return { pct: Math.round(w.usedPercentage ?? 0), resetsAt: w.resetsAt, limited: false };
+        const lim = (a.windows || []).find(x => x.limited);
         if (lim || a.limited) return { pct: 100, resetsAt: (lim && lim.resetsAt) || a.resetsAt, limited: true };
         return null;
       };
