@@ -401,6 +401,8 @@ window.__I18N_BUNDLES.de = {
   'projects.detail.itemAdded': 'Item hinzugefügt',
   'projects.detail.finalizeVersion': 'Version abschließen',
   'projects.detail.startSessionHere': 'Session hier starten',
+  'projects.detail.collapseSection': 'Sektion einklappen',
+  'projects.detail.expandSection': 'Sektion ausklappen',
 
   // Release modal
   'projects.release.title': 'Version abschließen',

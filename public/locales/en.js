@@ -401,6 +401,8 @@ window.__I18N_BUNDLES.en = {
   'projects.detail.itemAdded': 'Item added',
   'projects.detail.finalizeVersion': 'Finalize version',
   'projects.detail.startSessionHere': 'Start session here',
+  'projects.detail.collapseSection': 'Collapse section',
+  'projects.detail.expandSection': 'Expand section',
 
   // Release modal
   'projects.release.title': 'Finalize version',
