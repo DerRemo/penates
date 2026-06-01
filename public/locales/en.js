@@ -459,8 +459,13 @@ window.__I18N_BUNDLES.en = {
   'settings.section.appearance': 'Appearance',
   'settings.section.language': 'Language',
   'settings.section.notifications': 'Notifications',
+  'settings.section.sessions': 'Sessions',
   'settings.section.help': 'Help',
   'settings.section.about': 'About',
+
+  // Settings — Sessions section
+  'settings.sessions.bulkKillLabel': 'Kill idle sessions',
+  'settings.sessions.bulkKillDesc': 'Terminates all sessions without recent activity at once.',
 
   // Settings — Appearance section
   'settings.appearance.themeLabel': 'Theme',

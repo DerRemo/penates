@@ -1671,32 +1671,10 @@
     /* Mute-Toggle als kompakter Icon-Button in der Aktionsleiste
        (.session-card-tools). Bell/NoBell-Icons, Klick POSTet an
        /api/sessions/:name/mute. Nur bei running/dormant, nicht foreign. */
-    .session-mute-btn {
-      width: 28px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: none;
-      border: none;
-      cursor: pointer;
-      border-radius: var(--radius-sm);
-      color: var(--text-muted);
-      opacity: 0.55;
-      transition: opacity 120ms, color 120ms, background 120ms;
-    }
-    .session-mute-btn:hover {
-      opacity: 1;
-      background: var(--bg-card-hover);
-    }
-    .session-mute-btn[data-muted="true"] {
-      color: var(--red);
-      opacity: 0.9;
-    }
-    .session-mute-btn svg { width: 14px; height: 14px; }
-
-    /* Pin-Button — kompakter Icon-Button, links neben dem Mute-Button in
-       der Aktionsleiste (.session-card-tools). Gleiche Geometrie wie Mute. */
+    /* Icon-Button — kompakte 28px-Quadrate für ikonische Toggles in der
+       Card-Aktionsleiste (Pin/Mute). Gemeinsame Basis, nur die Aktiv-Farbe
+       unterscheidet sich. Gleiche Transition-Sprache wie .btn (0.15s ease). */
+    .session-mute-btn,
     .session-pin-btn {
       width: 28px;
       height: 28px;
@@ -1709,16 +1687,23 @@
       cursor: pointer;
       color: var(--text-muted);
       opacity: 0.55;
-      transition: opacity 120ms, color 120ms, background 120ms;
+      transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
     }
+    .session-mute-btn:hover,
     .session-pin-btn:hover {
       opacity: 1;
       background: var(--bg-card-hover);
+      color: var(--text-primary);
     }
-    .session-pin-btn[data-pinned="true"] {
-      color: var(--teal);
+    .session-mute-btn[data-muted="true"] {
+      color: var(--red);
       opacity: 0.9;
     }
+    .session-pin-btn[data-pinned="true"] {
+      color: var(--accent);
+      opacity: 0.9;
+    }
+    .session-mute-btn svg,
     .session-pin-btn svg { width: 14px; height: 14px; }
 
     /* ── Session-Card Projekt-Badge-Slot (Phase 0 versteckt) ───────── */
@@ -1762,6 +1747,13 @@
       max-width: 140px;
     }
 
+    /* ── Button-System ───────────────────────────────────────────────
+       Eine Basis + drei Tiers (primary / ghost / danger) + ein Size-
+       Modifier (sm). Bewusst RUHIG: kein Gradient, kein Glow, kein
+       Hover-Lift — Hover verschiebt nur Hintergrund/Border. Alles über
+       Tokens, damit alle vier Flavors ohne Sonderregeln stimmen.
+       primary = genau ein CTA pro View · ghost = sekundär/abbrechen ·
+       danger = destruktiv. */
     .btn {
       display: inline-flex;
       align-items: center;
@@ -1774,39 +1766,45 @@
       font-family: var(--font-ui);
       font-size: var(--text-base);
       font-weight: 600;
-      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+      line-height: 1.2;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
       white-space: nowrap;
     }
+    .btn:disabled,
+    .btn[aria-disabled="true"] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
+    /* Tier 1 — Primary: solider Akzent, flach. */
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent) 0%, var(--blue) 100%);
+      background: var(--accent);
       color: var(--accent-contrast);
-      box-shadow: 0 2px 12px var(--teal-glow-strong);
+      border-color: var(--accent);
     }
-
     .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 20px var(--teal-glow-strong);
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
     }
 
+    /* Tier 2 — Ghost/Sekundär: dezenter Rand, neutraler Text. */
     .btn-ghost {
-      background: var(--bg-card);
+      background: transparent;
       color: var(--text-secondary);
       border-color: var(--border);
     }
-
     .btn-ghost:hover {
       background: var(--bg-elevated);
       color: var(--text-primary);
       border-color: var(--border-strong);
     }
 
+    /* Tier 3 — Danger: gedämpftes Rot, intensiviert beim Hover. */
     .btn-danger {
       background: var(--red-muted);
       color: var(--red);
-      border-color: var(--red-muted);
+      border-color: transparent;
     }
-
     .btn-danger:hover {
       background: var(--red-muted);
       border-color: var(--red);
@@ -1820,6 +1818,10 @@
     .btn svg {
       width: 16px;
       height: 16px;
+    }
+    .btn-sm svg {
+      width: 14px;
+      height: 14px;
     }
 
     /* ── Session Grid ─────────────────────────────────────────────── */
@@ -1844,22 +1846,7 @@
       flex-direction: column;
       gap: var(--space-3);
       min-width: 0;
-      /* Clip die obere Gradient-Border (::before) auf die Card-Rundung. */
       overflow: hidden;
-    }
-
-    .session-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, var(--accent), transparent);
-      opacity: 0;
-      transition: opacity 0.25s ease;
-      border-top-left-radius: var(--radius);
-      border-top-right-radius: var(--radius);
     }
 
     .session-card:hover {
@@ -1867,10 +1854,6 @@
       border-color: var(--accent-muted);
       transform: translateY(-2px);
       box-shadow: var(--shadow-card);
-    }
-
-    .session-card:hover::before {
-      opacity: 1;
     }
 
     /* ── Redesign: Status-Streifen am linken Rand (Farbe = Pillen-Farbe) ── */
@@ -1967,6 +1950,36 @@
     .session-name .icon {
       color: var(--accent);
       font-size: var(--text-sm);
+      flex-shrink: 0;
+    }
+
+    /* Leise Meta-Zeile unter dem Header (Running-Cards): Projektname + Kontext-%.
+       Gibt der Card Körper wie im Redesign-Mockup, ohne laut zu sein. */
+    .session-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      min-width: 0;
+    }
+    .session-meta-proj {
+      color: var(--text-secondary);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .session-meta-ctx {
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .session-meta-sep {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--text-muted);
       flex-shrink: 0;
     }
 
@@ -2777,6 +2790,10 @@
     .session-card:focus-visible,
     .search-input:focus-visible,
     .layout-toggle-btn:focus-visible,
+    .sidebar__filter-btn:focus-visible,
+    .toggle-btn:focus-visible,
+    .session-mute-btn:focus-visible,
+    .session-pin-btn:focus-visible,
     .tree-row:focus-visible {
       outline: 2px solid var(--teal);
       outline-offset: 2px;
@@ -2834,6 +2851,9 @@
     }
 
     /* ── D7: Layout-Toggle (Grid/List) ──────────────────────────────── */
+    /* Segmented control — Container + Segmente. Geteilt mit .sidebar__filter
+       (gleiche Sprache: transparente Segmente, aktives Segment = accent-muted
+       + accent). Nur die Geometrie unterscheidet sich (Icon- vs. Text-Segmente). */
     .layout-toggle {
       display: inline-flex;
       border: 1px solid var(--border);
@@ -2853,13 +2873,16 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.15s ease;
+      transition: background 0.15s ease, color 0.15s ease;
     }
     .layout-toggle-btn svg { width: 14px; height: 14px; }
-    .layout-toggle-btn:hover { color: var(--text-secondary); }
+    .layout-toggle-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-card-hover);
+    }
     .layout-toggle-btn.active {
-      background: var(--teal-glow);
-      color: var(--teal);
+      background: var(--accent-muted);
+      color: var(--accent);
     }
 
     /* ── D7: List-Layout-Styles für das Grid ────────────────────────── */
@@ -2953,9 +2976,6 @@
       border-color: var(--teal-glow-strong);
       box-shadow: 0 0 0 1px var(--teal-glow-strong);
     }
-    .session-card[data-attached="true"]::before {
-      opacity: 1;
-    }
 
     /* Recovery / Adoption UI ---------------------------------------------- */
 
@@ -2966,38 +2986,38 @@
        trennen die Gruppen. Alles über Design-Tokens, damit Dark+Light
        ohne Zusatz-Regeln funktionieren.                                  */
 
+    /* Ruhiger Gruppenheader (passt zu den entschlackten Karten): gedämpftes
+       Label, neutrale Count-Pill, flache Haarlinie. Kein teal Glow/Sigil —
+       der Header soll trennen, nicht leuchten. */
     .sessions-section-header {
       grid-column: 1 / -1;
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin: 12px 0 2px;
+      gap: var(--space-3);
+      margin: var(--space-5) 0 var(--space-1);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: var(--text-muted);
+    }
+    .sessions-section-header .count {
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--teal);
-    }
-    /* Kleine Sigil-Box vor dem Label, erinnert an tmux-Pane-Indicator. */
-    .sessions-section-header::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      background: var(--teal);
-      box-shadow: 0 0 8px var(--teal-glow-strong);
-      flex-shrink: 0;
+      letter-spacing: 0;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-variant-numeric: tabular-nums;
     }
     .sessions-section-header::after {
       content: '';
       flex: 1;
       height: 1px;
-      background: linear-gradient(to right, var(--teal-glow-strong), transparent);
-    }
-    .sessions-section-header .count {
-      color: var(--text-muted);
-      font-weight: 400;
-      font-variant-numeric: tabular-nums;
+      background: var(--border-subtle);
     }
     /* Erste Section oben knapper ans Grid andocken (kein Extra-Margin). */
     .sessions-grid > .sessions-section-header:first-child {
@@ -3013,6 +3033,20 @@
       cursor: default;
       border-color: var(--border-subtle);
       background: var(--bg-card);
+    }
+    /* Ruhende Cards bleiben ruhig: kein amber unread-Puls, keine amber Border
+       und kein leuchtender Name. Der unread-Zustand kann durch ein Hook-Event
+       kurz an einer dormanten Card hängen — die soll trotzdem still aussehen. */
+    .session-card[data-status="dormant"].unread {
+      animation: none;
+      border-color: var(--border-subtle);
+    }
+    .session-card[data-status="dormant"].unread .session-name,
+    .session-card[data-status="dormant"].unread .session-name .icon {
+      color: var(--text-secondary);
+    }
+    .session-card[data-status="dormant"].unread::after {
+      content: none;
     }
     .session-card[data-status="dormant"]:hover {
       transform: none;
@@ -3057,17 +3091,8 @@
     /* Restore-CTA leuchtet als primärer Fokus — etwas kräftiger als
        ein normaler btn-primary, damit die Aktion auf der grauen Karte
        die Augen sofort anspringt. */
-    .session-card[data-status="dormant"] .btn[data-action="restore"] {
-      background: var(--teal);
-      color: var(--accent-contrast);
-      border: 1px solid var(--teal);
-      box-shadow: 0 0 0 1px var(--teal-glow-strong), 0 0 14px var(--teal-glow);
-      font-weight: 600;
-    }
-    .session-card[data-status="dormant"] .btn[data-action="restore"]:hover {
-      background: var(--accent-hover);
-      box-shadow: 0 0 0 2px var(--teal-glow-strong), 0 0 22px var(--teal-glow-strong);
-    }
+    /* Restore erbt das ruhige .btn-primary (solid teal, kein Glow) —
+       kein Sonder-Styling mehr nötig. */
     .session-card[data-status="dormant"] .btn[data-action="forget"] {
       opacity: 0.6;
     }
@@ -3717,7 +3742,7 @@
       background: #fff;
       transition: transform .15s;
     }
-    .toggle-btn[aria-pressed="true"] { background: var(--accent, #2dd4bf); }
+    .toggle-btn[aria-pressed="true"] { background: var(--accent); }
     .toggle-btn[aria-pressed="true"]::after { transform: translateX(18px); }
     .settings-about-changelog {
       margin-top: 12px;
@@ -3760,6 +3785,13 @@
       padding: var(--space-3) var(--space-6);
       border-bottom: 1px solid var(--border-subtle);
     }
+    /* Sessions-Tab: Layout-Toggle ist in die Topbar gewandert, Refresh/Bulk-Kill
+       sind weg (auto-poll bzw. Settings). Das Grid rendert eigene Gruppenheader
+       → die Section-Bar ist hier leer und entfällt komplett. Auf Usage/Projekte
+       bleibt sie (zeigt das Section-Label). */
+    body[data-active-tab="sessions"] .section-bar {
+      display: none;
+    }
     .section-bar__label { font: 600 10px var(--font-ui); letter-spacing: .13em; text-transform: uppercase; color: var(--text-muted); }
     .section-bar__actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: flex-end; }
 
@@ -3771,6 +3803,12 @@
       background: color-mix(in srgb, var(--bg-base) 82%, transparent);
       backdrop-filter: blur(12px);
     }
+    /* Einheitliche Höhe für die interaktiven Topbar-Controls (Suche,
+       Layout-Toggle, Neue Session) — sie sitzen in einer Reihe und sollen
+       fluchten. .btn-sm wäre sonst niedriger als das Suchfeld. */
+    .app-topbar .field,
+    .app-topbar .layout-toggle,
+    .app-topbar > .btn { height: 36px; }
     .app-topbar__title { margin: 0; font: 600 19px var(--font-display); letter-spacing: -.01em; }
     .app-topbar__summary { font-size: 12.5px; color: var(--text-secondary); }
     .app-topbar__summary b { color: var(--text-primary); }
@@ -3948,6 +3986,10 @@
           <input type="search" id="session-search" data-i18n-attr="placeholder:dashboard.filterPlaceholder" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
           <kbd>/</kbd>
         </div>
+        <div class="layout-toggle" role="group" data-i18n-attr="aria-label:dashboard.layoutAria" aria-label="Layout" data-tab-scope="sessions">
+          <button class="layout-toggle-btn" id="layout-grid-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.gridAria;title:dashboard.layout.gridTitle" aria-label="Grid view" title="Grid (g)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
+          <button class="layout-toggle-btn" id="layout-list-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.listAria;title:dashboard.layout.listTitle" aria-label="List view" title="List (l)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></button>
+        </div>
         <button class="btn btn-primary btn-sm" id="new-session-btn" type="button" data-tab-scope="sessions">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           <span data-i18n="dashboard.newSession">New Session</span>
@@ -3960,14 +4002,6 @@
       <div class="section-bar">
         <span class="section-bar__label" id="shell-section-label"></span>
         <span class="pill pill--plain pill--neutral" id="shell-section-count"></span>
-        <div class="section-bar__actions">
-          <div class="layout-toggle" role="group" data-i18n-attr="aria-label:dashboard.layoutAria" aria-label="Layout" data-tab-scope="sessions">
-            <button class="layout-toggle-btn" id="layout-grid-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.gridAria;title:dashboard.layout.gridTitle" aria-label="Grid view" title="Grid (g)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
-            <button class="layout-toggle-btn" id="layout-list-btn" type="button" data-i18n-attr="aria-label:dashboard.layout.listAria;title:dashboard.layout.listTitle" aria-label="List view" title="List (l)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></button>
-          </div>
-          <button class="btn btn-ghost btn-sm" id="refresh-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg><span data-i18n="dashboard.refresh">Refresh</span></button>
-          <button class="btn btn-ghost btn-sm" id="bulk-kill-btn" type="button" data-tab-scope="sessions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg><span data-i18n="dashboard.bulkKill">Bulk Kill</span></button>
-        </div>
       </div>
       <div class="sessions-grid" id="sessions-grid" data-tab-panel="sessions">
         <!-- Sessions will be rendered here -->
@@ -4216,6 +4250,21 @@
           </div>
         </div>
         <p class="settings-row__hint" data-i18n="settings.remoteApprovalDesc"></p>
+      </section>
+
+      <!-- Sessions -->
+      <section class="settings-card" id="settings-sessions">
+        <h2 data-i18n="settings.section.sessions">Sessions</h2>
+        <div class="settings-row">
+          <label data-i18n="settings.sessions.bulkKillLabel">Idle-Sessions beenden</label>
+          <div class="settings-row__control">
+            <button type="button" class="btn btn-danger btn-sm" id="bulk-kill-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              <span data-i18n="dashboard.bulkKill">Bulk Kill</span>
+            </button>
+          </div>
+        </div>
+        <p class="settings-row__hint" data-i18n="settings.sessions.bulkKillDesc"></p>
       </section>
 
       <!-- Help -->
@@ -4720,8 +4769,13 @@
       const lbl = document.getElementById('shell-section-label');
       const cnt = document.getElementById('shell-section-count');
       if (lbl && cnt) {
-        if (tab === 'sessions') { lbl.textContent = t('sidebar.filterActive').toUpperCase(); cnt.textContent = c.active; cnt.hidden = false; }
-        else { lbl.textContent = t(SHELL_TITLES[tab]).toUpperCase(); cnt.hidden = true; }
+        // Sessions-Tab: das Grid rendert pro Gruppe eigene Header (Aktiv/
+        // Ruhend/Foreign). Das Section-Bar-Label würde direkt darüber ein
+        // zweites "AKTIV" doppeln — daher hier ausblenden, nur die Actions
+        // (Layout/Refresh/Bulk-Kill) bleiben in der Bar. Auf Usage/Projekte
+        // gibt es keine Grid-Header → Label bleibt der einzige Indikator.
+        if (tab === 'sessions') { lbl.textContent = ''; lbl.hidden = true; cnt.hidden = true; }
+        else { lbl.hidden = false; lbl.textContent = t(SHELL_TITLES[tab]).toUpperCase(); cnt.hidden = true; }
       }
     }
 
@@ -5160,11 +5214,12 @@
     };
     function patchActivityBadge(name, activity, tool) {
       const card = document.querySelector(`.session-card[data-name="${CSS.escape(name)}"]`);
-      if (card) {
-        // Status-Streifen folgt der activity (nur running-Cards tragen data-activity)
-        if (card.getAttribute('data-status') === 'running') {
-          card.setAttribute('data-activity', activity || 'unknown');
-        }
+      // Nur running-Cards tragen einen Activity-Lifecycle. Dormant/Foreign
+      // dürfen NICHT auf working/waiting umgefärbt werden (sonst blinkt eine
+      // ruhende Card amber, obwohl sie ruht) — die kommen erst beim nächsten
+      // refreshSessions() korrekt zurück.
+      if (card && card.getAttribute('data-status') === 'running') {
+        card.setAttribute('data-activity', activity || 'unknown');
         const badge = card.querySelector('.session-status');
         if (badge) {
           if (tool) {
@@ -6524,6 +6579,17 @@
         const label = s.activity === 'unknown' && !s.attached ? t('sessionCard.status.dormant') : act.label;
         const unreadCls = unreadSessions.has(s.name) ? ' unread' : '';
         const activityAttr = escapeHtml(s.activity || 'unknown');
+        // Leise zweite Zeile (wie im Redesign-Mockup): Projektname + Kontext-%.
+        // Gibt der Card Körper, ohne laut zu sein. Beides optional — fehlt eins,
+        // bleibt die Zeile trotzdem ruhig (oder entfällt ganz).
+        const projName = (s.path || '').split('/').filter(Boolean).pop() || '';
+        const ctxPct = s.contextPct;
+        const metaBits = [];
+        if (projName) metaBits.push(`<span class="session-meta-proj">${escapeHtml(projName)}</span>`);
+        if (ctxPct !== null && ctxPct !== undefined) metaBits.push(`<span class="session-meta-ctx">${ctxPct}% Kontext</span>`);
+        const metaRow = metaBits.length
+          ? `<div class="session-meta">${metaBits.join('<span class="session-meta-sep" aria-hidden="true"></span>')}</div>`
+          : '';
         return `
           <div class="session-card${unreadCls}" data-status="running" data-name="${safeName}" data-attached="${s.attached}" data-activity="${activityAttr}">
             <span class="card-accent" aria-hidden="true"></span>
@@ -6534,6 +6600,7 @@
               </div>
               <div class="session-status ${act.cls}" title="${escapeHtml(act.title)}">${label}</div>
             </div>
+            ${metaRow}
             <div class="session-actions" data-stop-propagation>
               <button class="btn btn-danger btn-sm" data-action="kill">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -6637,15 +6704,25 @@
         }
       }
 
-      // Existierende Kinder per Key indexieren
+      // Existierende Kinder per Key indexieren. Duplikate (gleicher Key) oder
+      // fremde Knoten werden SOFORT entfernt — sonst überlebt ein verwaister
+      // Header/Card-Klon (z.B. aus einem race zwischen zwei renderSessions()
+      // oder einem mitten in der card-enter-Animation abgebrochenen Insert)
+      // als "zwei mal Aktiv" + Geister-Trennlinie im Grid. Map.set würde den
+      // früheren Knoten still überschreiben und ihn nie mehr aufräumen.
       const existingByKey = new Map();
       for (const el of Array.from(grid.children)) {
+        let key = null;
         if (el.classList.contains('session-card')) {
-          existingByKey.set('card:' + el.dataset.name, el);
+          key = 'card:' + el.dataset.name;
         } else if (el.classList.contains('sessions-section-header')) {
-          const label = (el.firstChild?.textContent || '').trim();
-          existingByKey.set('header:' + label, el);
+          key = 'header:' + (el.firstChild?.textContent || '').trim();
         }
+        if (key === null || existingByKey.has(key)) {
+          el.remove();
+          continue;
+        }
+        existingByKey.set(key, el);
       }
 
       // Gewünschte Reihenfolge auflösen: existierende Cards werden
@@ -8321,7 +8398,8 @@
     }
 
     // ── Wiring: Event-Listener für Buttons + Shortcuts ────────────
-    document.getElementById('refresh-btn').addEventListener('click', () => refreshSessions());
+    // Refresh-Button entfernt — Sessions aktualisieren sich automatisch
+    // (5s-Poll + WebSocket). Der 'r'-Shortcut triggert weiterhin manuell.
     document.getElementById('new-session-btn').addEventListener('click', () => openNewSessionModal());
     // Zurück-Button im Terminal-Toolbar → setView('dashboard') wird den
     // History-Eintrag via history.back() räumen, popstate ruft dann das

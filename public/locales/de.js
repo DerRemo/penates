@@ -459,8 +459,13 @@ window.__I18N_BUNDLES.de = {
   'settings.section.appearance': 'Erscheinungsbild',
   'settings.section.language': 'Sprache',
   'settings.section.notifications': 'Benachrichtigungen',
+  'settings.section.sessions': 'Sessions',
   'settings.section.help': 'Hilfe',
   'settings.section.about': 'Über',
+
+  // Settings — Sessions section
+  'settings.sessions.bulkKillLabel': 'Untätige Sessions beenden',
+  'settings.sessions.bulkKillDesc': 'Beendet alle Sessions ohne kürzliche Aktivität auf einmal.',
 
   // Settings — Appearance section
   'settings.appearance.themeLabel': 'Theme',
