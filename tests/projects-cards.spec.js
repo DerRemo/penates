@@ -46,4 +46,35 @@ test.describe('Projects cards (Phase 2)', () => {
     await page.selectOption('#projects-filter', 'hideMissing');
     await expect(page.locator('.project-missing')).toHaveCount(0);
   });
+
+  test('quick-start "Session hier" opens the new-session modal without navigating', async ({ authedPage: page, isMobile }) => {
+    await gotoProjects(page, isMobile);
+    const card = page.locator('.project-card').first();
+    if (await card.count() === 0) test.skip(true, 'no projects registered');
+    const modal = page.locator('#new-session-modal');
+    const startBtn = card.locator('[data-action="start-session"]');
+
+    // The action row is revealed on hover/focus-within (grid) — it's already
+    // visible in list layout and on touch devices. Hover to surface it on
+    // desktop grid before the mouse click.
+    await card.hover();
+    // mouse click — opens the modal, must NOT navigate to project-detail
+    await startBtn.click();
+    await expect(modal).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute('data-current-view', 'projects');
+
+    // close (Esc is wired in the global keydown handler) and confirm hidden
+    await page.keyboard.press('Escape');
+    await expect(modal).toBeHidden();
+    await expect(page.locator('body')).toHaveAttribute('data-current-view', 'projects');
+
+    // keyboard-activate the same button — guards the card keydown fix:
+    // Enter on the focused button must open the modal (button native click),
+    // and the bubbled keydown must NOT navigate the card to project-detail.
+    await card.hover();
+    await startBtn.focus();
+    await page.keyboard.press('Enter');
+    await expect(modal).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute('data-current-view', 'projects');
+  });
 });

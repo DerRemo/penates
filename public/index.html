@@ -5252,6 +5252,7 @@
             open();
           });
           card.addEventListener('keydown', (e) => {
+            if (e.target.closest('[data-stop-propagation]')) return;
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
           });
         });
