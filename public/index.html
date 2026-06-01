@@ -2240,10 +2240,13 @@
       box-shadow: 0 1px 3px rgba(0,0,0,.25); }
     .ns-seg button svg { width: 13px; height: 13px; }
 
-    #dir-panel-browse { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    #dir-panel-browse, #dir-panel-recent { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     #dir-panel-browse[hidden], #dir-panel-recent[hidden] { display: none !important; }
     .ns-left .tree-picker { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     .ns-left .tree-list { flex: 1; max-height: none; min-height: 0; }
+    /* Recent-Liste füllt dieselbe Spaltenhöhe wie der Tree (oben ausgerichtet,
+       scrollt intern bei vielen Einträgen) → Modal-Höhe bleibt beim Tab-Wechsel konstant. */
+    .ns-left .recent-dirs-list { flex: 0 1 auto; max-height: none; min-height: 0; overflow-y: auto; }
     .ns-recent-empty { font-size: 12px; color: var(--text-muted); padding: 10px 4px; }
 
     .cli-picker { display: flex; gap: 7px; }
