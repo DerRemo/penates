@@ -3933,6 +3933,16 @@
     .field svg { width: 16px; height: 16px; flex-shrink: 0; }
     .field input { border: 0; background: transparent; color: var(--text-primary); font: 500 13px var(--font-ui); outline: none; width: 180px; }
     .field kbd { font: 600 10px var(--font-mono); color: var(--text-muted); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
+    .field--select { padding: 0; }
+    .field--select select {
+      appearance: none; -webkit-appearance: none;
+      border: 0; background: transparent; color: var(--text-primary);
+      font: 500 13px var(--font-ui); outline: none; cursor: pointer;
+      padding: 8px 30px 8px 12px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2390909a' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 9px center; background-size: 14px;
+    }
+    .field--select select option { background: var(--bg-card); color: var(--text-primary); }
 
     .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px var(--space-2); }
     .sidebar__brand-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); color: var(--accent-contrast); display: grid; place-items: center; font: 700 13px var(--font-mono); }
@@ -4134,6 +4144,27 @@
         <div class="app-topbar__search field">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="search" id="projects-search" data-i18n-attr="placeholder:dashboard.filterPlaceholder" placeholder="Filter… (/)" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field field--select">
+          <select id="projects-filter" data-i18n-attr="aria-label:projects.filter.label">
+            <option value="all" data-i18n="projects.filter.all">All projects</option>
+            <option value="sessions" data-i18n="projects.filter.sessions">With active sessions</option>
+            <option value="backlog" data-i18n="projects.filter.backlog">With open backlog</option>
+            <option value="hideMissing" data-i18n="projects.filter.hideMissing">Hide missing ROADMAP</option>
+          </select>
+        </div>
+        <div class="field field--select">
+          <select id="projects-sort" data-i18n-attr="aria-label:projects.sort.label">
+            <option value="name" data-i18n="projects.sort.name">Name</option>
+            <option value="progress" data-i18n="projects.sort.progress">Progress</option>
+            <option value="backlog" data-i18n="projects.sort.backlog">Backlog</option>
+            <option value="sessions" data-i18n="projects.sort.sessions">Active sessions</option>
+            <option value="modified" data-i18n="projects.sort.modified">Last modified</option>
+          </select>
+        </div>
+        <div class="layout-toggle" role="group" aria-label="Layout">
+          <button class="layout-toggle-btn" id="projects-layout-grid" type="button" data-i18n-attr="aria-label:projects.layout.gridAria"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
+          <button class="layout-toggle-btn" id="projects-layout-list" type="button" data-i18n-attr="aria-label:projects.layout.listAria"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></button>
         </div>
         <button class="btn btn-primary btn-sm" id="new-project-btn" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
@@ -4778,6 +4809,45 @@
       grid.classList.toggle('layout-list', layout === 'list');
       document.getElementById('layout-grid-btn').classList.toggle('active', layout === 'grid');
       document.getElementById('layout-list-btn').classList.toggle('active', layout === 'list');
+    }
+
+    // Projects-View: eigener Layout-/Sort-/Filter-State (getrennt vom Sessions-Grid).
+    function getProjectsLayout() { return localStorage.getItem('cchub_projects_layout') || 'grid'; }
+    function setProjectsLayout(layout) {
+      localStorage.setItem('cchub_projects_layout', layout);
+      const grid = document.querySelector('#projects-view .project-list');
+      if (grid) grid.classList.toggle('layout-list', layout === 'list');
+      const g = document.getElementById('projects-layout-grid');
+      const l = document.getElementById('projects-layout-list');
+      if (g) g.classList.toggle('active', layout === 'grid');
+      if (l) l.classList.toggle('active', layout === 'list');
+    }
+    function getProjectsSort() { return localStorage.getItem('cchub_projects_sort') || 'name'; }
+    function getProjectsFilter() { return localStorage.getItem('cchub_projects_filter') || 'all'; }
+    function projectActiveSessions(p) {
+      // running/foreign Sessions im cwd (dormant zählt nicht als „aktiv").
+      return sessionsInProject(p.path).filter(s => s.status !== 'dormant').length;
+    }
+    function sortProjects(list) {
+      const mode = getProjectsSort();
+      const arr = list.slice();
+      const pct = p => (p.dev?.total ? p.dev.done / p.dev.total : 0);
+      const cmp = {
+        name:     (a, b) => a.displayName.localeCompare(b.displayName),
+        progress: (a, b) => pct(b) - pct(a),
+        backlog:  (a, b) => (b.backlogCount ?? 0) - (a.backlogCount ?? 0),
+        sessions: (a, b) => projectActiveSessions(b) - projectActiveSessions(a),
+        modified: (a, b) => (b.mtimeMs ?? 0) - (a.mtimeMs ?? 0),
+      }[mode] || cmp_name_fallback;
+      function cmp_name_fallback(a, b) { return a.displayName.localeCompare(b.displayName); }
+      return arr.sort(cmp);
+    }
+    function filterProjects(list) {
+      const f = getProjectsFilter();
+      if (f === 'sessions')    return list.filter(p => projectActiveSessions(p) > 0);
+      if (f === 'backlog')     return list.filter(p => (p.backlogCount ?? 0) > 0);
+      if (f === 'hideMissing') return list.filter(p => !p.missing);
+      return list;
     }
 
     // ── View-Manager ───────────────────────────────────────────────
@@ -8781,6 +8851,16 @@
       setLayout('list');
       if (sessions === null) renderSkeleton();
     });
+    document.getElementById('projects-layout-grid')?.addEventListener('click', () => { setProjectsLayout('grid'); });
+    document.getElementById('projects-layout-list')?.addEventListener('click', () => { setProjectsLayout('list'); });
+    document.getElementById('projects-sort')?.addEventListener('change', (e) => {
+      localStorage.setItem('cchub_projects_sort', e.target.value);
+      renderProjects();
+    });
+    document.getElementById('projects-filter')?.addEventListener('change', (e) => {
+      localStorage.setItem('cchub_projects_filter', e.target.value);
+      renderProjects();
+    });
     updateSoundToggleUi();
 
     // Sidebar: Event-Delegation für Session-Clicks + Nav-Items. Ein
@@ -9168,6 +9248,8 @@
     // den Persistenz-Block in setView() das gespeicherte 'projects'/'usage'
     // überschreiben, bevor initialNavView() es lesen kann (Reload-Restore
     // würde sonst immer auf dashboard landen).
+    { const s = document.getElementById('projects-sort'); if (s) s.value = getProjectsSort();
+      const f = document.getElementById('projects-filter'); if (f) f.value = getProjectsFilter(); }
     setView(initialNavView());
     // Notifications-WS direkt beim Start — unabhängig vom aktiven Tab,
     // damit Attention-Events auch dann ankommen wenn der User gerade
