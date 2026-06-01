@@ -38,6 +38,17 @@ export async function ensureSidebarClosed(page) {
   }
 }
 
+export async function ensureSidebarOpen(page) {
+  // On mobile/tablet viewports (<=899px) the sidebar is an off-canvas drawer.
+  // Open it so its nav items / settings entry become clickable. No-op on
+  // desktop — the hamburger is display:none there, so isVisible() is false.
+  const hamburger = page.locator('#sidebar-toggle');
+  if ((await hamburger.isVisible()) && !(await page.locator('body[data-sidebar-open="true"]').count())) {
+    await hamburger.click();
+    await page.waitForSelector('body[data-sidebar-open="true"]', { timeout: 3_000 });
+  }
+}
+
 export async function navigateToSession(page, sessionName) {
   // On mobile/tablet viewports, ensure the sidebar drawer is closed so it
   // doesn't block clicks on session cards in the main content area.

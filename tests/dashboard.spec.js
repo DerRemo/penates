@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures.js';
-import { navigateToSession, goBackToDashboard, getToken } from './helpers.js';
+import { navigateToSession, goBackToDashboard, getToken, ensureSidebarOpen } from './helpers.js';
 
 test.describe('Dashboard', () => {
   test('shows session cards on load', async ({ authedPage: page }) => {
@@ -35,13 +35,6 @@ test.describe('Dashboard', () => {
     expect(restored).toBeGreaterThan(0);
   });
 
-  test('refresh button reloads sessions', async ({ authedPage: page }) => {
-    await page.locator('.session-card').first().waitFor({ timeout: 10_000 });
-    await page.click('#refresh-btn');
-    await page.waitForTimeout(1_000);
-    await expect(page.locator('.session-card').first()).toBeVisible();
-  });
-
   test('create, navigate, and kill session lifecycle', async ({ authedPage: page }) => {
     const name = `e2e-lifecycle-${Date.now()}`;
     const token = await getToken(page);
@@ -53,7 +46,7 @@ test.describe('Dashboard', () => {
     expect(createRes.ok()).toBeTruthy();
 
     try {
-      await page.click('#refresh-btn');
+      // Sessions pollen alle 5s — die Card erscheint ohne manuellen Reload.
       const card = page.locator(`.session-card[data-name="cc-${name}"]`);
       await card.waitFor({ timeout: 10_000 });
       await expect(card).toBeVisible();
@@ -64,10 +57,6 @@ test.describe('Dashboard', () => {
       page.once('dialog', dialog => dialog.accept());
       await page.click('#kill-current-btn');
       await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
-
-      await page.waitForTimeout(500);
-      await page.click('#refresh-btn');
-      await page.waitForTimeout(1_000);
     } finally {
       await page.request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -76,7 +65,6 @@ test.describe('Dashboard', () => {
   });
 
   test('session card click navigates to terminal', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await expect(page.locator('body')).toHaveAttribute('data-current-view', 'terminal');
     await goBackToDashboard(page);
@@ -93,7 +81,6 @@ test.describe('Dashboard', () => {
     });
 
     try {
-      await page.click('#refresh-btn');
       const card = page.locator(`.session-card[data-name="cc-${name}"]`);
       await card.waitFor({ timeout: 10_000 });
 
@@ -103,8 +90,7 @@ test.describe('Dashboard', () => {
       });
       expect(renameRes.ok()).toBeTruthy();
 
-      await page.click('#refresh-btn');
-      await page.waitForTimeout(1_000);
+      // Auto-Poll übernimmt den Rename innerhalb ~5s.
       const renamedCard = page.locator(`.session-card[data-name="cc-${newName}"]`);
       await renamedCard.waitFor({ timeout: 10_000 });
       await expect(renamedCard).toBeVisible();
@@ -119,7 +105,6 @@ test.describe('Dashboard', () => {
   });
 
   test('mute toggle changes state', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     const card = page.locator(`.session-card[data-name="${hubSession.name}"]`);
     await card.waitFor({ timeout: 10_000 });
 
@@ -135,7 +120,6 @@ test.describe('Dashboard', () => {
   });
 
   test('pin toggle changes state', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     const card = page.locator(`.session-card[data-name="${hubSession.name}"]`);
     await card.waitFor({ timeout: 10_000 });
 
@@ -162,8 +146,10 @@ test.describe('Dashboard', () => {
     await expect(page.locator('.dashboard-tabs')).toHaveCount(0);
     await expect(page.locator('#tab-sessions, #tab-usage, #tab-projects')).toHaveCount(0);
 
+    await ensureSidebarOpen(page);
     await page.locator('[data-sidebar-nav="projects"]').click();
     await expect(page.locator('#projects-view')).toBeVisible();
+    await ensureSidebarOpen(page);
     await page.locator('[data-sidebar-nav="sessions"]').click();
     await expect(page.locator('#sessions-grid')).toBeVisible();
   });
@@ -171,12 +157,19 @@ test.describe('Dashboard', () => {
   test('app-shell: topbar carries title, search and primary action', async ({ authedPage: page }) => {
     await expect(page.locator('.app-topbar #shell-title')).toBeVisible();
     await expect(page.locator('.app-topbar #session-search')).toBeVisible();
-    await expect(page.locator('.section-bar')).toBeVisible();
+    // .section-bar entfällt im Redesign auf dem Sessions-Tab (display:none) —
+    // sie erscheint nur auf Usage/Projekte. Daher hier nicht mehr asserten.
     await page.locator('.app-topbar #new-session-btn').click();
     await expect(page.locator('#new-session-modal')).toHaveClass(/open/, { timeout: 3000 });
   });
 
   test('bulk kill modal opens and closes', async ({ authedPage: page }) => {
+    // Bulk-Kill lebt nach dem Redesign in den Einstellungen, nicht mehr in der Topbar.
+    // Auf Mobile/Tablet erst den Off-Canvas-Drawer öffnen.
+    await ensureSidebarOpen(page);
+    await page.click('#sidebar-settings-entry');
+    await page.waitForSelector('body[data-current-view="settings"]', { timeout: 5_000 });
+
     await page.click('#bulk-kill-btn');
     await expect(page.locator('#bulk-kill-modal')).toHaveClass(/open/, { timeout: 3_000 });
 
