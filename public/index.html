@@ -2225,10 +2225,12 @@
     .ns-header-icon svg { width: 18px; height: 18px; }
     .ns-header h2 { margin: 0; font-size: var(--text-md); font-weight: 700; }
 
-    .ns-split { display: grid; grid-template-columns: 1fr 1.18fr; }
+    /* minmax(0, …) statt 1fr: pinnt die Spalten strikt aufs Verhältnis, sonst
+       zieht breiter Inhalt (lange Recent-Pfade) die Spalte auf → Breiten-Sprung. */
+    .ns-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr); }
     .ns-left { padding: 18px 20px; border-right: 1px solid var(--border-subtle);
-      display: flex; flex-direction: column; min-height: 0; }
-    .ns-right { padding: 18px 22px; display: flex; flex-direction: column; }
+      display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+    .ns-right { padding: 18px 22px; display: flex; flex-direction: column; min-width: 0; }
     .ns-right .modal-actions { margin-top: auto; }
 
     .ns-seg { display: flex; background: var(--bg-deep); border: 1px solid var(--border);
