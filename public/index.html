@@ -6492,7 +6492,12 @@
                 else if (err.status !== 401) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
               }
             });
-            setTimeout(() => document.addEventListener('click', closeMoveMenu), 0);
+            // Synchron registrieren (kein setTimeout): der Open-Click ruft
+            // oben e.stopPropagation() → erreicht document NICHT, dieser
+            // Listener feuert also erst beim nächsten (Outside-)Click. Das
+            // setTimeout(0) hatte eine Race, die das Outside-Close flaky
+            // machte (Listener noch nicht registriert beim Test-Click).
+            document.addEventListener('click', closeMoveMenu);
           });
         });
 
