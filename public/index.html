@@ -2243,6 +2243,7 @@
     .ns-seg button svg { width: 13px; height: 13px; }
 
     #dir-panel-browse { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    #dir-panel-browse[hidden], #dir-panel-recent[hidden] { display: none !important; }
     .ns-left .tree-picker { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     .ns-left .tree-list { flex: 1; max-height: none; min-height: 0; }
     .ns-recent-empty { font-size: 12px; color: var(--text-muted); padding: 10px 4px; }
@@ -8216,38 +8217,93 @@
     }
 
     let _activeCli = 'claude';
-    function fillVariants(mod, cliId) {
-      const sel = document.getElementById('new-session-cmd');
-      if (!sel) return;
-      const c = mod.CLIS.find(x => x.id === cliId) || mod.CLIS[0];
-      sel.innerHTML = c.variants.map(v =>
-        `<option value="${escapeHtml(v.command)}">${escapeHtml(v.label)}</option>`).join('');
+    let _activeTier = null;   // null → fall back to defaultVariant tier
+
+    // Modus-Tier → Icon + i18n-Sublabel-Key. Reihenfolge/Label kommen aus clis.js.
+    const MODUS_META = {
+      safe:   { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>', subKey: 'modal.newSession.modeStandardSub' },
+      auto:   { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 5l7 7-7 7M4 5l7 7-7 7"/></svg>', subKey: 'modal.newSession.modeAutoSub' },
+      danger: { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>', subKey: 'modal.newSession.modeDangerSub' },
+    };
+
+    // Setzt #new-session-cmd auf den Command der aktiven (CLI × Tier)-Kombination.
+    function syncCommand(mod) {
+      const hidden = document.getElementById('new-session-cmd');
+      if (!hidden) return;
+      const v = mod.variantByTier(_activeCli, _activeTier) || mod.defaultVariant(_activeCli);
+      hidden.value = v ? v.command : _activeCli;
     }
+
+    // Rendert das Modus-Control für die aktive CLI; setzt _activeTier auf den
+    // Default falls leer/ungültig, verdrahtet Klicks, synct den Command.
+    function renderModus(mod) {
+      const wrap = document.getElementById('modus-control');
+      if (!wrap) return;
+      const c = mod.CLIS.find(x => x.id === _activeCli) || mod.CLIS[0];
+      if (!_activeTier || !c.variants.some(v => v.tier === _activeTier)) {
+        const def = mod.defaultVariant(c.id);
+        _activeTier = def ? def.tier : (c.variants[0] && c.variants[0].tier);
+      }
+      wrap.innerHTML = c.variants.map(v => {
+        const m = MODUS_META[v.tier] || MODUS_META.safe;
+        return `<button type="button" class="modus-btn" data-tier="${v.tier}" `
+          + `aria-pressed="${v.tier === _activeTier}" aria-label="${escapeHtml(v.label)}">`
+          + `${m.icon}<span>${escapeHtml(v.label)}</span>`
+          + `<span class="modus-sub">${escapeHtml(t(m.subKey))}</span></button>`;
+      }).join('');
+      wrap.querySelectorAll('.modus-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _activeTier = btn.dataset.tier;
+          wrap.querySelectorAll('.modus-btn').forEach(b =>
+            b.setAttribute('aria-pressed', b.dataset.tier === _activeTier ? 'true' : 'false'));
+          syncCommand(mod);
+        });
+      });
+      syncCommand(mod);
+    }
+
     async function renderCliPicker() {
       const mod = await ensureClis();
       const picker = document.getElementById('cli-picker');
-      const sel = document.getElementById('new-session-cmd');
-      if (!mod) { // Fallback
+      const hidden = document.getElementById('new-session-cmd');
+      if (!mod) { // Fallback: clis.js konnte nicht laden
         if (picker) picker.innerHTML = '';
-        if (sel) sel.innerHTML = '<option value="claude">claude</option>';
+        if (hidden) hidden.value = 'claude';
         return;
       }
       _activeCli = 'claude';
+      _activeTier = null;
       if (picker) {
         picker.innerHTML = mod.CLIS.map(c =>
-          `<button type="button" class="cli-pick-btn" data-cli="${c.id}" aria-pressed="${c.id === _activeCli}">`
-          + `${cliBadgeHtml(mod, c.id)}<span>${escapeHtml(c.label)}</span></button>`).join('');
+          `<button type="button" class="cli-pick-btn" data-cli="${c.id}" style="--cli-color:${c.color}" `
+          + `aria-pressed="${c.id === _activeCli}" aria-label="${escapeHtml(c.label)}" title="${escapeHtml(c.label)}">`
+          + `<span class="cli-logo">${c.logo}</span><span class="cli-name">${escapeHtml(c.label)}</span></button>`).join('');
         picker.querySelectorAll('.cli-pick-btn').forEach(btn => {
           btn.addEventListener('click', () => {
             _activeCli = btn.dataset.cli;
+            _activeTier = null;   // neue CLI → Default-Tier neu bestimmen
             picker.querySelectorAll('.cli-pick-btn').forEach(b =>
               b.setAttribute('aria-pressed', b.dataset.cli === _activeCli ? 'true' : 'false'));
-            fillVariants(mod, _activeCli);
+            renderModus(mod);
           });
         });
       }
-      fillVariants(mod, _activeCli);
+      renderModus(mod);
     }
+
+    // Verzeichnis-Tab-Switch (Browse ⇄ Zuletzt). Browse ist Default.
+    function setDirTab(tab) {
+      const browse = document.getElementById('dir-panel-browse');
+      const recent = document.getElementById('dir-panel-recent');
+      document.querySelectorAll('#dir-tabs button').forEach(b =>
+        b.setAttribute('aria-pressed', b.dataset.tab === tab ? 'true' : 'false'));
+      if (browse) browse.hidden = tab !== 'browse';
+      if (recent) recent.hidden = tab !== 'recent';
+    }
+    document.getElementById('dir-tabs')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-tab]');
+      if (btn) setDirTab(btn.dataset.tab);
+    });
 
     // ── Create session ───────────────────────────────────────────
     async function createSession() {
@@ -8283,17 +8339,16 @@
 
     // ── Recent Dirs ──────────────────────────────────────────────
     async function loadRecentDirs() {
-      const wrap = document.getElementById('recent-dirs');
       const list = document.getElementById('recent-dirs-list');
-      if (!wrap || !list) return;
-      wrap.hidden = true;
+      const empty = document.getElementById('recent-empty');
+      if (!list) return;
       list.innerHTML = '';
       let dirs = [];
       try {
         const res = await fetch('/api/recent-dirs?limit=8', { headers: apiHeaders() });
         if (res.ok) dirs = (await res.json()).dirs || [];
       } catch { /* moshi-hook fehlt → leise */ }
-      if (!dirs.length) return; // Block bleibt versteckt, Tree-Picker bleibt einzige Quelle
+      if (empty) empty.hidden = dirs.length > 0;
       for (const d of dirs) {
         const item = document.createElement('div');
         item.className = 'recent-dir-item';
@@ -8303,10 +8358,10 @@
           + `<span class="recent-dir-sources">${badges}</span>`;
         item.addEventListener('click', () => {
           sessionTreePicker.setSelected(d.cwd);
+          setDirTab('browse');   // Auswahl sichtbar machen
         });
         list.appendChild(item);
       }
-      wrap.hidden = false;
     }
 
     // ── Modal ────────────────────────────────────────────────────
@@ -8314,6 +8369,7 @@
       document.getElementById('new-session-modal').classList.add('open');
       document.getElementById('new-session-name').value = '';
       renderCliPicker();
+      setDirTab('browse');
       document.getElementById('tree-selected').textContent = prefillPath || '~';
       // Prefill zählt als Selection, sodass „Starten" ohne Tree-Klick
       // direkt im gewünschten Ordner landet. skipSelect verhindert dass
