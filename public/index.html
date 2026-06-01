@@ -5180,6 +5180,7 @@
 
     async function renderProjects() {
       const view = document.getElementById('projects-view');
+      if (sessions === null) { try { await refreshSessions(); } catch {} }
       view.innerHTML = `<div class="usage-empty">${t('projects.loading')}</div>`;
       try {
         const res = await fetch('/api/projects', { headers: apiHeaders() });
@@ -5200,37 +5201,64 @@
           return;
         }
 
-        const cards = projects.map(p => {
+        const visible = sortProjects(filterProjects(projects));
+        if (visible.length === 0) {
+          view.innerHTML = `<div class="usage-empty">${t('projects.emptyFiltered')}</div>`;
+          setProjectsLayout(getProjectsLayout());
+          return;
+        }
+
+        const cards = visible.map(p => {
           const devTotal = p.dev?.total ?? 0;
           const devDone  = p.dev?.done  ?? 0;
-          const pct = devTotal > 0
-            ? Math.min(100, Math.max(0, Math.round((devDone / devTotal) * 100)))
-            : 0;
+          const pct = devTotal > 0 ? Math.min(100, Math.max(0, Math.round((devDone / devTotal) * 100))) : 0;
           const relLabel = p.released?.version ? `v${escapeHtml(p.released.version)}` : '—';
-          const devLabel = p.dev?.version      ? `v${escapeHtml(p.dev.version)}`      : '—';
+          const active = projectActiveSessions(p);
+          const activity = p.missing ? 'missing' : (active > 0 ? 'active' : 'idle');
+          const headRight = p.missing
+            ? `<span class="project-missing">${t('projects.missingBadge')}</span>`
+            : (active > 0 ? `<span class="project-card-sessions">${t('projects.activeSessions', { n: active })}</span>` : '');
           return `
-            <button class="project-card" type="button" data-project-id="${escapeHtml(p.id)}">
+            <div class="project-card" data-project-id="${escapeHtml(p.id)}" data-activity="${activity}" tabindex="0" role="button">
+              <span class="project-card-accent" aria-hidden="true"></span>
               <div class="project-card-head">
-                <span class="project-card-name">${escapeHtml(p.displayName)}</span>
-                ${p.missing ? `<span class="project-missing">${t('projects.missingBadge')}</span>` : ''}
+                <span class="project-card-name"><span class="project-card-glyph" aria-hidden="true">▸</span>${escapeHtml(p.displayName)}</span>
+                ${headRight}
               </div>
-              <div class="project-card-versions">
-                <span>${t('projects.releasedLabel')}&nbsp;<strong>${relLabel}</strong></span>
-                <span class="project-card-sep">·</span>
-                <span>${t('projects.devLabel')}&nbsp;<strong>${devLabel}</strong></span>
+              <div class="project-card-body">
+                <div class="project-ring" style="--pct:${pct}" aria-hidden="true"><span>${pct}%</span></div>
+                <div class="project-card-chips">
+                  <span class="pchip">${t('projects.releasedLabel')} <b>${relLabel}</b></span>
+                  <span class="pchip">${t('projects.devLabel')} <b>${devDone}/${devTotal}</b></span>
+                  <span class="pchip">${t('projects.sort.backlog')} <b>${p.backlogCount ?? 0}</b></span>
+                </div>
               </div>
-              <div class="project-card-progress">
-                <div class="project-card-progress-bar"><div style="width:${pct}%"></div></div>
-                <span class="project-card-progress-text">${t('projects.progress', { done: devDone, total: devTotal, backlog: p.backlogCount ?? 0 })}</span>
+              <div class="project-card-actions">
+                <button class="btn btn-ghost btn-sm" data-action="start-session" data-path="${escapeHtml(p.path)}" data-stop-propagation>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+                  ${t('projects.startSessionHere')}
+                </button>
               </div>
-            </button>`;
+            </div>`;
         }).join('');
 
         view.innerHTML = `<div class="project-list">${cards}</div>`;
+        setProjectsLayout(getProjectsLayout());
 
-        view.querySelectorAll('.project-card').forEach(btn => {
-          btn.addEventListener('click', () => {
-            setView('project-detail', { projectId: btn.dataset.projectId });
+        view.querySelectorAll('.project-card').forEach(card => {
+          const open = () => setView('project-detail', { projectId: card.dataset.projectId });
+          card.addEventListener('click', (e) => {
+            if (e.target.closest('[data-stop-propagation]')) return;
+            open();
+          });
+          card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+          });
+        });
+        view.querySelectorAll('.project-card [data-action="start-session"]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openNewSessionModal(btn.dataset.path);
           });
         });
       } catch (e) {
