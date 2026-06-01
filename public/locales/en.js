@@ -403,6 +403,12 @@ window.__I18N_BUNDLES.en = {
   'projects.detail.startSessionHere': 'Start session here',
   'projects.detail.collapseSection': 'Collapse section',
   'projects.detail.expandSection': 'Expand section',
+  'projects.detail.editItem': 'Edit item',
+  'projects.detail.editSave': 'Save (Enter)',
+  'projects.detail.moveItem': 'Move to section',
+  'projects.detail.moveTo': 'Move to',
+  'projects.detail.moveCurrent': '(current)',
+  'projects.detail.editVersion': 'Edit version',
 
   // Release modal
   'projects.release.title': 'Finalize version',

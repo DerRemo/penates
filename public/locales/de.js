@@ -403,6 +403,12 @@ window.__I18N_BUNDLES.de = {
   'projects.detail.startSessionHere': 'Session hier starten',
   'projects.detail.collapseSection': 'Sektion einklappen',
   'projects.detail.expandSection': 'Sektion ausklappen',
+  'projects.detail.editItem': 'Item bearbeiten',
+  'projects.detail.editSave': 'Speichern (Enter)',
+  'projects.detail.moveItem': 'In Sektion verschieben',
+  'projects.detail.moveTo': 'Verschieben nach',
+  'projects.detail.moveCurrent': '(aktuell)',
+  'projects.detail.editVersion': 'Version bearbeiten',
 
   // Release modal
   'projects.release.title': 'Version abschließen',
