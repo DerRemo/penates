@@ -7,9 +7,6 @@ import { test, expect } from './fixtures.js';
 test.describe('moshi-hook Daten-Schicht', () => {
   // ── Test A: Recent-Dirs mit Source-Badges ───────────────────────────────
   test('recent-dirs list mit source badges', async ({ authedPage: page }) => {
-    // Mock muss VOR goto registriert sein — authedPage nutzt page.goto('/') intern,
-    // aber wir können page.route() vor dem Modal-Open setzen da die Daten erst
-    // beim Modal-Open via loadRecentDirs() gefetcht werden.
     await page.route('**/api/recent-dirs**', (route) => {
       route.fulfill({
         status: 200,
@@ -23,12 +20,12 @@ test.describe('moshi-hook Daten-Schicht', () => {
       });
     });
 
-    // Modal öffnen
     await page.click('#new-session-btn');
     await page.waitForSelector('#new-session-modal.open', { timeout: 5_000 });
 
-    // Recent-Dirs-Block muss sichtbar sein
-    await expect(page.locator('#recent-dirs')).toBeVisible({ timeout: 5_000 });
+    // Recent-Liste liegt jetzt hinter dem "Zuletzt"-Tab (Browse ist Default)
+    await page.locator('#dir-tabs button[data-tab="recent"]').click();
+    await expect(page.locator('#dir-panel-recent')).toBeVisible({ timeout: 5_000 });
 
     // Exakt 2 Einträge
     await expect(page.locator('.recent-dir-item')).toHaveCount(2);
@@ -37,16 +34,15 @@ test.describe('moshi-hook Daten-Schicht', () => {
     const firstBadge = page.locator('.recent-dir-item').first().locator('.recent-src-badge').first();
     await expect(firstBadge).toHaveText('claude');
 
-    // Klick auf ersten Eintrag → #tree-selected zeigt den Pfad
+    // Klick auf ersten Eintrag → wechselt zurück auf Browse, #tree-selected zeigt den Pfad
     await page.locator('.recent-dir-item').first().click();
     await expect(page.locator('#tree-selected')).toContainText('/Users/x/alpha');
 
-    // Aufräumen
     await page.keyboard.press('Escape');
   });
 
-  // ── Test B: hidden wenn keine Dirs, Tree-Picker bleibt sichtbar ─────────
-  test('hidden wenn keine recent-dirs', async ({ authedPage: page }) => {
+  // ── Test B: leerer Recent-Tab zeigt Empty-State, Tree-Picker bleibt nutzbar ─
+  test('leerer Recent-Tab zeigt Empty-State, Tree-Picker bleibt nutzbar', async ({ authedPage: page }) => {
     await page.route('**/api/recent-dirs**', (route) => {
       route.fulfill({
         status: 200,
@@ -57,15 +53,15 @@ test.describe('moshi-hook Daten-Schicht', () => {
 
     await page.click('#new-session-btn');
     await page.waitForSelector('#new-session-modal.open', { timeout: 5_000 });
+    await page.waitForTimeout(500);   // loadRecentDirs() abwarten
 
-    // Kurz warten damit loadRecentDirs() ausgeführt wurde
-    await page.waitForTimeout(500);
-
-    // recent-dirs muss versteckt bleiben
-    await expect(page.locator('#recent-dirs')).toBeHidden();
-
-    // Tree-Picker muss sichtbar sein
+    // Browse ist Default → Tree-Picker sichtbar
     await expect(page.locator('#tree-picker')).toBeVisible();
+
+    // Recent-Tab öffnen → kein Eintrag, Empty-State sichtbar
+    await page.locator('#dir-tabs button[data-tab="recent"]').click();
+    await expect(page.locator('.recent-dir-item')).toHaveCount(0);
+    await expect(page.locator('#recent-empty')).toBeVisible();
 
     await page.keyboard.press('Escape');
   });
