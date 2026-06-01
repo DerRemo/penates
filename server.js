@@ -21,7 +21,7 @@ import * as knownSessions from './lib/known-sessions.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
-import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry } from './lib/projects.js';
+import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject } from './lib/projects.js';
 import {
   listDir as filesListDir,
   readFile as filesReadFile,
@@ -853,6 +853,34 @@ app.patch('/api/projects/:id/items', async (req, res) => {
     }
     console.error('[projects] patch failed:', e);
     res.status(500).json({ error: 'Failed to patch project', detail: e.message });
+  }
+});
+
+// Pin/Unpin: generischer PATCH auf das Projekt (Body { pinned: boolean }).
+app.patch('/api/projects/:id', async (req, res) => {
+  const { pinned } = req.body || {};
+  if (typeof pinned !== 'boolean') return res.status(400).json({ error: 'pinned must be a boolean' });
+  try {
+    await setProjectPinned(req.params.id, pinned);
+    const fresh = await getProject(req.params.id);
+    res.json(fresh);
+  } catch (e) {
+    if (e.code === 'unknown-id') return res.status(404).json({ error: 'Project not found' });
+    console.error('[projects] pin failed:', e);
+    res.status(500).json({ error: 'Failed to update project', detail: e.message });
+  }
+});
+
+// Forget: deregistriert das Projekt aus der Registry (löscht KEINE Dateien).
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    await removeProject(req.params.id);
+    projectWatcher.syncWatchers(await loadRegistry());
+    res.json({ ok: true });
+  } catch (e) {
+    if (e.code === 'unknown-id') return res.status(404).json({ error: 'Project not found' });
+    console.error('[projects] forget failed:', e);
+    res.status(500).json({ error: 'Failed to remove project', detail: e.message });
   }
 });
 
