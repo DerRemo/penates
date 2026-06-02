@@ -6,15 +6,14 @@
 // Returns { text, cls } or null when there is no pace to show.
 export function paceLabel(pace, t) {
   if (!pace) return null;
-  // Use stage to derive the direction label key so onTrack/behind/ahead align.
-  const stage = pace.stage;
-  const dir = stage === 'behind' ? 'slower' : stage === 'ahead' ? 'faster' : 'onTrack';
-  const dirKey = `usage.pace.${dir}`;
-  const cls = stage === 'behind' ? 'good' : stage === 'ahead' ? 'bad' : 'neutral';
+  const lower = String(pace.stage || '').toLowerCase();
+  const onTrack = lower === 'ontrack';
+  const dir = onTrack ? 'onTrack' : lower.includes('behind') ? 'slower' : 'faster';
+  const cls = onTrack ? 'neutral' : lower.includes('behind') ? 'good' : 'bad';
   const eta = pace.lastsToReset
     ? t('usage.pace.lastsToReset')
     : t('usage.pace.runsOutIn', { eta: formatEtaShort(pace.etaSeconds, t) });
-  return { text: `${t(dirKey)} · ${eta}`, cls };
+  return { text: `${t(`usage.pace.${dir}`)} · ${eta}`, cls };
 }
 
 export function formatEtaShort(seconds, t) {

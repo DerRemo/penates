@@ -46,3 +46,21 @@ test('buildTrendPath: scales to max and closes the area', () => {
   assert.match(line, /^M0,/);
   assert.ok(area.trimEnd().endsWith('Z'));
 });
+
+test('paceLabel maps all seven stages correctly', () => {
+  const t = (key) => key;
+  const cases = [
+    ['onTrack', 'neutral', 'usage.pace.onTrack'],
+    ['slightlyBehind', 'good', 'usage.pace.slower'],
+    ['behind', 'good', 'usage.pace.slower'],
+    ['farBehind', 'good', 'usage.pace.slower'],
+    ['slightlyAhead', 'bad', 'usage.pace.faster'],
+    ['ahead', 'bad', 'usage.pace.faster'],
+    ['farAhead', 'bad', 'usage.pace.faster'],
+  ];
+  for (const [stage, cls, dirKey] of cases) {
+    const r = paceLabel({ stage, deltaPct: stage.toLowerCase().includes('behind') ? -5 : 5, lastsToReset: true }, t);
+    assert.equal(r.cls, cls, `cls for ${stage}`);
+    assert.ok(r.text.includes(dirKey), `dirKey for ${stage}`);
+  }
+});
