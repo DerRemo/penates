@@ -3998,6 +3998,8 @@
     .sidebar__usage-reset { font: 500 10.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sidebar__usage-pct { font: 600 11px var(--font-mono); color: var(--text-secondary); flex-shrink: 0; }
     .sidebar__usage-pct.is-limited { color: var(--red); font-family: var(--font-ui); }
+    .sidebar__usage-fresh { font: 500 10px var(--font-ui); color: var(--text-muted); opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar__usage-fresh.is-stale { color: var(--amber); opacity: 1; }
 
     @media (max-width: 900px) {
       .app-topbar { flex-wrap: wrap; }
@@ -5052,6 +5054,17 @@
         const reset = row.resetsAt
           ? escapeHtml(t('sidebar.limit.reset', { time: formatResetCountdown(row.resetsAt) })) : '';
         const pctLabel = row.limited ? escapeHtml(t('sidebar.usage.limited')) : row.pct + '%';
+        // Frische des moshi-Snapshots: capturedAt = wann moshi die Limit-Daten
+        // aus den Agent-Dateien gelesen hat (eigene Kadenz, normal Sekunden bis
+        // wenige Minuten — kein Daten-Alter, sondern Liveness). Wächst es (Poll
+        // oder moshi gestallt), färbt sich die Zeile amber = ehrliches Stale-
+        // Signal statt eingefrorener Zahlen. Antigravity hat kein capturedAt.
+        const capMs = a.capturedAt ? Date.parse(a.capturedAt) : NaN;
+        let fresh = '';
+        if (!Number.isNaN(capMs)) {
+          const stale = (Date.now() - capMs) > 10 * 60 * 1000 ? ' is-stale' : '';
+          fresh = `<div class="sidebar__usage-fresh${stale}">${escapeHtml(t('sidebar.usage.captured', { age: formatRelativeTime(a.capturedAt) }))}</div>`;
+        }
         return `<div class="sidebar__usage-agent">
           <div class="sidebar__usage-head" style="--cli-color:${m.color}">
             <span class="sidebar__usage-logo" aria-hidden="true">${m.logo}</span>
@@ -5060,6 +5073,7 @@
           </div>
           <div class="sidebar__usage-track"><div class="sidebar__usage-fill ${cls}" style="width:${row.limited ? 100 : row.pct}%"></div></div>
           <div class="sidebar__usage-meta"><span class="sidebar__usage-reset">${reset}</span><span class="sidebar__usage-pct${row.limited ? ' is-limited' : ''}">${pctLabel}</span></div>
+          ${fresh}
         </div>`;
       }).join('');
     }

@@ -20,6 +20,7 @@ window.__I18N_BUNDLES.de = {
   'sidebar.limit.reset': 'Reset in {time}',
   'sidebar.usage.label': 'Usage',
   'sidebar.usage.limited': 'Limit',
+  'sidebar.usage.captured': 'Stand: {age}',
 
   // Shell — titles
   'shell.title.overview': 'Übersicht',

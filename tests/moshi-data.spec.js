@@ -166,4 +166,55 @@ test.describe('moshi-hook Daten-Schicht', () => {
     await expect(codexAcct).toContainText('30d');
     await expect(codexAcct).toContainText('9%');
   });
+
+  // ── Test E: capturedAt-Frische-Anzeige im Sidebar-Usage-Panel ───────────
+  // capturedAt = wann moshi den Snapshot erfasst hat (Liveness, kein Daten-
+  // Alter). Frisch → gemutet sichtbar; >10min → amber (.is-stale) als
+  // ehrliches Stall-Signal statt eingefrorener Zahlen.
+  test('capturedAt-Frische: frisch gemutet, alt als is-stale', async ({ authedPage: page }) => {
+    const reset5h = Math.floor(Date.now() / 1000) + 3600;
+    const reset30d = Math.floor(Date.now() / 1000) + 29 * 86400;
+    const freshIso = new Date(Date.now() - 2 * 60 * 1000).toISOString();   // 2 min → frisch
+    const staleIso = new Date(Date.now() - 20 * 60 * 1000).toISOString();  // 20 min → stale
+    await page.route('**/api/usage/limits**', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accounts: [
+            {
+              accountId: 'claude:abc', accountLabel: 'Max 5x', agent: 'claude-code', capturedAt: freshIso,
+              windows: [{ label: '5h', usedPercentage: 4, resetsAt: reset5h }],
+            },
+            {
+              accountId: 'codex:xyz', accountLabel: 'Free', agent: 'codex', capturedAt: staleIso,
+              windows: [{ label: '30d', usedPercentage: 9, resetsAt: reset30d }],
+            },
+          ],
+          points: [], peaks5h: 0, peaks7d: 0,
+        }),
+      });
+    });
+
+    await page.reload();
+    await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
+    const sidebarToggle = page.locator('#sidebar-toggle');
+    if (await sidebarToggle.isVisible()) {
+      await sidebarToggle.click();
+      await page.waitForTimeout(300);
+    }
+
+    const claudeRow = page.locator('#sidebar-usage .sidebar__usage-agent', { hasText: 'Claude' });
+    const codexRow = page.locator('#sidebar-usage .sidebar__usage-agent', { hasText: 'Codex' });
+
+    // Frischer Claude-Snapshot (2 min): Frische-Zeile sichtbar, NICHT is-stale.
+    const claudeFresh = claudeRow.locator('.sidebar__usage-fresh');
+    await expect(claudeFresh).toBeVisible({ timeout: 5_000 });
+    await expect(claudeFresh).not.toHaveClass(/is-stale/);
+
+    // Alter Codex-Snapshot (20 min): Frische-Zeile als is-stale (amber).
+    const codexFresh = codexRow.locator('.sidebar__usage-fresh');
+    await expect(codexFresh).toBeVisible();
+    await expect(codexFresh).toHaveClass(/is-stale/);
+  });
 });
