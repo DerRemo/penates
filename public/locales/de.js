@@ -458,15 +458,6 @@ window.__I18N_BUNDLES.de = {
   // Usage dashboard — top projects
   'usage.topProjectsTitle': 'Top Projekte',
 
-  // Usage dashboard — 30-day table
-  'usage.tableTitle': '30-Tage-Tabelle',
-  'usage.table.date': 'Datum',
-  'usage.table.input': 'Input',
-  'usage.table.output': 'Output',
-  'usage.table.total': 'Gesamt',
-  'usage.table.cost': 'Kosten',
-  'usage.table.sessions': 'Sessions',
-
   // Usage dashboard — tool usage
   'usage.toolTitle': 'Tool-Nutzung',
 
@@ -482,7 +473,6 @@ window.__I18N_BUNDLES.de = {
   'usage.apiTime': 'API-Zeit',
 
   // Usage dashboard — summary cards
-  'usage.card.monthlyCost': 'Kosten (Monat)',
   'usage.card.monthlySessions': 'Sessions (Monat)',
   'usage.card.monthlyCacheRate': 'Cache-Rate (Monat)',
   'usage.card.autonomousChains': 'Autonome Tool-Ketten',

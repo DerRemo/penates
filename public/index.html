@@ -6460,6 +6460,181 @@
 
     // ── Usage-View ─────────────────────────────────────────────────
     let _usageCountdownInterval = null;
+    let _usageFmt = null;
+    async function usageFmt() {
+      if (!_usageFmt) _usageFmt = await import('./usage-format.js');
+      return _usageFmt;
+    }
+
+    function renderLimitsHero(lim, fmt) {
+      const accounts = (lim && lim.accounts) || [];
+      const withPct = accounts.filter(a => (a.windows || []).some(w => typeof w.usedPercentage === 'number'));
+      if (!withPct.length) {
+        return `<div class="usage-seclabel">${t('usage.section.limits')}</div>`
+          + `<div class="usage-acct"><div class="usage-acct-tier">${t('usage.noAccountData')}</div></div>`;
+      }
+      const isCodex = (agent) => /codex/i.test(agent || '');
+      const cards = withPct.map(a => {
+        const ago = a.capturedAt ? formatRelativeTime(a.capturedAt) : '';
+        const rows = (a.windows || [])
+          .filter(w => typeof w.usedPercentage === 'number')
+          .map(w => {
+            const pct = Math.round(w.usedPercentage);
+            const note = fmt.paceLabel(w.pace, t);
+            const tick = w.pace
+              ? `<div class="usage-tick" style="left:${Math.min(100, Math.max(0, w.pace.expectedPct)).toFixed(1)}%"></div>` : '';
+            const noteHtml = note
+              ? `<div class="usage-pace-note ${note.cls}">${escapeHtml(note.text)}<span class="leg">${t('usage.pace.expectedLegend')}</span></div>` : '';
+            return `<div class="usage-pacerow">
+              <div class="usage-pace-top"><span class="usage-pace-win">${escapeHtml(w.label || '')}</span><span class="usage-pace-pct">${pct}%</span><span class="usage-pace-reset" data-reset-ts="${w.resetsAt || ''}">${t('usage.reset', { time: formatResetCountdown(w.resetsAt) })}</span></div>
+              <div class="usage-track"><div class="usage-fill" style="width:${Math.min(100, pct)}%"></div>${tick}</div>
+              ${noteHtml}
+            </div>`;
+          }).join('');
+        const tier = escapeHtml([a.accountLabel, a.agent].filter(Boolean).join(' · ') || 'Account');
+        return `<div class="usage-acct">
+          <div class="usage-acct-h">
+            <div class="usage-acct-ic ${isCodex(a.agent) ? 'cx' : 'cl'}">${isCodex(a.agent) ? '◇' : '✳'}</div>
+            <div><div class="usage-acct-name">${escapeHtml(a.accountLabel || a.agent || 'Account')}</div><div class="usage-acct-tier">${tier}</div></div>
+            ${ago ? `<div class="usage-acct-fresh">${escapeHtml(t('usage.snapshotFresh', { ago }))}</div>` : ''}
+          </div>
+          ${rows}
+        </div>`;
+      }).join('');
+      return `<div class="usage-seclabel">${t('usage.section.limits')}</div><div class="usage-accts">${cards}</div>`;
+    }
+
+    function renderStatStrip(history, costs) {
+      const tokens = formatTokensCompact(history.monthTotal || 0);
+      const usd = costs ? formatCurrency(costs.totalUsd) : null;
+      const cacheVal = history.cacheRate ? `${history.cacheRate.pct}%` : '—';
+      const autonomy = history.workStyle && history.workStyle.total
+        ? `${Math.round((history.workStyle.toolUse / history.workStyle.total) * 100)}%` : '—';
+      const sub = usd ? `<div class="sub">${t('usage.apiEquiv', { amount: usd })}</div>` : '';
+      return `<div class="usage-seclabel">${t('usage.section.month')}</div>
+        <div class="usage-stats">
+          <div class="usage-stat"><div class="v">${tokens}<span class="u">Tok</span></div>${sub}<div class="l">${t('usage.card.monthlyTokens')}</div></div>
+          <div class="usage-stat"><div class="v">${history.monthSessions ?? '—'}</div><div class="l">${t('usage.card.monthlySessions')}</div></div>
+          <div class="usage-stat"><div class="v">${cacheVal}</div><div class="l">${t('usage.card.monthlyCacheRate')}</div></div>
+          <div class="usage-stat"><div class="v">${autonomy}</div><div class="l">${t('usage.card.autonomousChains')}</div></div>
+        </div>`;
+    }
+
+    function renderProviders(history) {
+      const bp = history.byProvider;
+      if (!Array.isArray(bp) || !bp.length) return '';
+      const colorFor = (m) => /opus/i.test(m) ? 'var(--peach)' : /sonnet/i.test(m) ? 'var(--teal)' : /haiku/i.test(m) ? 'var(--blue)' : 'var(--green)';
+      const isCodex = (p) => p === 'codex';
+      const rows = bp.map(p => {
+        const total = p.tokens || 1;
+        const seg = (p.models || []).map(m => `<i style="width:${Math.round((m.tokens / total) * 100)}%;background:${colorFor(m.model)}"></i>`).join('');
+        const chips = (p.models || []).slice(0, 4).map(m => `<span class="usage-mchip"><b>${escapeHtml(m.model)}</b> ${formatTokensCompact(m.tokens)}</span>`).join('');
+        return `<div class="usage-prov-row">
+          <div class="usage-prov-ic ${isCodex(p.provider) ? 'cx' : 'cl'}">${isCodex(p.provider) ? '◇' : '✳'}</div>
+          <div class="usage-prov-main">
+            <div class="usage-prov-top"><span class="usage-prov-name">${escapeHtml(p.label || p.provider)}</span><span class="usage-prov-tok">${t('usage.provider.tokens', { tokens: formatTokensCompact(p.tokens) })}</span></div>
+            <div class="usage-prov-bar">${seg}</div>
+            <div class="usage-prov-models">${chips}</div>
+          </div>
+          <span class="usage-prov-usd">${formatCurrency(p.costUsd)}</span>
+        </div>`;
+      }).join('');
+      return `<div class="usage-seclabel">${t('usage.section.perProvider')}</div><div class="usage-prov">${rows}</div>`;
+    }
+
+    function renderTrend(history, fmt) {
+      const days = (history.days || []).slice().reverse(); // oldest->newest
+      const values = days.map(d => (d.input || 0) + (d.output || 0));
+      if (!values.some(v => v > 0)) return '';
+      const { line, area } = fmt.buildTrendPath(values, 600, 120);
+      const fmtDay = (d) => d ? d.date.slice(5) : '';
+      const x0 = fmtDay(days[0]), xm = fmtDay(days[Math.floor(days.length / 2)]), x1 = fmtDay(days[days.length - 1]);
+      return `<div class="usage-seclabel">${t('usage.section.trend')}</div>
+        <div class="usage-trend">
+          <svg viewBox="0 0 600 120" preserveAspectRatio="none">
+            <defs><linearGradient id="usageTrendG" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" style="stop-color:var(--teal);stop-opacity:0.35"/><stop offset="1" style="stop-color:var(--teal);stop-opacity:0"/>
+            </linearGradient></defs>
+            <path d="${area}" fill="url(#usageTrendG)"/>
+            <path d="${line}" fill="none" style="stroke:var(--teal);stroke-width:2"/>
+          </svg>
+          <div class="usage-trend-x"><span>${escapeHtml(x0)}</span><span>${escapeHtml(xm)}</span><span>${escapeHtml(x1)}</span></div>
+        </div>`;
+    }
+
+    function renderPatterns(history) {
+      let hm = '';
+      if (history.heatmap && history.heatmap.length) {
+        const maxTok = Math.max(...history.heatmap.map(h => h.tokens), 1);
+        const map = {}; history.heatmap.forEach(h => { map[`${h.dow}-${h.hour}`] = h.tokens; });
+        const dayLabels = [t('usage.day.mon'),t('usage.day.tue'),t('usage.day.wed'),t('usage.day.thu'),t('usage.day.fri'),t('usage.day.sat'),t('usage.day.sun')];
+        let cells = '';
+        for (let d = 0; d < 7; d++) {
+          cells += `<div class="lab">${dayLabels[d]}</div>`;
+          for (let h = 0; h < 24; h++) {
+            const tok = map[`${d}-${h}`] || 0;
+            const ratio = tok / maxTok;
+            const op = tok === 0 ? 0 : ratio < 0.15 ? 0.15 : ratio < 0.35 ? 0.35 : ratio < 0.6 ? 0.6 : 1;
+            const bg = tok === 0 ? '' : `background:color-mix(in srgb, var(--teal) ${Math.round(op*100)}%, transparent)`;
+            cells += `<div class="cell" style="${bg}" title="${dayLabels[d]} ${h}:00 — ${formatTokensCompact(tok)}"></div>`;
+          }
+        }
+        hm = `<div class="usage-card"><h3>${t('usage.heatmapTitle')}</h3><div class="usage-hm">${cells}</div></div>`;
+      }
+      let proj = '';
+      if (history.byProject && history.byProject.length) {
+        const maxP = history.byProject[0].tokens || 1;
+        const bars = history.byProject.slice(0, 6).map(p => `<div class="usage-bl"><span class="nm" title="${escapeHtml(p.path || p.project)}">${escapeHtml(p.project)}</span><span class="tr"><i style="width:${Math.round((p.tokens/maxP)*100)}%"></i></span><span class="ct">${formatTokensCompact(p.tokens)}</span></div>`).join('');
+        proj = `<div class="usage-card"><h3>${t('usage.topProjectsTitle')}</h3><div class="usage-barlist">${bars}</div></div>`;
+      }
+      if (!hm && !proj) return '';
+      return `<div class="usage-seclabel">${t('usage.section.patterns')}</div><div class="usage-two">${hm}${proj}</div>`;
+    }
+
+    function renderWorkStyle(history) {
+      let tools = '';
+      if (history.toolUsage && history.toolUsage.length) {
+        const maxT = history.toolUsage[0].count || 1;
+        const bars = history.toolUsage.slice(0, 6).map(x => `<div class="usage-bl"><span class="nm">${escapeHtml(x.name)}</span><span class="tr"><i style="width:${Math.round((x.count/maxT)*100)}%"></i></span><span class="ct">${x.count}</span></div>`).join('');
+        tools = `<div class="usage-card"><h3>${t('usage.toolTitle')}</h3><div class="usage-barlist">${bars}</div></div>`;
+      }
+      let ws = '';
+      if (history.workStyle && history.workStyle.total) {
+        const w = history.workStyle; const tp = Math.round((w.toolUse / w.total) * 100); const dp = 100 - tp;
+        const cache = history.cacheRate ? `${history.cacheRate.pct}%` : '—';
+        ws = `<div class="usage-card"><h3>${t('usage.workStyleTitle')}</h3>
+          <div class="usage-ws"><i style="width:${tp}%"></i><i style="width:${dp}%"></i></div>
+          <div class="usage-ws-lab"><span>${t('usage.workStyleToolChains', { pct: tp, n: w.toolUse })}</span><span>${t('usage.workStyleDirectAnswers', { pct: dp, n: w.endTurn })}</span></div>
+          <div style="margin-top:14px;display:flex;gap:18px"><div><div style="font-size:11px;color:var(--text-muted)">${t('usage.card.monthlyCacheRate')}</div><div style="font-size:17px;font-weight:700;margin-top:2px">${cache}</div></div></div>
+        </div>`;
+      }
+      if (!tools && !ws) return '';
+      return `<div class="usage-seclabel">${t('usage.section.workStyle')}<span class="usage-badge-cl">${t('usage.claudeOnly')}</span></div><div class="usage-two">${tools}${ws}</div>`;
+    }
+
+    function renderOutput(history, costs) {
+      let prod = '';
+      if (costs) {
+        const apiH = costs.totalApiDurationMs ? `${(costs.totalApiDurationMs/3600000).toFixed(1)}h` : '—';
+        prod = `<div class="usage-card"><h3>${t('usage.productivityTitle')}</h3><div class="usage-prod">
+          <div class="it"><div class="pv add">+${(costs.totalLinesAdded||0).toLocaleString()}</div><div class="pl">${t('usage.linesAdded')}</div></div>
+          <div class="it"><div class="pv rem">−${(costs.totalLinesRemoved||0).toLocaleString()}</div><div class="pl">${t('usage.linesRemoved')}</div></div>
+          <div class="it"><div class="pv">${apiH}</div><div class="pl">${t('usage.apiTime')}</div></div>
+        </div></div>`;
+      }
+      let err = '';
+      const errs = history.errors;
+      if (errs && errs.total > 0) {
+        const maxE = Math.max(...(errs.byDate || []).map(e => e.count), 1);
+        const spark = (errs.byDate || []).slice(-14).map(e => `<i style="height:${Math.round((e.count/maxE)*100)}%"></i>`).join('');
+        err = `<div class="usage-card"><h3>${t('usage.errors.title')}<span class="usage-badge-cl">${t('usage.errors.badgeNew')}</span></h3>
+          <div class="usage-errline"><span class="usage-errbig">${errs.total}</span><span class="usage-errspark">${spark}</span></div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">${t('usage.errors.caption')}</div></div>`;
+      }
+      if (!prod && !err) return '';
+      return `<div class="usage-seclabel">${t('usage.section.output')}</div><div class="usage-two">${prod}${err}</div>`;
+    }
+
     async function renderUsage() {
       const view = document.getElementById('usage-view');
       view.innerHTML = `<div class="usage-empty">${t('usage.loading')}</div>`;
@@ -6486,158 +6661,18 @@
           return;
         }
 
-        // ── Summary Cards ──
-        const costVal = costs ? formatCurrency(costs.totalUsd) : '—';
-        const sessVal = hist.monthSessions ?? '—';
-        const cacheVal = hist.cacheRate ? `${hist.cacheRate.pct}%` : '—';
-        const autonomyVal = hist.workStyle
-          ? `${Math.round((hist.workStyle.toolUse / (hist.workStyle.total || 1)) * 100)}%`
-          : '—';
+        const fmt = await usageFmt();
+        view.innerHTML =
+          renderLimitsHero(lim, fmt) +
+          renderStatStrip(hist, costs) +
+          renderProviders(hist) +
+          renderTrend(hist, fmt) +
+          renderPatterns(hist) +
+          renderWorkStyle(hist) +
+          renderOutput(hist, costs);
 
-        // ── Limit Status (account-level, aus moshi-hook usage) ──
-        const accounts = (lim && lim.accounts) || [];
-        let limitHtml;
-        if (!accounts.length) {
-          limitHtml = `<div class="usage-limit-card"><div class="ulc-title">${t('usage.accountPanelTitle')}</div>`
-            + `<div style="color:var(--text-muted);font-size:13px">${t('usage.noAccountData')}</div></div>`;
-        } else {
-          const renderRow = (lbl, w) => {
-            if (!w) return '';
-            const pct = Math.round(w.usedPercentage ?? 0);
-            const cc = limitColorClass(pct);
-            const urgent = pct > 90 ? ' usage-limit-urgent' : '';
-            return `<div class="usage-limit-row">
-                <span class="usage-limit-label">${lbl}</span>
-                <div class="usage-limit-bar"><div class="usage-limit-fill ${cc}" style="width:${Math.min(pct, 100)}%"></div></div>
-                <span class="usage-limit-pct ${cc}">${pct}%</span>
-                <span class="usage-limit-reset ${cc}${urgent}" data-reset-ts="${w.resetsAt || ''}">${t('usage.reset', { time: formatResetCountdown(w.resetsAt) })}</span>
-              </div>`;
-          };
-          // Pro Account jedes Fenster mit %-Wert rendern (Label = Fenster-Label,
-          // z.B. 5h/7d für Claude, 30d für Codex-Free). Kein hartes 5h|7d-Filter
-          // mehr, sonst fehlt Codex sobald moshi ein anderes Fenster meldet.
-          // Accounts ohne %-Fenster (z.B. Antigravity, nur limited) bleiben
-          // wie bisher ausgeblendet.
-          const accRows = accounts
-            .filter(a => (a.windows || []).some(w => typeof w.usedPercentage === 'number'))
-            .map(a => {
-              const label = escapeHtml([a.accountLabel, a.agent].filter(Boolean).join(' · ') || 'Account');
-              const rows = (a.windows || [])
-                .filter(w => typeof w.usedPercentage === 'number')
-                .map(w => renderRow(escapeHtml(w.label || ''), w))
-                .join('');
-              return `<div class="usage-account-row">
-                <div class="usage-account-label">${label}</div>
-                ${rows}
-              </div>`;
-            }).join('');
-          limitHtml = `<div class="usage-limit-card">
-              <div class="ulc-title">${t('usage.accountPanelTitle')}</div>
-              ${accRows}
-              ${(lim.peaks5h || lim.peaks7d) ? `<div class="usage-limit-peaks">${t('usage.limitPeaks', { peaks5h: lim.peaks5h ?? 0, peaks7d: lim.peaks7d ?? 0 })}</div>` : ''}
-            </div>`;
-        }
-
-        // ── Heatmap ──
-        let heatmapHtml = '';
-        if (hist.heatmap && hist.heatmap.length) {
-          const maxTok = Math.max(...hist.heatmap.map(h => h.tokens), 1);
-          const heatMap = {};
-          hist.heatmap.forEach(h => { heatMap[`${h.dow}-${h.hour}`] = h.tokens; });
-          const dayLabels = [t('usage.day.mon'), t('usage.day.tue'), t('usage.day.wed'), t('usage.day.thu'), t('usage.day.fri'), t('usage.day.sat'), t('usage.day.sun')];
-          // Header row
-          let cells = '<div class="hm-label"></div>';
-          for (let h = 0; h < 24; h++) cells += `<div class="hm-hour-label">${h % 6 === 0 ? h : ''}</div>`;
-          // Data rows
-          for (let d = 0; d < 7; d++) {
-            cells += `<div class="hm-label">${dayLabels[d]}</div>`;
-            for (let h = 0; h < 24; h++) {
-              const tok = heatMap[`${d}-${h}`] || 0;
-              const ratio = tok / maxTok;
-              const opacity = tok === 0 ? 0 : ratio < 0.15 ? 0.15 : ratio < 0.35 ? 0.35 : ratio < 0.6 ? 0.6 : 1.0;
-              const bg = tok === 0 ? '' : `background:rgba(45,212,191,${opacity})`;
-              cells += `<div class="hm-cell" style="${bg}" title="${dayLabels[d]} ${h}:00 — ${formatTokensCompact(tok)}"></div>`;
-            }
-          }
-          heatmapHtml = `<div class="usage-section"><div class="us-title">${t('usage.heatmapTitle')}</div><div class="usage-heatmap-wrap"><div class="usage-heatmap">${cells}</div></div></div>`;
-        }
-
-        // ── Top Projects ──
-        let projectsHtml = '';
-        if (hist.byProject && hist.byProject.length) {
-          const maxP = hist.byProject[0].tokens || 1;
-          const bars = hist.byProject.slice(0, 8).map(p => `
-            <div class="usage-bar-item">
-              <span class="usage-bar-name" title="${escapeHtml(p.path || p.project)}">${escapeHtml(p.project)}</span>
-              <div class="usage-bar-track"><div class="usage-bar-fill" style="width:${Math.round((p.tokens / maxP) * 100)}%"></div></div>
-              <span class="usage-bar-count">${formatTokensCompact(p.tokens)}</span>
-            </div>`).join('');
-          projectsHtml = `<div class="usage-section"><div class="us-title">${t('usage.topProjectsTitle')}</div><div class="usage-bar-list">${bars}</div></div>`;
-        }
-
-        // ── 30-Day Table ──
-        const rows = hist.days.map(d => {
-          const total = d.input + d.output;
-          const empty = total === 0 ? ' class="empty"' : '';
-          const costCell = d.cost != null ? formatCurrency(d.cost) : '—';
-          const sessCell = hist.dailySessions?.[d.date] ?? '—';
-          return `<tr${empty}><td>${d.date}</td><td class="num">${formatTokensCompact(d.input)}</td><td class="num">${formatTokensCompact(d.output)}</td><td class="num">${total ? formatTokensCompact(total) : '—'}</td><td class="num">${costCell}</td><td class="num">${sessCell}</td></tr>`;
-        }).join('');
-        const tableHtml = `<div class="usage-section"><div class="us-title">${t('usage.tableTitle')}</div><div class="usage-table-wrap"><table class="usage-table"><thead><tr><th>${t('usage.table.date')}</th><th class="num">${t('usage.table.input')}</th><th class="num">${t('usage.table.output')}</th><th class="num">${t('usage.table.total')}</th><th class="num">${t('usage.table.cost')}</th><th class="num">${t('usage.table.sessions')}</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
-
-        // ── Tool Usage ──
-        let toolHtml = '';
-        if (hist.toolUsage && hist.toolUsage.length) {
-          const maxT = hist.toolUsage[0].count || 1;
-          const bars = hist.toolUsage.slice(0, 10).map(t => `
-            <div class="usage-bar-item">
-              <span class="usage-bar-name">${escapeHtml(t.name)}</span>
-              <div class="usage-bar-track"><div class="usage-bar-fill" style="width:${Math.round((t.count / maxT) * 100)}%"></div></div>
-              <span class="usage-bar-count">${t.count}</span>
-            </div>`).join('');
-          toolHtml = `<div class="usage-section"><div class="us-title">${t('usage.toolTitle')}</div><div class="usage-bar-list">${bars}</div></div>`;
-        }
-
-        // ── Arbeitsweise ──
-        let workHtml = '';
-        if (hist.workStyle && hist.workStyle.total) {
-          const ws = hist.workStyle;
-          const toolPct = Math.round((ws.toolUse / ws.total) * 100);
-          const directPct = 100 - toolPct;
-          workHtml = `<div class="usage-section"><div class="us-title">${t('usage.workStyleTitle')}</div><div class="usage-workstyle-bar"><div class="ws-tool" style="width:${toolPct}%"></div><div class="ws-direct" style="width:${directPct}%"></div></div><div class="usage-workstyle-labels"><span>${t('usage.workStyleToolChains', { pct: toolPct, n: ws.toolUse })}</span><span>${t('usage.workStyleDirectAnswers', { pct: directPct, n: ws.endTurn })}</span></div></div>`;
-        }
-
-        // ── Produktivitaet ──
-        let prodHtml = '';
-        if (costs) {
-          const apiH = costs.totalApiDurationMs ? `${Math.round(costs.totalApiDurationMs / 3600000)}h` : '—';
-          prodHtml = `<div class="usage-section"><div class="us-title">${t('usage.productivityTitle')}</div><div class="usage-prod-row"><div class="usage-prod-item"><div class="up-value up-added">+${(costs.totalLinesAdded || 0).toLocaleString()}</div><div class="up-label">${t('usage.linesAdded')}</div></div><div class="usage-prod-item"><div class="up-value up-removed">-${(costs.totalLinesRemoved || 0).toLocaleString()}</div><div class="up-label">${t('usage.linesRemoved')}</div></div><div class="usage-prod-item"><div class="up-value up-time">${apiH}</div><div class="up-label">${t('usage.apiTime')}</div></div></div></div>`;
-        }
-
-        // ── Assemble ──
-        view.innerHTML = `
-          <div class="usage-summary-grid">
-            <div class="usage-summary-card"><div class="usc-value">${costVal}</div><div class="usc-label">${t('usage.card.monthlyCost')}</div></div>
-            <div class="usage-summary-card"><div class="usc-value">${sessVal}</div><div class="usc-label">${t('usage.card.monthlySessions')}</div></div>
-            <div class="usage-summary-card"><div class="usc-value">${cacheVal}</div><div class="usc-label">${t('usage.card.monthlyCacheRate')}</div></div>
-            <div class="usage-summary-card"><div class="usc-value">${autonomyVal}</div><div class="usc-label">${t('usage.card.autonomousChains')}</div></div>
-          </div>
-          ${limitHtml}
-          <div class="usage-two-col">
-            ${heatmapHtml}
-            ${projectsHtml}
-          </div>
-          <div class="usage-two-col">
-            ${tableHtml}
-            ${toolHtml}
-          </div>
-          ${workHtml}
-          ${prodHtml}
-        `;
-
-        // Countdown updater
         _usageCountdownInterval = setInterval(() => {
-          view.querySelectorAll('.usage-limit-reset[data-reset-ts]').forEach(el => {
+          view.querySelectorAll('[data-reset-ts]').forEach(el => {
             const ts = parseInt(el.dataset.resetTs, 10);
             if (ts) el.textContent = t('usage.reset', { time: formatResetCountdown(ts) });
           });
