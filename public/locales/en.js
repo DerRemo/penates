@@ -486,6 +486,42 @@ window.__I18N_BUNDLES.en = {
   'usage.card.monthlySessions': 'Monthly Sessions',
   'usage.card.monthlyCacheRate': 'Monthly Cache Rate',
   'usage.card.autonomousChains': 'Autonomous Tool Chains',
+  'usage.card.monthlyTokens': 'Consumption',
+
+  // Usage dashboard — sections (redesign)
+  'usage.section.limits': 'Accounts & Limits — am I near a cap?',
+  'usage.section.month': 'This month',
+  'usage.section.perProvider': 'Where it goes — by provider & model',
+  'usage.section.trend': 'Trend — tokens / day (30 days)',
+  'usage.section.patterns': 'Patterns',
+  'usage.section.workStyle': 'Working style',
+  'usage.section.output': 'Output',
+
+  // Usage dashboard — pace indicators
+  'usage.pace.slower': 'slower than the clock',
+  'usage.pace.faster': 'faster than the clock',
+  'usage.pace.onTrack': 'on pace',
+  'usage.pace.lastsToReset': 'lasts to reset',
+  'usage.pace.runsOutIn': 'runs out in ~{eta}',
+  'usage.pace.expectedLegend': '▎ = expected now',
+
+  // Usage dashboard — ETA units
+  'usage.eta.min': '{n} min',
+  'usage.eta.hour': '{n} h',
+  'usage.eta.day': '{n} d',
+
+  // Usage dashboard — per-provider
+  'usage.apiEquiv': '≈ {amount} API-equiv.',
+  'usage.provider.tokens': '{tokens} tok',
+
+  // Usage dashboard — errors
+  'usage.errors.title': 'API errors',
+  'usage.errors.caption': 'last 30 days',
+  'usage.errors.badgeNew': 'now visible',
+
+  // Usage dashboard — misc
+  'usage.claudeOnly': 'Claude data only',
+  'usage.snapshotFresh': 'Snapshot {ago}',
 
   // Common / shared
   'common.errorWithMessage': 'Error: {message}',

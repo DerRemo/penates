@@ -486,6 +486,42 @@ window.__I18N_BUNDLES.de = {
   'usage.card.monthlySessions': 'Sessions (Monat)',
   'usage.card.monthlyCacheRate': 'Cache-Rate (Monat)',
   'usage.card.autonomousChains': 'Autonome Tool-Ketten',
+  'usage.card.monthlyTokens': 'Verbrauch',
+
+  // Usage dashboard — sections (redesign)
+  'usage.section.limits': 'Accounts & Limits — komme ich an ein Limit?',
+  'usage.section.month': 'Diesen Monat',
+  'usage.section.perProvider': 'Wohin geht\'s — pro Anbieter & Modell',
+  'usage.section.trend': 'Verlauf — Tokens / Tag (30 Tage)',
+  'usage.section.patterns': 'Muster',
+  'usage.section.workStyle': 'Arbeitsweise',
+  'usage.section.output': 'Output',
+
+  // Usage dashboard — pace indicators
+  'usage.pace.slower': 'langsamer als die Uhr',
+  'usage.pace.faster': 'schneller als die Uhr',
+  'usage.pace.onTrack': 'im Takt',
+  'usage.pace.lastsToReset': 'reicht bis Reset',
+  'usage.pace.runsOutIn': 'leer in ~{eta}',
+  'usage.pace.expectedLegend': '▎ = erwartet jetzt',
+
+  // Usage dashboard — ETA units
+  'usage.eta.min': '{n} Min',
+  'usage.eta.hour': '{n} Std',
+  'usage.eta.day': '{n} Tagen',
+
+  // Usage dashboard — per-provider
+  'usage.apiEquiv': '≈ {amount} API-äquiv.',
+  'usage.provider.tokens': '{tokens} Tok',
+
+  // Usage dashboard — errors
+  'usage.errors.title': 'API-Fehler',
+  'usage.errors.caption': 'letzte 30 Tage',
+  'usage.errors.badgeNew': 'neu sichtbar',
+
+  // Usage dashboard — misc
+  'usage.claudeOnly': 'nur Claude-Daten',
+  'usage.snapshotFresh': 'Snapshot {ago}',
 
   // Common / shared
   'common.errorWithMessage': 'Fehler: {message}',
