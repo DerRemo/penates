@@ -6506,7 +6506,10 @@
 
     function renderStatStrip(history, costs) {
       const tokens = formatTokensCompact(history.monthTotal || 0);
-      const usd = costs ? formatCurrency(costs.totalUsd) : null;
+      const byProv = Array.isArray(history.byProvider) ? history.byProvider : [];
+      const synthUsd = byProv.length ? byProv.reduce((a, p) => a + (p.costUsd || 0), 0)
+                     : (costs ? costs.totalUsd : null);
+      const usd = synthUsd != null ? formatCurrency(synthUsd) : null;
       const cacheVal = history.cacheRate ? `${history.cacheRate.pct}%` : '—';
       const autonomy = history.workStyle && history.workStyle.total
         ? `${Math.round((history.workStyle.toolUse / history.workStyle.total) * 100)}%` : '—';
@@ -6527,8 +6530,9 @@
       const isCodex = (p) => p === 'codex';
       const rows = bp.map(p => {
         const total = p.tokens || 1;
-        const seg = (p.models || []).map(m => `<i style="width:${Math.round((m.tokens / total) * 100)}%;background:${colorFor(m.model)}"></i>`).join('');
-        const chips = (p.models || []).slice(0, 4).map(m => `<span class="usage-mchip"><b>${escapeHtml(m.model)}</b> ${formatTokensCompact(m.tokens)}</span>`).join('');
+        const models = (p.models || []).filter(m => (m.tokens || 0) > 0);
+        const seg = models.map(m => `<i style="width:${Math.round((m.tokens / total) * 100)}%;background:${colorFor(m.model)}"></i>`).join('');
+        const chips = models.slice(0, 4).map(m => `<span class="usage-mchip"><b>${escapeHtml(m.model)}</b> ${formatTokensCompact(m.tokens)}</span>`).join('');
         return `<div class="usage-prov-row">
           <div class="usage-prov-ic ${isCodex(p.provider) ? 'cx' : 'cl'}">${isCodex(p.provider) ? '◇' : '✳'}</div>
           <div class="usage-prov-main">
