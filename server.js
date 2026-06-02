@@ -54,6 +54,7 @@ import { saveSessionImage } from './lib/session-images.js';
 import { isPreviewHost, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
 import * as voice from './lib/voice.js';
 import { listListeningPorts } from './lib/port-scan.js';
+import { computePace, windowMinutes } from './lib/pace.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -674,6 +675,17 @@ app.get('/api/usage/limits', async (req, res) => {
     // CLI-Logs ableiten. Erscheint nur wenn aktuell quota-limitiert.
     const agy = getAntigravityUsage();
     if (agy) data.accounts = [...(data.accounts || []), agy];
+    // Attach pace to every limit window before caching.
+    for (const acc of (data.accounts || [])) {
+      for (const w of (acc.windows || [])) {
+        const mins = windowMinutes(w.label);
+        const pace = (typeof w.usedPercentage === 'number' && w.resetsAt && mins)
+          ? computePace({ usedPercent: w.usedPercentage, resetsAt: w.resetsAt, windowMinutes: mins })
+          : null;
+        // Floor: suppress pace too early in the window (expected < 3%).
+        w.pace = (pace && pace.expectedPct >= 3) ? pace : null;
+      }
+    }
     limitsCache = { ts: now, key, data };
     res.json(data);
   } catch (e) {
