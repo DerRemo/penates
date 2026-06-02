@@ -5027,11 +5027,16 @@
       // Pro Account die anzuzeigende Zeile bestimmen: 5h-Fenster (Claude/Codex,
       // mit %) ODER limitiert-Zustand (Antigravity, nur Reset, kein %).
       const rowOf = (a) => {
-        // Primärfenster: 5h bevorzugt (Claude/Codex-Paid), sonst 7d (Codex-Free
-        // hat nur ein Wochenlimit). Reset-Countdown macht den Zeitraum klar.
-        const w = (a.windows || []).find(x => x.label === '5h') || (a.windows || []).find(x => x.label === '7d');
+        const ws = a.windows || [];
+        // Primärfenster: 5h bevorzugt (Claude/Codex-Paid), sonst 7d, sonst
+        // irgendein %-Fenster. Codex-Free meldet inzwischen ein 30d-Monatslimit
+        // statt 7d — der Reset-Countdown macht den Zeitraum klar. Label nicht
+        // hart whitelisten, sonst verschwindet der Account bei neuen Labels.
+        const w = ws.find(x => x.label === '5h')
+          || ws.find(x => x.label === '7d')
+          || ws.find(x => typeof x.usedPercentage === 'number');
         if (w) return { pct: Math.round(w.usedPercentage ?? 0), resetsAt: w.resetsAt, limited: false };
-        const lim = (a.windows || []).find(x => x.limited);
+        const lim = ws.find(x => x.limited);
         if (lim || a.limited) return { pct: 100, resetsAt: (lim && lim.resetsAt) || a.resetsAt, limited: true };
         return null;
       };
@@ -6701,16 +6706,24 @@
                 <span class="usage-limit-reset ${cc}${urgent}" data-reset-ts="${w.resetsAt || ''}">${t('usage.reset', { time: formatResetCountdown(w.resetsAt) })}</span>
               </div>`;
           };
-          const accRows = accounts.filter(a => (a.windows || []).some(w => w.label === '5h' || w.label === '7d')).map(a => {
-            const w5 = (a.windows || []).find(w => w.label === '5h');
-            const w7 = (a.windows || []).find(w => w.label === '7d');
-            const label = escapeHtml([a.accountLabel, a.agent].filter(Boolean).join(' · ') || 'Account');
-            return `<div class="usage-account-row">
-              <div class="usage-account-label">${label}</div>
-              ${renderRow(t('usage.window5h'), w5)}
-              ${renderRow(t('usage.window7d'), w7)}
-            </div>`;
-          }).join('');
+          // Pro Account jedes Fenster mit %-Wert rendern (Label = Fenster-Label,
+          // z.B. 5h/7d für Claude, 30d für Codex-Free). Kein hartes 5h|7d-Filter
+          // mehr, sonst fehlt Codex sobald moshi ein anderes Fenster meldet.
+          // Accounts ohne %-Fenster (z.B. Antigravity, nur limited) bleiben
+          // wie bisher ausgeblendet.
+          const accRows = accounts
+            .filter(a => (a.windows || []).some(w => typeof w.usedPercentage === 'number'))
+            .map(a => {
+              const label = escapeHtml([a.accountLabel, a.agent].filter(Boolean).join(' · ') || 'Account');
+              const rows = (a.windows || [])
+                .filter(w => typeof w.usedPercentage === 'number')
+                .map(w => renderRow(escapeHtml(w.label || ''), w))
+                .join('');
+              return `<div class="usage-account-row">
+                <div class="usage-account-label">${label}</div>
+                ${rows}
+              </div>`;
+            }).join('');
           limitHtml = `<div class="usage-limit-card">
               <div class="ulc-title">${t('usage.accountPanelTitle')}</div>
               ${accRows}

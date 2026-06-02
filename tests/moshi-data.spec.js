@@ -114,4 +114,56 @@ test.describe('moshi-hook Daten-Schicht', () => {
     const resetText = await page.locator('.usage-limit-reset').first().innerText();
     expect(resetText).not.toContain('NaN');
   });
+
+  // ── Test D: Codex 30d-Monatsfenster rendert in Sidebar + Usage ──────────
+  // Regression: moshi-hook meldet für Codex-Free inzwischen ein 30d- statt
+  // 7d-Fenster. Sidebar (rowOf) und Usage-View (accRows) filterten hart auf
+  // 5h|7d → Codex verschwand aus beiden Oberflächen.
+  test('codex 30d-Fenster erscheint in Sidebar und Usage-Ansicht', async ({ authedPage: page }) => {
+    const reset30d = Math.floor(Date.now() / 1000) + 29 * 86400;
+    const reset5h = Math.floor(Date.now() / 1000) + 3600;
+    await page.route('**/api/usage/limits**', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accounts: [
+            {
+              accountId: 'claude:abc', accountLabel: 'Max 5x', agent: 'claude-code',
+              windows: [{ label: '5h', usedPercentage: 3, resetsAt: reset5h }],
+            },
+            {
+              accountId: 'codex:xyz', accountLabel: 'Free', agent: 'codex',
+              windows: [{ label: '30d', usedPercentage: 9, resetsAt: reset30d }],
+            },
+          ],
+          points: [], peaks5h: 0, peaks7d: 0,
+        }),
+      });
+    });
+
+    // Sidebar-Usage fetcht nur einmalig beim Init → Reload mit aktiver Route.
+    await page.reload();
+    await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
+
+    // Sidebar öffnen (mobile/tablet collapsed).
+    const sidebarToggle = page.locator('#sidebar-toggle');
+    if (await sidebarToggle.isVisible()) {
+      await sidebarToggle.click();
+      await page.waitForTimeout(300);
+    }
+
+    // Sidebar-Usage-Panel zeigt eine Codex-Zeile mit 9%.
+    const codexRow = page.locator('#sidebar-usage .sidebar__usage-agent', { hasText: 'Codex' });
+    await expect(codexRow).toBeVisible({ timeout: 5_000 });
+    await expect(codexRow).toContainText('9%');
+
+    // Usage-Ansicht: Codex-Account-Zeile mit 30d-Fenster.
+    await page.click('[data-sidebar-nav="usage"]');
+    await page.waitForSelector('body[data-current-view="usage"]', { timeout: 5_000 });
+    const codexAcct = page.locator('.usage-account-row', { hasText: 'codex' });
+    await expect(codexAcct).toBeVisible({ timeout: 5_000 });
+    await expect(codexAcct).toContainText('30d');
+    await expect(codexAcct).toContainText('9%');
+  });
 });
