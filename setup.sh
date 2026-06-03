@@ -45,6 +45,10 @@ echo ""
 echo -e "${BOLD}[2/9]${RESET} Installiere Abhängigkeiten..."
 npm install
 
+# Vendor xterm.js + addons into public/vendor/xterm/ (served same-origin, no CDN)
+echo "[*] Vendore xterm-Assets nach public/vendor/xterm/ ..."
+npm run vendor:xterm
+
 # 3. Configure .env
 echo ""
 echo -e "${BOLD}[3/9]${RESET} Konfiguration..."
