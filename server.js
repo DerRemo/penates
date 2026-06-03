@@ -19,6 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as settings from './lib/settings.js';
+import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
@@ -1756,6 +1757,44 @@ app.patch('/api/settings', express.json(), async (req, res) => {
   if ('tmuxMouse' in patch) { tmuxMouseMode = merged.tmuxMouse; ensureMouseMode(); }
   if ('remoteApproval' in patch) { remoteApprovalEnabled = merged.remoteApproval; }
   res.json({ settings: merged });
+});
+
+// ── Server control (restart / logs / force update-check) ──────────────────────
+const LAUNCHD_LABEL = process.env.LAUNCHAGENT_ID || 'com.claude-code-hub';
+
+app.post('/api/server/restart', (req, res) => {
+  const target = serverControl.buildLaunchdTarget(process.getuid(), LAUNCHD_LABEL);
+  const managed = serverControl.isLaunchdManaged(target, (args) =>
+    execFileSync('launchctl', args, { encoding: 'utf-8', timeout: 3000, stdio: 'pipe' }));
+  if (!managed) {
+    return res.status(409).json({ error: 'not-managed', target,
+      hint: 'Server is not managed by launchd — restart it manually.' });
+  }
+  auditLog.record('server.restart', { ...auditLog.extractRequestMeta(req), target });
+  res.json({ ok: true, restarting: true, target });
+  // Restart AFTER the response flushes. kickstart -k kills + relaunches us.
+  setTimeout(() => {
+    try { execFileSync('launchctl', ['kickstart', '-k', target], { timeout: 3000, stdio: 'pipe' }); }
+    catch (e) { console.error('[server.restart] kickstart failed:', e.message); }
+  }, 300);
+});
+
+app.get('/api/server/logs', async (req, res) => {
+  const stream = req.query.stream === 'stderr' ? 'stderr' : 'stdout';
+  let lines = parseInt(req.query.lines, 10);
+  if (!Number.isFinite(lines)) lines = 200;
+  lines = Math.min(1000, Math.max(1, lines));
+  try {
+    const data = await serverControl.tailFile(join(__dirname, 'logs', `${stream}.log`), lines);
+    res.json({ stream, lines, data });
+  } catch {
+    res.status(500).json({ error: 'log read failed' });
+  }
+});
+
+app.post('/api/version/check', async (_req, res) => {
+  await updateChecker.check();
+  res.json(updateChecker.getState());
 });
 
 // Entscheidung vom Dashboard (Bearer) ODER vom Service-Worker (?token=<otp>).
