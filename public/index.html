@@ -2742,6 +2742,28 @@
       .session-card.card-enter { animation: none !important; }
     }
 
+    /* Manual reduce-motion toggle (Settings → Appearance → Animations off) */
+    html[data-reduce-motion="true"] *,
+    html[data-reduce-motion="true"] *::before,
+    html[data-reduce-motion="true"] *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+    html[data-reduce-motion="true"] .session-card.card-enter { animation: none !important; }
+
+    /* Compact density: tighten the global spacing scale (~0.82x). Conservative —
+       only the --space-* tokens; components using these tokens shrink, hardcoded
+       px are left alone. */
+    html[data-density="compact"] {
+      --space-2: 6px;
+      --space-3: 10px;
+      --space-4: 13px;
+      --space-5: 19px;
+      --space-6: 26px;
+      --space-7: 38px;
+    }
+
     /* ── D3: Search-Filter ─────────────────────────────────────────── */
     .search-wrapper {
       position: relative;
@@ -3603,6 +3625,15 @@
     .settings-row__control { display: flex; align-items: center; gap: 8px; }
     .settings-row__hint { margin: 0 0 12px; font-size: 12px; color: var(--text-muted); }
     .settings-row__meta { font-size: 12px; color: var(--text-muted); }
+    .settings-range { width: 140px; accent-color: var(--accent); cursor: pointer; }
+    .settings-number {
+      width: 84px; padding: 5px 8px; border-radius: var(--radius-sm, 6px);
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text-primary); font: 500 13px var(--font-ui);
+    }
+    .settings-number:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+    .term-bell-flash { animation: termBellFlash 140ms ease; }
+    @keyframes termBellFlash { 0% { background: var(--accent-muted); } 100% { background: transparent; } }
     .settings-row--link {
       cursor: pointer; background: transparent; border: 0; font: inherit;
       color: inherit; text-align: left; width: 100%;
@@ -4734,6 +4765,52 @@
       } catch {}
       return 'dashboard';
     }
+
+    // ── Client Preferences (Phase 2) ──────────────────────────────
+    // Thin DOM/localStorage glue over the pure public/prefs.js module.
+    // Keys are namespaced cchub_pref_*. Getters coerce raw strings to valid
+    // typed values (clamped/validated) so a corrupt localStorage can't break
+    // the app. apply*() hooks push a pref into its live consumer.
+    const Prefs = (() => {
+      let M = null;                       // the loaded prefs.js module
+      const K = (name) => 'cchub_pref_' + name;
+      function raw(name) { try { return localStorage.getItem(K(name)); } catch { return null; } }
+      function setRaw(name, v) { try { localStorage.setItem(K(name), String(v)); } catch {} }
+
+      const get = {
+        animations:       () => M ? M.coerceBool(raw('animations'), M.DEFAULTS.animations) : true,
+        density:          () => M ? M.coerceEnum(raw('density'), M.ENUMS.density, M.DEFAULTS.density) : 'normal',
+        soundVolume:      () => M ? (parseInt(raw('soundVolume'), 10) || M.DEFAULTS.soundVolume) : 100,
+        soundGain:        () => M ? M.coercePercent(raw('soundVolume'), M.DEFAULTS.soundVolume) : 1,
+        termFontSize:     () => M ? M.coerceInt(raw('termFontSize'), 11, 18, M.DEFAULTS.termFontSize) : 13,
+        termScrollback:   () => M ? M.coerceInt(raw('termScrollback'), 500, 10000, M.DEFAULTS.termScrollback) : 5000,
+        termCursor:       () => M ? M.coerceEnum(raw('termCursor'), M.ENUMS.termCursor, M.DEFAULTS.termCursor) : 'bar',
+        termCopyOnSelect: () => M ? M.coerceBool(raw('termCopyOnSelect'), M.DEFAULTS.termCopyOnSelect) : false,
+        termBell:         () => M ? M.coerceBool(raw('termBell'), M.DEFAULTS.termBell) : false,
+        landingView:      () => M ? M.coerceEnum(raw('landingView'), M.ENUMS.landingView, M.DEFAULTS.landingView) : 'last',
+        defaultCli:       () => raw('defaultCli') || (M ? M.DEFAULTS.defaultCli : 'claude'),
+        defaultTier:      () => M ? M.coerceEnum(raw('defaultTier'), M.ENUMS.defaultTier, M.DEFAULTS.defaultTier) : 'auto',
+        confirmKill:      () => M ? M.coerceBool(raw('confirmKill'), M.DEFAULTS.confirmKill) : true,
+      };
+
+      function applyGlobal() {
+        const root = document.documentElement;
+        root.setAttribute('data-reduce-motion', get.animations() ? 'false' : 'true');
+        root.setAttribute('data-density', get.density());
+      }
+
+      async function load() {
+        if (M) return M;
+        try { M = await import('./prefs.js'); } catch { M = null; }
+        return M;
+      }
+
+      return { K, raw, setRaw, get, applyGlobal, load,
+               prefersReducedMotion: () =>
+                 get.animations() === false ||
+                 (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) };
+    })();
+    window.Prefs = Prefs;
 
     // ── Shell-Chrome Helpers ───────────────────────────────────────
     function updateShellChrome() {
@@ -9443,6 +9520,7 @@
     // würde sonst immer auf dashboard landen).
     { const s = document.getElementById('projects-sort'); if (s) s.value = getProjectsSort();
       const f = document.getElementById('projects-filter'); if (f) f.value = getProjectsFilter(); }
+    Prefs.load().then(() => Prefs.applyGlobal());
     setView(initialNavView());
     // Notifications-WS direkt beim Start — unabhängig vom aktiven Tab,
     // damit Attention-Events auch dann ankommen wenn der User gerade
