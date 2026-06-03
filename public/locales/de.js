@@ -515,6 +515,7 @@ window.__I18N_BUNDLES.de = {
 
   // Common / shared
   'common.errorWithMessage': 'Fehler: {message}',
+  'common.loading': 'Lädt…',
   'common.on': 'An',
   'common.off': 'Aus',
 
@@ -529,6 +530,7 @@ window.__I18N_BUNDLES.de = {
   'settings.section.terminal': 'Terminal',
   'settings.section.notifications': 'Benachrichtigungen',
   'settings.section.behavior': 'Verhalten',
+  'settings.section.server': 'Server & Features',
   'settings.section.account': 'Konto & Daten',
   'settings.section.helpAbout': 'Hilfe & Über',
   'settings.section.sessions': 'Sessions',
@@ -648,4 +650,17 @@ window.__I18N_BUNDLES.de = {
   // Remote-Approval
   'settings.remoteApproval': 'Remote-Freigabe',
   'settings.remoteApprovalDesc': 'Tool-Freigaben ans Dashboard/Handy routen, wenn niemand am Terminal ist (nur im normalen Modus).',
+
+  // Settings — Server & Features section
+  'settings.server.version':      'Version',
+  'settings.server.uptime':       'Laufzeit',
+  'settings.server.sessions':     'Aktive Sessions',
+  'settings.server.ptys':         'Aktive Terminals',
+  'settings.server.tmuxMouse':    'tmux-Maus-Modus',
+  'settings.server.voice':        'Spracheingabe',
+  'settings.server.preview':      'Browser-Vorschau',
+  'settings.server.remoteAccess': 'Cloudflare Access',
+  'settings.server.push':         'Web-Push',
+  'settings.server.projectRoots': 'Projekt-Wurzeln',
+  'settings.server.unavailable':  'Server-Infos nicht verfügbar',
 };

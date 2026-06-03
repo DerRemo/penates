@@ -4166,6 +4166,7 @@
         <button type="button" class="settings-anchor" data-anchor="sec-terminal"      data-i18n="settings.section.terminal">Terminal</button>
         <button type="button" class="settings-anchor" data-anchor="sec-notifications" data-i18n="settings.section.notifications">Notifications</button>
         <button type="button" class="settings-anchor" data-anchor="sec-behavior"      data-i18n="settings.section.behavior">Behavior</button>
+        <button type="button" class="settings-anchor" data-anchor="sec-server"        data-i18n="settings.section.server">Server</button>
         <button type="button" class="settings-anchor" data-anchor="sec-account"       data-i18n="settings.section.account">Account</button>
         <button type="button" class="settings-anchor" data-anchor="sec-help"          data-i18n="settings.section.helpAbout">Help &amp; About</button>
       </nav>
@@ -4323,6 +4324,14 @@
           </div>
         </div>
         <p class="settings-row__hint" data-i18n="settings.sessions.bulkKillDesc"></p>
+      </section>
+
+      <!-- Server & Features -->
+      <section class="settings-section" id="sec-server">
+        <div class="settings-seclabel" data-i18n="settings.section.server">Server &amp; Features</div>
+        <div class="settings-card" id="server-panel">
+          <div class="settings-row"><span class="settings-row__meta" data-i18n="common.loading">Loading…</span></div>
+        </div>
       </section>
 
       <!-- Account & Data -->
@@ -9705,6 +9714,53 @@
       }
     }
 
+    // ── Settings: Server & Features panel ─────────────────────────
+    async function initServerPanel() {
+      const panel = document.getElementById('server-panel');
+      if (!panel) return;
+      let data;
+      try {
+        const r = await fetch('/api/settings', { headers: apiHeaders() });
+        if (r.status === 401) { clearToken(); showLoginModal(); return; }
+        if (!r.ok) throw new Error('bad status');
+        data = await r.json();
+      } catch {
+        panel.innerHTML = `<div class="settings-row"><span class="settings-row__meta">${t('settings.server.unavailable')}</span></div>`;
+        return;
+      }
+      const s = data.settings || {}, st = data.status || {}, f = data.features || {};
+      const onOff = (b) => b ? t('common.on') : t('common.off');
+      const statRow = (label, value) =>
+        `<div class="settings-row"><label>${escapeHtml(label)}</label>` +
+        `<div class="settings-row__control"><span class="settings-row__meta">${escapeHtml(value)}</span></div></div>`;
+      const rows = [
+        statRow(t('settings.server.version'), st.version ? 'v' + st.version : '—'),
+        statRow(t('settings.server.uptime'), formatDurationShort(st.uptimeSeconds)),
+        statRow(t('settings.server.sessions'), String(st.sessions ?? '—')),
+        statRow(t('settings.server.ptys'), String(st.activePtys ?? '—')),
+        `<div class="settings-row"><label data-i18n="settings.server.tmuxMouse">tmux mouse</label>` +
+          `<div class="settings-row__control"><button type="button" class="toggle-btn" id="srv-tmux-mouse" aria-pressed="${s.tmuxMouse === 'on'}"></button></div></div>`,
+        statRow(t('settings.server.voice'), f.voice && f.voice.enabled ? `${t('common.on')} · ${f.voice.lang || ''}` : t('common.off')),
+        statRow(t('settings.server.preview'), f.preview && f.preview.enabled ? (f.preview.host || t('common.on')) : t('common.off')),
+        statRow(t('settings.server.remoteAccess'), onOff(f.cfAccess && f.cfAccess.enabled)),
+        statRow(t('settings.server.push'), onOff(f.push && f.push.configured)),
+        statRow(t('settings.server.projectRoots'), (f.projectRoots || []).join(', ') || '—'),
+      ];
+      panel.innerHTML = rows.join('');
+      const tm = document.getElementById('srv-tmux-mouse');
+      if (tm) tm.addEventListener('click', async () => {
+        const next = tm.getAttribute('aria-pressed') !== 'true';
+        tm.setAttribute('aria-pressed', next ? 'true' : 'false');
+        try {
+          await fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', ...apiHeaders() },
+            body: JSON.stringify({ tmuxMouse: next ? 'on' : 'off' }),
+          });
+        } catch { tm.setAttribute('aria-pressed', next ? 'false' : 'true'); }
+      });
+    }
+
     // ── Settings: Anchor-Chip Scrollspy ───────────────────────────
     // Sticky chips jump to sections; an IntersectionObserver highlights the
     // section currently near the top. Viewport root (null) works whether the
@@ -9859,6 +9915,7 @@
     initDisplayPrefs();
     initBehaviorPrefs();
     initAccountData();
+    initServerPanel();   // async, fire-and-forget
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────

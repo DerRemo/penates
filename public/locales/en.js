@@ -515,6 +515,7 @@ window.__I18N_BUNDLES.en = {
 
   // Common / shared
   'common.errorWithMessage': 'Error: {message}',
+  'common.loading': 'Loading…',
   'common.on': 'On',
   'common.off': 'Off',
 
@@ -529,6 +530,7 @@ window.__I18N_BUNDLES.en = {
   'settings.section.terminal': 'Terminal',
   'settings.section.notifications': 'Notifications',
   'settings.section.behavior': 'Behavior',
+  'settings.section.server': 'Server & Features',
   'settings.section.account': 'Account & Data',
   'settings.section.helpAbout': 'Help & About',
   'settings.section.sessions': 'Sessions',
@@ -648,4 +650,17 @@ window.__I18N_BUNDLES.en = {
   // Remote-Approval
   'settings.remoteApproval': 'Remote approval',
   'settings.remoteApprovalDesc': 'Route tool approvals to the dashboard/phone when nobody is at the terminal (normal mode only).',
+
+  // Settings — Server & Features section
+  'settings.server.version':      'Version',
+  'settings.server.uptime':       'Uptime',
+  'settings.server.sessions':     'Active sessions',
+  'settings.server.ptys':         'Active terminals',
+  'settings.server.tmuxMouse':    'tmux mouse mode',
+  'settings.server.voice':        'Voice input',
+  'settings.server.preview':      'Browser preview',
+  'settings.server.remoteAccess': 'Cloudflare Access',
+  'settings.server.push':         'Web push',
+  'settings.server.projectRoots': 'Project roots',
+  'settings.server.unavailable':  'Server info unavailable',
 };
