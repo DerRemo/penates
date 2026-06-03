@@ -4691,7 +4691,6 @@
     }
     let pendingCtrl = false;       // Touch-Toolbar: sticky Ctrl-Modifier
     let touchScrollAbort = null;   // AbortController für Touch-Scroll-Listener
-    let clipboardAbort = null;     // AbortController für Document-level Clipboard-Keys
 
     // ── Theme ──────────────────────────────────────────────────────
     const THEMES = ['latte','frappe','macchiato','mocha'];
@@ -7613,6 +7612,7 @@
         cursorStyle: window.Prefs ? window.Prefs.get.termCursor() : 'bar',
         cursorBlink: true,
         allowProposedApi: true,
+        macOptionClickForcesSelection: true,
         scrollback: window.Prefs ? window.Prefs.get.termScrollback() : 5000,
         fastScrollModifier: 'shift',
         macOptionIsMeta: true,
@@ -7625,13 +7625,6 @@
       term.loadAddon(fitAddon);
       term.loadAddon(webLinksAddon);
         window._fitAddon = fitAddon;  // for live font-size changes from Settings
-        // Copy-on-select (pref): mirror the selection into the clipboard.
-        if (window.Prefs && window.Prefs.get.termCopyOnSelect()) {
-          term.onSelectionChange(() => {
-            const sel = term.getSelection();
-            if (sel && navigator.clipboard) navigator.clipboard.writeText(sel).catch(() => {});
-          });
-        }
         // Bell (pref): brief visual flash on the terminal element.
         if (window.Prefs && window.Prefs.get.termBell()) {
           term.onBell(() => {
@@ -7641,22 +7634,6 @@
             setTimeout(() => elx.classList.remove('term-bell-flash'), 160);
           });
         }
-
-      // Cmd+C / Ctrl+C → wenn xterm selbst eine Selection hat, die kopieren.
-      // (Greift hauptsächlich wenn xterm die Selection-bypass-Modifier-Kombi
-      // trifft; unser eigenes Shift-Drag weiter unten ist der Hauptpfad.)
-      term.attachCustomKeyEventHandler((ev) => {
-        if (ev.type !== 'keydown') return true;
-        const isCopyCombo = (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey && (ev.key === 'c' || ev.key === 'C');
-        if (!isCopyCombo) return true;
-        if (!term.hasSelection()) return true;   // Ctrl+C ohne Selection → SIGINT
-        const text = term.getSelection();
-        if (!text) return true;
-        navigator.clipboard.writeText(text).catch(() => {
-          showToast(t('toast.copyFailed'), 'error');
-        });
-        return false;
-      });
 
       term.open(container);
 
@@ -7682,116 +7659,10 @@
       // schon alles was er braucht.
       window.__cchubTerm = term;
 
-      // ── Manuelle Shift/Alt+Drag-Selection ───────────────────────────
-      // Warum: xterm.js' eingebauter Force-Selection-Bypass (Shift auf Win/
-      // Linux, Alt auf Mac) greift bei uns nicht zuverlässig, weil tmux mit
-      // Mouse-Mode an läuft und CoreMouseService die Events vor Selection-
-      // Service sieht. Unser eigener Handler fängt Shift/Alt+Drag direkt am
-      // Container ab, stopPropagation → tmux sieht die Events nie, xterm's
-      // CoreMouseService auch nicht. Wir berechnen Zeilen per Pixel-Math,
-      // lesen die Zeilen direkt aus term.buffer und schreiben ins Clipboard.
-      // Auto-Copy auf Mouseup — User muss nicht extra Cmd+C/Ctrl+C drücken,
-      // weil der Fokus-Tanz nach Shift+Drag ohnehin brüchig ist.
-      //
-      // Trigger: primäre Maustaste + (Shift ODER Alt). Beide Modifier, damit
-      // es cross-platform ohne Memorisierung funktioniert (Mac-Nutzer hat Alt
-      // als Muscle-Memory aus iTerm, Win/Linux-Nutzer hat Shift).
-      {
-        let drag = null;
-        const getScreen = () => term.element?.querySelector('.xterm-screen') || term.element;
-        const pxToRowCol = (e, screenEl) => {
-          const rect = screenEl.getBoundingClientRect();
-          const charW = rect.width / term.cols;
-          const charH = rect.height / term.rows;
-          const col = Math.max(0, Math.min(term.cols - 1, Math.floor((e.clientX - rect.left) / charW)));
-          const row = Math.max(0, Math.min(term.rows - 1, Math.floor((e.clientY - rect.top) / charH)));
-          return { col, row };
-        };
-        const buildText = (startAbsRow, startCol, endAbsRow, endCol) => {
-          // Normalisieren: immer top-left → bottom-right
-          let a = { row: startAbsRow, col: startCol };
-          let b = { row: endAbsRow, col: endCol };
-          if (a.row > b.row || (a.row === b.row && a.col > b.col)) [a, b] = [b, a];
-          const buf = term.buffer.active;
-          const lines = [];
-          for (let y = a.row; y <= b.row; y++) {
-            const line = buf.getLine(y);
-            if (!line) { lines.push(''); continue; }
-            const full = line.translateToString(true);
-            if (a.row === b.row) lines.push(full.slice(a.col, b.col + 1));
-            else if (y === a.row) lines.push(full.slice(a.col));
-            else if (y === b.row) lines.push(full.slice(0, b.col + 1));
-            else lines.push(full);
-          }
-          return lines.join('\n');
-        };
-
-        container.addEventListener('mousedown', (e) => {
-          if (e.button !== 0) return;
-          if (!e.shiftKey && !e.altKey) return;
-          const screenEl = getScreen();
-          const { col, row } = pxToRowCol(e, screenEl);
-          const absRow = term.buffer.active.viewportY + row;
-          drag = { startAbsRow: absRow, startCol: col, lastAbsRow: absRow, lastCol: col, screenEl };
-          try { term.select(col, row, 1); } catch {}
-          e.preventDefault();
-          e.stopPropagation();
-        }, { capture: true });
-
-        const onMove = (e) => {
-          if (!drag) return;
-          const { col, row } = pxToRowCol(e, drag.screenEl);
-          const absRow = term.buffer.active.viewportY + row;
-          drag.lastAbsRow = absRow;
-          drag.lastCol = col;
-          // Visuelle Selection: wir nutzen term.select() mit Viewport-Koordinaten.
-          // Für multi-line ist das nicht perfekt (xterm.select hängt am Buffer-
-          // Linear-Index), aber gut genug als Feedback. Der tatsächlich kopierte
-          // Text kommt aus unserem buildText, nicht aus term.getSelection().
-          const startVpRow = drag.startAbsRow - term.buffer.active.viewportY;
-          try {
-            const linearStart = startVpRow * term.cols + drag.startCol;
-            const linearEnd = row * term.cols + col;
-            const lo = Math.min(linearStart, linearEnd);
-            const hi = Math.max(linearStart, linearEnd);
-            const selRow = Math.floor(lo / term.cols);
-            const selCol = lo % term.cols;
-            const length = Math.max(1, hi - lo + 1);
-            if (selRow >= 0 && selRow < term.rows) term.select(selCol, selRow, length);
-          } catch {}
-          e.preventDefault();
-          e.stopPropagation();
-        };
-        const onUp = (e) => {
-          if (!drag) return;
-          const text = buildText(drag.startAbsRow, drag.startCol, drag.lastAbsRow, drag.lastCol).replace(/[\s\u00a0]+$/gm, '');
-          drag = null;
-          e.preventDefault();
-          e.stopPropagation();
-          // Fokus zurück auf helper-textarea, damit danach Cmd+V/Ctrl+V
-          // sowie normales Tippen wieder funktionieren.
-          term.focus();
-          if (!text.trim()) return;
-          navigator.clipboard.writeText(text).then(() => {
-            showToast(t('toast.copiedChars', { n: text.length }), 'success');
-          }).catch(() => {
-            showToast(t('toast.copyFailed'), 'error');
-          });
-        };
-        clipboardAbort?.abort();
-        clipboardAbort = new AbortController();
-        document.addEventListener('mousemove', onMove, { capture: true, signal: clipboardAbort.signal });
-        document.addEventListener('mouseup', onUp, { capture: true, signal: clipboardAbort.signal });
-      }
-
-      // Paste-Handling: xterms eingebauter Paste-Pfad hängt am Fokus des
-      // `.xterm-helper-textarea`, der nicht immer stabil ist (besonders
-      // in Safari/iOS nach Touch-Events). Wir fangen `paste` selbst am
-      // Container ab und delegieren an `term.paste()` — das ist die
-      // offizielle API und wrapped den Text bei Bedarf mit Bracketed-Paste-
-      // Markern (`\e[200~`...`\e[201~`), wenn die laufende App diese Mode
-      // aktiviert hat. `capture: true` damit wir vor xterms Handler laufen
-      // und kein Doppel-Paste entsteht.
+      // Paste-Handling: Nur Bild-Pastes fangen wir ab und routen sie in den
+      // ImageAnnotator. Text-Paste lassen wir durchfallen zu xterms nativem
+      // Helper-Textarea-Pfad (xterm 6.0 übernimmt Bracketed-Paste selbst).
+      // `capture: true` nur, damit der Bild-Zweig vor xterm greift.
       container.addEventListener('paste', (e) => {
         // Bild im Clipboard? → Annotator statt Text-Paste.
         const items = e.clipboardData?.items;
@@ -7808,60 +7679,7 @@
             }
           }
         }
-        const text = e.clipboardData?.getData('text');
-        if (!text) return;
-        e.preventDefault();
-        e.stopPropagation();
-        term.paste(text);
       }, { capture: true });
-
-      // Cmd+V / Ctrl+V am document abfangen BEVOR xterm's Keyboard-Handler
-      // es als ^V (\x16 SYN) zum PTY schickt. Sonst feuert Firefox kein
-      // natives paste-Event, weil der Keystroke schon beim ersten Handler
-      // konsumiert wurde. Wir stopImmediatePropagation am capture-top,
-      // lesen selbst aus dem Clipboard und rufen term.paste().
-      const pasteIntercept = async (ev) => {
-        const isPasteCombo = (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey && (ev.key === 'v' || ev.key === 'V');
-        if (!isPasteCombo) return;
-        if (document.body.dataset.currentView !== 'terminal') return;
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-        try {
-          const text = await navigator.clipboard.readText();
-          if (text) { term.focus(); term.paste(text); }
-        } catch {
-          showToast(t('toast.pasteFailed'), 'error');
-        }
-      };
-      document.addEventListener('keydown', pasteIntercept, { capture: true, signal: clipboardAbort.signal });
-
-      // Rechtsklick = sofort einfügen (ohne Kontextmenü). In Firefox firet
-      // das Kontextmenü-„Einfügen" kein zuverlässiges paste-Event auf die
-      // xterm-Canvas, weil das Ziel nicht die versteckte Helper-Textarea
-      // ist. iTerm-in-Browser und viele TUI-Terminals machen dasselbe:
-      // right-click pastes direkt. navigator.clipboard.readText() braucht
-      // einen User-Gesture (Rechtsklick zählt) und läuft in sicheren
-      // Kontexten (https / localhost).
-      // Firefox erlaubt clipboard.readText() nicht stumm — zeigt stattdessen
-      // eine Permission-Bubble mit eigenem „Einfügen"-Button ZUSÄTZLICH zum
-      // nativen Kontextmenü. Doppel-UI. Darum: in Firefox den Handler skippen,
-      // natives Menü zulassen. Dessen „Einfügen" firet ein paste-Event auf die
-      // xterm-helper-textarea, das bubblet zum Container und wird vom bereits
-      // existierenden 'paste'-Listener (weiter oben) an term.paste() delegiert.
-      // In Chrome/Safari läuft readText() silent aus User-Gesture, da machen
-      // wir weiterhin das sofortige Paste ohne Kontextmenü.
-      const isFirefox = navigator.userAgent.includes('Firefox');
-      if (!isFirefox) {
-        container.addEventListener('contextmenu', async (e) => {
-          e.preventDefault();
-          try {
-            const text = await navigator.clipboard.readText();
-            if (text) term.paste(text);
-          } catch (err) {
-            showToast(t('toast.clipboardNotReadable'), 'error');
-          }
-        });
-      }
 
       // Touch-Scrolling: Claude Code läuft im Alt-Screen-Buffer, da hat
       // xterm selbst keinen Scrollback — die Historie gehört tmux. Wir
@@ -7977,14 +7795,9 @@
         currentResizeObserver = resizeObserver;
         term.focus();
 
-        // Einmaliger Hint: Shift+Drag zum Markieren ist nicht intuitiv, weil
-        // Claude/tmux Mouse-Tracking aktivieren und damit die normale
-        // Client-Selection unterdrücken. Nur zeigen wenn der User den Hint
-        // noch nie gesehen hat.
-        if (!localStorage.getItem('cchub_hint_copy_seen')) {
-          showToast(t('toast.copyHint'), 'info');
-          localStorage.setItem('cchub_hint_copy_seen', '1');
-        }
+        // Copy-Hint vorübergehend ausgesetzt: das alte Shift/Alt+Drag-Verhalten
+        // wurde entfernt. Ein akkurater Hint zur 6.0-Baseline-Selektion + Cmd+C
+        // wird beim Re-Add des Copy-Handlers (nächster Schritt) wieder gezeigt.
       });
     }
 
@@ -8203,8 +8016,6 @@
       if (_ftBtn) _ftBtn.style.display = 'none';
       const _dfBtn = document.getElementById('btn-toggle-diff');
       if (_dfBtn) _dfBtn.style.display = 'none';
-      clipboardAbort?.abort();
-      clipboardAbort = null;
     }
 
     // ── Recovery / Adoption ──────────────────────────────────────
