@@ -64,7 +64,17 @@ test.describe('Connection-Robustness', () => {
       // AUSSCHLIESSLICH aus dem Seed — sie wären ohne Seeding nie im xterm.
       // Der Viewport (40 Rows Terminalhöhe) zeigt SCROLLMARK23–60 + Prompt;
       // SCROLLMARK23 ist der erste Seed-exklusive Wert im sichtbaren Bereich.
-      await expect(authedPage.locator('.xterm-rows')).toContainText('SCROLLMARK23', { timeout: 10_000 });
+      // Renderer-agnostisch über die xterm-Buffer-API prüfen (der WebGL-Renderer
+      // zeichnet auf <canvas> ohne .xterm-rows-DOM; der Seed landet via term.write
+      // im Buffer-Scrollback, also deckt buffer.active beide Renderer ab).
+      await expect.poll(async () => authedPage.evaluate(() => {
+        const t = window.__cchubTerm;
+        if (!t) return '';
+        const b = t.buffer.active;
+        let s = '';
+        for (let i = 0; i < b.length; i++) s += (b.getLine(i)?.translateToString(true) || '') + '\n';
+        return s;
+      }), { timeout: 10_000 }).toContain('SCROLLMARK23');
     } finally {
       killSession(sess);
     }
