@@ -108,6 +108,12 @@ window.__I18N_BUNDLES.de = {
   'terminal.toolbar.killAria': 'Session beenden',
   'terminal.toolbar.killTitle': 'Session beenden',
   'terminal.toolbar.kill': 'Beenden',
+  'terminal.search.toggle': 'Suchen',
+  'terminal.search.placeholder': 'Suchen',
+  'terminal.search.inputAria': 'Terminal durchsuchen',
+  'terminal.search.prevAria': 'Vorheriger Treffer',
+  'terminal.search.nextAria': 'Nächster Treffer',
+  'terminal.search.closeAria': 'Suche schließen',
 
   // Terminal connection status labels
   'terminal.connStatus.connecting': 'Verbinde',

@@ -108,6 +108,12 @@ window.__I18N_BUNDLES.en = {
   'terminal.toolbar.killAria': 'Kill session',
   'terminal.toolbar.killTitle': 'Kill session',
   'terminal.toolbar.kill': 'Kill',
+  'terminal.search.toggle': 'Search',
+  'terminal.search.placeholder': 'Search',
+  'terminal.search.inputAria': 'Search terminal',
+  'terminal.search.prevAria': 'Previous match',
+  'terminal.search.nextAria': 'Next match',
+  'terminal.search.closeAria': 'Close search',
 
   // Terminal connection status labels
   'terminal.connStatus.connecting': 'Connecting',

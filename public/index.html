@@ -3207,7 +3207,55 @@
     }
 
     /* ── v0.6.0 Filebrowser Sidebar ────────────────────────────── */
-    .terminal-layout { display: flex; height: 100%; min-height: 0; }
+    .terminal-layout { display: flex; height: 100%; min-height: 0; position: relative; }
+    .term-search {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+      font-size: var(--text-xs);
+    }
+    .term-search-icon { width: 14px; height: 14px; opacity: 0.55; flex: none; color: var(--text-muted); }
+    #term-search-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: var(--text-sm);
+      font-family: inherit;
+      width: 160px;
+      min-width: 0;
+    }
+    #term-search-input.term-search-nomatch { color: #f38ba8; }
+    .term-search-count {
+      font-variant-numeric: tabular-nums;
+      color: var(--text-muted);
+      min-width: 38px;
+      text-align: right;
+    }
+    .term-search-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1;
+      padding: 2px 5px;
+      border-radius: 5px;
+    }
+    .term-search-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    @media (max-width: 600px) {
+      .term-search { left: 8px; right: 8px; top: 6px; }
+      #term-search-input { width: 100%; }
+    }
     .files-sidebar {
       flex: 0 0 var(--files-width, 280px);
       min-width: 0;
