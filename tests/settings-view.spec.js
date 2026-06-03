@@ -26,6 +26,24 @@ async function openSettings(page) {
   }
 }
 
+// Mock GET /api/settings so the Server panel renders deterministically (the
+// action buttons depend on this fetch resolving; under full-suite parallel load
+// the real endpoint can be slow on the webkit-mobile project → flaky waits).
+async function mockServerSettings(page) {
+  await page.route('**/api/settings', route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({
+        settings: { tmuxMouse: 'on', remoteApproval: true },
+        status: { version: '9.9.9', uptimeSeconds: 1, sessions: 0, activePtys: 0 },
+        features: { voice: { enabled: false, lang: 'de' }, preview: { enabled: false, host: null },
+          cfAccess: { enabled: false }, push: { configured: false }, projectRoots: [], browseRoots: [], defaultProjectDir: '~' },
+      }),
+    });
+  });
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 test.describe('Settings-View (Redesign Phase 1)', () => {
@@ -116,12 +134,13 @@ test.describe('Settings-View (Redesign Phase 1)', () => {
   });
 
   test('logs viewer opens and renders tail from /api/server/logs', async ({ authedPage: page }) => {
+    await mockServerSettings(page);   // deterministic panel render (no dep on real /api/settings timing)
     await page.route('**/api/server/logs**', route => route.fulfill({
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ stream: 'stdout', lines: 500, data: 'LOGLINE-ALPHA\nLOGLINE-BETA' }),
     }));
     // setView('settings') re-fetches the Server panel on open (see index.html),
-    // so the action buttons render reliably without a reload.
+    // so the action buttons render reliably.
     await openSettings(page);
     await page.waitForSelector('#srv-logs-btn', { state: 'attached', timeout: 10_000 });
     await page.click('#srv-logs-btn');
@@ -133,6 +152,7 @@ test.describe('Settings-View (Redesign Phase 1)', () => {
 
   test('restart button needs a 2nd click and posts to /api/server/restart', async ({ authedPage: page }) => {
     let posted = 0;
+    await mockServerSettings(page);   // deterministic panel render
     await page.route('**/api/server/restart', route => { posted++; route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"restarting":true}' }); });
     await openSettings(page);
     await page.waitForSelector('#srv-restart-btn', { state: 'attached', timeout: 10_000 });
