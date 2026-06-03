@@ -11345,8 +11345,8 @@
           if (e.key === 'Enter') { e.preventDefault(); runSearch(e.shiftKey ? 'prev' : 'next', false); }
           else if (e.key === 'Escape') { e.preventDefault(); close(); }
         });
-        prevBtn.addEventListener('click', () => { navigate('prev'); input.focus(); });
-        nextBtn.addEventListener('click', () => { navigate('next'); input.focus(); });
+        prevBtn.addEventListener('click', () => { runSearch('prev', false); input.focus(); });
+        nextBtn.addEventListener('click', () => { runSearch('next', false); input.focus(); });
         closeBtn.addEventListener('click', () => close());
       }
 
@@ -11375,24 +11375,6 @@
           if (dir === 'prev') addon.findPrevious(q, opts);
           else addon.findNext(q, opts);
         } catch {}
-      }
-
-      // navigate() is used by the prev/next buttons. It advances the virtual
-      // count optimistically (so the display always changes immediately), then
-      // lets the addon's onDidChangeResults sync back the real position.
-      function navigate(dir) {
-        const { resultIndex, resultCount } = lastResult;
-        if (resultCount > 0) {
-          // Advance display immediately so the test (and user) sees a change
-          // even if onDidChangeResults fires with the same index due to
-          // xterm internal selection state issues.
-          const next = dir === 'prev'
-            ? (resultIndex - 1 + resultCount) % resultCount
-            : (resultIndex + 1) % resultCount;
-          lastResult = { resultIndex: next, resultCount };
-          renderCount();
-        }
-        runSearch(dir, false);
       }
 
       function renderCount() {
