@@ -3,14 +3,12 @@ import { navigateToSession, waitForTerminal, goBackToDashboard, getToken } from 
 
 test.describe('Terminal', () => {
   test('terminal renders after session attach', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
     await expect(page.locator('#terminal-container .xterm-screen')).toBeVisible();
   });
 
   test('keyboard input appears in terminal', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
@@ -35,7 +33,6 @@ test.describe('Terminal', () => {
   });
 
   test('terminal resizes on viewport change', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
@@ -50,7 +47,6 @@ test.describe('Terminal', () => {
   });
 
   test('disconnect button returns to dashboard', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
     await goBackToDashboard(page);
@@ -66,7 +62,6 @@ test.describe('Terminal', () => {
     });
 
     try {
-      await page.click('#refresh-btn');
       await navigateToSession(page, `cc-${name}`);
       await waitForTerminal(page);
       // killCurrentSession() uses confirm() dialog
@@ -81,7 +76,6 @@ test.describe('Terminal', () => {
   });
 
   test('idea capture modal opens', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
@@ -102,7 +96,6 @@ test.describe('Terminal', () => {
   });
 
   test('connection status indicator shows connected', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
