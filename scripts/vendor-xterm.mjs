@@ -11,6 +11,7 @@ const PKGS = [
   '@xterm/addon-web-links',
   '@xterm/addon-webgl',
   '@xterm/addon-unicode-graphemes',
+  '@xterm/addon-search',
 ];
 
 rmSync(OUT, { recursive: true, force: true });
