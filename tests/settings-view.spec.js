@@ -36,12 +36,30 @@ test.describe('Settings-View (Redesign Phase 1)', () => {
     await expect(topbar).toBeVisible();
   });
 
-  test('renders the 6 anchor chips incl. Terminal + Account', async ({ authedPage: page }) => {
+  test('renders 7 anchor chips incl. Server', async ({ authedPage: page }) => {
     await openSettings(page);
-    const chips = page.locator('#settings-view .settings-anchor');
-    await expect(chips).toHaveCount(6);
+    await expect(page.locator('#settings-view .settings-anchor')).toHaveCount(7);
     await expect(page.locator('#settings-view .settings-anchor[data-anchor="sec-terminal"]')).toBeAttached();
     await expect(page.locator('#settings-view .settings-anchor[data-anchor="sec-account"]')).toBeAttached();
+    await expect(page.locator('#settings-view .settings-anchor[data-anchor="sec-server"]')).toBeAttached();
+  });
+
+  test('server panel renders status + feature flags from /api/settings', async ({ authedPage: page }) => {
+    await page.route('**/api/settings', route => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({
+        settings: { tmuxMouse: 'on', remoteApproval: true },
+        status: { version: '9.9.9', uptimeSeconds: 3661, sessions: 2, activePtys: 1 },
+        features: { voice: { enabled: true, lang: 'de' }, preview: { enabled: false, host: null },
+                    cfAccess: { enabled: true }, push: { configured: false },
+                    projectRoots: ['/Users/x/Projects'], browseRoots: [], defaultProjectDir: '~' },
+      }),
+    }));
+    await page.reload();                 // re-run initServerPanel with the mock in place
+    await openSettings(page);
+    const panel = page.locator('#server-panel');
+    await expect(panel).toContainText('v9.9.9');
+    await expect(panel.locator('#srv-tmux-mouse')).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('terminal + account sections are present', async ({ authedPage: page }) => {
