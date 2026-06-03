@@ -1717,9 +1717,45 @@ app.post('/api/sessions/:name/pin', async (req, res) => {
 // ── Tool-Approvals ───────────────────────────────────────────────────────────
 // Config-Routen ZUERST, damit Express nicht 'config' als :id matched.
 app.get('/api/approvals/config', (_req, res) => res.json({ enabled: remoteApprovalEnabled }));
-app.post('/api/approvals/config', express.json(), (req, res) => {
+app.post('/api/approvals/config', express.json(), async (req, res) => {
   remoteApprovalEnabled = !!(req.body && req.body.enabled);
+  try { await settings.patch({ remoteApproval: remoteApprovalEnabled }); } catch {}
   res.json({ enabled: remoteApprovalEnabled });
+});
+
+// ── Settings (server-persisted prefs + read-only status/feature panel) ────────
+app.get('/api/settings', (_req, res) => {
+  res.json({
+    settings: settings.get(),
+    status: {
+      version: pkgJson.version || null,
+      uptimeSeconds: Math.floor((Date.now() - START_TIME) / 1000),
+      sessions: getTmuxSessions().length,
+      activePtys: activePtys.size,
+    },
+    features: {
+      voice: { enabled: voice.isEnabled(), lang: voice.langDefault() },
+      preview: { enabled: PREVIEW_ENABLED, host: PREVIEW_ENABLED ? PREVIEW_HOST : null },
+      cfAccess: { enabled: cfAccess.isEnabled() },
+      push: { configured: !!process.env.VAPID_PUBLIC_KEY },
+      projectRoots: (process.env.PROJECT_ROOTS || join(HOME, 'Projects')).split(',').map(s => s.trim()).filter(Boolean),
+      browseRoots: BROWSE_ROOTS,
+      defaultProjectDir: process.env.DEFAULT_PROJECT_DIR || '~',
+    },
+  });
+});
+
+app.patch('/api/settings', express.json(), async (req, res) => {
+  const body = req.body || {};
+  const patch = {};
+  if (body.tmuxMouse === 'on' || body.tmuxMouse === 'off') patch.tmuxMouse = body.tmuxMouse;
+  if (typeof body.remoteApproval === 'boolean') patch.remoteApproval = body.remoteApproval;
+  if (!Object.keys(patch).length) return res.status(400).json({ error: 'no valid settings in body' });
+  let merged;
+  try { merged = await settings.patch(patch); } catch { return res.status(500).json({ error: 'persist failed' }); }
+  if ('tmuxMouse' in patch) { tmuxMouseMode = merged.tmuxMouse; ensureMouseMode(); }
+  if ('remoteApproval' in patch) { remoteApprovalEnabled = merged.remoteApproval; }
+  res.json({ settings: merged });
 });
 
 // Entscheidung vom Dashboard (Bearer) ODER vom Service-Worker (?token=<otp>).
