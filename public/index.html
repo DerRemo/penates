@@ -4163,8 +4163,10 @@
 
       <nav class="settings-anchors" id="settings-anchors" aria-label="Settings sections">
         <button type="button" class="settings-anchor" data-anchor="sec-appearance"    data-i18n="settings.section.appearance">Appearance</button>
+        <button type="button" class="settings-anchor" data-anchor="sec-terminal"      data-i18n="settings.section.terminal">Terminal</button>
         <button type="button" class="settings-anchor" data-anchor="sec-notifications" data-i18n="settings.section.notifications">Notifications</button>
         <button type="button" class="settings-anchor" data-anchor="sec-behavior"      data-i18n="settings.section.behavior">Behavior</button>
+        <button type="button" class="settings-anchor" data-anchor="sec-account"       data-i18n="settings.section.account">Account</button>
         <button type="button" class="settings-anchor" data-anchor="sec-help"          data-i18n="settings.section.helpAbout">Help &amp; About</button>
       </nav>
 
@@ -4321,6 +4323,26 @@
           </div>
         </div>
         <p class="settings-row__hint" data-i18n="settings.sessions.bulkKillDesc"></p>
+      </section>
+
+      <!-- Account & Data -->
+      <section class="settings-section" id="sec-account">
+        <div class="settings-seclabel" data-i18n="settings.section.account">Account &amp; Data</div>
+        <div class="settings-card">
+          <div class="settings-row">
+            <label data-i18n="settings.account.logout">Sign out of this browser</label>
+            <div class="settings-row__control">
+              <button type="button" class="btn btn-ghost btn-sm" id="pref-logout-btn" data-i18n="settings.account.logoutBtn">Sign out</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label data-i18n="settings.account.reset">Reset local settings</label>
+            <div class="settings-row__control">
+              <button type="button" class="btn btn-danger btn-sm" id="pref-reset-btn" data-i18n="settings.account.resetBtn">Reset</button>
+            </div>
+          </div>
+        </div>
+        <p class="settings-row__hint" data-i18n="settings.account.resetHint">Clears theme, language and all preferences in this browser. You stay signed in.</p>
       </section>
 
       <!-- Help & About -->
@@ -9650,6 +9672,39 @@
       }
     }
 
+    // ── Settings: Account & Data ──────────────────────────────────
+    function initAccountData() {
+      const out = document.getElementById('pref-logout-btn');
+      if (out) out.addEventListener('click', () => {
+        clearToken();
+        if (typeof showLoginModal === 'function') showLoginModal();
+        else location.reload();
+      });
+      const reset = document.getElementById('pref-reset-btn');
+      if (reset) {
+        let armed = false, timer = null;
+        reset.addEventListener('click', () => {
+          if (!armed) {
+            armed = true;
+            reset.textContent = t('settings.account.resetConfirm');
+            timer = setTimeout(() => { armed = false; reset.textContent = t('settings.account.resetBtn'); }, 3000);
+            return;
+          }
+          clearTimeout(timer);
+          try {
+            const keep = 'cchub_token';
+            const doomed = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('cchub_') && k !== keep) doomed.push(k);
+            }
+            doomed.forEach(k => localStorage.removeItem(k));
+          } catch {}
+          location.reload();
+        });
+      }
+    }
+
     // ── Settings: Anchor-Chip Scrollspy ───────────────────────────
     // Sticky chips jump to sections; an IntersectionObserver highlights the
     // section currently near the top. Viewport root (null) works whether the
@@ -9671,7 +9726,8 @@
         chip.addEventListener('click', () => {
           const target = document.getElementById(chip.dataset.anchor);
           if (!target) return;
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const reduce = window.Prefs && window.Prefs.prefersReducedMotion();
+          target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
           setActive(chip.dataset.anchor);
         });
       });
@@ -9802,6 +9858,7 @@
     initTerminalPrefs();
     initDisplayPrefs();
     initBehaviorPrefs();
+    initAccountData();
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────

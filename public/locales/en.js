@@ -529,6 +529,7 @@ window.__I18N_BUNDLES.en = {
   'settings.section.terminal': 'Terminal',
   'settings.section.notifications': 'Notifications',
   'settings.section.behavior': 'Behavior',
+  'settings.section.account': 'Account & Data',
   'settings.section.helpAbout': 'Help & About',
   'settings.section.sessions': 'Sessions',
   'settings.section.help': 'Help',
@@ -578,6 +579,14 @@ window.__I18N_BUNDLES.en = {
   'settings.notifications.pushUnsupported': 'Not supported in this browser',
   'settings.notifications.soundLabel': 'Sound alerts',
   'settings.notifications.volume': 'Volume',
+
+  // Settings — Account & Data section
+  'settings.account.logout':        'Sign out of this browser',
+  'settings.account.logoutBtn':     'Sign out',
+  'settings.account.reset':         'Reset local settings',
+  'settings.account.resetBtn':      'Reset',
+  'settings.account.resetConfirm':  'Click again to confirm',
+  'settings.account.resetHint':     'Clears theme, language and all preferences in this browser. You stay signed in.',
 
   // Settings — Help section
   'settings.help.kbdShortcutsLabel': 'Keyboard shortcuts',

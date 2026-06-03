@@ -529,6 +529,7 @@ window.__I18N_BUNDLES.de = {
   'settings.section.terminal': 'Terminal',
   'settings.section.notifications': 'Benachrichtigungen',
   'settings.section.behavior': 'Verhalten',
+  'settings.section.account': 'Konto & Daten',
   'settings.section.helpAbout': 'Hilfe & Über',
   'settings.section.sessions': 'Sessions',
   'settings.section.help': 'Hilfe',
@@ -578,6 +579,14 @@ window.__I18N_BUNDLES.de = {
   'settings.notifications.pushUnsupported': 'In diesem Browser nicht unterstützt',
   'settings.notifications.soundLabel': 'Ton-Alarme',
   'settings.notifications.volume': 'Lautstärke',
+
+  // Settings — Account & Data section
+  'settings.account.logout':        'Aus diesem Browser abmelden',
+  'settings.account.logoutBtn':     'Abmelden',
+  'settings.account.reset':         'Lokale Einstellungen zurücksetzen',
+  'settings.account.resetBtn':      'Zurücksetzen',
+  'settings.account.resetConfirm':  'Nochmal klicken zum Bestätigen',
+  'settings.account.resetHint':     'Löscht Theme, Sprache und alle Einstellungen in diesem Browser. Du bleibst angemeldet.',
 
   // Settings — Help section
   'settings.help.kbdShortcutsLabel': 'Tastaturkürzel',
