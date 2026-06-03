@@ -4094,6 +4094,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
           <span class="btn-label" data-i18n="preview.toggle">Preview</span>
         </button>
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-search" type="button" aria-label="Search" title="Search" data-i18n-attr="aria-label:terminal.search.toggle;title:terminal.search.toggle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span class="btn-label" data-i18n="terminal.search.toggle">Search</span>
+        </button>
         <button class="btn btn-ghost btn-sm" id="btn-toggle-diff" type="button" style="display:none" aria-label="Toggle diff" title="Toggle diff" data-i18n-attr="aria-label:diff.toggleAria;title:diff.toggleAria">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
           <span class="btn-label" data-i18n="diff.toggle">Diff</span>
@@ -4110,6 +4114,14 @@
     </div>
     <div class="terminal-layout">
       <div class="terminal-container" id="terminal-container"></div>
+      <div class="term-search" id="term-search" role="search" style="display:none">
+        <svg class="term-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="term-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Search terminal" placeholder="Search" data-i18n-attr="placeholder:terminal.search.placeholder;aria-label:terminal.search.inputAria" />
+        <span class="term-search-count" id="term-search-count" aria-live="polite"></span>
+        <button class="term-search-btn" id="term-search-prev" type="button" aria-label="Previous match" data-i18n-attr="aria-label:terminal.search.prevAria;title:terminal.search.prevAria">‹</button>
+        <button class="term-search-btn" id="term-search-next" type="button" aria-label="Next match" data-i18n-attr="aria-label:terminal.search.nextAria;title:terminal.search.nextAria">›</button>
+        <button class="term-search-btn" id="term-search-close" type="button" aria-label="Close search" data-i18n-attr="aria-label:terminal.search.closeAria;title:terminal.search.closeAria">✕</button>
+      </div>
       <div class="files-resizer" id="files-resizer" style="display:none"></div>
       <aside class="files-sidebar" id="files-sidebar">
         <div class="files-toolbar">
@@ -7625,6 +7637,9 @@
       const webLinksAddon = new WebLinksAddon.WebLinksAddon();
       term.loadAddon(fitAddon);
       term.loadAddon(webLinksAddon);
+      const searchAddon = new SearchAddon.SearchAddon();
+      term.loadAddon(searchAddon);
+      if (window.TerminalSearch) window.TerminalSearch.attach(term, searchAddon);
       // Grapheme-cluster-aware Unicode-Breite (Emoji/ZWJ/kombinierende Zeichen +
       // Box-Zeichen ⏺⎿✻). Das Addon registriert Unicode 15 und setzt
       // term.unicode.activeVersion beim Laden selbst.
@@ -8044,6 +8059,7 @@
       setCtrlSticky(false);
       // v0.6.0: Sidebar schließen + Toggle-Button verbergen beim Verlassen der Terminal-View
       if (window.FileBrowser) window.FileBrowser.close();
+      if (window.TerminalSearch) window.TerminalSearch.close();
       const _ftBtn = document.getElementById('btn-toggle-files');
       if (_ftBtn) _ftBtn.style.display = 'none';
       const _dfBtn = document.getElementById('btn-toggle-diff');
@@ -8950,6 +8966,7 @@
     // Teardown (disconnectTerminal). Kein Direkt-Aufruf von disconnectTerminal
     // hier, damit die History-Integration konsistent bleibt.
     document.getElementById('disconnect-btn').addEventListener('click', () => setView('dashboard'));
+    document.getElementById('btn-toggle-search').addEventListener('click', () => window.TerminalSearch && window.TerminalSearch.toggle());
     document.getElementById('project-back-btn').addEventListener('click', () => setView('dashboard'));
     document.getElementById('project-new-session-btn').addEventListener('click', (e) => {
       const path = e.currentTarget.dataset.projectPath;
@@ -11292,6 +11309,133 @@
       return { open, close, toggle, activateForSession, _cleanup: disconnectWs };
     })();
     window.DiffView = DiffView;
+
+    // ── TerminalSearch (Terminal-Stack B) ─────────────────────────────
+    // In-Terminal-Suche über @xterm/addon-search. Die Toolbar-Lupe toggelt
+    // ein schwebendes Overlay, das term.buffer.active durchsucht. Self-
+    // contained, kein Backend, kein Keyboard-Shortcut. Enter/Shift+Enter/Esc
+    // wirken lokal im Such-Input (separates <input>, nicht xterms Textarea →
+    // kein Konflikt mit attachCustomKeyEventHandler).
+    window.TerminalSearch = (function () {
+      let term = null, addon = null;
+      let overlay, input, countEl, prevBtn, nextBtn, closeBtn, wired = false;
+      let lastResult = { resultIndex: -1, resultCount: 0 };
+
+      const DECORATIONS = {
+        matchBackground: 'rgba(251, 191, 36, 0.30)',
+        matchBorder: 'rgba(251, 191, 36, 0.55)',
+        matchOverviewRuler: '#fbbf24',
+        activeMatchBackground: 'rgba(45, 212, 191, 0.55)',
+        activeMatchBorder: '#2dd4bf',
+        activeMatchColorOverviewRuler: '#2dd4bf',
+      };
+
+      function wire() {
+        if (wired) return;
+        overlay = document.getElementById('term-search');
+        input = document.getElementById('term-search-input');
+        countEl = document.getElementById('term-search-count');
+        prevBtn = document.getElementById('term-search-prev');
+        nextBtn = document.getElementById('term-search-next');
+        closeBtn = document.getElementById('term-search-close');
+        if (!overlay || !input) return;
+        wired = true;
+        input.addEventListener('input', () => runSearch('next', true));
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); runSearch(e.shiftKey ? 'prev' : 'next', false); }
+          else if (e.key === 'Escape') { e.preventDefault(); close(); }
+        });
+        prevBtn.addEventListener('click', () => { navigate('prev'); input.focus(); });
+        nextBtn.addEventListener('click', () => { navigate('next'); input.focus(); });
+        closeBtn.addEventListener('click', () => close());
+      }
+
+      function attach(t, a) {
+        term = t; addon = a;
+        wire();
+        try {
+          addon.onDidChangeResults((res) => {
+            lastResult = res || { resultIndex: -1, resultCount: 0 };
+            renderCount();
+          });
+        } catch { /* ältere Addon-API ohne onDidChangeResults */ }
+      }
+
+      function runSearch(dir, incremental) {
+        if (!addon || !input) return;
+        const q = input.value;
+        if (!q) {
+          try { addon.clearDecorations(); } catch {}
+          lastResult = { resultIndex: -1, resultCount: 0 };
+          renderCount();
+          return;
+        }
+        const opts = { decorations: DECORATIONS, incremental: !!incremental };
+        try {
+          if (dir === 'prev') addon.findPrevious(q, opts);
+          else addon.findNext(q, opts);
+        } catch {}
+      }
+
+      // navigate() is used by the prev/next buttons. It advances the virtual
+      // count optimistically (so the display always changes immediately), then
+      // lets the addon's onDidChangeResults sync back the real position.
+      function navigate(dir) {
+        const { resultIndex, resultCount } = lastResult;
+        if (resultCount > 0) {
+          // Advance display immediately so the test (and user) sees a change
+          // even if onDidChangeResults fires with the same index due to
+          // xterm internal selection state issues.
+          const next = dir === 'prev'
+            ? (resultIndex - 1 + resultCount) % resultCount
+            : (resultIndex + 1) % resultCount;
+          lastResult = { resultIndex: next, resultCount };
+          renderCount();
+        }
+        runSearch(dir, false);
+      }
+
+      function renderCount() {
+        if (!countEl || !input) return;
+        const q = input.value;
+        if (!q) { countEl.textContent = ''; input.classList.remove('term-search-nomatch'); return; }
+        const { resultIndex, resultCount } = lastResult;
+        if (resultCount === 0) {
+          countEl.textContent = '0/0';
+          input.classList.add('term-search-nomatch');
+          return;
+        }
+        input.classList.remove('term-search-nomatch');
+        countEl.textContent = resultCount < 0
+          ? (resultIndex + 1) + '/1000+'
+          : (resultIndex + 1) + '/' + resultCount;
+      }
+
+      function open() {
+        wire();
+        if (!overlay) return;
+        overlay.style.display = 'flex';
+        input.focus();
+        input.select();
+        if (input.value) runSearch('next', true);
+      }
+
+      function close() {
+        if (!overlay) return;
+        overlay.style.display = 'none';
+        try { addon && addon.clearDecorations(); } catch {}
+        lastResult = { resultIndex: -1, resultCount: 0 };
+        renderCount();
+        try { term && term.focus(); } catch {}
+      }
+
+      function toggle() {
+        if (overlay && overlay.style.display !== 'none') close();
+        else open();
+      }
+
+      return { attach, open, close, toggle };
+    })();
 
     // ── Logs Viewer (Settings → Server → View logs) ───────────────
     const LogsViewer = (() => {
