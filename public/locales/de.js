@@ -558,6 +558,10 @@ window.__I18N_BUNDLES.de = {
   'settings.language.english': 'English',
   'settings.language.german': 'Deutsch',
   'settings.language.reloadHint': 'Beim Umschalten wird die Seite neu geladen.',
+  'settings.display.motion': 'Animationen',
+  'settings.display.density': 'Dichte',
+  'settings.display.densityCompact': 'Kompakt',
+  'settings.display.densityNormal': 'Normal',
 
   // Settings — Notifications section
   'settings.notifications.pushLabel': 'Push-Benachrichtigungen',
@@ -566,6 +570,7 @@ window.__I18N_BUNDLES.de = {
   'settings.notifications.push.permission.granted': 'Berechtigung: erteilt',
   'settings.notifications.pushUnsupported': 'In diesem Browser nicht unterstützt',
   'settings.notifications.soundLabel': 'Ton-Alarme',
+  'settings.notifications.volume': 'Lautstärke',
 
   // Settings — Help section
   'settings.help.kbdShortcutsLabel': 'Tastaturkürzel',

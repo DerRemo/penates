@@ -558,6 +558,10 @@ window.__I18N_BUNDLES.en = {
   'settings.language.english': 'English',
   'settings.language.german': 'Deutsch',
   'settings.language.reloadHint': 'Switching reloads the page.',
+  'settings.display.motion': 'Animations',
+  'settings.display.density': 'Density',
+  'settings.display.densityCompact': 'Compact',
+  'settings.display.densityNormal': 'Normal',
 
   // Settings — Notifications section
   'settings.notifications.pushLabel': 'Push notifications',
@@ -566,6 +570,7 @@ window.__I18N_BUNDLES.en = {
   'settings.notifications.push.permission.granted': 'Permission: granted',
   'settings.notifications.pushUnsupported': 'Not supported in this browser',
   'settings.notifications.soundLabel': 'Sound alerts',
+  'settings.notifications.volume': 'Volume',
 
   // Settings — Help section
   'settings.help.kbdShortcutsLabel': 'Keyboard shortcuts',
