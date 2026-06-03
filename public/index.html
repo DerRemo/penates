@@ -9451,8 +9451,9 @@
       return `${m}m`;
     }
     // ── Settings: Terminal Prefs ──────────────────────────────────
-    function initTerminalPrefs() {
+    async function initTerminalPrefs() {
       const P = window.Prefs; if (!P) return;
+      await P.load();
       const fs = document.getElementById('pref-term-fontsize');
       const fsVal = document.getElementById('pref-term-fontsize-val');
       if (fs) {
