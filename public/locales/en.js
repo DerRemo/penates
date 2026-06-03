@@ -527,6 +527,8 @@ window.__I18N_BUNDLES.en = {
   'settings.section.appearance': 'Appearance',
   'settings.section.language': 'Language',
   'settings.section.notifications': 'Notifications',
+  'settings.section.behavior': 'Behavior',
+  'settings.section.helpAbout': 'Help & About',
   'settings.section.sessions': 'Sessions',
   'settings.section.help': 'Help',
   'settings.section.about': 'About',

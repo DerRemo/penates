@@ -4125,109 +4125,113 @@
 
   <!-- ── Settings View ───────────────────────────────────────── -->
   <div class="settings-view" id="settings-view" data-view="settings">
-    <div class="view__header">
-      <h1 data-i18n="settings.pageTitle">Settings</h1>
-    </div>
-    <div class="settings-page">
+    <div class="container">
+      <header class="app-topbar">
+        <h1 class="app-topbar__title" data-i18n="settings.pageTitle">Settings</h1>
+      </header>
+
+      <nav class="settings-anchors" id="settings-anchors" aria-label="Settings sections">
+        <button type="button" class="settings-anchor" data-anchor="sec-appearance"    data-i18n="settings.section.appearance">Appearance</button>
+        <button type="button" class="settings-anchor" data-anchor="sec-notifications" data-i18n="settings.section.notifications">Notifications</button>
+        <button type="button" class="settings-anchor" data-anchor="sec-behavior"      data-i18n="settings.section.behavior">Behavior</button>
+        <button type="button" class="settings-anchor" data-anchor="sec-help"          data-i18n="settings.section.helpAbout">Help &amp; About</button>
+      </nav>
 
       <!-- Appearance -->
-      <section class="settings-card" id="settings-appearance">
-        <h2 data-i18n="settings.section.appearance">Appearance</h2>
-        <div class="settings-row">
-          <label data-i18n="settings.appearance.themeLabel">Theme</label>
-          <div class="settings-row__control" style="flex-wrap:wrap">
-            <button type="button" class="seg-btn" data-theme-value="latte">Latte</button>
-            <button type="button" class="seg-btn" data-theme-value="frappe">Frappé</button>
-            <button type="button" class="seg-btn" data-theme-value="macchiato">Macchiato</button>
-            <button type="button" class="seg-btn" data-theme-value="mocha">Mocha</button>
+      <section class="settings-section" id="sec-appearance">
+        <div class="settings-seclabel" data-i18n="settings.section.appearance">Appearance</div>
+        <div class="settings-card">
+          <div class="settings-row">
+            <label data-i18n="settings.appearance.themeLabel">Theme</label>
+            <div class="settings-row__control" style="flex-wrap:wrap">
+              <button type="button" class="seg-btn" data-theme-value="latte">Latte</button>
+              <button type="button" class="seg-btn" data-theme-value="frappe">Frappé</button>
+              <button type="button" class="seg-btn" data-theme-value="macchiato">Macchiato</button>
+              <button type="button" class="seg-btn" data-theme-value="mocha">Mocha</button>
+            </div>
           </div>
-        </div>
-      </section>
-
-      <!-- Language -->
-      <section class="settings-card" id="settings-language">
-        <h2 data-i18n="settings.section.language">Language</h2>
-        <div class="settings-row">
-          <label data-i18n="settings.language.label">Interface language</label>
-          <div class="settings-row__control">
-            <button type="button" class="seg-btn" data-lang-value="en"
-                    data-i18n="settings.language.english">English</button>
-            <button type="button" class="seg-btn" data-lang-value="de"
-                    data-i18n="settings.language.german">Deutsch</button>
+          <div class="settings-row">
+            <label data-i18n="settings.language.label">Interface language</label>
+            <div class="settings-row__control">
+              <button type="button" class="seg-btn" data-lang-value="en" data-i18n="settings.language.english">English</button>
+              <button type="button" class="seg-btn" data-lang-value="de" data-i18n="settings.language.german">Deutsch</button>
+            </div>
           </div>
         </div>
         <p class="settings-row__hint" data-i18n="settings.language.reloadHint">Switching reloads the page.</p>
       </section>
 
       <!-- Notifications -->
-      <section class="settings-card" id="settings-notifications">
-        <h2 data-i18n="settings.section.notifications">Notifications</h2>
-        <div class="settings-row">
-          <label data-i18n="settings.notifications.soundLabel">Sound alerts</label>
-          <div class="settings-row__control">
-            <button type="button" class="toggle-btn" id="settings-sound-toggle" aria-pressed="false"></button>
+      <section class="settings-section" id="sec-notifications">
+        <div class="settings-seclabel" data-i18n="settings.section.notifications">Notifications</div>
+        <div class="settings-card">
+          <div class="settings-row">
+            <label data-i18n="settings.notifications.soundLabel">Sound alerts</label>
+            <div class="settings-row__control">
+              <button type="button" class="toggle-btn" id="settings-sound-toggle" aria-pressed="false"></button>
+            </div>
           </div>
-        </div>
-        <div class="settings-row">
-          <label data-i18n="settings.notifications.pushLabel">Push notifications</label>
-          <div class="settings-row__control">
-            <button type="button" class="toggle-btn" id="settings-push-toggle" aria-pressed="false"></button>
-            <span class="settings-row__meta" id="settings-push-permission"></span>
+          <div class="settings-row">
+            <label data-i18n="settings.notifications.pushLabel">Push notifications</label>
+            <div class="settings-row__control">
+              <button type="button" class="toggle-btn" id="settings-push-toggle" aria-pressed="false"></button>
+              <span class="settings-row__meta" id="settings-push-permission"></span>
+            </div>
           </div>
-        </div>
-        <div class="settings-row" id="settings-remote-approval">
-          <label data-i18n="settings.remoteApproval">Remote approval</label>
-          <div class="settings-row__control">
-            <button type="button" class="toggle-btn" aria-pressed="true">On</button>
+          <div class="settings-row" id="settings-remote-approval">
+            <label data-i18n="settings.remoteApproval">Remote approval</label>
+            <div class="settings-row__control">
+              <button type="button" class="toggle-btn" aria-pressed="true">On</button>
+            </div>
           </div>
         </div>
         <p class="settings-row__hint" data-i18n="settings.remoteApprovalDesc"></p>
       </section>
 
-      <!-- Sessions -->
-      <section class="settings-card" id="settings-sessions">
-        <h2 data-i18n="settings.section.sessions">Sessions</h2>
-        <div class="settings-row">
-          <label data-i18n="settings.sessions.bulkKillLabel">Idle-Sessions beenden</label>
-          <div class="settings-row__control">
-            <button type="button" class="btn btn-danger btn-sm" id="bulk-kill-btn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-              <span data-i18n="dashboard.bulkKill">Bulk Kill</span>
-            </button>
+      <!-- Behavior -->
+      <section class="settings-section" id="sec-behavior">
+        <div class="settings-seclabel" data-i18n="settings.section.behavior">Behavior</div>
+        <div class="settings-card">
+          <div class="settings-row">
+            <label data-i18n="settings.sessions.bulkKillLabel">Idle-Sessions beenden</label>
+            <div class="settings-row__control">
+              <button type="button" class="btn btn-danger btn-sm" id="bulk-kill-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                <span data-i18n="dashboard.bulkKill">Bulk Kill</span>
+              </button>
+            </div>
           </div>
         </div>
         <p class="settings-row__hint" data-i18n="settings.sessions.bulkKillDesc"></p>
       </section>
 
-      <!-- Help -->
-      <section class="settings-card" id="settings-help">
-        <h2 data-i18n="settings.section.help">Help</h2>
-        <button type="button" class="settings-row settings-row--link" id="settings-kbd-shortcuts-row">
-          <span data-i18n="settings.help.kbdShortcutsLabel">Keyboard shortcuts</span>
-          <span class="settings-row__control"><span aria-hidden="true">→</span></span>
-        </button>
-      </section>
-
-      <!-- About -->
-      <section class="settings-card" id="settings-about">
-        <h2 data-i18n="settings.section.about">About</h2>
-        <div class="settings-row">
-          <label data-i18n="settings.about.currentVersion">Current version</label>
-          <div class="settings-row__control"><code id="settings-current-version">—</code></div>
+      <!-- Help & About -->
+      <section class="settings-section" id="sec-help">
+        <div class="settings-seclabel" data-i18n="settings.section.helpAbout">Help &amp; About</div>
+        <div class="settings-card">
+          <button type="button" class="settings-row settings-row--link" id="settings-kbd-shortcuts-row">
+            <span data-i18n="settings.help.kbdShortcutsLabel">Keyboard shortcuts</span>
+            <span class="settings-row__control"><span aria-hidden="true">→</span></span>
+          </button>
         </div>
-        <div class="settings-row">
-          <label data-i18n="settings.about.latestVersion">Latest release</label>
-          <div class="settings-row__control">
-            <code id="settings-latest-version">—</code>
-            <a id="settings-release-link" href="#" target="_blank" rel="noopener" hidden
-               data-i18n="settings.about.viewRelease">View release</a>
+        <div class="settings-card">
+          <div class="settings-row">
+            <label data-i18n="settings.about.currentVersion">Current version</label>
+            <div class="settings-row__control"><code id="settings-current-version">—</code></div>
           </div>
+          <div class="settings-row">
+            <label data-i18n="settings.about.latestVersion">Latest release</label>
+            <div class="settings-row__control">
+              <code id="settings-latest-version">—</code>
+              <a id="settings-release-link" href="#" target="_blank" rel="noopener" hidden data-i18n="settings.about.viewRelease">View release</a>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label data-i18n="settings.about.uptimeLabel">Server uptime</label>
+            <div class="settings-row__control"><code id="settings-uptime">—</code></div>
+          </div>
+          <div class="settings-about-changelog" id="settings-about-changelog"></div>
         </div>
-        <div class="settings-row">
-          <label data-i18n="settings.about.uptimeLabel">Server uptime</label>
-          <div class="settings-row__control"><code id="settings-uptime">—</code></div>
-        </div>
-        <div class="settings-about-changelog" id="settings-about-changelog"></div>
       </section>
 
     </div>
