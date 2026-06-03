@@ -18,6 +18,7 @@ import * as usageLimits from './lib/usage-limits.js';
 import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
+import * as settings from './lib/settings.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
@@ -107,10 +108,11 @@ process.env.PATH = [...new Set([...EXTRA_PATHS, ...(process.env.PATH || '').spli
 // Mouse-Mode native Touch-Selektion stört. tmux Mouse ist nicht per-Client
 // scopebar. Race-Condition: Server startet evtl. bevor tmux läuft → Aufruf
 // scheitert still. Deshalb auch nach jeder Session-Erstellung gerufen.
-const TMUX_MOUSE = (process.env.TMUX_MOUSE || 'on').toLowerCase() === 'off' ? 'off' : 'on';
+const TMUX_MOUSE_DEFAULT = (process.env.TMUX_MOUSE || 'on').toLowerCase() === 'off' ? 'off' : 'on';
+let tmuxMouseMode = TMUX_MOUSE_DEFAULT;   // overridden by settings.load() at boot
 function ensureMouseMode() {
   try {
-    execFileSync(TMUX, ['set-option', '-g', 'mouse', TMUX_MOUSE], {
+    execFileSync(TMUX, ['set-option', '-g', 'mouse', tmuxMouseMode], {
       encoding: 'utf-8', timeout: 2000, stdio: 'pipe',
     });
   } catch { /* tmux-Server noch nicht da */ }
@@ -1743,7 +1745,8 @@ const HOOK_EVENTS = new Set([
 ]);
 // Remote-Freigabe global an/aus. Default aus .env (REMOTE_APPROVAL, default 'on').
 // In-memory, kein Datei-Persist (Neustart → .env-Default, wie activePreviewPort).
-let remoteApprovalEnabled = (process.env.REMOTE_APPROVAL ?? 'on').toLowerCase() !== 'off';
+const REMOTE_APPROVAL_DEFAULT = (process.env.REMOTE_APPROVAL ?? 'on').toLowerCase() !== 'off';
+let remoteApprovalEnabled = REMOTE_APPROVAL_DEFAULT;   // overridden by settings.load() at boot
 // Eigener Body-Parser für Hook-Route: Claude's Hook-Stdin-JSON ist
 // gelegentlich syntaktisch kaputt (z.B. `"line":}`), was express.json()
 // mit 400 abbricht — unser Handler würde nie laufen und der State-Update
@@ -2068,6 +2071,12 @@ const server = app.listen(PORT, async () => {
   try {
     await knownSessions.load();
     console.log(`  ▸ known-sessions: ${knownSessions.list().length} entries loaded`);
+    await settings.load({ tmuxMouse: TMUX_MOUSE_DEFAULT, remoteApproval: REMOTE_APPROVAL_DEFAULT });
+    const _s = settings.get();
+    tmuxMouseMode = _s.tmuxMouse;
+    ensureMouseMode();
+    remoteApprovalEnabled = _s.remoteApproval;
+    console.log(`  ▸ settings: tmuxMouse=${tmuxMouseMode} remoteApproval=${remoteApprovalEnabled}`);
     // Best-effort Adoption: alle aktuell laufenden cc-* Sessions, die wir
     // noch nicht kennen, ins File eintragen. Der Fall tritt nach Updates
     // auf älteren Hub-Installationen auf oder wenn der User die JSON-Datei
