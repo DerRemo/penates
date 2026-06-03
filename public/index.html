@@ -7624,6 +7624,12 @@
       const webLinksAddon = new WebLinksAddon.WebLinksAddon();
       term.loadAddon(fitAddon);
       term.loadAddon(webLinksAddon);
+      // Grapheme-cluster-aware Unicode-Breite (Emoji/ZWJ/kombinierende Zeichen +
+      // Box-Zeichen ⏺⎿✻). Das Addon registriert Unicode 15 und setzt
+      // term.unicode.activeVersion beim Laden selbst.
+      try {
+        term.loadAddon(new UnicodeGraphemesAddon.UnicodeGraphemesAddon());
+      } catch { /* Unicode-Addon nicht verfügbar → eingebaute Breiten-Tabellen */ }
         window._fitAddon = fitAddon;  // for live font-size changes from Settings
         // Bell (pref): brief visual flash on the terminal element.
         if (window.Prefs && window.Prefs.get.termBell()) {
