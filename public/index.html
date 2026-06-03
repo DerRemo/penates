@@ -11866,8 +11866,9 @@
       const container = document.getElementById('terminal-container');
       if (!container) return;
 
-      // Overlay lives inside #terminal-container, but connectToSession wipes
-      // container.innerHTML — so we create it lazily via getOrCreateOverlay().
+      // Overlay lives inside #terminal-container, but connectToSession clears
+      // the container's old children on reconnect — so we create it lazily via
+      // getOrCreateOverlay().
       function getOrCreateOverlay() {
         let overlay = container.querySelector('.terminal-drop-overlay');
         if (!overlay) {
