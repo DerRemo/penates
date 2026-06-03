@@ -36,12 +36,8 @@ async function openSessionTerminal(page, name) {
   await page.goto('/');
   await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
 
-  // Refresh, damit die frisch gestartete Session sichtbar ist
-  const refreshBtn = page.locator('#refresh-btn');
-  if (await refreshBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await refreshBtn.click();
-  }
-
+  // Dashboard refresht Sessions automatisch beim Boot — die frisch gestartete
+  // Session erscheint von selbst; der Card-Wait unten deckt das ab.
   // Running-Cards können direkt geklickt werden; foreign (kein cc-Prefix)
   // brauchen den [data-action="connect"]-Button. Unsere Sessions haben cc-Prefix
   // → erscheinen als running → einfacher Card-Click.

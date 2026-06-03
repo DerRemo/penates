@@ -9,7 +9,6 @@ test.describe('Filebrowser', () => {
 
   test.beforeEach(async ({ authedPage: page, projectSession }) => {
     sessionName = projectSession.name;
-    await page.click('#refresh-btn');
     await navigateToSession(page, sessionName);
     await waitForTerminal(page);
   });

@@ -94,7 +94,6 @@ test.describe('Approvals + Activity', () => {
       const notifyWs = await wsReady;
       await notifyWs.waitForEvent('framereceived', { timeout: 8_000 }).catch(() => {});
 
-      await page.click('#refresh-btn').catch(() => {});
       const card = page.locator(`.session-card[data-name="${hubName}"]`);
       await expect(card).toBeVisible({ timeout: 15_000 });
 

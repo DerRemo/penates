@@ -38,7 +38,6 @@ test.describe('Files-Picker pro Session (ohne Projekt)', () => {
 
   test('Toggle erscheint und der Tree lädt die cwd der projektlosen Session', async ({ authedPage: page }) => {
     await page.goto('/');
-    await page.click('#refresh-btn').catch(() => {});
 
     const item = page.locator(`[data-session="${SESSION}"]`);
     await expect(item).toBeVisible({ timeout: 15000 });

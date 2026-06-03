@@ -4,7 +4,6 @@ import { navigateToSession, waitForTerminal, openFileSidebar } from './helpers.j
 // Uses projectSession because file preview needs a registered project.
 test.describe('File Preview', () => {
   test.beforeEach(async ({ authedPage: page, projectSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, projectSession.name);
     await waitForTerminal(page);
   });

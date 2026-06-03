@@ -84,7 +84,6 @@ test.describe('Diff-Viewer', () => {
     // die Toggles sind dann nicht per Klick erreichbar (wie bei Files/Preview).
     test.skip(isTouch, 'panels are fullscreen overlays on touch — toolbar toggles not clickable');
     await authedPage.goto('/');
-    await authedPage.click('#refresh-btn').catch(() => {});
     await authedPage.click(`[data-session="${SESSION}"]`);
     await expect(authedPage.locator('body')).toHaveAttribute('data-current-view', 'terminal');
 

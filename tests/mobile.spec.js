@@ -14,7 +14,6 @@ test.describe('Mobile-specific features', () => {
   });
 
   test('touch bar is visible in terminal', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
@@ -23,7 +22,6 @@ test.describe('Mobile-specific features', () => {
   });
 
   test('touch bar Esc button sends escape', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
@@ -35,7 +33,6 @@ test.describe('Mobile-specific features', () => {
   });
 
   test('touch bar Tab button sends tab', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
@@ -47,7 +44,6 @@ test.describe('Mobile-specific features', () => {
   });
 
   test('touch bar Ctrl button is sticky', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
@@ -71,7 +67,6 @@ test.describe('Mobile-specific features', () => {
   });
 
   test('touch bar Ctrl+C button sends interrupt', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
@@ -83,7 +78,6 @@ test.describe('Mobile-specific features', () => {
   });
 
   test('touch bar arrow keys are visible', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
@@ -108,7 +102,6 @@ test.describe('Mobile-specific features', () => {
   });
 
   test('mobile file picker button exists in sidebar', async ({ authedPage: page, hubSession }) => {
-    await page.click('#refresh-btn');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
