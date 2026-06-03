@@ -59,14 +59,16 @@ test.describe('Diff-Viewer', () => {
     if (repoDir) { rmSync(repoDir, { recursive: true, force: true }); repoDir = null; }
   });
 
-  test('Git-Badge verbindet zur Session und öffnet das Diff-Panel', async ({ authedPage }) => {
+  test('Diff-Panel öffnet via Toggle und zeigt die Datei-Liste', async ({ authedPage }) => {
+    // Einstieg seit dem minimal-card-Redesign: Session öffnen, dann der
+    // #btn-toggle-diff-Toggle in der Terminal-Toolbar (der frühere Card-
+    // Git-Badge-Shortcut entfiel mit den minimal cards).
     await authedPage.goto('/');
-    const badge = authedPage.locator(`.git-badge[data-diff-session="${SESSION}"]`);
-    await expect(badge).toBeVisible({ timeout: 15000 });
-    await badge.click();
-    // Badge verbindet jetzt zur Session (Terminal-View) und öffnet das rechte
-    // Diff-Panel — die frühere Vollbild-Diff-View entfällt.
+    await authedPage.click(`[data-session="${SESSION}"]`);
     await expect(authedPage.locator('body')).toHaveAttribute('data-current-view', 'terminal');
+    const diffToggle = authedPage.locator('#btn-toggle-diff');
+    await expect(diffToggle).toBeVisible({ timeout: 8000 });
+    await diffToggle.click();
     await expect(authedPage.locator('#diff-panel')).toHaveClass(/open/, { timeout: 10000 });
 
     // Datei-Liste zeigt die geänderte + die untracked Datei
@@ -105,7 +107,12 @@ test.describe('Diff-Viewer', () => {
 
   test('Live-Refresh aktualisiert die Datei-Liste', async ({ authedPage }) => {
     await authedPage.goto('/');
-    await authedPage.locator(`.git-badge[data-diff-session="${SESSION}"]`).click();
+    await authedPage.click(`[data-session="${SESSION}"]`);
+    await expect(authedPage.locator('body')).toHaveAttribute('data-current-view', 'terminal');
+    const diffToggle = authedPage.locator('#btn-toggle-diff');
+    await expect(diffToggle).toBeVisible({ timeout: 8000 });
+    await diffToggle.click();
+    await expect(authedPage.locator('#diff-panel')).toHaveClass(/open/, { timeout: 10000 });
     await expect(authedPage.locator('#diff-filelist .diff-file', { hasText: 'new.txt' })).toBeVisible({ timeout: 15000 });
 
     // Neue untracked Datei im Repo → Live-Refresh über den File-Watcher.
