@@ -120,8 +120,8 @@ test.describe('Settings-View (Redesign Phase 1)', () => {
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ stream: 'stdout', lines: 500, data: 'LOGLINE-ALPHA\nLOGLINE-BETA' }),
     }));
-    // Reload so initServerPanel() runs after route mocks are in place (ensures panel renders on all viewports).
-    await page.reload();
+    // setView('settings') re-fetches the Server panel on open (see index.html),
+    // so the action buttons render reliably without a reload.
     await openSettings(page);
     await page.waitForSelector('#srv-logs-btn', { state: 'attached', timeout: 10_000 });
     await page.click('#srv-logs-btn');
