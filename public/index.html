@@ -3207,7 +3207,7 @@
     }
 
     /* ── v0.6.0 Filebrowser Sidebar ────────────────────────────── */
-    .terminal-layout { display: flex; height: 100%; min-height: 0; position: relative; }
+    .terminal-layout { display: flex; height: 100%; min-height: 0; }
     .term-search {
       position: absolute;
       top: 8px;
@@ -3234,7 +3234,7 @@
       width: 160px;
       min-width: 0;
     }
-    #term-search-input.term-search-nomatch { color: #f38ba8; }
+    #term-search-input.term-search-nomatch { color: var(--red); }
     .term-search-count {
       font-variant-numeric: tabular-nums;
       color: var(--text-muted);
@@ -4161,14 +4161,15 @@
       </div>
     </div>
     <div class="terminal-layout">
-      <div class="terminal-container" id="terminal-container"></div>
-      <div class="term-search" id="term-search" role="search" style="display:none">
-        <svg class="term-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="term-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Search terminal" placeholder="Search" data-i18n-attr="placeholder:terminal.search.placeholder;aria-label:terminal.search.inputAria" />
-        <span class="term-search-count" id="term-search-count" aria-live="polite"></span>
-        <button class="term-search-btn" id="term-search-prev" type="button" aria-label="Previous match" data-i18n-attr="aria-label:terminal.search.prevAria;title:terminal.search.prevAria">‹</button>
-        <button class="term-search-btn" id="term-search-next" type="button" aria-label="Next match" data-i18n-attr="aria-label:terminal.search.nextAria;title:terminal.search.nextAria">›</button>
-        <button class="term-search-btn" id="term-search-close" type="button" aria-label="Close search" data-i18n-attr="aria-label:terminal.search.closeAria;title:terminal.search.closeAria">✕</button>
+      <div class="terminal-container" id="terminal-container">
+        <div class="term-search" id="term-search" role="search" style="display:none">
+          <svg class="term-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="term-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Search terminal" placeholder="Search" data-i18n-attr="placeholder:terminal.search.placeholder;aria-label:terminal.search.inputAria" />
+          <span class="term-search-count" id="term-search-count" aria-live="polite"></span>
+          <button class="term-search-btn" id="term-search-prev" type="button" aria-label="Previous match" data-i18n-attr="aria-label:terminal.search.prevAria;title:terminal.search.prevAria">‹</button>
+          <button class="term-search-btn" id="term-search-next" type="button" aria-label="Next match" data-i18n-attr="aria-label:terminal.search.nextAria;title:terminal.search.nextAria">›</button>
+          <button class="term-search-btn" id="term-search-close" type="button" aria-label="Close search" data-i18n-attr="aria-label:terminal.search.closeAria;title:terminal.search.closeAria">✕</button>
+        </div>
       </div>
       <div class="files-resizer" id="files-resizer" style="display:none"></div>
       <aside class="files-sidebar" id="files-sidebar">
@@ -7644,7 +7645,11 @@
 
       // Setup terminal
       const container = document.getElementById('terminal-container');
-      container.innerHTML = '';
+      // Clear xterm from prior session while preserving the static #term-search
+      // overlay (now a child of #terminal-container; term.open() only appends).
+      Array.from(container.children).forEach(ch => {
+        if (ch.id !== 'term-search') ch.remove();
+      });
 
       // Font MUSS geladen sein, bevor xterm seine Char-Width misst,
       // sonst rendert es mit Fallback-Maßen und alles sitzt schief.
@@ -11369,6 +11374,10 @@
       let overlay, input, countEl, prevBtn, nextBtn, closeBtn, wired = false;
       let lastResult = { resultIndex: -1, resultCount: 0 };
 
+      // Decoration-Farben sind bewusst feste Hex/RGBA: (1) xterm-Decorations
+      // rendern in xterms eigener Pipeline und können keine CSS-Variablen lesen;
+      // (2) der Terminal-Pane ist flavor-unabhängig (fixes Dunkel #0a0e14, siehe
+      // buildXtermTheme), daher passt der feste Teal/Amber-Akzent zu allen Themes.
       const DECORATIONS = {
         matchBackground: 'rgba(251, 191, 36, 0.30)',
         matchBorder: 'rgba(251, 191, 36, 0.55)',
@@ -11436,8 +11445,11 @@
           return;
         }
         input.classList.remove('term-search-nomatch');
-        countEl.textContent = resultCount < 0
-          ? (resultIndex + 1) + '/1000+'
+        // @xterm/addon-search caps highlighted results at its highlightLimit
+        // (default 1000); at the cap, signal "1000+" instead of a misleading exact total.
+        const SEARCH_CAP = 1000;
+        countEl.textContent = resultCount >= SEARCH_CAP
+          ? (resultIndex + 1) + '/' + SEARCH_CAP + '+'
           : (resultIndex + 1) + '/' + resultCount;
       }
 
