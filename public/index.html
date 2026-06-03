@@ -7651,6 +7651,15 @@
 
       term.open(container);
 
+      // GPU-Renderer. Bei Context-Loss disposen → xterm fällt automatisch auf
+      // den DOM-Renderer zurück (das canvas-Addon ist in v6 entfernt). In try,
+      // falls WebGL in der Engine nicht unterstützt wird (dann bleibt DOM).
+      try {
+        const webglAddon = new WebglAddon.WebglAddon();
+        webglAddon.onContextLoss(() => webglAddon.dispose());
+        term.loadAddon(webglAddon);
+      } catch { /* WebGL nicht verfügbar → DOM-Renderer */ }
+
       // iOS-Input-Hardening: xterm.js' Helper-Textarea ist ein unsichtbares
       // <textarea>, das alle Tipp-Events einfängt. Ohne diese Attribute
       // routet iOS Eingaben durch den Composition-Layer (autocorrect),
