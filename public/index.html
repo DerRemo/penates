@@ -3552,87 +3552,86 @@
     }
     .upload-toast button:hover { background: var(--accent-muted, rgba(45,212,191,.12)); }
 
-    /* ── Settings View ─────────────────────────────────────────────── */
-    .settings-view {
-      padding: var(--space-5, 20px);
+    /* ===== Settings View (redesign — calm-card language) ===== */
+    .settings-view { display: flex; flex-direction: column; }
+
+    .settings-anchors {
+      position: sticky; top: 56px; z-index: 9;
+      display: flex; gap: 8px; overflow-x: auto;
+      padding: 10px 0; margin-bottom: 4px;
+      background: color-mix(in srgb, var(--bg-base) 82%, transparent);
+      backdrop-filter: blur(12px);
+      scrollbar-width: none;
     }
-    .settings-view .view__header {
-      margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border-subtle);
+    .settings-anchors::-webkit-scrollbar { display: none; }
+    .settings-anchor {
+      flex: 0 0 auto;
+      padding: 6px 13px; border-radius: 999px;
+      border: 1px solid var(--border);
+      background: transparent; color: var(--text-secondary);
+      font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap;
+      transition: background .12s ease, border-color .12s ease, color .12s ease;
     }
-    .settings-view .view__header h1 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--text-primary);
+    .settings-anchor:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .settings-anchor.is-active {
+      background: var(--accent-muted); border-color: var(--accent); color: var(--accent);
     }
-    .settings-page {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      max-width: 720px;
+
+    .settings-seclabel {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--text-muted); font-weight: 600;
+      margin: 24px 2px 12px; display: flex; align-items: center; gap: 9px;
     }
+    .settings-section { scroll-margin-top: 110px; }
+    .settings-section + .settings-section { margin-top: 4px; }
+
     .settings-card {
-      background: var(--bg-surface-translucent);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md, 8px);
-      padding: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px 16px;
     }
-    .settings-card h2 {
-      margin: 0 0 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      color: var(--text-muted);
-    }
+    .settings-card + .settings-card { margin-top: 12px; }
     .settings-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 0;
-      gap: 12px;
-      flex-wrap: wrap;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 0; gap: 12px; flex-wrap: wrap;
     }
-    .settings-row + .settings-row {
-      border-top: 1px solid var(--border-subtle);
-    }
+    .settings-row + .settings-row { border-top: 1px solid var(--border-subtle); }
     .settings-row label {
-      flex: 1;
-      color: var(--text-secondary);
-      font-size: var(--text-sm, 13px);
+      flex: 1; color: var(--text-secondary); font-size: var(--text-sm, 13px);
     }
-    .settings-row__control {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .settings-row__hint {
-      margin: 8px 0 0;
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-    .settings-row__meta {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
+    .settings-row__control { display: flex; align-items: center; gap: 8px; }
+    .settings-row__hint { margin: 0 0 12px; font-size: 12px; color: var(--text-muted); }
+    .settings-row__meta { font-size: 12px; color: var(--text-muted); }
     .settings-row--link {
-      cursor: pointer;
-      background: transparent;
-      border: 0;
-      font: inherit;
-      color: inherit;
-      text-align: left;
-      width: 100%;
-      border-radius: 4px;
-      padding-left: 4px;
-      padding-right: 4px;
-      transition: background 0.12s ease;
+      cursor: pointer; background: transparent; border: 0; font: inherit;
+      color: inherit; text-align: left; width: 100%;
+      border-radius: var(--radius-sm, 6px); transition: background .12s ease;
     }
-    .settings-row--link:hover {
-      background: var(--bg-card-hover);
+    .settings-row--link:hover { background: var(--bg-card-hover); }
+
+    .settings-about-changelog {
+      margin: 4px 0 12px; padding: 12px;
+      background: color-mix(in srgb, var(--bg-base) 40%, transparent);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      font-size: 13px; line-height: 1.6;
     }
+    .settings-about-changelog:empty { display: none; }
+    .settings-about-changelog h3,
+    .settings-about-changelog h4 { margin: 12px 0 6px; font-size: 13px; }
+    .settings-about-changelog ul { margin: 6px 0; padding-left: 20px; }
+    .settings-about-changelog code {
+      background: var(--bg-elevated); padding: 1px 4px; border-radius: 3px;
+      font-family: var(--font-mono); overflow-wrap: anywhere; word-break: break-word;
+    }
+    .settings-about-changelog a { color: var(--accent); text-decoration: underline; }
+
+    @media (max-width: 640px) {
+      .settings-anchors { top: 0; }
+    }
+
+    /* --- preserved verbatim from the old region (reused elsewhere) --- */
     .seg-btn {
       padding: 5px 12px;
       border-radius: var(--radius-sm, 6px);
@@ -3644,60 +3643,22 @@
       cursor: pointer;
       transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
     }
-    .seg-btn:hover {
-      background: var(--bg-card-hover);
-      color: var(--text-primary);
-    }
+    .seg-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
     .seg-btn.is-active {
       background: var(--accent-muted);
       border-color: var(--accent, #2dd4bf);
       color: var(--accent, #2dd4bf);
     }
     .toggle-btn {
-      width: 40px;
-      height: 22px;
-      border-radius: 11px;
-      border: 0;
-      cursor: pointer;
-      background: var(--border);
-      position: relative;
-      transition: background .15s;
-      flex-shrink: 0;
+      width: 40px; height: 22px; border-radius: 11px; border: 0; cursor: pointer;
+      background: var(--border); position: relative; transition: background .15s; flex-shrink: 0;
     }
     .toggle-btn::after {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: #fff;
-      transition: transform .15s;
+      content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+      border-radius: 50%; background: #fff; transition: transform .15s;
     }
     .toggle-btn[aria-pressed="true"] { background: var(--accent); }
     .toggle-btn[aria-pressed="true"]::after { transform: translateX(18px); }
-    .settings-about-changelog {
-      margin-top: 12px;
-      padding: 12px;
-      background: rgba(0,0,0,.15);
-      border-radius: 6px;
-      font-size: 13px;
-      line-height: 1.6;
-    }
-    .settings-about-changelog:empty { display: none; }
-    .settings-about-changelog h3,
-    .settings-about-changelog h4 { margin: 12px 0 6px; font-size: 13px; }
-    .settings-about-changelog ul { margin: 6px 0; padding-left: 20px; }
-    .settings-about-changelog code {
-      background: var(--bg-elevated);
-      padding: 1px 4px;
-      border-radius: 3px;
-      font-family: var(--font-mono);
-      overflow-wrap: anywhere;
-      word-break: break-word;
-    }
-    .settings-about-changelog a { color: var(--accent, #2dd4bf); text-decoration: underline; }
 
     /* ===== App-Shell-Primitive (Redesign) ===== */
     .pill {
