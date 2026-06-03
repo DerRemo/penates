@@ -9154,7 +9154,7 @@
     // Wires the 4 Catppuccin seg-btns (Latte/Frappé/Macchiato/Mocha).
     // Calls the existing setTheme() so xterm-theme + colorScheme stay in sync.
     function initSettingsAppearance() {
-      const buttons = document.querySelectorAll('#settings-appearance [data-theme-value]');
+      const buttons = document.querySelectorAll('#sec-appearance [data-theme-value]');
       function syncActive() {
         const current = getTheme();
         buttons.forEach(b => b.classList.toggle('is-active', b.dataset.themeValue === current));
@@ -9172,7 +9172,7 @@
     // ── Settings: Language ────────────────────────────────────────
     // Wires the EN/DE seg-btns; reloads the page on change (same as before).
     function initSettingsLanguage() {
-      const buttons = document.querySelectorAll('#settings-language [data-lang-value]');
+      const buttons = document.querySelectorAll('#sec-appearance [data-lang-value]');
       function syncActive() {
         const current = window.i18nApi.getLang();
         buttons.forEach(b => b.classList.toggle('is-active', b.dataset.langValue === current));
@@ -9316,6 +9316,43 @@
       if (h > 0) return `${h}h ${m}m`;
       return `${m}m`;
     }
+    // ── Settings: Anchor-Chip Scrollspy ───────────────────────────
+    // Sticky chips jump to sections; an IntersectionObserver highlights the
+    // section currently near the top. Viewport root (null) works whether the
+    // page or .main-content is the scroll container.
+    function initSettingsAnchors() {
+      const nav = document.getElementById('settings-anchors');
+      if (!nav) return;
+      const chips = Array.from(nav.querySelectorAll('.settings-anchor'));
+      const sections = chips
+        .map(c => document.getElementById(c.dataset.anchor))
+        .filter(Boolean);
+      if (!sections.length) return;
+
+      function setActive(id) {
+        chips.forEach(c => c.classList.toggle('is-active', c.dataset.anchor === id));
+      }
+
+      chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          const target = document.getElementById(chip.dataset.anchor);
+          if (!target) return;
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setActive(chip.dataset.anchor);
+        });
+      });
+
+      const io = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter(e => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActive(visible[0].target.id);
+      }, { rootMargin: '-120px 0px -65% 0px', threshold: 0 });
+
+      sections.forEach(s => io.observe(s));
+      setActive(sections[0].id);
+    }
+
     async function initSettingsAbout() {
       const curEl = document.getElementById('settings-current-version');
       const upEl = document.getElementById('settings-uptime');
@@ -9426,6 +9463,7 @@
     initSettingsRemoteApproval();
     initSettingsHelp();
     initSettingsAbout(); // async, fire-and-forget
+    initSettingsAnchors();
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────
