@@ -3640,6 +3640,13 @@
       border-radius: var(--radius-sm, 6px); transition: background .12s ease;
     }
     .settings-row--link:hover { background: var(--bg-card-hover); }
+    .logs-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .logs-tabs { display: flex; align-items: center; gap: 8px; }
+    .logs-output {
+      background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px);
+      padding: 12px; margin: 0 0 16px; max-height: 60vh; overflow: auto;
+      font: 12px/1.5 var(--font-mono); color: var(--text-secondary); white-space: pre-wrap; word-break: break-word;
+    }
 
     .settings-about-changelog {
       margin: 4px 0 12px; padding: 12px;
@@ -4565,6 +4572,23 @@
       <div class="modal-actions">
         <button class="btn btn-ghost" type="button" id="bulk-kill-cancel" data-i18n="modal.bulkKill.cancel">Cancel</button>
         <button class="btn btn-danger" type="button" id="bulk-kill-confirm" data-i18n="modal.bulkKill.confirm">Kill All</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="logs-modal" role="dialog" aria-modal="true" aria-labelledby="logs-modal-title">
+    <div class="modal modal--wide" style="padding: var(--space-6); overflow: auto;">
+      <div class="logs-head">
+        <h2 id="logs-modal-title" data-i18n="settings.server.logsTitle">Server logs</h2>
+        <div class="logs-tabs">
+          <button type="button" class="seg-btn is-active" data-log-stream="stdout">stdout</button>
+          <button type="button" class="seg-btn" data-log-stream="stderr">stderr</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="logs-refresh" data-i18n="settings.server.logsRefresh">Refresh</button>
+        </div>
+      </div>
+      <pre class="logs-output" id="logs-output"></pre>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="logs-close" data-i18n="common.close">Close</button>
       </div>
     </div>
   </div>
@@ -9745,6 +9769,12 @@
         statRow(t('settings.server.remoteAccess'), onOff(f.cfAccess && f.cfAccess.enabled)),
         statRow(t('settings.server.push'), onOff(f.push && f.push.configured)),
         statRow(t('settings.server.projectRoots'), (f.projectRoots || []).join(', ') || '—'),
+        `<div class="settings-row"><label data-i18n="settings.server.updateCheck">Check for updates</label>` +
+          `<div class="settings-row__control"><button type="button" class="btn btn-ghost btn-sm" id="srv-update-check" data-i18n="settings.server.updateCheckBtn">Check</button></div></div>`,
+        `<div class="settings-row"><label data-i18n="settings.server.logs">Server logs</label>` +
+          `<div class="settings-row__control"><button type="button" class="btn btn-ghost btn-sm" id="srv-logs-btn" data-i18n="settings.server.logsBtn">View</button></div></div>`,
+        `<div class="settings-row"><label data-i18n="settings.server.restart">Restart server</label>` +
+          `<div class="settings-row__control"><button type="button" class="btn btn-danger btn-sm" id="srv-restart-btn" data-i18n="settings.server.restartBtn">Restart</button></div></div>`,
       ];
       panel.innerHTML = rows.join('');
       const tm = document.getElementById('srv-tmux-mouse');
@@ -9759,6 +9789,42 @@
           });
         } catch { tm.setAttribute('aria-pressed', next ? 'false' : 'true'); }
       });
+      const uc = document.getElementById('srv-update-check');
+      if (uc) uc.addEventListener('click', async () => {
+        uc.disabled = true;
+        try {
+          const r = await fetch('/api/version/check', { method: 'POST', headers: apiHeaders() });
+          if (r.ok) {
+            const info = await r.json();
+            window.__versionInfo = info;
+            if (typeof renderUpdateDot === 'function') renderUpdateDot(info);
+            if (typeof renderAboutPanel === 'function') renderAboutPanel(info);
+            showToast(info.isNewer ? t('settings.server.updateAvailable', { v: info.latest }) : t('settings.server.upToDate'), 'success');
+          }
+        } catch { showToast(t('toast.genericError'), 'error'); }
+        finally { uc.disabled = false; }
+      });
+      const lg = document.getElementById('srv-logs-btn');
+      if (lg) lg.addEventListener('click', () => LogsViewer.open());
+      const rs = document.getElementById('srv-restart-btn');
+      if (rs) {
+        let armed = false, timer = null;
+        rs.addEventListener('click', async () => {
+          if (!armed) {
+            armed = true; rs.textContent = t('settings.server.restartConfirm');
+            timer = setTimeout(() => { armed = false; rs.textContent = t('settings.server.restartBtn'); }, 3000);
+            return;
+          }
+          clearTimeout(timer); armed = false; rs.textContent = t('settings.server.restartBtn');
+          try {
+            const r = await fetch('/api/server/restart', { method: 'POST', headers: apiHeaders() });
+            if (r.status === 409) { showToast(t('settings.server.restartManual'), 'error'); return; }
+            if (!r.ok) throw new Error('bad');
+            showToast(t('settings.server.restarting'), 'success');
+            setTimeout(() => location.reload(), 6000);
+          } catch { showToast(t('toast.genericError'), 'error'); }
+        });
+      }
     }
 
     // ── Settings: Anchor-Chip Scrollspy ───────────────────────────
@@ -11378,6 +11444,41 @@
       return { open, close, toggle, activateForSession, _cleanup: disconnectWs };
     })();
     window.DiffView = DiffView;
+
+    // ── Logs Viewer (Settings → Server → View logs) ───────────────
+    const LogsViewer = (() => {
+      let stream = 'stdout';
+      const modal = () => document.getElementById('logs-modal');
+      const out = () => document.getElementById('logs-output');
+      async function load() {
+        const el = out(); if (el) el.textContent = '…';
+        try {
+          const r = await fetch(`/api/server/logs?stream=${stream}&lines=500`, { headers: apiHeaders() });
+          if (r.status === 401) { clearToken(); showLoginModal(); return; }
+          const { data } = await r.json();
+          if (el) { el.textContent = data && data.trim() ? data : t('settings.server.logsEmpty'); el.scrollTop = el.scrollHeight; }
+        } catch { if (el) el.textContent = t('settings.server.logsError'); }
+      }
+      function setStream(s) {
+        stream = (s === 'stderr') ? 'stderr' : 'stdout';
+        document.querySelectorAll('#logs-modal [data-log-stream]').forEach(b =>
+          b.classList.toggle('is-active', b.dataset.logStream === stream));
+        load();
+      }
+      function open() { const m = modal(); if (!m) return; m.classList.add('open'); setStream('stdout'); }
+      function close() { const m = modal(); if (m) m.classList.remove('open'); }
+      function wire() {
+        const m = modal(); if (!m) return;
+        m.querySelectorAll('[data-log-stream]').forEach(b => b.addEventListener('click', () => setStream(b.dataset.logStream)));
+        const rf = document.getElementById('logs-refresh'); if (rf) rf.addEventListener('click', load);
+        const cl = document.getElementById('logs-close'); if (cl) cl.addEventListener('click', close);
+        m.addEventListener('click', (e) => { if (e.target === m) close(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && m.classList.contains('open')) close(); });
+      }
+      return { open, close, wire };
+    })();
+    window.LogsViewer = LogsViewer;
+    document.addEventListener('DOMContentLoaded', () => LogsViewer.wire());
 
     // ── v0.6.0 Task 11: FileActions (context menu, inline rename, delete confirm, mkdir) ──
     const FileActions = (() => {

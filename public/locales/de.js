@@ -289,6 +289,7 @@ window.__I18N_BUNDLES.de = {
   'toast.pushToggleFailed': 'Push-Benachrichtigungen umschalten fehlgeschlagen',
   'toast.vapidNotLoaded': 'VAPID-Key nicht geladen',
   'toast.ideaAdded': 'Idee ins Backlog geschrieben',
+  'toast.genericError': 'Etwas ist schiefgelaufen.',
 
   // Confirm dialogs
   'confirm.killSession': 'Session „{name}" wirklich beenden?',
@@ -518,6 +519,7 @@ window.__I18N_BUNDLES.de = {
   'common.loading': 'Lädt…',
   'common.on': 'An',
   'common.off': 'Aus',
+  'common.close': 'Schließen',
 
   // Settings — sidebar entry + page
   'settings.sidebarEntry': 'Einstellungen',
@@ -663,4 +665,19 @@ window.__I18N_BUNDLES.de = {
   'settings.server.push':         'Web-Push',
   'settings.server.projectRoots': 'Projekt-Wurzeln',
   'settings.server.unavailable':  'Server-Infos nicht verfügbar',
+  'settings.server.updateCheck':    'Nach Updates suchen',
+  'settings.server.updateCheckBtn': 'Prüfen',
+  'settings.server.upToDate':       'Du bist auf dem neuesten Stand',
+  'settings.server.updateAvailable': 'Update verfügbar: v{v}',
+  'settings.server.logs':           'Server-Logs',
+  'settings.server.logsBtn':        'Ansehen',
+  'settings.server.logsTitle':      'Server-Logs',
+  'settings.server.logsRefresh':    'Aktualisieren',
+  'settings.server.logsEmpty':      'Keine Log-Ausgabe.',
+  'settings.server.logsError':      'Logs konnten nicht geladen werden.',
+  'settings.server.restart':        'Server neu starten',
+  'settings.server.restartBtn':     'Neu starten',
+  'settings.server.restartConfirm': 'Nochmal klicken zum Bestätigen',
+  'settings.server.restarting':     'Server wird neu gestartet…',
+  'settings.server.restartManual':  'Nicht von launchd verwaltet — bitte manuell neu starten.',
 };

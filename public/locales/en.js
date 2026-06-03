@@ -289,6 +289,7 @@ window.__I18N_BUNDLES.en = {
   'toast.pushToggleFailed': 'Failed to toggle push notifications',
   'toast.vapidNotLoaded': 'VAPID key not loaded',
   'toast.ideaAdded': 'Idea added to backlog',
+  'toast.genericError': 'Something went wrong.',
 
   // Confirm dialogs
   'confirm.killSession': 'Really kill session "{name}"?',
@@ -518,6 +519,7 @@ window.__I18N_BUNDLES.en = {
   'common.loading': 'Loading…',
   'common.on': 'On',
   'common.off': 'Off',
+  'common.close': 'Close',
 
   // Settings — sidebar entry + page
   'settings.sidebarEntry': 'Settings',
@@ -663,4 +665,19 @@ window.__I18N_BUNDLES.en = {
   'settings.server.push':         'Web push',
   'settings.server.projectRoots': 'Project roots',
   'settings.server.unavailable':  'Server info unavailable',
+  'settings.server.updateCheck':    'Check for updates',
+  'settings.server.updateCheckBtn': 'Check',
+  'settings.server.upToDate':       'You\'re on the latest version',
+  'settings.server.updateAvailable': 'Update available: v{v}',
+  'settings.server.logs':           'Server logs',
+  'settings.server.logsBtn':        'View',
+  'settings.server.logsTitle':      'Server logs',
+  'settings.server.logsRefresh':    'Refresh',
+  'settings.server.logsEmpty':      'No log output.',
+  'settings.server.logsError':      'Could not load logs.',
+  'settings.server.restart':        'Restart server',
+  'settings.server.restartBtn':     'Restart',
+  'settings.server.restartConfirm': 'Click again to confirm',
+  'settings.server.restarting':     'Restarting the server…',
+  'settings.server.restartManual':  'Not managed by launchd — restart manually.',
 };
