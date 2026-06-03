@@ -115,4 +115,31 @@ test.describe('Settings-View (Redesign Phase 1)', () => {
     await expect(helpChip).toHaveClass(/is-active/);
   });
 
+  test('logs viewer opens and renders tail from /api/server/logs', async ({ authedPage: page }) => {
+    await page.route('**/api/server/logs**', route => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ stream: 'stdout', lines: 500, data: 'LOGLINE-ALPHA\nLOGLINE-BETA' }),
+    }));
+    // Reload so initServerPanel() runs after route mocks are in place (ensures panel renders on all viewports).
+    await page.reload();
+    await openSettings(page);
+    await page.waitForSelector('#srv-logs-btn', { state: 'attached', timeout: 10_000 });
+    await page.click('#srv-logs-btn');
+    await expect(page.locator('#logs-modal')).toHaveClass(/open/);
+    await expect(page.locator('#logs-output')).toContainText('LOGLINE-ALPHA');
+    await page.click('#logs-close');
+    await expect(page.locator('#logs-modal')).not.toHaveClass(/open/);
+  });
+
+  test('restart button needs a 2nd click and posts to /api/server/restart', async ({ authedPage: page }) => {
+    let posted = 0;
+    await page.route('**/api/server/restart', route => { posted++; route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"restarting":true}' }); });
+    await openSettings(page);
+    await page.waitForSelector('#srv-restart-btn', { state: 'attached', timeout: 10_000 });
+    await page.click('#srv-restart-btn');          // arms (confirm) — must NOT post
+    expect(posted).toBe(0);
+    await page.click('#srv-restart-btn');          // confirms → posts
+    await expect.poll(() => posted).toBe(1);
+  });
+
 });
