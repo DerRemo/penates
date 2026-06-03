@@ -4876,6 +4876,14 @@
         stopSessionPolling();
       }
 
+      // Server & Features panel: re-fetch each time Settings is shown, so it's
+      // always populated + fresh. (initServerPanel is a hoisted function decl, so
+      // calling it here before its definition is fine. A boot-only fetch could
+      // race/fail on slow first loads and leave the panel stuck on "unavailable".)
+      if (name === 'settings' && typeof initServerPanel === 'function') {
+        initServerPanel();
+      }
+
       // View-spezifischer Render beim Betreten.
       if (name === 'projects') { renderProjectsWithSearch(projectSearchQuery); openProjectEventsWs(); }
       if (name === 'usage')    { renderUsage(); }
@@ -9981,7 +9989,6 @@
     initDisplayPrefs();
     initBehaviorPrefs();
     initAccountData();
-    initServerPanel();   // async, fire-and-forget
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────
