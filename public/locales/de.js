@@ -544,6 +544,13 @@ window.__I18N_BUNDLES.de = {
   'settings.terminal.copyOnSelect': 'Bei Auswahl kopieren',
   'settings.terminal.bell': 'Terminal-Glocke',
 
+  // Settings — Behavior section
+  'settings.behavior.landingView':  'Start-Ansicht',
+  'settings.behavior.landingLast':  'Zuletzt',
+  'settings.behavior.defaultCli':   'Standard-CLI',
+  'settings.behavior.defaultMode':  'Standard-Modus',
+  'settings.behavior.confirmKill':  'Vor dem Beenden bestätigen',
+
   // Settings — Sessions section
   'settings.sessions.bulkKillLabel': 'Untätige Sessions beenden',
   'settings.sessions.bulkKillDesc': 'Beendet alle Sessions ohne kürzliche Aktivität auf einmal.',

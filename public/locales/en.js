@@ -544,6 +544,13 @@ window.__I18N_BUNDLES.en = {
   'settings.terminal.copyOnSelect': 'Copy on select',
   'settings.terminal.bell': 'Terminal bell',
 
+  // Settings — Behavior section
+  'settings.behavior.landingView':  'Start view',
+  'settings.behavior.landingLast':  'Last used',
+  'settings.behavior.defaultCli':   'Default CLI',
+  'settings.behavior.defaultMode':  'Default mode',
+  'settings.behavior.confirmKill':  'Confirm before kill',
+
   // Settings — Sessions section
   'settings.sessions.bulkKillLabel': 'Kill idle sessions',
   'settings.sessions.bulkKillDesc': 'Terminates all sessions without recent activity at once.',

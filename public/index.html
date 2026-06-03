@@ -4284,6 +4284,33 @@
         <div class="settings-seclabel" data-i18n="settings.section.behavior">Behavior</div>
         <div class="settings-card">
           <div class="settings-row">
+            <label data-i18n="settings.behavior.landingView">Start view</label>
+            <div class="settings-row__control" style="flex-wrap:wrap">
+              <button type="button" class="seg-btn" data-landing-value="last" data-i18n="settings.behavior.landingLast">Last used</button>
+              <button type="button" class="seg-btn" data-landing-value="dashboard" data-i18n="sidebar.nav.overview">Overview</button>
+              <button type="button" class="seg-btn" data-landing-value="projects" data-i18n="sidebar.nav.projects">Projects</button>
+              <button type="button" class="seg-btn" data-landing-value="usage" data-i18n="sidebar.nav.usage">Usage</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label data-i18n="settings.behavior.defaultCli">Default CLI</label>
+            <div class="settings-row__control">
+              <div class="field field--select"><select id="pref-default-cli"></select></div>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label data-i18n="settings.behavior.defaultMode">Default mode</label>
+            <div class="settings-row__control">
+              <div class="field field--select"><select id="pref-default-mode"></select></div>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label data-i18n="settings.behavior.confirmKill">Confirm before kill</label>
+            <div class="settings-row__control">
+              <button type="button" class="toggle-btn" id="pref-confirm-kill" aria-pressed="true"></button>
+            </div>
+          </div>
+          <div class="settings-row">
             <label data-i18n="settings.sessions.bulkKillLabel">Idle-Sessions beenden</label>
             <div class="settings-row__control">
               <button type="button" class="btn btn-danger btn-sm" id="bulk-kill-btn">
@@ -4820,6 +4847,8 @@
     const NAV_VIEW_KEY = 'cchub_nav_view';
     function initialNavView() {
       try {
+        const lv = window.Prefs && window.Prefs.get.landingView();
+        if (lv && lv !== 'last') return lv;        // fixed landing view
         const v = localStorage.getItem(NAV_VIEW_KEY);
         if (v === 'projects' || v === 'usage') return v;
       } catch {}
@@ -4847,7 +4876,8 @@
         termCursor:       () => M ? M.coerceEnum(raw('termCursor'), M.ENUMS.termCursor, M.DEFAULTS.termCursor) : 'bar',
         termCopyOnSelect: () => M ? M.coerceBool(raw('termCopyOnSelect'), M.DEFAULTS.termCopyOnSelect) : false,
         termBell:         () => M ? M.coerceBool(raw('termBell'), M.DEFAULTS.termBell) : false,
-        landingView:      () => M ? M.coerceEnum(raw('landingView'), M.ENUMS.landingView, M.DEFAULTS.landingView) : 'last',
+        landingView:      () => { const r = raw('landingView');
+                                  return ['last','dashboard','projects','usage'].includes(r) ? r : 'last'; },
         defaultCli:       () => raw('defaultCli') || (M ? M.DEFAULTS.defaultCli : 'claude'),
         defaultTier:      () => M ? M.coerceEnum(raw('defaultTier'), M.ENUMS.defaultTier, M.DEFAULTS.defaultTier) : 'auto',
         confirmKill:      () => M ? M.coerceBool(raw('confirmKill'), M.DEFAULTS.confirmKill) : true,
@@ -8203,7 +8233,8 @@
     // ── Kill session ─────────────────────────────────────────────
     async function killSession(name) {
       const displayName = name.replace(/^cc-/, '');
-      if (!confirm(t('confirm.killSession', { name: displayName }))) return;
+      const needConfirm = !window.Prefs || window.Prefs.get.confirmKill();
+      if (needConfirm && !confirm(t('confirm.killSession', { name: displayName }))) return;
 
       try {
         const res = await fetch(`/api/sessions/${encodeURIComponent(name)}`, {
@@ -8682,8 +8713,12 @@
         if (hidden) hidden.value = 'claude';
         return;
       }
-      _activeCli = 'claude';
-      _activeTier = null;
+      const P = window.Prefs;
+      const wantCli = P ? P.get.defaultCli() : 'claude';
+      _activeCli = mod.CLIS.some(c => c.id === wantCli) ? wantCli : 'claude';
+      const wantTier = P ? P.get.defaultTier() : null;
+      _activeTier = (wantTier && mod.CLIS.find(c => c.id === _activeCli)?.variants.some(v => v.tier === wantTier))
+        ? wantTier : null;
       if (picker) {
         picker.innerHTML = mod.CLIS.map(c =>
           `<button type="button" class="cli-pick-btn" data-cli="${c.id}" style="--cli-color:${c.color}" `
@@ -9562,6 +9597,59 @@
       }
     }
 
+    // ── Settings: Behavior Prefs ──────────────────────────────────
+    async function initBehaviorPrefs() {
+      const P = window.Prefs; if (!P) return;
+      await P.load();   // getters need the module loaded before reading localStorage
+      // Landing view seg-btn
+      const lvBtns = Array.from(document.querySelectorAll('#sec-behavior [data-landing-value]'));
+      function syncLv() {
+        const lv = P.get.landingView();
+        lvBtns.forEach(b => b.classList.toggle('is-active', b.dataset.landingValue === lv));
+      }
+      lvBtns.forEach(b => b.addEventListener('click', () => {
+        P.setRaw('landingView', b.dataset.landingValue); syncLv();
+      }));
+      syncLv();
+      // Default CLI + mode selects, populated from clis.js
+      const mod = await import('./clis.js').catch(() => null);
+      const cliSel = document.getElementById('pref-default-cli');
+      const modeSel = document.getElementById('pref-default-mode');
+      if (mod && cliSel && modeSel) {
+        cliSel.innerHTML = mod.CLIS.map(c => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+        function fillModes(cliId) {
+          const c = mod.CLIS.find(x => x.id === cliId) || mod.CLIS[0];
+          modeSel.innerHTML = c.variants.map(v =>
+            `<option value="${v.tier}">${escapeHtml(v.label.replace(/\s*\(.*\)\s*$/, ''))}</option>`).join('');
+        }
+        const curCli = mod.CLIS.some(c => c.id === P.get.defaultCli()) ? P.get.defaultCli() : 'claude';
+        cliSel.value = curCli;
+        fillModes(curCli);
+        modeSel.value = P.get.defaultTier();
+        cliSel.addEventListener('change', () => {
+          P.setRaw('defaultCli', cliSel.value);
+          fillModes(cliSel.value);
+          const c = mod.CLIS.find(x => x.id === cliSel.value);
+          if (!c.variants.some(v => v.tier === modeSel.value)) {
+            const def = mod.defaultVariant(cliSel.value);
+            modeSel.value = def ? def.tier : c.variants[0].tier;
+          }
+          P.setRaw('defaultTier', modeSel.value);
+        });
+        modeSel.addEventListener('change', () => P.setRaw('defaultTier', modeSel.value));
+      }
+      // Confirm-kill toggle
+      const ck = document.getElementById('pref-confirm-kill');
+      if (ck) {
+        ck.setAttribute('aria-pressed', P.get.confirmKill() ? 'true' : 'false');
+        ck.addEventListener('click', () => {
+          const next = ck.getAttribute('aria-pressed') !== 'true';
+          P.setRaw('confirmKill', next ? '1' : '0');
+          ck.setAttribute('aria-pressed', next ? 'true' : 'false');
+        });
+      }
+    }
+
     // ── Settings: Anchor-Chip Scrollspy ───────────────────────────
     // Sticky chips jump to sections; an IntersectionObserver highlights the
     // section currently near the top. Viewport root (null) works whether the
@@ -9713,6 +9801,7 @@
     initSettingsAnchors();
     initTerminalPrefs();
     initDisplayPrefs();
+    initBehaviorPrefs();
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────
