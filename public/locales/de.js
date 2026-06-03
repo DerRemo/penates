@@ -279,7 +279,7 @@ window.__I18N_BUNDLES.de = {
   'toast.copyFailed': 'Kopieren fehlgeschlagen — Zwischenablage nicht beschreibbar',
   'toast.pasteFailed': 'Einfügen fehlgeschlagen — Zwischenablage nicht lesbar. Firefox: Permission erlauben.',
   'toast.clipboardNotReadable': 'Zwischenablage nicht lesbar — bitte Browser-Permission erlauben',
-  'toast.copyHint': 'Tipp: Shift+Drag oder Alt+Drag markiert und kopiert sofort',
+  'toast.copyHint': 'Tipp: Alt+Ziehen (Mac) oder Shift+Ziehen markiert · ⌘/Strg+C kopiert',
   'toast.noActiveSession': 'Keine aktive Session',
   'toast.pushBlocked': 'Push blockiert — bitte in Browser-Einstellungen erlauben',
   'toast.pushSubFailed': 'Push-Subscription fehlgeschlagen: {message}',

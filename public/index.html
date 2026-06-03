@@ -7635,6 +7635,20 @@
           });
         }
 
+      // Cmd/Ctrl+C copies the xterm selection (xterm never does this itself).
+      // CRITICAL: only intercept when a selection exists — otherwise Ctrl+C
+      // must pass through as SIGINT or the terminal becomes unusable.
+      term.attachCustomKeyEventHandler((ev) => {
+        if (ev.type !== 'keydown') return true;
+        const isCopy = (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey
+          && (ev.key === 'c' || ev.key === 'C');
+        if (!isCopy || !term.hasSelection()) return true;
+        const text = term.getSelection();
+        if (!text) return true;
+        navigator.clipboard.writeText(text).catch(() => showToast(t('toast.copyFailed'), 'error'));
+        return false;
+      });
+
       term.open(container);
 
       // iOS-Input-Hardening: xterm.js' Helper-Textarea ist ein unsichtbares
@@ -7654,7 +7668,7 @@
         }
       }
 
-      // Test-Hook für Playwright (tests/copy.spec.js). Single-User-App,
+      // Test-Hook für Playwright (tests/terminal.spec.js + tests/terminal-clipboard.spec.js). Single-User-App,
       // kein Security-Risiko — ein Angreifer mit JS-Kontext hat ohnehin
       // schon alles was er braucht.
       window.__cchubTerm = term;
@@ -7795,9 +7809,11 @@
         currentResizeObserver = resizeObserver;
         term.focus();
 
-        // Copy-Hint vorübergehend ausgesetzt: das alte Shift/Alt+Drag-Verhalten
-        // wurde entfernt. Ein akkurater Hint zur 6.0-Baseline-Selektion + Cmd+C
-        // wird beim Re-Add des Copy-Handlers (nächster Schritt) wieder gezeigt.
+        // Once-per-user hint for the 6.0 baseline copy UX.
+        if (!localStorage.getItem('cchub_hint_copy_seen')) {
+          showToast(t('toast.copyHint'), 'info');
+          localStorage.setItem('cchub_hint_copy_seen', '1');
+        }
       });
     }
 

@@ -279,7 +279,7 @@ window.__I18N_BUNDLES.en = {
   'toast.copyFailed': 'Copy failed — clipboard not writable',
   'toast.pasteFailed': 'Paste failed — clipboard not readable. Firefox: allow permission.',
   'toast.clipboardNotReadable': 'Clipboard not readable — please allow browser permission',
-  'toast.copyHint': 'Tip: Shift+Drag or Alt+Drag selects and copies instantly',
+  'toast.copyHint': 'Tip: Alt+Drag (Mac) or Shift+Drag selects · ⌘/Ctrl+C copies',
   'toast.noActiveSession': 'No active session',
   'toast.pushBlocked': 'Push blocked — please allow in browser settings',
   'toast.pushSubFailed': 'Push subscription failed: {message}',
