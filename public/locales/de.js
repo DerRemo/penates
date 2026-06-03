@@ -526,12 +526,23 @@ window.__I18N_BUNDLES.de = {
   // Settings — section headers
   'settings.section.appearance': 'Erscheinungsbild',
   'settings.section.language': 'Sprache',
+  'settings.section.terminal': 'Terminal',
   'settings.section.notifications': 'Benachrichtigungen',
   'settings.section.behavior': 'Verhalten',
   'settings.section.helpAbout': 'Hilfe & Über',
   'settings.section.sessions': 'Sessions',
   'settings.section.help': 'Hilfe',
   'settings.section.about': 'Über',
+
+  // Settings — Terminal section
+  'settings.terminal.fontSize': 'Schriftgröße',
+  'settings.terminal.scrollback': 'Scrollback-Zeilen',
+  'settings.terminal.cursor': 'Cursor-Stil',
+  'settings.terminal.cursorBlock': 'Block',
+  'settings.terminal.cursorBar': 'Strich',
+  'settings.terminal.cursorUnderline': 'Unterstrich',
+  'settings.terminal.copyOnSelect': 'Bei Auswahl kopieren',
+  'settings.terminal.bell': 'Terminal-Glocke',
 
   // Settings — Sessions section
   'settings.sessions.bulkKillLabel': 'Untätige Sessions beenden',

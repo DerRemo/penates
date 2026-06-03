@@ -526,12 +526,23 @@ window.__I18N_BUNDLES.en = {
   // Settings — section headers
   'settings.section.appearance': 'Appearance',
   'settings.section.language': 'Language',
+  'settings.section.terminal': 'Terminal',
   'settings.section.notifications': 'Notifications',
   'settings.section.behavior': 'Behavior',
   'settings.section.helpAbout': 'Help & About',
   'settings.section.sessions': 'Sessions',
   'settings.section.help': 'Help',
   'settings.section.about': 'About',
+
+  // Settings — Terminal section
+  'settings.terminal.fontSize': 'Font size',
+  'settings.terminal.scrollback': 'Scrollback lines',
+  'settings.terminal.cursor': 'Cursor style',
+  'settings.terminal.cursorBlock': 'Block',
+  'settings.terminal.cursorBar': 'Bar',
+  'settings.terminal.cursorUnderline': 'Underline',
+  'settings.terminal.copyOnSelect': 'Copy on select',
+  'settings.terminal.bell': 'Terminal bell',
 
   // Settings — Sessions section
   'settings.sessions.bulkKillLabel': 'Kill idle sessions',

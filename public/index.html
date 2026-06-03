@@ -4192,6 +4192,46 @@
         <p class="settings-row__hint" data-i18n="settings.language.reloadHint">Switching reloads the page.</p>
       </section>
 
+      <!-- Terminal -->
+      <section class="settings-section" id="sec-terminal">
+        <div class="settings-seclabel" data-i18n="settings.section.terminal">Terminal</div>
+        <div class="settings-card">
+          <div class="settings-row">
+            <label data-i18n="settings.terminal.fontSize">Font size</label>
+            <div class="settings-row__control">
+              <input type="range" class="settings-range" id="pref-term-fontsize" min="11" max="18" step="1">
+              <span class="settings-row__meta" id="pref-term-fontsize-val">13</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label data-i18n="settings.terminal.scrollback">Scrollback lines</label>
+            <div class="settings-row__control">
+              <input type="number" class="settings-number" id="pref-term-scrollback" min="500" max="10000" step="500">
+            </div>
+          </div>
+          <div class="settings-row">
+            <label data-i18n="settings.terminal.cursor">Cursor style</label>
+            <div class="settings-row__control">
+              <button type="button" class="seg-btn" data-cursor-value="block" data-i18n="settings.terminal.cursorBlock">Block</button>
+              <button type="button" class="seg-btn" data-cursor-value="bar" data-i18n="settings.terminal.cursorBar">Bar</button>
+              <button type="button" class="seg-btn" data-cursor-value="underline" data-i18n="settings.terminal.cursorUnderline">Underline</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label data-i18n="settings.terminal.copyOnSelect">Copy on select</label>
+            <div class="settings-row__control">
+              <button type="button" class="toggle-btn" id="pref-term-copyselect" aria-pressed="false"></button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label data-i18n="settings.terminal.bell">Terminal bell</label>
+            <div class="settings-row__control">
+              <button type="button" class="toggle-btn" id="pref-term-bell" aria-pressed="false"></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Notifications -->
       <section class="settings-section" id="sec-notifications">
         <div class="settings-seclabel" data-i18n="settings.section.notifications">Notifications</div>
@@ -7454,13 +7494,13 @@
         // (Konsolenwarnung "blocked at visibility level 2") und kann dabei den
         // gesamten Fallback-Chain verwerfen. Nur lokale Webfonts + monospace.
         fontFamily: "'JetBrains Mono', 'CC Symbols Fallback', monospace",
-        fontSize: 13,
+        fontSize: window.Prefs ? window.Prefs.get.termFontSize() : 13,
         lineHeight: 1.0,
         letterSpacing: 0,
-        cursorStyle: 'bar',
+        cursorStyle: window.Prefs ? window.Prefs.get.termCursor() : 'bar',
         cursorBlink: true,
         allowProposedApi: true,
-        scrollback: 5000,
+        scrollback: window.Prefs ? window.Prefs.get.termScrollback() : 5000,
         fastScrollModifier: 'shift',
         macOptionIsMeta: true,
         theme: buildXtermTheme(),
@@ -7471,6 +7511,23 @@
       const webLinksAddon = new WebLinksAddon.WebLinksAddon();
       term.loadAddon(fitAddon);
       term.loadAddon(webLinksAddon);
+        window._fitAddon = fitAddon;  // for live font-size changes from Settings
+        // Copy-on-select (pref): mirror the selection into the clipboard.
+        if (window.Prefs && window.Prefs.get.termCopyOnSelect()) {
+          term.onSelectionChange(() => {
+            const sel = term.getSelection();
+            if (sel && navigator.clipboard) navigator.clipboard.writeText(sel).catch(() => {});
+          });
+        }
+        // Bell (pref): brief visual flash on the terminal element.
+        if (window.Prefs && window.Prefs.get.termBell()) {
+          term.onBell(() => {
+            const elx = term.element;
+            if (!elx) return;
+            elx.classList.add('term-bell-flash');
+            setTimeout(() => elx.classList.remove('term-bell-flash'), 160);
+          });
+        }
 
       // Cmd+C / Ctrl+C → wenn xterm selbst eine Selection hat, die kopieren.
       // (Greift hauptsächlich wenn xterm die Selection-bypass-Modifier-Kombi
@@ -9393,6 +9450,56 @@
       if (h > 0) return `${h}h ${m}m`;
       return `${m}m`;
     }
+    // ── Settings: Terminal Prefs ──────────────────────────────────
+    function initTerminalPrefs() {
+      const P = window.Prefs; if (!P) return;
+      const fs = document.getElementById('pref-term-fontsize');
+      const fsVal = document.getElementById('pref-term-fontsize-val');
+      if (fs) {
+        fs.value = String(P.get.termFontSize());
+        if (fsVal) fsVal.textContent = fs.value;
+        fs.addEventListener('input', () => {
+          P.setRaw('termFontSize', fs.value);
+          if (fsVal) fsVal.textContent = fs.value;
+          if (window.term) { window.term.options.fontSize = P.get.termFontSize(); window._fitAddon?.fit(); }
+        });
+      }
+      const sb = document.getElementById('pref-term-scrollback');
+      if (sb) {
+        sb.value = String(P.get.termScrollback());
+        sb.addEventListener('change', () => P.setRaw('termScrollback', P.get.termScrollback()));
+      }
+      const cursorBtns = Array.from(document.querySelectorAll('#sec-terminal [data-cursor-value]'));
+      function syncCursor() {
+        const cur = P.get.termCursor();
+        cursorBtns.forEach(b => b.classList.toggle('is-active', b.dataset.cursorValue === cur));
+      }
+      cursorBtns.forEach(b => b.addEventListener('click', () => {
+        P.setRaw('termCursor', b.dataset.cursorValue);
+        syncCursor();
+        if (window.term) window.term.options.cursorStyle = P.get.termCursor();
+      }));
+      syncCursor();
+      const cs = document.getElementById('pref-term-copyselect');
+      if (cs) {
+        cs.setAttribute('aria-pressed', P.get.termCopyOnSelect() ? 'true' : 'false');
+        cs.addEventListener('click', () => {
+          const next = cs.getAttribute('aria-pressed') !== 'true';
+          P.setRaw('termCopyOnSelect', next ? '1' : '0');
+          cs.setAttribute('aria-pressed', next ? 'true' : 'false');
+        });
+      }
+      const bell = document.getElementById('pref-term-bell');
+      if (bell) {
+        bell.setAttribute('aria-pressed', P.get.termBell() ? 'true' : 'false');
+        bell.addEventListener('click', () => {
+          const next = bell.getAttribute('aria-pressed') !== 'true';
+          P.setRaw('termBell', next ? '1' : '0');
+          bell.setAttribute('aria-pressed', next ? 'true' : 'false');
+        });
+      }
+    }
+
     // ── Settings: Anchor-Chip Scrollspy ───────────────────────────
     // Sticky chips jump to sections; an IntersectionObserver highlights the
     // section currently near the top. Viewport root (null) works whether the
@@ -9542,6 +9649,7 @@
     initSettingsHelp();
     initSettingsAbout(); // async, fire-and-forget
     initSettingsAnchors();
+    initTerminalPrefs();
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────
