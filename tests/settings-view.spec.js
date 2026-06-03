@@ -36,11 +36,40 @@ test.describe('Settings-View (Redesign Phase 1)', () => {
     await expect(topbar).toBeVisible();
   });
 
-  test('renders the 4 phase-1 anchor chips', async ({ authedPage: page }) => {
+  test('renders the 6 anchor chips incl. Terminal + Account', async ({ authedPage: page }) => {
     await openSettings(page);
     const chips = page.locator('#settings-view .settings-anchor');
-    await expect(chips).toHaveCount(4);
-    await expect(chips.nth(0)).toContainText(/Darstellung|Appearance/);
+    await expect(chips).toHaveCount(6);
+    await expect(page.locator('#settings-view .settings-anchor[data-anchor="sec-terminal"]')).toBeAttached();
+    await expect(page.locator('#settings-view .settings-anchor[data-anchor="sec-account"]')).toBeAttached();
+  });
+
+  test('terminal + account sections are present', async ({ authedPage: page }) => {
+    await openSettings(page);
+    await expect(page.locator('#settings-view #sec-terminal')).toBeAttached();
+    await expect(page.locator('#settings-view #sec-account')).toBeAttached();
+  });
+
+  test('a terminal pref persists across reload', async ({ authedPage: page }) => {
+    await openSettings(page);
+    await page.click('#sec-terminal [data-cursor-value="block"]');
+    await expect(page.locator('#sec-terminal [data-cursor-value="block"]')).toHaveClass(/is-active/);
+    await page.reload();
+    await openSettings(page);
+    await expect(page.locator('#sec-terminal [data-cursor-value="block"]')).toHaveClass(/is-active/);
+  });
+
+  test('density compact sets the html attribute', async ({ authedPage: page }) => {
+    await openSettings(page);
+    await page.click('#sec-appearance [data-density-value="compact"]');
+    await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
+  });
+
+  test('sign out clears the token', async ({ authedPage: page }) => {
+    await openSettings(page);
+    await page.click('#pref-logout-btn');
+    const cleared = await page.evaluate(() => localStorage.getItem('cchub_token'));
+    expect(cleared).toBeNull();
   });
 
   test('all phase-1 sections are present', async ({ authedPage: page }) => {
