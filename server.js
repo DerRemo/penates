@@ -120,11 +120,12 @@ function ensureMouseMode() {
 }
 ensureMouseMode();
 
-// Globales OSC-52-Clipboard-Forwarding: tmux gibt OSC 52 von inneren Apps
-// (vim, copy-mode-yank) an den äußeren xterm-Client weiter (TERM=xterm-256color
-// → Ms-Capability bekannt). Wie ensureMouseMode race-tolerant: scheitert still,
-// wenn der tmux-Server noch nicht läuft, und wird nach Session-Erstellung erneut
-// gerufen. `set-clipboard` ist global (-g) und idempotent.
+// Globales OSC-52-Clipboard-Forwarding: `set-clipboard on` weist tmux an, OSC 52
+// von inneren Apps (vim, copy-mode-yank) an den äußeren xterm-Client durchzureichen.
+// Tmux tut das nur, wenn es den äußeren Client für clipboard-fähig hält — was über
+// die Ms-Capability von TERM=xterm-256color (server.js, pty-Env) gegeben ist.
+// Wie ensureMouseMode race-tolerant: scheitert still, wenn der tmux-Server noch
+// nicht läuft, und wird nach Session-Erstellung erneut gerufen. `-g` = global, idempotent.
 function ensureClipboardMode() {
   try {
     execFileSync(TMUX, ['set-option', '-g', 'set-clipboard', 'on'], {
