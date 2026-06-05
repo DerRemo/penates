@@ -120,6 +120,20 @@ function ensureMouseMode() {
 }
 ensureMouseMode();
 
+// Globales OSC-52-Clipboard-Forwarding: tmux gibt OSC 52 von inneren Apps
+// (vim, copy-mode-yank) an den äußeren xterm-Client weiter (TERM=xterm-256color
+// → Ms-Capability bekannt). Wie ensureMouseMode race-tolerant: scheitert still,
+// wenn der tmux-Server noch nicht läuft, und wird nach Session-Erstellung erneut
+// gerufen. `set-clipboard` ist global (-g) und idempotent.
+function ensureClipboardMode() {
+  try {
+    execFileSync(TMUX, ['set-option', '-g', 'set-clipboard', 'on'], {
+      encoding: 'utf-8', timeout: 2000, stdio: 'pipe',
+    });
+  } catch { /* tmux-Server noch nicht da */ }
+}
+ensureClipboardMode();
+
 const app = express();
 expressWs(app, null, {
   // C3: Token-Auth für WebSocket per Sec-WebSocket-Protocol. Client sendet
@@ -1166,6 +1180,7 @@ app.post('/api/sessions', async (req, res) => {
       // Mouse-Mode sicherstellen: falls beim Server-Start tmux noch nicht
       // lief, konnte ensureMouseMode() nicht greifen — jetzt läuft tmux sicher.
       ensureMouseMode();
+      ensureClipboardMode();
       // Lifecycle-Event fire-and-forget (Latency wichtiger als Crash-Safety)
       auditLog.record('session.create', {
         ...auditLog.extractRequestMeta(req),
