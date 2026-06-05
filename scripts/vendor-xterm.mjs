@@ -7,6 +7,7 @@ const OUT = join(ROOT, 'public', 'vendor', 'xterm');
 
 const PKGS = [
   '@xterm/xterm',
+  '@xterm/addon-clipboard',
   '@xterm/addon-fit',
   '@xterm/addon-web-links',
   '@xterm/addon-webgl',
