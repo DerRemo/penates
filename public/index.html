@@ -7694,6 +7694,22 @@
       const searchAddon = new SearchAddon.SearchAddon();
       term.loadAddon(searchAddon);
       if (window.TerminalSearch) window.TerminalSearch.attach(term, searchAddon);
+      // Remote-Clipboard (OSC 52, Sub-Projekt C): write-only. Das Addon dekodiert
+      // den OSC-52-base64-Payload selbst und ruft provider.writeText mit Klartext.
+      // readText liefert '' → kein Remote-Programm kann die Zwischenablage auslesen.
+      const clipboardProvider = {
+        async readText() { return ''; },
+        async writeText(_selection, data) {
+          if (!data) return;
+          try {
+            await navigator.clipboard.writeText(data);
+            notifyRemoteCopy();
+          } catch { /* best-effort: iOS ohne Geste / kein Secure-Context → still */ }
+        },
+      };
+      // undefined = gebündelte Default-Base64 des Addons.
+      const clipboardAddon = new ClipboardAddon.ClipboardAddon(undefined, clipboardProvider);
+      term.loadAddon(clipboardAddon);
       // Grapheme-cluster-aware Unicode-Breite (Emoji/ZWJ/kombinierende Zeichen +
       // Box-Zeichen ⏺⎿✻). Das Addon registriert Unicode 15 und setzt
       // term.unicode.activeVersion beim Laden selbst.
@@ -8909,6 +8925,17 @@
         toast.style.transition = 'all 0.3s ease';
         setTimeout(() => toast.remove(), 300);
       }, 3500);
+    }
+
+    // Debounced Bestätigungs-Toast für Remote-Clipboard-Writes (OSC 52).
+    // Der Toast lebt selbst 3.5 s; der Debounce begrenzt nur die Rate neuer
+    // Toasts, damit schnelle Mehrfach-Yanks nicht spammen.
+    let _lastRemoteCopyToast = 0;
+    function notifyRemoteCopy() {
+      const now = performance.now();
+      if (now - _lastRemoteCopyToast < 1500) return;
+      _lastRemoteCopyToast = now;
+      showToast(t('terminal.clipboard.copied'), 'success');
     }
 
     // ── Utility ──────────────────────────────────────────────────

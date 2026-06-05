@@ -114,6 +114,7 @@ window.__I18N_BUNDLES.en = {
   'terminal.search.prevAria': 'Previous match',
   'terminal.search.nextAria': 'Next match',
   'terminal.search.closeAria': 'Close search',
+  'terminal.clipboard.copied': 'Copied to clipboard',
 
   // Terminal connection status labels
   'terminal.connStatus.connecting': 'Connecting',

@@ -20,7 +20,7 @@ test.describe('Terminal clipboard OSC 52', () => {
     const clip = await page.evaluate(() => navigator.clipboard.readText());
     expect(clip).toBe('hello-osc52');
 
-    await expect(page.locator('#toast-container .toast')).toContainText('Copied to clipboard');
+    await expect(page.locator('#toast-container .toast').last()).toContainText('Copied to clipboard');
   });
 
   test('OSC 52 read query does not clobber the clipboard (write-only)', async ({ authedPage: page, hubSession, context }) => {

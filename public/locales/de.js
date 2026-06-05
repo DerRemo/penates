@@ -114,6 +114,7 @@ window.__I18N_BUNDLES.de = {
   'terminal.search.prevAria': 'Vorheriger Treffer',
   'terminal.search.nextAria': 'Nächster Treffer',
   'terminal.search.closeAria': 'Suche schließen',
+  'terminal.clipboard.copied': 'In Zwischenablage kopiert',
 
   // Terminal connection status labels
   'terminal.connStatus.connecting': 'Verbinde',
