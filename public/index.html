@@ -7698,9 +7698,16 @@
       // den OSC-52-base64-Payload selbst und ruft provider.writeText mit Klartext.
       // readText liefert '' → kein Remote-Programm kann die Zwischenablage auslesen.
       const clipboardProvider = {
+        // OSC-52-Read deaktiviert (write-only). '' ist die korrekte LEERE
+        // write-only-Antwort, die das Addon zurückschickt — NICHT null/throw
+        // zurückgeben (das Addon würde beim base64-Encoden crashen).
         async readText() { return ''; },
-        async writeText(_selection, data) {
-          if (!data) return;
+        // Nur die System-Zwischenablage ('c') übernehmen — wie der Default-
+        // Provider. primary/cut-buffer (p/b/…) ignorieren, damit sie das
+        // Browser-Clipboard nicht überraschend überschreiben. Das Addon dekodiert
+        // den base64-Payload selbst und ruft writeText mit Klartext.
+        async writeText(selection, data) {
+          if (selection !== 'c' || !data) return;
           try {
             await navigator.clipboard.writeText(data);
             notifyRemoteCopy();
@@ -8130,6 +8137,7 @@
       // v0.6.0: Sidebar schließen + Toggle-Button verbergen beim Verlassen der Terminal-View
       if (window.FileBrowser) window.FileBrowser.close();
       if (window.TerminalSearch) window.TerminalSearch.close();
+      _lastRemoteCopyToast = 0;
       const _ftBtn = document.getElementById('btn-toggle-files');
       if (_ftBtn) _ftBtn.style.display = 'none';
       const _dfBtn = document.getElementById('btn-toggle-diff');

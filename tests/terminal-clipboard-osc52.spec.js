@@ -15,12 +15,15 @@ test.describe('Terminal clipboard OSC 52', () => {
       const payload = btoa('hello-osc52');
       window.__cchubTerm.write('\x1b]52;c;' + payload + '\x07');
     });
-    await page.waitForTimeout(400);
+    // Deterministisch auf den Clipboard-Write warten (statt fixem Timeout).
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe('hello-osc52');
 
-    const clip = await page.evaluate(() => navigator.clipboard.readText());
-    expect(clip).toBe('hello-osc52');
-
-    await expect(page.locator('#toast-container .toast').last()).toContainText('Copied to clipboard');
+    // Den Copy-Toast gezielt matchen (order-unabhängig, kein .last()).
+    await expect(
+      page.locator('#toast-container .toast').filter({ hasText: 'Copied to clipboard' })
+    ).toBeVisible();
   });
 
   test('OSC 52 read query does not clobber the clipboard (write-only)', async ({ authedPage: page, hubSession, context }) => {
@@ -30,6 +33,7 @@ test.describe('Terminal clipboard OSC 52', () => {
 
     await page.evaluate(() => navigator.clipboard.writeText('PRESET-CLIP'));
     await page.evaluate(() => window.__cchubTerm.write('\x1b]52;c;?\x07'));
+    // Kurzes Settle: der Read-Query wird verarbeitet; bei write-only darf sich nichts ändern.
     await page.waitForTimeout(300);
 
     const clip = await page.evaluate(() => navigator.clipboard.readText());
