@@ -10659,8 +10659,25 @@
         return { Authorization: `Bearer ${t}` };
       }
 
+      // ── Filter-Prefs (localStorage, global) ──────────────────────
+      const FILTER_KEYS = { hideIgnored: 'cchub_files_hide_ignored', showHidden: 'cchub_files_show_hidden' };
+      function getFilterPref(key, dflt) {
+        try { const v = localStorage.getItem(FILTER_KEYS[key]); return v == null ? dflt : v === '1'; }
+        catch { return dflt; }
+      }
+      function setFilterPref(key, on) { try { localStorage.setItem(FILTER_KEYS[key], on ? '1' : '0'); } catch {} }
+      // Defaults: hideIgnored AN, showHidden AUS.
+      let hideIgnored = getFilterPref('hideIgnored', true);
+      let showHidden = getFilterPref('showHidden', false);
+
+      function entryVisible(entry) {
+        if (hideIgnored && entry.ignored) return false;
+        return true;
+      }
+
       async function fetchList(relPath) {
-        const url = `/api/projects/${encodeURIComponent(currentProject.id)}/files?path=${encodeURIComponent(relPath)}`;
+        const allParam = showHidden ? '&all=1' : '';
+        const url = `/api/projects/${encodeURIComponent(currentProject.id)}/files?path=${encodeURIComponent(relPath)}${allParam}`;
         const res = await fetch(url, { headers: authHdr() });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -10746,7 +10763,7 @@
             empty.textContent = t('filebrowser.tree.empty');
             wrap.appendChild(empty);
           } else {
-            for (const entry of entries) wrap.appendChild(renderRow(entry, relPath));
+            for (const entry of entries) if (entryVisible(entry)) wrap.appendChild(renderRow(entry, relPath));
           }
           openFolders.add(relPath);
           saveOpenFolders(currentProject.id);
@@ -10829,7 +10846,7 @@
           const list = await fetchList('');
           tree.innerHTML = '';
           const entries = list.entries || [];
-          for (const entry of entries) tree.appendChild(renderRow(entry, ''));
+          for (const entry of entries) if (entryVisible(entry)) tree.appendChild(renderRow(entry, ''));
 
           // Re-expand saved top-level folders
           for (const savedPath of openFolders) {
@@ -10941,6 +10958,11 @@
           });
         }
 
+        document.getElementById('files-filter')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openFilterMenu(e.currentTarget);
+        });
+
         // Entf/Backspace löscht die Selektion (oder die fokussierte Zeile).
         document.getElementById('files-tree')?.addEventListener('keydown', (e) => {
           if (e.key !== 'Delete' && e.key !== 'Backspace') return;
@@ -10949,6 +10971,30 @@
           e.preventDefault();
           if (window.FileActions && currentProject) window.FileActions.deleteRows(currentProject.id, rows);
         });
+      }
+
+      // Kleines Filter-Menü (zwei Toggles), an den Filter-Button geankert.
+      function openFilterMenu(anchor) {
+        document.querySelector('.files-filter-menu')?.remove();
+        const menu = document.createElement('div');
+        menu.className = 'cchub-contextmenu files-filter-menu';
+        const rect = anchor.getBoundingClientRect();
+        menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+        menu.style.top = rect.bottom + 4 + 'px';
+        const mkToggle = (label, on, onToggle) => {
+          const b = document.createElement('button');
+          b.textContent = (on ? '☑ ' : '☐ ') + label;
+          b.addEventListener('click', (ev) => { ev.stopPropagation(); onToggle(); menu.remove(); });
+          return b;
+        };
+        menu.appendChild(mkToggle(t('filebrowser.filter.hideIgnored'), hideIgnored, () => {
+          hideIgnored = !hideIgnored; setFilterPref('hideIgnored', hideIgnored); renderRoot();
+        }));
+        menu.appendChild(mkToggle(t('filebrowser.filter.showHidden'), showHidden, () => {
+          showHidden = !showHidden; setFilterPref('showHidden', showHidden); renderRoot();
+        }));
+        document.body.appendChild(menu);
+        setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
       }
 
       function wireResizer() {
@@ -11090,6 +11136,7 @@
           });
           container.innerHTML = '';
           for (const entry of list.entries) {
+            if (!entryVisible(entry)) continue;
             const row = renderRow(entry, parentRel);
             container.appendChild(row);
           }

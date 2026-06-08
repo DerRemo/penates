@@ -186,6 +186,8 @@ window.__I18N_BUNDLES.de = {
   'filebrowser.sel.move': 'Verschieben',
   'filebrowser.sel.clear': 'Aufheben',
   'filebrowser.search.placeholder': 'Geladene Dateien filtern…',
+  'filebrowser.filter.hideIgnored': 'Ignorierte ausblenden',
+  'filebrowser.filter.showHidden': 'Versteckte anzeigen',
   'filebrowser.toast.renameFailed': 'Umbenennen fehlgeschlagen',
   'filebrowser.toast.deleteFailed': 'Löschen fehlgeschlagen',
   'filebrowser.toast.copyFailed': 'Kopieren fehlgeschlagen',

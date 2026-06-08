@@ -269,6 +269,25 @@ test.describe('Filebrowser', () => {
     await expect(page.locator('#files-upload-picker')).toBeVisible();
   });
 
+  test('filter menu toggles hidden files via all=1', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const before = await page.locator('#files-tree .file-row').count();
+    await page.click('#files-filter');
+    await expect(page.locator('.files-filter-menu')).toBeVisible();
+    await page.getByText(/Show hidden|Versteckte anzeigen/).click();
+    // Dotfiles erscheinen → mehr oder gleich viele Zeilen (mind. nicht weniger).
+    await expect.poll(async () => page.locator('#files-tree .file-row').count()).toBeGreaterThanOrEqual(before);
+    // Pref persisted to localStorage.
+    const pref = await page.evaluate(() => localStorage.getItem('cchub_files_show_hidden'));
+    expect(pref).toBe('1');
+    // Toggle back off to restore the default for other tests.
+    await page.click('#files-filter');
+    await page.getByText(/Show hidden|Versteckte anzeigen/).click();
+    await expect.poll(async () => page.evaluate(() => localStorage.getItem('cchub_files_show_hidden'))).toBe('0');
+  });
+
   test('breadcrumb shows the panel root name', async ({ authedPage: page }) => {
     const toggleBtn = page.locator('#btn-toggle-files');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
