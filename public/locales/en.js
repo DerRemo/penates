@@ -555,6 +555,13 @@ window.__I18N_BUNDLES.en = {
   'settings.terminal.cursorUnderline': 'Underline',
   'settings.terminal.copyOnSelect': 'Copy on select',
   'settings.terminal.bell': 'Terminal bell',
+  'settings.terminal.selectHelp.title': 'Selecting & copying text',
+  'settings.terminal.selectHelp.intro': 'Mouse mode is on (for scrolling), so hold a modifier key while dragging to select text — then copy:',
+  'settings.terminal.selectHelp.colPlatform': 'Platform',
+  'settings.terminal.selectHelp.colSelect': 'Select',
+  'settings.terminal.selectHelp.colCopy': 'Copy',
+  'settings.terminal.selectHelp.drag': 'drag',
+  'settings.terminal.selectHelp.ctrl': 'Ctrl',
 
   // Settings — Behavior section
   'settings.behavior.landingView':  'Start view',

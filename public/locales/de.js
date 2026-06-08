@@ -555,6 +555,13 @@ window.__I18N_BUNDLES.de = {
   'settings.terminal.cursorUnderline': 'Unterstrich',
   'settings.terminal.copyOnSelect': 'Bei Auswahl kopieren',
   'settings.terminal.bell': 'Terminal-Glocke',
+  'settings.terminal.selectHelp.title': 'Text markieren & kopieren',
+  'settings.terminal.selectHelp.intro': 'Der Maus-Modus ist an (fürs Scrollen) — zum Markieren beim Ziehen einen Modifier halten, dann kopieren:',
+  'settings.terminal.selectHelp.colPlatform': 'Plattform',
+  'settings.terminal.selectHelp.colSelect': 'Markieren',
+  'settings.terminal.selectHelp.colCopy': 'Kopieren',
+  'settings.terminal.selectHelp.drag': 'Ziehen',
+  'settings.terminal.selectHelp.ctrl': 'Strg',
 
   // Settings — Behavior section
   'settings.behavior.landingView':  'Start-Ansicht',

@@ -3673,6 +3673,27 @@
     .settings-row__control { display: flex; align-items: center; gap: 8px; }
     .settings-row__hint { margin: 0 0 12px; font-size: 12px; color: var(--text-muted); }
     .settings-row__meta { font-size: 12px; color: var(--text-muted); }
+    /* Auswahl-Geste-Hilfe (Terminal-Abschnitt) */
+    .settings-selecthelp { padding: 14px 16px; }
+    .settings-selecthelp__title { font-size: var(--text-sm, 13px); font-weight: 600; color: var(--text-primary); }
+    .settings-selecthelp .settings-row__hint { margin: 4px 0 0; }
+    .settings-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+    .settings-table th {
+      text-align: left; font-weight: 500; color: var(--text-muted); font-size: 12px;
+      padding: 0 14px 7px 0; border-bottom: 1px solid var(--border);
+    }
+    .settings-table td {
+      padding: 10px 14px 10px 0; color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .settings-table tbody tr:last-child td { border-bottom: 0; }
+    .settings-table kbd {
+      font-family: 'JetBrains Mono', monospace; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px;
+      font-size: 12px; color: var(--teal);
+    }
+    .settings-table tr.is-current td { background: var(--accent-muted, rgba(45,212,191,.08)); }
+    .settings-table tr.is-current td:first-child { color: var(--text-primary); font-weight: 600; }
     .settings-range { width: 140px; accent-color: var(--accent); cursor: pointer; }
     .settings-number {
       width: 84px; padding: 5px 8px; border-radius: var(--radius-sm, 6px);
@@ -4313,6 +4334,31 @@
               <button type="button" class="toggle-btn" id="pref-term-bell" aria-pressed="false"></button>
             </div>
           </div>
+        </div>
+        <div class="settings-card settings-selecthelp">
+          <div class="settings-selecthelp__title" data-i18n="settings.terminal.selectHelp.title">Selecting &amp; copying text</div>
+          <p class="settings-row__hint" data-i18n="settings.terminal.selectHelp.intro">Mouse mode is on (for scrolling), so hold a modifier key while dragging to select text — then copy:</p>
+          <table class="settings-table" id="terminal-select-help">
+            <thead>
+              <tr>
+                <th data-i18n="settings.terminal.selectHelp.colPlatform">Platform</th>
+                <th data-i18n="settings.terminal.selectHelp.colSelect">Select</th>
+                <th data-i18n="settings.terminal.selectHelp.colCopy">Copy</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-os="mac">
+                <td>macOS</td>
+                <td><kbd>⌥</kbd> + <span data-i18n="settings.terminal.selectHelp.drag">drag</span></td>
+                <td><kbd>⌘</kbd> <kbd>C</kbd></td>
+              </tr>
+              <tr data-os="other">
+                <td>Windows / Linux</td>
+                <td><kbd>Shift</kbd> + <span data-i18n="settings.terminal.selectHelp.drag">drag</span></td>
+                <td><kbd data-i18n="settings.terminal.selectHelp.ctrl">Ctrl</kbd> <kbd>C</kbd></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -9566,6 +9612,10 @@
           bell.setAttribute('aria-pressed', next ? 'true' : 'false');
         });
       }
+      // Auswahl-Geste-Tabelle: aktuelle Plattform-Zeile markieren (analog xterms isMac).
+      const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
+      document.querySelector(`#terminal-select-help tr[data-os="${isMac ? 'mac' : 'other'}"]`)
+        ?.classList.add('is-current');
     }
 
     // ── Settings: Display Prefs (motion + density) ────────────────
