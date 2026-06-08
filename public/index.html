@@ -4816,6 +4816,34 @@
     </div>
   </div>
 
+  <!-- Reusable Confirm-Dialog (Promise<boolean>) — themed Ersatz für confirm(). -->
+  <div class="modal-overlay" id="cchub-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-confirm-title">
+    <div class="modal">
+      <h2 id="cchub-confirm-title"></h2>
+      <p id="cchub-confirm-body"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" id="cchub-confirm-cancel"></button>
+        <button class="btn btn-danger" type="button" id="cchub-confirm-ok"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reusable Input-Dialog (Promise<string|null>) — themed Ersatz für prompt(). -->
+  <div class="modal-overlay" id="cchub-input-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-input-title">
+    <div class="modal">
+      <h2 id="cchub-input-title"></h2>
+      <div class="form-group">
+        <label class="form-label" id="cchub-input-label" for="cchub-input-field"></label>
+        <input class="form-input" id="cchub-input-field" type="text" autocomplete="off" spellcheck="false">
+        <div id="cchub-input-error" style="color:var(--red);font-size:var(--text-xs);margin-top:var(--space-1);min-height:1em;"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" id="cchub-input-cancel"></button>
+        <button class="btn btn-primary" type="button" id="cchub-input-ok"></button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="new-session-modal" role="dialog" aria-modal="true" aria-labelledby="new-session-title">
     <div class="modal modal--wide">
       <div class="ns-header">
@@ -9314,6 +9342,93 @@
         setTimeout(() => toast.remove(), 300);
       }, 3500);
     }
+
+    // ── Reusable themed Dialoge (ersetzen confirm()/prompt()) ────────
+    // showConfirmDialog → Promise<boolean>; Esc/Backdrop = false, Enter = true.
+    function showConfirmDialog({ title, body, confirmLabel, cancelLabel, danger = true } = {}) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('cchub-confirm-modal');
+        const okBtn = document.getElementById('cchub-confirm-ok');
+        const cancelBtn = document.getElementById('cchub-confirm-cancel');
+        document.getElementById('cchub-confirm-title').textContent = title || '';
+        document.getElementById('cchub-confirm-body').textContent = body || '';
+        okBtn.textContent = confirmLabel || t('dialog.confirm');
+        cancelBtn.textContent = cancelLabel || t('dialog.cancel');
+        okBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+        let settled = false;
+        const cleanup = () => {
+          overlay.classList.remove('open');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          overlay.removeEventListener('click', onBackdrop);
+          document.removeEventListener('keydown', onKey);
+        };
+        const done = (val) => { if (settled) return; settled = true; cleanup(); resolve(val); };
+        const onOk = () => done(true);
+        const onCancel = () => done(false);
+        const onBackdrop = (e) => { if (e.target === overlay) done(false); };
+        const onKey = (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); done(false); }
+          if (e.key === 'Enter') { e.preventDefault(); done(true); }
+        };
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+        overlay.classList.add('open');
+        okBtn.focus();
+      });
+    }
+
+    // showInputDialog → Promise<string|null>; Enter = commit (nach validate),
+    // Esc/Backdrop = null. validate(value) → null|string (Fehlertext).
+    function showInputDialog({ title, label, value = '', placeholder = '', confirmLabel, cancelLabel, validate } = {}) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('cchub-input-modal');
+        const field = document.getElementById('cchub-input-field');
+        const errEl = document.getElementById('cchub-input-error');
+        const okBtn = document.getElementById('cchub-input-ok');
+        const cancelBtn = document.getElementById('cchub-input-cancel');
+        document.getElementById('cchub-input-title').textContent = title || '';
+        document.getElementById('cchub-input-label').textContent = label || '';
+        okBtn.textContent = confirmLabel || t('dialog.ok');
+        cancelBtn.textContent = cancelLabel || t('dialog.cancel');
+        field.value = value;
+        field.placeholder = placeholder;
+        errEl.textContent = '';
+        let settled = false;
+        const cleanup = () => {
+          overlay.classList.remove('open');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          overlay.removeEventListener('click', onBackdrop);
+          field.removeEventListener('keydown', onKey);
+        };
+        const done = (val) => { if (settled) return; settled = true; cleanup(); resolve(val); };
+        const commit = () => {
+          const v = field.value.trim();
+          const err = validate ? validate(v) : null;
+          if (err) { errEl.textContent = err; return; }
+          done(v);
+        };
+        const onOk = () => commit();
+        const onCancel = () => done(null);
+        const onBackdrop = (e) => { if (e.target === overlay) done(null); };
+        const onKey = (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+          if (e.key === 'Escape') { e.preventDefault(); done(null); }
+        };
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onBackdrop);
+        field.addEventListener('keydown', onKey);
+        overlay.classList.add('open');
+        field.focus();
+        field.select();
+      });
+    }
+    window.showConfirmDialog = showConfirmDialog;
+    window.showInputDialog = showInputDialog;
 
     // Debounced Bestätigungs-Toast für Remote-Clipboard-Writes (OSC 52).
     // Der Toast lebt selbst 3.5 s; der Debounce begrenzt nur die Rate neuer

@@ -132,6 +132,11 @@ window.__I18N_BUNDLES.de = {
   // Touch bar
   'terminal.touchBar.aria': 'Virtuelle Tasten',
 
+  // Generic dialogs
+  'dialog.confirm': 'Bestätigen',
+  'dialog.cancel': 'Abbrechen',
+  'dialog.ok': 'OK',
+
   // File browser toolbar
   'filebrowser.toolbar.newFolder': '+ Ordner',
   'filebrowser.toolbar.newFolderTitle': 'Neuer Ordner',
