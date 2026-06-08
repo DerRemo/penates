@@ -2459,6 +2459,20 @@
       background: var(--border);
       flex-shrink: 0;
     }
+    /* Git-Dot: ausstehende Änderungen in der Session-cwd. ~7px, --orange,
+       oben-rechts am Diff-Icon, mit Container-farbenem Ring zum Absetzen. */
+    #btn-toggle-diff[data-dirty="true"]::after {
+      content: "";
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--orange);
+      box-shadow: 0 0 0 2px var(--bg-surface);
+      pointer-events: none;
+    }
 
     /* ── CSS-Tooltips (Extra 1) ───────────────────────────────────
        Themed Tooltip statt nativem title (das hat ~1s Delay + OS-Look).
@@ -7777,6 +7791,7 @@
       if (window.FileBrowser) window.FileBrowser.activateForSession(name);
       if (window.PreviewPanel) window.PreviewPanel.activateForSession(name);
       if (window.DiffView) window.DiffView.activateForSession(name);
+      if (window.TerminalGitDot) window.TerminalGitDot.connect(name);
       if (window.VoiceInput) window.VoiceInput.refreshConfig();
       hideIdeaPrompt();
 
@@ -8333,6 +8348,7 @@
       // v0.6.0: Sidebar schließen + Toggle-Button verbergen beim Verlassen der Terminal-View
       if (window.FileBrowser) window.FileBrowser.close();
       if (window.TerminalSearch) window.TerminalSearch.close();
+      if (window.TerminalGitDot) window.TerminalGitDot.disconnect();
       _lastRemoteCopyToast = 0;
       const _ftBtn = document.getElementById('btn-toggle-files');
       if (_ftBtn) _ftBtn.style.display = 'none';
@@ -11613,6 +11629,72 @@
       }
       sync(); // Initialer Abgleich (z.B. nach Reload mit erinnertem Open-State).
     })();
+
+    // ── TerminalGitDot ────────────────────────────────────────────
+    // Setzt data-dirty am Diff-Toggle aus dem git-Feld der verbundenen Session
+    // (initial) und hält es live über eine eigene /api/files/events-Subscription
+    // mit Connect-Lebenszyklus (open in connectToSession, close in
+    // disconnectTerminal). Bewusst getrennt von DiffViews panel-gebundener
+    // Subscription — der Dot muss auch bei geschlossenem Panel stimmen.
+    const TerminalGitDot = (function () {
+      let ws = null, refetchTimer = null, sessionName = null;
+
+      function setDirty(v) {
+        const btn = document.getElementById('btn-toggle-diff');
+        if (btn) btn.setAttribute('data-dirty', v ? 'true' : 'false');
+      }
+
+      // "dirty" = uncommittete Änderungen in der Session-cwd (spec §3). Das
+      // /api/sessions-git-Feld liefert {branch, dirty:boolean, ahead, behind}
+      // (server.js getGitStatus, L495) — kein files-Array. Wir lesen den
+      // dirty-Boolean direkt; refetch() (über /diff) ist die autoritative Quelle.
+      function dirtyFromSession(name) {
+        const s = Array.isArray(sessions) ? sessions.find(x => x.name === name) : null;
+        const g = s && s.git;
+        return !!(g && g.dirty);
+      }
+
+      async function refetch() {
+        if (!sessionName) return;
+        try {
+          const res = await fetch(`/api/sessions/${encodeURIComponent(sessionName)}/diff`, { headers: apiHeaders() });
+          if (!res.ok) return;
+          const data = await res.json();
+          setDirty(!!(data && data.isRepo && data.files && data.files.length > 0));
+        } catch { /* best-effort: Dot bleibt auf letztem Stand */ }
+      }
+
+      function connect(name) {
+        disconnect();
+        sessionName = name;
+        setDirty(dirtyFromSession(name)); // sofortiger Initialwert aus der Liste
+        refetch(); // autoritativer Initialwert via /diff (Liste kann kalt sein)
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        try { ws = new WebSocket(`${proto}://${location.host}/api/files/events`, [`bearer.${AUTH_TOKEN || ''}`]); }
+        catch { return; }
+        ws.addEventListener('open', () => { try { ws.send(JSON.stringify({ subscribeSession: name })); } catch {} });
+        ws.addEventListener('message', (e) => {
+          let msg; try { msg = JSON.parse(e.data); } catch { return; }
+          if (!msg || msg.projectId !== 'session:' + name) return;
+          clearTimeout(refetchTimer);
+          refetchTimer = setTimeout(refetch, 300); // debounced, wie DiffView
+        });
+      }
+
+      function disconnect() {
+        clearTimeout(refetchTimer);
+        if (ws) {
+          try { ws.send(JSON.stringify({ unsubscribeSession: sessionName })); } catch {}
+          try { ws.close(); } catch {}
+          ws = null;
+        }
+        sessionName = null;
+        setDirty(false);
+      }
+
+      return { connect, disconnect };
+    })();
+    window.TerminalGitDot = TerminalGitDot;
 
     // ── TerminalSearch (Terminal-Stack B) ─────────────────────────────
     // In-Terminal-Suche über @xterm/addon-search. Die Toolbar-Lupe toggelt

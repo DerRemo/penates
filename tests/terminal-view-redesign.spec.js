@@ -1,5 +1,9 @@
 import { test, expect } from './fixtures.js';
 import { navigateToSession, waitForTerminal } from './helpers.js';
+import { mkdtempSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { execFileSync } from 'child_process';
 
 test.describe('Terminal-View redesign', () => {
   test('back button is hidden on desktop, visible on touch', async ({ authedPage: page, hubSession, isTouch }) => {
@@ -51,5 +55,34 @@ test.describe('Terminal-View redesign', () => {
     await waitForTerminal(page);
     await expect(page.locator('#btn-toggle-search')).toHaveAttribute('data-tooltip', 'Search');
     await expect(page.locator('#image-picker-btn')).toHaveAttribute('data-tooltip', 'Insert image');
+  });
+
+  test('git-dot reflects a dirty session cwd', async ({ authedPage: page, isTouch }) => {
+    test.skip(isTouch, 'diff toggle is hidden behind overlays on touch');
+    const dir = mkdtempSync(join(tmpdir(), 'cchub-gitdot-'));
+    execFileSync('git', ['init', '-q'], { cwd: dir });
+    execFileSync('git', ['config', 'user.email', 't@t'], { cwd: dir });
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: dir });
+    writeFileSync(join(dir, 'a.txt'), 'committed\n');
+    execFileSync('git', ['add', '.'], { cwd: dir });
+    execFileSync('git', ['commit', '-qm', 'init'], { cwd: dir });
+    // Uncommitted change → dirty.
+    writeFileSync(join(dir, 'a.txt'), 'changed\n');
+
+    const name = `e2e-gitdot-${Date.now()}`;
+    const token = await page.evaluate(() => localStorage.getItem('cchub_token'));
+    await page.request.post('/api/sessions', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { name, directory: dir, command: 'bash --noprofile --norc' },
+    });
+    try {
+      await navigateToSession(page, `cc-${name}`);
+      await waitForTerminal(page);
+      await expect(page.locator('#btn-toggle-diff')).toHaveAttribute('data-dirty', 'true', { timeout: 10_000 });
+    } finally {
+      await page.request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
   });
 });
