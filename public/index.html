@@ -12199,6 +12199,144 @@
     window.VoiceInput = VoiceInput;
     document.addEventListener('DOMContentLoaded', () => VoiceInput.wire());
 
+    // ── RepoPanel ─────────────────────────────────────────────────
+    // Besitzt das rechte "Repo"-Panel (Files · Changes · History · Branches).
+    // FileBrowser/DiffView bleiben Logik-Owner und rendern in ihre Panes;
+    // RepoPanel hostet sie + koordiniert Tab-Wechsel/Lifecycle. Mutual-
+    // exclusive mit der Browser-Preview (eigener Slot), intern nur Tabs.
+    const RepoPanel = (() => {
+      const el = (id) => document.getElementById(id);
+      const TAB_KEY = 'cchub_repo_tab';
+      const WIDTH_KEY = 'cchub_repo_width';
+      const TABS = ['files', 'changes', 'history', 'branches'];
+      let sessionName = null;
+      let activeTab = (() => { try { return localStorage.getItem(TAB_KEY) || 'files'; } catch { return 'files'; } })();
+
+      function isOpen() { return el('repo-panel').classList.contains('open'); }
+
+      function showPanel(v) {
+        if (v) { try { window.PreviewPanel?.close?.(); } catch {} } // Repo vs Preview exklusiv
+        el('repo-panel').classList.toggle('open', v);
+        const rz = el('repo-resizer'); if (rz) rz.style.display = v ? '' : 'none';
+        try { localStorage.setItem(`cchub_repo_open:${sessionName || ''}`, v ? '1' : '0'); } catch {}
+      }
+
+      function setHeader({ cwd, branch, sha, stats } = {}) {
+        if (cwd != null) el('repo-cwd').textContent = cwd;
+        const meta = [branch, sha, stats].filter(Boolean).join(' · ');
+        el('repo-meta').textContent = meta;
+      }
+
+      // Aktiviert einen Tab (UI + lazy-Daten). Idempotent.
+      function selectTab(tab) {
+        if (!TABS.includes(tab)) tab = 'files';
+        activeTab = tab;
+        try { localStorage.setItem(TAB_KEY, tab); } catch {}
+        TABS.forEach(t => {
+          el(`repo-tab-${t}`)?.classList.toggle('active', t === tab);
+          el(`repo-pane-${t}`)?.classList.toggle('active', t === tab);
+        });
+        // Lazy-Load pro Tab.
+        if (tab === 'changes') { try { window.DiffView?.onTabShown?.(); } catch {} }
+        if (tab === 'history') { try { window.RepoHistory?.load?.(sessionName); } catch {} }
+        if (tab === 'branches') { try { window.RepoBranches?.load?.(sessionName); } catch {} }
+      }
+
+      // Öffnet das Panel für eine Session und zeigt einen Tab.
+      function open(name, tab) {
+        sessionName = name || window.currentSessionName;
+        showPanel(true);
+        selectTab(tab || activeTab);
+        // Header-Basics (Branch/SHA kommen beim Changes/Files-Refresh dazu).
+        const s = Array.isArray(sessions) ? sessions.find(x => x.name === sessionName) : null;
+        setHeader({ cwd: (s && s.path) || sessionName });
+        // FileBrowser-Tree für die Session aufbauen (rendert in #files-tree).
+        try { window.FileBrowser?.activateForSession?.(sessionName); } catch {}
+        // DiffView fürs Changes-Tab vorbereiten (Working-Tree default).
+        try { window.DiffView?.activateForSession?.(sessionName); } catch {}
+      }
+
+      function close() { showPanel(false); }
+
+      function toggle(tab) {
+        if (isOpen()) {
+          // Wenn ein bestimmter Tab gewünscht ist und ein anderer offen → wechseln statt schließen.
+          if (tab && activeTab !== tab) { selectTab(tab); return; }
+          close();
+        } else {
+          open(window.currentSessionName, tab);
+        }
+      }
+
+      // Vom connectToSession aufgerufen: Toggle zeigen + erinnerten Open-State.
+      function activateForSession(name) {
+        sessionName = name;
+        const btn = el('btn-toggle-repo');
+        if (btn) btn.style.display = '';
+        const wasOpen = (() => { try { return localStorage.getItem(`cchub_repo_open:${name}`) === '1'; } catch { return false; } })();
+        if (wasOpen) open(name, activeTab);
+        else showPanel(false);
+      }
+
+      // Vom disconnectTerminal aufgerufen: alles abräumen.
+      function cleanup() {
+        try { window.DiffView?._cleanup?.(); } catch {}
+        try { window.RepoHistory?._cleanup?.(); } catch {}
+        try { window.RepoBranches?._cleanup?.(); } catch {}
+        showPanel(false);
+        const btn = el('btn-toggle-repo');
+        if (btn) btn.style.display = 'none';
+        sessionName = null;
+      }
+
+      function currentSession() { return sessionName; }
+
+      // Resizer (Breite wächst nach links wie beim alten Diff-Panel).
+      function wireResizer() {
+        const resizer = el('repo-resizer');
+        if (!resizer) return;
+        resizer.addEventListener('mousedown', (e) => {
+          e.preventDefault(); resizer.classList.add('dragging');
+          const startX = e.clientX;
+          const startW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--repo-width')) || 460;
+          const onMove = (ev) => {
+            const w = Math.max(300, Math.min(window.innerWidth * 0.7, startW + (startX - ev.clientX)));
+            document.documentElement.style.setProperty('--repo-width', w + 'px');
+          };
+          const onUp = () => {
+            resizer.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            try { localStorage.setItem(WIDTH_KEY, getComputedStyle(document.documentElement).getPropertyValue('--repo-width').trim()); } catch {}
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      }
+
+      // Wiring (DOMContentLoaded-sicher: das Markup steht statisch im HTML).
+      try { const w = localStorage.getItem(WIDTH_KEY); if (w) document.documentElement.style.setProperty('--repo-width', w); } catch {}
+      TABS.forEach(t => el(`repo-tab-${t}`)?.addEventListener('click', () => selectTab(t)));
+      el('repo-close')?.addEventListener('click', close);
+      el('btn-toggle-repo')?.addEventListener('click', () => toggle());
+      wireResizer();
+
+      // Delegated git-badge-Klick: verbindet + öffnet Changes-Tab (ersetzt
+      // DiffViews früheren eigenen Badge-Handler).
+      document.addEventListener('click', (e) => {
+        const badge = e.target.closest && e.target.closest('.git-badge[data-diff-session]');
+        if (!badge) return;
+        e.stopPropagation(); e.preventDefault();
+        const name = badge.getAttribute('data-diff-session');
+        connectToSession(name);
+        open(name, 'changes');
+      }, true);
+
+      return { open, close, toggle, selectTab, activateForSession, cleanup,
+               setHeader, currentSession, isOpen };
+    })();
+    window.RepoPanel = RepoPanel;
+
     // ── Diff View (Task 6): clickable git badge → diff2html, live refresh ──
     const DiffView = (() => {
       let d2hLoaded = null, cssInjected = false;
