@@ -715,6 +715,12 @@ window.__I18N_BUNDLES.en = {
   'preview.header.ports': 'Ports',
   'preview.empty.noMatch': 'No matching port',
   'preview.empty.noPorts': 'No ports detected',
+  'preview.state.notConfiguredTitle': 'Preview not configured',
+  'preview.state.choosePortTitle': 'No port selected',
+  'preview.state.noPortsTitle': 'No dev server found',
+  'preview.state.noServerTitle': 'No server on :{n}',
+  'preview.action.choosePort': 'Pick a port',
+  'preview.action.rescan': 'Rescan ports',
   // Remote-Approval
   'settings.remoteApproval': 'Remote approval',
   'settings.remoteApprovalDesc': 'Route tool approvals to the dashboard/phone when nobody is at the terminal (normal mode only).',

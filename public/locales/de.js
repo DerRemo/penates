@@ -715,6 +715,12 @@ window.__I18N_BUNDLES.de = {
   'preview.header.ports': 'Ports',
   'preview.empty.noMatch': 'Kein Port passt',
   'preview.empty.noPorts': 'Keine Ports erkannt',
+  'preview.state.notConfiguredTitle': 'Preview nicht konfiguriert',
+  'preview.state.choosePortTitle': 'Kein Port gewählt',
+  'preview.state.noPortsTitle': 'Kein Dev-Server gefunden',
+  'preview.state.noServerTitle': 'Kein Server auf :{n}',
+  'preview.action.choosePort': 'Port wählen',
+  'preview.action.rescan': 'Ports neu scannen',
   // Remote-Approval
   'settings.remoteApproval': 'Remote-Freigabe',
   'settings.remoteApprovalDesc': 'Tool-Freigaben ans Dashboard/Handy routen, wenn niemand am Terminal ist (nur im normalen Modus).',
