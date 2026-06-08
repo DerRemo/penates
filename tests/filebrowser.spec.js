@@ -82,8 +82,12 @@ test.describe('Filebrowser', () => {
 
     await openFileSidebar(page);
     const folderName = `e2e-mkdir-${Date.now()}`;
-    page.once('dialog', d => d.accept(folderName));
+    // mkdir is now an inline input row at the top of the tree (no window.prompt).
     await page.click('#files-mkdir');
+    const createInput = page.locator('.file-create-row .rename-input');
+    await createInput.waitFor({ timeout: 5_000 });
+    await createInput.fill(folderName);
+    await createInput.press('Enter');
 
     const newRow = page.locator(`#files-tree .file-row[data-path="${folderName}"]`);
     await newRow.waitFor({ timeout: 10_000 });
@@ -107,9 +111,18 @@ test.describe('Filebrowser', () => {
 
     await openFileSidebar(page);
 
-    const origName = `e2e-rename-${Date.now()}`;
-    page.once('dialog', d => d.accept(origName));
-    await page.click('#files-mkdir');
+    // NB: avoid the `e2e-rename-*` prefix — it is gitignored in this repo and the
+    // new ignored-filter (default on) would hide the seeded row. Use a fresh name.
+    const origName = `e2e-fbrn-${Date.now()}`;
+    // Seed via API (mkdir is inline now); then refresh the tree.
+    {
+      const token = await getToken(page);
+      await page.request.post(`/api/projects/${projectSession.projectId}/files/mkdir`, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        data: { path: '', name: origName },
+      });
+      await page.click('#files-refresh');
+    }
     const row = page.locator(`#files-tree .file-row[data-path="${origName}"]`);
     await row.waitFor({ timeout: 10_000 });
 
@@ -122,7 +135,7 @@ test.describe('Filebrowser', () => {
 
       const input = row.locator('.rename-input');
       await input.waitFor({ timeout: 3_000 });
-      newName = `e2e-renamed-${Date.now()}`;
+      newName = `e2e-fbrn2-${Date.now()}`;
       await input.fill(newName);
       await input.press('Enter');
 
@@ -142,33 +155,28 @@ test.describe('Filebrowser', () => {
     }
   });
 
-  test('context menu delete with two-click confirm', async ({ authedPage: page, projectSession, isTouch }) => {
+  test('delete uses a themed dialog, not the legacy ✓? second-click', async ({ authedPage: page, projectSession, isTouch }) => {
     test.skip(isTouch, 'context menu requires right-click, not available on touch devices');
     const toggleBtn = page.locator('#btn-toggle-files');
-    if (!(await toggleBtn.isVisible())) {
-      test.skip(true, 'file toggle not visible');
-      return;
-    }
-
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
-
-    const folderName = `e2e-delete-${Date.now()}`;
-    page.once('dialog', d => d.accept(folderName));
-    await page.click('#files-mkdir');
-    const row = page.locator(`#files-tree .file-row[data-path="${folderName}"]`);
-    await row.waitFor({ timeout: 10_000 });
-
+    // Eine wegwerfbare Datei via API anlegen, damit der Test idempotent ist.
+    const projId = projectSession.projectId;
+    const token = await getToken(page);
+    const fname = `e2e-del-${Date.now()}.txt`;
+    await page.request.post(`/api/projects/${encodeURIComponent(projId)}/files/new`, {
+      headers: { Authorization: `Bearer ${token}` }, data: { path: '', name: fname },
+    });
+    await page.click('#files-refresh');
+    const row = page.locator(`#files-tree .file-row[data-path="${fname}"]`);
+    await row.waitFor({ timeout: 5000 });
     await row.click({ button: 'right' });
-    const menu = page.locator('.cchub-contextmenu');
-    await menu.waitFor({ timeout: 3_000 });
-    await menu.locator('button', { hasText: /Move to Trash|In Papierkorb/i }).click();
-    await page.waitForTimeout(200);
-
-    await expect(row).toHaveClass(/pending-delete/, { timeout: 5_000 });
-    await page.waitForTimeout(200);
-    await row.click();
-    await expect(row).not.toBeAttached({ timeout: 5_000 });
-    // Folder is in Trash — no extra API cleanup needed
+    await page.getByText(/Move to Trash|In den Papierkorb/).first().click();
+    // Themed Dialog erscheint (kein ✓?-Label am Row).
+    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible();
+    await expect(row).not.toContainText('✓?');
+    await page.locator('#cchub-confirm-ok').click();
+    await expect(page.locator(`#files-tree .file-row[data-path="${fname}"]`)).toHaveCount(0, { timeout: 5000 });
   });
 
   test('context menu copy path', async ({ authedPage: page, isTouch }) => {
@@ -261,6 +269,125 @@ test.describe('Filebrowser', () => {
 
     await openFileSidebar(page);
     await expect(page.locator('#files-upload-picker')).toBeVisible();
+  });
+
+  test('git markers appear on changed files', async ({ authedPage: page }) => {
+    const { mkdtempSync, writeFileSync } = await import('fs');
+    const { join } = await import('path');
+    const { tmpdir } = await import('os');
+    const { execFileSync } = await import('child_process');
+    const dir = mkdtempSync(join(tmpdir(), 'cchub-fbgit-'));
+    execFileSync('git', ['init', '-q'], { cwd: dir });
+    execFileSync('git', ['config', 'user.email', 't@t'], { cwd: dir });
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: dir });
+    writeFileSync(join(dir, 'tracked.txt'), 'v1\n');
+    execFileSync('git', ['add', '.'], { cwd: dir });
+    execFileSync('git', ['commit', '-qm', 'init'], { cwd: dir });
+    writeFileSync(join(dir, 'tracked.txt'), 'v2\n');   // modified
+
+    const name = `e2e-fbgit-${Date.now()}`;
+    const token = await getToken(page);
+    const createRes = await page.request.post('/api/sessions', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { name, directory: dir, command: 'bash --noprofile --norc' },
+    });
+    expect(createRes.ok(), `session create failed: ${createRes.status()}`).toBeTruthy();
+    try {
+      // Dashboard reflects new sessions only after a reload.
+      await page.reload();
+      await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
+      await navigateToSession(page, `cc-${name}`);
+      await waitForTerminal(page);
+      await openFileSidebar(page);
+      const marker = page.locator('#files-tree .file-row[data-path="tracked.txt"] .git-marker');
+      await expect(marker).toHaveAttribute('data-git', 'modified', { timeout: 10_000 });
+    } finally {
+      await page.request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
+  });
+
+  test('filter menu toggles hidden files via all=1', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const before = await page.locator('#files-tree .file-row').count();
+    await page.click('#files-filter');
+    await expect(page.locator('.files-filter-menu')).toBeVisible();
+    await page.getByText(/Show hidden|Versteckte anzeigen/).click();
+    // Dotfiles erscheinen → mehr oder gleich viele Zeilen (mind. nicht weniger).
+    await expect.poll(async () => page.locator('#files-tree .file-row').count()).toBeGreaterThanOrEqual(before);
+    // Pref persisted to localStorage.
+    const pref = await page.evaluate(() => localStorage.getItem('cchub_files_show_hidden'));
+    expect(pref).toBe('1');
+    // Toggle back off to restore the default for other tests.
+    await page.click('#files-filter');
+    await page.getByText(/Show hidden|Versteckte anzeigen/).click();
+    await expect.poll(async () => page.evaluate(() => localStorage.getItem('cchub_files_show_hidden'))).toBe('0');
+  });
+
+  test('breadcrumb shows the panel root name', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const bc = page.locator('#files-breadcrumb');
+    await expect(bc).not.toHaveText('/');
+    await expect(bc.locator('.bc-root')).toBeVisible();
+  });
+
+  test('fuzzy search filters loaded rows and highlights matches', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const total = await page.locator('#files-tree .file-row').count();
+    if (total < 2) { test.skip(true, 'need >=2 rows'); return; }
+    // Namen einer existierenden Zeile holen und tippfehler-behaftet suchen.
+    const firstName = await page.locator('#files-tree .file-row').first().getAttribute('data-path');
+    const base = firstName.split('/').pop();
+    await page.fill('#files-search-input', base.slice(0, Math.max(2, base.length - 1)));
+    await expect(page.locator('#files-tree .file-row:not([hidden])')).not.toHaveCount(total);
+    await page.fill('#files-search-input', '');
+    await expect(page.locator('#files-tree .file-row:not([hidden])')).toHaveCount(total);
+  });
+
+  test('files toolbar is icon-only with tooltips and the panel is a card', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const refresh = page.locator('#files-refresh');
+    await expect(refresh).toHaveAttribute('data-tooltip', /.+/);
+    await expect(refresh.locator('svg')).toBeVisible();
+    const radius = await page.locator('#files-sidebar').evaluate(el => getComputedStyle(el).borderTopLeftRadius);
+    expect(parseInt(radius, 10)).toBeGreaterThan(0);
+  });
+
+  test('cmd/ctrl-click multi-selects and shows the action bar', async ({ authedPage: page, isTouch }) => {
+    test.skip(isTouch, 'modifier-click multi-select is a desktop pointer interaction; touch uses select-mode');
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const rows = page.locator('#files-tree .file-row');
+    if (await rows.count() < 2) { test.skip(true, 'need >=2 rows'); return; }
+    const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await rows.nth(0).click({ modifiers: [mod] });
+    await rows.nth(1).click({ modifiers: [mod] });
+    await expect(page.locator('.file-row.selected')).toHaveCount(2);
+    await expect(page.locator('#files-selbar')).toBeVisible();
+    await expect(page.locator('#files-selbar-count')).toContainText(/2/);
+    await page.locator('#files-sel-clear').click();
+    await expect(page.locator('#files-selbar')).toBeHidden();
+  });
+
+  test('file rows use inline Catppuccin SVG icons (not <img>, not emoji)', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    // Icons müssen INLINE-<svg> sein, nicht <img> — sonst können die css-variables
+    // SVGs die --vscode-ctp-*-Tokens der Seite nicht auflösen und rendern unsichtbar.
+    const firstIconSvg = page.locator('#files-tree .file-row .icon svg').first();
+    await expect(firstIconSvg).toBeVisible();
+    await expect(page.locator('#files-tree .file-row .icon img')).toHaveCount(0);
   });
 
   test('downloads a file via context menu', async ({ authedPage: page, projectSession, isTouch }) => {

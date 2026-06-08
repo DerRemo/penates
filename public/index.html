@@ -211,6 +211,16 @@
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
+      /* Catppuccin-Icon-Palette (css-variables-SVGs unter vendor/catppuccin-icons
+         referenzieren die --vscode-ctp-* Tokens). Pro Flavor gesetzt → Icons
+         retinten sich beim Theme-Wechsel automatisch. Mocha-Werte. */
+      --vscode-ctp-rosewater: #f5e0dc; --vscode-ctp-flamingo: #f2cdcd; --vscode-ctp-pink: #f5c2e7;
+      --vscode-ctp-mauve: #cba6f7; --vscode-ctp-red: #f38ba8; --vscode-ctp-maroon: #eba0ac;
+      --vscode-ctp-peach: #fab387; --vscode-ctp-yellow: #f9e2af; --vscode-ctp-green: #a6e3a1;
+      --vscode-ctp-teal: #94e2d5; --vscode-ctp-sky: #89dceb; --vscode-ctp-sapphire: #74c7ec;
+      --vscode-ctp-blue: #89b4fa; --vscode-ctp-lavender: #b4befe; --vscode-ctp-text: #cdd6f4;
+      --vscode-ctp-subtext1: #bac2de; --vscode-ctp-subtext0: #a6adc8; --vscode-ctp-overlay2: #9399b2;
+      --vscode-ctp-overlay1: #7f849c; --vscode-ctp-overlay0: #6c7086;
     }
 
     /* FRAPPÉ */
@@ -272,6 +282,14 @@
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
+      /* Catppuccin-Icon-Palette — Frappé. */
+      --vscode-ctp-rosewater: #f2d5cf; --vscode-ctp-flamingo: #eebebe; --vscode-ctp-pink: #f4b8e4;
+      --vscode-ctp-mauve: #ca9ee6; --vscode-ctp-red: #e78284; --vscode-ctp-maroon: #ea999c;
+      --vscode-ctp-peach: #ef9f76; --vscode-ctp-yellow: #e5c890; --vscode-ctp-green: #a6d189;
+      --vscode-ctp-teal: #81c8be; --vscode-ctp-sky: #99d1db; --vscode-ctp-sapphire: #85c1dc;
+      --vscode-ctp-blue: #8caaee; --vscode-ctp-lavender: #babbf1; --vscode-ctp-text: #c6d0f5;
+      --vscode-ctp-subtext1: #b5bfe2; --vscode-ctp-subtext0: #a5adce; --vscode-ctp-overlay2: #949cbb;
+      --vscode-ctp-overlay1: #838ba7; --vscode-ctp-overlay0: #737994;
     }
 
     /* MACCHIATO */
@@ -333,6 +351,14 @@
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
+      /* Catppuccin-Icon-Palette — Macchiato. */
+      --vscode-ctp-rosewater: #f4dbd6; --vscode-ctp-flamingo: #f0c6c6; --vscode-ctp-pink: #f5bde6;
+      --vscode-ctp-mauve: #c6a0f6; --vscode-ctp-red: #ed8796; --vscode-ctp-maroon: #ee99a0;
+      --vscode-ctp-peach: #f5a97f; --vscode-ctp-yellow: #eed49f; --vscode-ctp-green: #a6da95;
+      --vscode-ctp-teal: #8bd5ca; --vscode-ctp-sky: #91d7e3; --vscode-ctp-sapphire: #7dc4e4;
+      --vscode-ctp-blue: #8aadf4; --vscode-ctp-lavender: #b7bdf8; --vscode-ctp-text: #cad3f5;
+      --vscode-ctp-subtext1: #b8c0e0; --vscode-ctp-subtext0: #a5adcb; --vscode-ctp-overlay2: #939ab7;
+      --vscode-ctp-overlay1: #8087a2; --vscode-ctp-overlay0: #6e738d;
     }
 
     /* LATTE (Default-Light). Hellstes = Base als raised Card; Page=Mantle,
@@ -395,6 +421,14 @@
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
+      /* Catppuccin-Icon-Palette — Latte (Default-Flavor). */
+      --vscode-ctp-rosewater: #dc8a78; --vscode-ctp-flamingo: #dd7878; --vscode-ctp-pink: #ea76cb;
+      --vscode-ctp-mauve: #8839ef; --vscode-ctp-red: #d20f39; --vscode-ctp-maroon: #e64553;
+      --vscode-ctp-peach: #fe640b; --vscode-ctp-yellow: #df8e1d; --vscode-ctp-green: #40a02b;
+      --vscode-ctp-teal: #179299; --vscode-ctp-sky: #04a5e5; --vscode-ctp-sapphire: #209fb5;
+      --vscode-ctp-blue: #1e66f5; --vscode-ctp-lavender: #7287fd; --vscode-ctp-text: #4c4f69;
+      --vscode-ctp-subtext1: #5c5f77; --vscode-ctp-subtext0: #6c6f85; --vscode-ctp-overlay2: #7c7f93;
+      --vscode-ctp-overlay1: #8c8fa1; --vscode-ctp-overlay0: #9ca0b0;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2300,11 +2334,13 @@
     }
 
     .tree-icon {
-      display: inline-block;
-      width: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
       font-size: 12px;
       flex-shrink: 0;
-      opacity: 0.8;
     }
 
     .tree-name {
@@ -3442,18 +3478,26 @@
       font-size: 11px;
       color: var(--text-secondary);
     }
+    .files-toolbar .breadcrumb .bc-seg { cursor: default; }
+    .files-toolbar .breadcrumb .bc-root { cursor: pointer; color: var(--text-secondary); }
+    .files-toolbar .breadcrumb .bc-root:hover { color: var(--accent); }
+    /* Icon-only-Toolbar — quadratische Ghost-Buttons, Entdeckbarkeit per Tooltip. */
     .files-toolbar button {
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-size: 11px;
-      white-space: nowrap;
-      flex-shrink: 0;
+      width: 30px; height: 30px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm);
+      color: var(--text-secondary); cursor: pointer; flex-shrink: 0;
+      position: relative; /* Anker für [data-tooltip] */
     }
+    .files-toolbar button svg { width: 15px; height: 15px; }
     .files-toolbar button:hover { color: var(--accent); background: var(--accent-muted); }
+    .files-search { display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .files-search__icon { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+    .files-search input { flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+      color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-xs); }
+    .file-row .hl { color: var(--accent); font-weight: 600; }
+    .file-row[hidden], .file-children[hidden] { display: none !important; }
     .files-tree {
       flex: 1;
       overflow: auto;
@@ -3479,8 +3523,29 @@
       user-select: none;
       -webkit-touch-callout: none;
     }
-    .file-row:hover { background: rgba(255,255,255,.04); }
+    .file-row:hover { background: var(--bg-elevated); }
     .file-row.drop-target { outline: 1px solid var(--accent); background: var(--accent-muted); }
+    /* Multi-Select: Akzent-Tint + linke Akzent-Kante. */
+    .file-row.selected { background: var(--accent-muted); box-shadow: inset 2px 0 0 var(--accent); }
+    /* Hover-Checkbox (Desktop) bzw. immer sichtbar im Touch-Select-Mode. */
+    .file-row .sel-check {
+      width: 14px; height: 14px; flex-shrink: 0; margin-right: 2px;
+      border: 1px solid var(--border); border-radius: 3px;
+      display: none; align-items: center; justify-content: center;
+      color: var(--accent-contrast); background: transparent; font-size: 10px; line-height: 1;
+    }
+    .file-row:hover .sel-check,
+    .files-tree.select-mode .file-row .sel-check { display: inline-flex; }
+    .file-row.selected .sel-check { background: var(--accent); border-color: var(--accent); }
+    /* Selektions-Aktionsleiste am Panel-Fuß. */
+    .files-selbar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2); border-top: 1px solid var(--border);
+      background: var(--bg-surface); flex-shrink: 0;
+    }
+    .files-selbar[hidden] { display: none; }
+    .files-selbar__count { font-size: var(--text-xs); color: var(--text-secondary); }
+    .files-selbar__spacer { flex: 1; }
     .file-row[data-type="dir"]::before {
       content: "▸";
       display: inline-block;
@@ -3491,7 +3556,28 @@
     }
     .file-row[data-type="dir"].expanded::before { content: "▾"; }
     .file-row[data-type="file"]::before { content: ""; display: inline-block; width: 10px; }
-    .file-row .icon { width: 14px; text-align: center; flex-shrink: 0; }
+    /* Catppuccin-Datei-Icon als <img> (css-variables-SVG, retintet per Flavor). */
+    .file-row .icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .file-row .icon img { width: 16px; height: 16px; display: block; }
+    /* Inline-<svg> Datei-Icon — die --vscode-ctp-* Tokens lösen auf → retintet pro Flavor.
+       App-weit: FileBrowser-Row, Dir-Picker, Preview-Header, Inline-Create. */
+    .file-icon { width: 16px; height: 16px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+    .file-icon svg { width: 100%; height: 100%; display: block; }
+    /* Git-Marker: dezenter Punkt rechts am Label. Token-Farben:
+       untracked=grün, modified=orange, staged=teal(accent). */
+    .file-row .git-marker {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-left: auto;
+    }
+    .file-row .git-marker[data-git="untracked"] { background: var(--green); }
+    .file-row .git-marker[data-git="modified"]  { background: var(--orange); }
+    .file-row .git-marker[data-git="staged"]    { background: var(--accent); }
     .file-children { padding-left: 16px; }
     .files-resizer {
       flex: 0 0 4px;
@@ -3737,7 +3823,9 @@
       padding: 1px 4px; font: inherit; border-radius: 3px;
       min-width: 0;
     }
-    .file-row.pending-delete { background: rgba(239, 68, 68, .16); }
+    .file-create-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px; }
+    .file-create-row .icon-img { width: 16px; height: 16px; flex-shrink: 0; }
+    .file-create-row .rename-input { flex: 1; }
 
     /* ── Approval stack (Task 7) ─────────────────────────────── */
     .approval-stack { position: fixed; right: 16px; bottom: 16px; z-index: 320;
@@ -4037,6 +4125,15 @@
   </style>
   <script src="/locales/en.js"></script>
   <script src="/locales/de.js"></script>
+  <!-- Geteilte ESM-Module für die Non-Module-IIFEs erreichbar machen (wie clis.js).
+       fileIcon → Datei-Icons (Catppuccin), Fuse → Fuzzy-Filter. -->
+  <script type="module">
+    import { fileIcon as _fileIcon, fileIconSvg as _fileIconSvg } from './file-icons.js';
+    window.fileIcon = _fileIcon;
+    // Inline-SVG-Markup — die --vscode-ctp-* Tokens lösen auf → retintet pro Flavor.
+    window.fileIconSvg = _fileIconSvg;
+    import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
+  </script>
   <script>
     // i18n translator bootstrap — mirrors lib/i18n.js createTranslator (tested there).
     (function () {
@@ -4350,13 +4447,39 @@
       <div class="files-resizer" id="files-resizer" style="display:none"></div>
       <aside class="files-sidebar" id="files-sidebar">
         <div class="files-toolbar">
-          <span class="breadcrumb" id="files-breadcrumb">/</span>
-          <button id="files-mkdir" title="New Folder" data-i18n-attr="title:filebrowser.toolbar.newFolderTitle" data-i18n="filebrowser.toolbar.newFolder">+ Folder</button>
-          <button id="files-upload-picker" title="Upload File" data-i18n-attr="title:filebrowser.toolbar.uploadTitle" data-i18n="filebrowser.toolbar.upload">+ File</button>
-          <button id="files-refresh" title="Refresh" data-i18n-attr="title:filebrowser.toolbar.refreshTitle">⟳</button>
-          <button id="files-close" title="Close" data-i18n-attr="title:filebrowser.toolbar.closeTitle">×</button>
+          <span class="breadcrumb" id="files-breadcrumb"></span>
+          <button id="files-mkdir" type="button" data-tooltip="New folder" title="New folder" aria-label="New folder" data-i18n-attr="data-tooltip:filebrowser.toolbar.newFolderTitle;title:filebrowser.toolbar.newFolderTitle;aria-label:filebrowser.toolbar.newFolderTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6M9 14h6"/></svg>
+          </button>
+          <button id="files-newfile" type="button" data-tooltip="New file" title="New file" aria-label="New file" data-i18n-attr="data-tooltip:filebrowser.toolbar.newFileTitle;title:filebrowser.toolbar.newFileTitle;aria-label:filebrowser.toolbar.newFileTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 12v6M9 15h6"/></svg>
+          </button>
+          <button id="files-upload-picker" type="button" data-tooltip="Upload" title="Upload" aria-label="Upload" data-i18n-attr="data-tooltip:filebrowser.toolbar.uploadTitle;title:filebrowser.toolbar.uploadTitle;aria-label:filebrowser.toolbar.uploadTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          </button>
+          <button id="files-filter" type="button" data-tooltip="Filter" title="Filter" aria-label="Filter" data-i18n-attr="data-tooltip:filebrowser.toolbar.filterTitle;title:filebrowser.toolbar.filterTitle;aria-label:filebrowser.toolbar.filterTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></svg>
+          </button>
+          <button id="files-refresh" type="button" data-tooltip="Refresh" title="Refresh" aria-label="Refresh" data-i18n-attr="data-tooltip:filebrowser.toolbar.refreshTitle;title:filebrowser.toolbar.refreshTitle;aria-label:filebrowser.toolbar.refreshTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+          <button id="files-close" type="button" data-tooltip="Close" title="Close" aria-label="Close" data-i18n-attr="data-tooltip:filebrowser.toolbar.closeTitle;title:filebrowser.toolbar.closeTitle;aria-label:filebrowser.toolbar.closeTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="files-search">
+          <svg class="files-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="files-search-input" autocomplete="off" spellcheck="false"
+                 data-i18n-attr="placeholder:filebrowser.search.placeholder" placeholder="Filter loaded files…">
         </div>
         <div class="files-tree" id="files-tree"></div>
+        <div class="files-selbar" id="files-selbar" hidden>
+          <span class="files-selbar__count" id="files-selbar-count"></span>
+          <span class="files-selbar__spacer"></span>
+          <button class="btn btn-danger btn-sm" type="button" id="files-sel-trash"></button>
+          <button class="btn btn-ghost btn-sm" type="button" id="files-sel-move"></button>
+          <button class="btn btn-ghost btn-sm" type="button" id="files-sel-clear"></button>
+        </div>
       </aside>
       <div class="preview-resizer" id="preview-resizer" style="display:none"></div>
       <aside class="preview-panel" id="preview-panel">
@@ -4761,6 +4884,34 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           <span data-i18n="modal.idea.save">Save</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reusable Confirm-Dialog (Promise<boolean>) — themed Ersatz für confirm(). -->
+  <div class="modal-overlay" id="cchub-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-confirm-title">
+    <div class="modal">
+      <h2 id="cchub-confirm-title"></h2>
+      <p id="cchub-confirm-body"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" id="cchub-confirm-cancel"></button>
+        <button class="btn btn-danger" type="button" id="cchub-confirm-ok"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reusable Input-Dialog (Promise<string|null>) — themed Ersatz für prompt(). -->
+  <div class="modal-overlay" id="cchub-input-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-input-title">
+    <div class="modal">
+      <h2 id="cchub-input-title"></h2>
+      <div class="form-group">
+        <label class="form-label" id="cchub-input-label" for="cchub-input-field"></label>
+        <input class="form-input" id="cchub-input-field" type="text" autocomplete="off" spellcheck="false">
+        <div id="cchub-input-error" style="color:var(--red);font-size:var(--text-xs);margin-top:var(--space-1);min-height:1em;"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" id="cchub-input-cancel"></button>
+        <button class="btn btn-primary" type="button" id="cchub-input-ok"></button>
       </div>
     </div>
   </div>
@@ -8718,10 +8869,15 @@
         row.className = 'tree-row';
         row.innerHTML = `
           <span class="tree-arrow">▸</span>
-          <span class="tree-icon">📁</span>
+          <span class="tree-icon"></span>
           <span class="tree-name"></span>
         `;
         row.querySelector('.tree-name').textContent = entry.name;
+        if (window.fileIconSvg) {
+          const svg = window.fileIconSvg(entry.name, true);
+          const ic = row.querySelector('.tree-icon');
+          if (ic) { ic.classList.add('file-icon'); ic.innerHTML = svg; }
+        }
 
         row.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -8838,9 +8994,10 @@
 
         const row = document.createElement('div');
         row.className = 'tree-row tree-row-new';
+        const folderIconSvg = window.fileIconSvg ? window.fileIconSvg('x', true) : '';
         row.innerHTML = `
           <span class="tree-arrow empty">▸</span>
-          <span class="tree-icon">📁</span>
+          <span class="tree-icon file-icon">${folderIconSvg}</span>
           <input type="text" autocomplete="off" spellcheck="false"
                  placeholder="${escapeHtml(t('treePicker.mkdir.placeholder'))}">
           <span class="tree-mkdir-hint"></span>
@@ -9257,6 +9414,93 @@
         setTimeout(() => toast.remove(), 300);
       }, 3500);
     }
+
+    // ── Reusable themed Dialoge (ersetzen confirm()/prompt()) ────────
+    // showConfirmDialog → Promise<boolean>; Esc/Backdrop = false, Enter = true.
+    function showConfirmDialog({ title, body, confirmLabel, cancelLabel, danger = true } = {}) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('cchub-confirm-modal');
+        const okBtn = document.getElementById('cchub-confirm-ok');
+        const cancelBtn = document.getElementById('cchub-confirm-cancel');
+        document.getElementById('cchub-confirm-title').textContent = title || '';
+        document.getElementById('cchub-confirm-body').textContent = body || '';
+        okBtn.textContent = confirmLabel || t('dialog.confirm');
+        cancelBtn.textContent = cancelLabel || t('dialog.cancel');
+        okBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+        let settled = false;
+        const cleanup = () => {
+          overlay.classList.remove('open');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          overlay.removeEventListener('click', onBackdrop);
+          document.removeEventListener('keydown', onKey);
+        };
+        const done = (val) => { if (settled) return; settled = true; cleanup(); resolve(val); };
+        const onOk = () => done(true);
+        const onCancel = () => done(false);
+        const onBackdrop = (e) => { if (e.target === overlay) done(false); };
+        const onKey = (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); done(false); }
+          if (e.key === 'Enter') { e.preventDefault(); done(true); }
+        };
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+        overlay.classList.add('open');
+        okBtn.focus();
+      });
+    }
+
+    // showInputDialog → Promise<string|null>; Enter = commit (nach validate),
+    // Esc/Backdrop = null. validate(value) → null|string (Fehlertext).
+    function showInputDialog({ title, label, value = '', placeholder = '', confirmLabel, cancelLabel, validate } = {}) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('cchub-input-modal');
+        const field = document.getElementById('cchub-input-field');
+        const errEl = document.getElementById('cchub-input-error');
+        const okBtn = document.getElementById('cchub-input-ok');
+        const cancelBtn = document.getElementById('cchub-input-cancel');
+        document.getElementById('cchub-input-title').textContent = title || '';
+        document.getElementById('cchub-input-label').textContent = label || '';
+        okBtn.textContent = confirmLabel || t('dialog.ok');
+        cancelBtn.textContent = cancelLabel || t('dialog.cancel');
+        field.value = value;
+        field.placeholder = placeholder;
+        errEl.textContent = '';
+        let settled = false;
+        const cleanup = () => {
+          overlay.classList.remove('open');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          overlay.removeEventListener('click', onBackdrop);
+          field.removeEventListener('keydown', onKey);
+        };
+        const done = (val) => { if (settled) return; settled = true; cleanup(); resolve(val); };
+        const commit = () => {
+          const v = field.value.trim();
+          const err = validate ? validate(v) : null;
+          if (err) { errEl.textContent = err; return; }
+          done(v);
+        };
+        const onOk = () => commit();
+        const onCancel = () => done(null);
+        const onBackdrop = (e) => { if (e.target === overlay) done(null); };
+        const onKey = (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+          if (e.key === 'Escape') { e.preventDefault(); done(null); }
+        };
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onBackdrop);
+        field.addEventListener('keydown', onKey);
+        overlay.classList.add('open');
+        field.focus();
+        field.select();
+      });
+    }
+    window.showConfirmDialog = showConfirmDialog;
+    window.showInputDialog = showInputDialog;
 
     // Debounced Bestätigungs-Toast für Remote-Clipboard-Writes (OSC 52).
     // Der Toast lebt selbst 3.5 s; der Debounce begrenzt nur die Rate neuer
@@ -10291,6 +10535,128 @@
       let wsBackoff = 500;
       const seenSeq = new Map(); // projectId → max seq
 
+      // ── Multi-Select-State ───────────────────────────────────────
+      const selected = new Set();        // relPaths
+      let selectMode = false;            // Touch: Tap toggelt statt öffnet
+      let lastClickedPath = null;        // Anker für Shift+Range
+
+      function visibleRows() {
+        return [...document.querySelectorAll('#files-tree .file-row')];
+      }
+      function applySelClass(row) {
+        row.classList.toggle('selected', selected.has(row.dataset.path));
+      }
+      function updateSelbar() {
+        const bar = document.getElementById('files-selbar');
+        if (!bar) return;
+        if (selected.size === 0) { bar.hidden = true; return; }
+        bar.hidden = false;
+        document.getElementById('files-selbar-count').textContent =
+          t('filebrowser.sel.count', { n: selected.size });
+      }
+      function setSelected(path, on) {
+        if (on) selected.add(path); else selected.delete(path);
+        const row = visibleRows().find(r => r.dataset.path === path);
+        if (row) applySelClass(row);
+        updateSelbar();
+      }
+      function clearSelection() {
+        selected.clear();
+        selectMode = false;
+        document.getElementById('files-tree')?.classList.remove('select-mode');
+        visibleRows().forEach(applySelClass);
+        updateSelbar();
+      }
+      function toggleRow(path) { setSelected(path, !selected.has(path)); lastClickedPath = path; }
+      function selectRange(toPath) {
+        const rows = visibleRows();
+        const from = rows.findIndex(r => r.dataset.path === lastClickedPath);
+        const to = rows.findIndex(r => r.dataset.path === toPath);
+        if (from === -1 || to === -1) { toggleRow(toPath); return; }
+        const [a, b] = from < to ? [from, to] : [to, from];
+        for (let i = a; i <= b; i++) selected.add(rows[i].dataset.path);
+        rows.forEach(applySelClass);
+        updateSelbar();
+      }
+      function enterSelectMode(row) {
+        selectMode = true;
+        document.getElementById('files-tree')?.classList.add('select-mode');
+        if (row) toggleRow(row.dataset.path);
+      }
+      // rows für FileActions.deleteRows: aktuelle Selektion, sonst die geklickte.
+      function selectedRows(fallbackRow) {
+        if (selected.size === 0) return fallbackRow ? [fallbackRow] : [];
+        const set = new Set(selected);
+        return visibleRows().filter(r => set.has(r.dataset.path));
+      }
+      // Nach Tree-Refresh: verschwundene Pfade aus der Selektion werfen.
+      function pruneSelection() {
+        const live = new Set(visibleRows().map(r => r.dataset.path));
+        for (const p of [...selected]) if (!live.has(p)) selected.delete(p);
+        visibleRows().forEach(applySelClass);
+        updateSelbar();
+      }
+
+      // ── Fuzzy-Filter (fuse.js, vendored) ─────────────────────────
+      let filterTerm = '';
+      function applyFilter() {
+        const rows = visibleRows();
+        if (!filterTerm) {
+          // Reset: alles sichtbar, Highlights entfernen.
+          rows.forEach(r => {
+            r.hidden = false;
+            const lbl = r.querySelector('span:last-child');
+            if (lbl) lbl.textContent = lbl.textContent; // strip <span class=hl>
+          });
+          document.querySelectorAll('#files-tree .file-children').forEach(c => { c.hidden = false; });
+          return;
+        }
+        const items = rows.map(r => ({ row: r, name: r.dataset.path.split('/').pop() }));
+        let hits;
+        if (window.Fuse) {
+          const fuse = new window.Fuse(items, { keys: ['name'], threshold: 0.4, ignoreLocation: true, includeMatches: true });
+          hits = new Map(fuse.search(filterTerm).map(res => [res.item.row, res.matches?.[0]]));
+        } else {
+          // Fallback bis fuse geladen ist: simpler Substring.
+          const f = filterTerm.toLowerCase();
+          hits = new Map(items.filter(it => it.name.toLowerCase().includes(f)).map(it => [it.row, null]));
+        }
+        const keep = new Set();
+        for (const row of hits.keys()) {
+          keep.add(row);
+          // Vorfahren (Eltern-.file-children + deren dir-row) sichtbar halten.
+          let el = row.parentElement;
+          while (el && el.id !== 'files-tree') {
+            if (el.classList.contains('file-children')) {
+              keep.add(el);
+              const dirRow = el.previousElementSibling;
+              if (dirRow && dirRow.classList.contains('file-row')) keep.add(dirRow);
+            }
+            el = el.parentElement;
+          }
+        }
+        rows.forEach(r => { r.hidden = !keep.has(r); });
+        document.querySelectorAll('#files-tree .file-children').forEach(c => { c.hidden = !keep.has(c); });
+        // Treffer-Substring hervorheben.
+        for (const [row, match] of hits) {
+          const lbl = row.querySelector('span:last-child');
+          if (!lbl) continue;
+          const name = row.dataset.path.split('/').pop();
+          lbl.innerHTML = highlightMatch(name, match);
+        }
+      }
+      function highlightMatch(name, match) {
+        const esc = (s) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        if (!match || !match.indices || !match.indices.length) return esc(name);
+        let out = '', last = 0;
+        for (const [a, b] of match.indices) {
+          out += esc(name.slice(last, a)) + '<span class="hl">' + esc(name.slice(a, b + 1)) + '</span>';
+          last = b + 1;
+        }
+        out += esc(name.slice(last));
+        return out;
+      }
+
       function loadOpenFolders(id) {
         openFolders.clear();
         try {
@@ -10307,19 +10673,48 @@
         return { Authorization: `Bearer ${t}` };
       }
 
+      // ── Filter-Prefs (localStorage, global) ──────────────────────
+      const FILTER_KEYS = { hideIgnored: 'cchub_files_hide_ignored', showHidden: 'cchub_files_show_hidden' };
+      function getFilterPref(key, dflt) {
+        try { const v = localStorage.getItem(FILTER_KEYS[key]); return v == null ? dflt : v === '1'; }
+        catch { return dflt; }
+      }
+      function setFilterPref(key, on) { try { localStorage.setItem(FILTER_KEYS[key], on ? '1' : '0'); } catch {} }
+      // Defaults: hideIgnored AN, showHidden AUS.
+      let hideIgnored = getFilterPref('hideIgnored', true);
+      let showHidden = getFilterPref('showHidden', false);
+
+      function entryVisible(entry) {
+        if (hideIgnored && entry.ignored) return false;
+        return true;
+      }
+
+      // ── Git-Status-Map (Tree-Marker) ─────────────────────────────
+      let gitMap = {};   // { path: 'staged'|'modified'|'untracked' }
+      async function fetchGitMap() {
+        if (!currentProject) { gitMap = {}; return; }
+        try {
+          const res = await fetch(`/api/projects/${encodeURIComponent(currentProject.id)}/files/git`, { headers: authHdr() });
+          gitMap = res.ok ? ((await res.json()).files || {}) : {};
+        } catch { gitMap = {}; }
+      }
+      function decorateGit() {
+        for (const row of visibleRows()) {
+          const status = gitMap[row.dataset.path];
+          let m = row.querySelector('.git-marker');
+          if (!status) { if (m) m.remove(); continue; }
+          if (!m) { m = document.createElement('span'); m.className = 'git-marker'; row.appendChild(m); }
+          m.setAttribute('data-git', status);
+          m.title = status;
+        }
+      }
+
       async function fetchList(relPath) {
-        const url = `/api/projects/${encodeURIComponent(currentProject.id)}/files?path=${encodeURIComponent(relPath)}`;
+        const allParam = showHidden ? '&all=1' : '';
+        const url = `/api/projects/${encodeURIComponent(currentProject.id)}/files?path=${encodeURIComponent(relPath)}${allParam}`;
         const res = await fetch(url, { headers: authHdr() });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
-      }
-
-      function iconForExt(name) {
-        const ext = (name.split('.').pop() || '').toLowerCase();
-        const map = { js: '📜', ts: '📜', mjs: '📜', cjs: '📜', json: '⚙', md: '📝', html: '🌐', css: '🎨',
-                      png: '🖼', jpg: '🖼', jpeg: '🖼', gif: '🖼', svg: '🖼', pdf: '📕', sh: '⚡',
-                      env: '🔑', gitignore: '🔒', lock: '🔒' };
-        return map[ext] || '📄';
       }
 
       function renderRow(entry, parentPath) {
@@ -10339,19 +10734,39 @@
           e.dataTransfer.effectAllowed = 'copy';
         });
 
+        const check = document.createElement('span');
+        check.className = 'sel-check';
+        check.textContent = '✓';
+
         const icon = document.createElement('span');
-        icon.className = 'icon';
-        icon.textContent = entry.type === 'dir' ? '📁' : iconForExt(entry.name);
+        icon.className = 'icon file-icon';
+        // Geteilter fileIconSvg-Helper (Catppuccin, vendored). Inline-<svg> →
+        // die --vscode-ctp-* Tokens lösen auf und retinten pro Flavor (kein
+        // <img src>, das rendert isoliert + zeigt die Icons nicht). Fallback:
+        // leer, falls das Modul noch lädt.
+        if (window.fileIconSvg) {
+          icon.innerHTML = window.fileIconSvg(entry.name, entry.type === 'dir');
+        }
 
         const label = document.createElement('span');
         label.textContent = entry.name;
         label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0';
 
+        btn.appendChild(check);
         btn.appendChild(icon);
         btn.appendChild(label);
-        // Single click opens files (preview) or toggles folders — works on
-        // touch too, where dblclick never fires. onRowClick handles both.
-        btn.addEventListener('click', () => onRowClick(btn, entry));
+        // Checkbox togglet IMMER (auch ohne Modifier). Klick auf die Zeile:
+        // mit Cmd/Ctrl toggeln, mit Shift Range, im Select-Mode toggeln,
+        // sonst normales onRowClick (öffnen / auf-zu).
+        check.addEventListener('click', (e) => { e.stopPropagation(); toggleRow(btn.dataset.path); });
+        btn.addEventListener('click', (e) => {
+          if (e.metaKey || e.ctrlKey) { e.preventDefault(); toggleRow(btn.dataset.path); return; }
+          if (e.shiftKey) { e.preventDefault(); selectRange(btn.dataset.path); return; }
+          if (selectMode) { e.preventDefault(); toggleRow(btn.dataset.path); return; }
+          lastClickedPath = btn.dataset.path;
+          onRowClick(btn, entry);
+        });
+        applySelClass(btn);
         return btn;
       }
 
@@ -10380,7 +10795,7 @@
             empty.textContent = t('filebrowser.tree.empty');
             wrap.appendChild(empty);
           } else {
-            for (const entry of entries) wrap.appendChild(renderRow(entry, relPath));
+            for (const entry of entries) if (entryVisible(entry)) wrap.appendChild(renderRow(entry, relPath));
           }
           openFolders.add(relPath);
           saveOpenFolders(currentProject.id);
@@ -10394,6 +10809,9 @@
               if (match) expandFolder(match, savedPath);
             }
           }
+          // Neue Kinder mit Git-Markern dekorieren + aktiven Filter anwenden.
+          decorateGit();
+          applyFilter();
         } catch (e) {
           const err = document.createElement('div');
           err.style.cssText = 'padding:6px 12px;color:var(--red,#f88);font-size:11px;';
@@ -10421,7 +10839,11 @@
         sidebarOpen = true;
         document.getElementById('files-sidebar').classList.add('open');
         document.getElementById('files-resizer').style.display = '';
-        document.getElementById('files-breadcrumb').textContent = '/';
+        renderBreadcrumb();
+        document.getElementById('files-sel-trash').textContent = t('filebrowser.sel.trash');
+        document.getElementById('files-sel-move').textContent = t('filebrowser.sel.move');
+        document.getElementById('files-sel-clear').textContent = t('filebrowser.sel.clear');
+        clearSelection();
 
         // Restore saved width
         const savedWidth = localStorage.getItem(WIDTH_KEY);
@@ -10429,8 +10851,29 @@
 
         loadOpenFolders(project.id);
         await renderRoot();
+        await fetchGitMap();
+        decorateGit();
         try { localStorage.setItem(openKey(stateSession), '1'); } catch {}
         connectWs(project.id);
+      }
+
+      // Breadcrumb: Panel-Root-Basename, klickbar → kollabiert auf die Wurzel.
+      function renderBreadcrumb() {
+        const bc = document.getElementById('files-breadcrumb');
+        if (!bc) return;
+        const rootName = (currentProject && (currentProject.name || (currentProject.path || '').split('/').filter(Boolean).pop())) || '/';
+        bc.innerHTML = '';
+        const root = document.createElement('span');
+        root.className = 'bc-seg bc-root';
+        root.textContent = rootName;
+        root.title = (currentProject && currentProject.path) || '';
+        root.addEventListener('click', () => {
+          // Alle offenen Ordner zuklappen → reiner Wurzel-Tree.
+          openFolders.clear();
+          saveOpenFolders(currentProject.id);
+          renderRoot();
+        });
+        bc.appendChild(root);
       }
 
       async function renderRoot() {
@@ -10440,7 +10883,7 @@
           const list = await fetchList('');
           tree.innerHTML = '';
           const entries = list.entries || [];
-          for (const entry of entries) tree.appendChild(renderRow(entry, ''));
+          for (const entry of entries) if (entryVisible(entry)) tree.appendChild(renderRow(entry, ''));
 
           // Re-expand saved top-level folders
           for (const savedPath of openFolders) {
@@ -10450,6 +10893,9 @@
               if (match) expandFolder(match, savedPath);
             }
           }
+          pruneSelection();
+          applyFilter();
+          decorateGit();
         } catch (e) {
           tree.innerHTML = `<div style="padding:8px;color:var(--red,#f88)">${e.message}</div>`;
         }
@@ -10477,8 +10923,10 @@
           ?.addEventListener('click', close);
 
         document.getElementById('files-refresh')
-          ?.addEventListener('click', () => {
-            if (currentProject) renderRoot();
+          ?.addEventListener('click', async () => {
+            if (!currentProject) return;
+            await fetchGitMap();
+            renderRoot();
           });
 
         document.getElementById('btn-toggle-files')
@@ -10493,6 +10941,16 @@
               window.FileActions.mkdirPrompt(window.currentProjectId, '');
             } else {
               showToast(t('filebrowser.toast.cannotCreateFolder'), 'error');
+            }
+          });
+
+        // new file — inline input at the tree root
+        document.getElementById('files-newfile')
+          ?.addEventListener('click', () => {
+            if (window.FileActions && window.currentProjectId) {
+              window.FileActions.newFilePrompt(window.currentProjectId, '');
+            } else {
+              showToast(t('filebrowser.toast.createFileFailed'), 'error');
             }
           });
 
@@ -10514,6 +10972,69 @@
             inp.click();
           });
         }
+
+        // Selektions-Aktionsleiste.
+        document.getElementById('files-sel-trash')?.addEventListener('click', () => {
+          if (window.FileActions && currentProject) {
+            window.FileActions.deleteRows(currentProject.id, selectedRows());
+          }
+        });
+        document.getElementById('files-sel-move')?.addEventListener('click', () => {
+          // Move für die Selektion: einfacher Zielordner-Prompt pro Datei wäre
+          // laut, daher v1 = Move des ersten Eintrags (Bulk-Move → Backlog).
+          const rows = selectedRows();
+          if (rows.length && window.FileActions && currentProject) {
+            window.FileActions.openRowContextMenu(currentProject.id, rows[0],
+              { preventDefault() {}, clientX: 0, clientY: 0 });
+          }
+        });
+        document.getElementById('files-sel-clear')?.addEventListener('click', clearSelection);
+
+        const searchInput = document.getElementById('files-search-input');
+        if (searchInput) {
+          searchInput.addEventListener('input', () => {
+            filterTerm = searchInput.value.trim();
+            applyFilter();
+          });
+        }
+
+        document.getElementById('files-filter')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openFilterMenu(e.currentTarget);
+        });
+
+        // Entf/Backspace löscht die Selektion (oder die fokussierte Zeile).
+        document.getElementById('files-tree')?.addEventListener('keydown', (e) => {
+          if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+          const rows = selected.size ? selectedRows() : (document.activeElement?.classList?.contains('file-row') ? [document.activeElement] : []);
+          if (!rows.length) return;
+          e.preventDefault();
+          if (window.FileActions && currentProject) window.FileActions.deleteRows(currentProject.id, rows);
+        });
+      }
+
+      // Kleines Filter-Menü (zwei Toggles), an den Filter-Button geankert.
+      function openFilterMenu(anchor) {
+        document.querySelector('.files-filter-menu')?.remove();
+        const menu = document.createElement('div');
+        menu.className = 'cchub-contextmenu files-filter-menu';
+        const rect = anchor.getBoundingClientRect();
+        menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+        menu.style.top = rect.bottom + 4 + 'px';
+        const mkToggle = (label, on, onToggle) => {
+          const b = document.createElement('button');
+          b.textContent = (on ? '☑ ' : '☐ ') + label;
+          b.addEventListener('click', (ev) => { ev.stopPropagation(); onToggle(); menu.remove(); });
+          return b;
+        };
+        menu.appendChild(mkToggle(t('filebrowser.filter.hideIgnored'), hideIgnored, () => {
+          hideIgnored = !hideIgnored; setFilterPref('hideIgnored', hideIgnored); renderRoot();
+        }));
+        menu.appendChild(mkToggle(t('filebrowser.filter.showHidden'), showHidden, () => {
+          showHidden = !showHidden; setFilterPref('showHidden', showHidden); renderRoot();
+        }));
+        document.body.appendChild(menu);
+        setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
       }
 
       function wireResizer() {
@@ -10655,6 +11176,7 @@
           });
           container.innerHTML = '';
           for (const entry of list.entries) {
+            if (!entryVisible(entry)) continue;
             const row = renderRow(entry, parentRel);
             container.appendChild(row);
           }
@@ -10664,6 +11186,9 @@
               expandFolder(row, row.dataset.path);
             }
           }
+          pruneSelection();
+          applyFilter();
+          decorateGit();
         } catch (e) {
           console.warn('[FileBrowser] refreshContainer failed', e);
         }
@@ -10728,7 +11253,8 @@
         wireTreeDnD();
       });
 
-      return { open, close, toggle, activateForSession, wireButtons, wireResizer, wireTreeDnD };
+      return { open, close, toggle, activateForSession, wireButtons, wireResizer, wireTreeDnD,
+               clearSelection, selectedRows, enterSelectMode, selectMode: () => selectMode };
     })();
 
     // ── Browser-Preview: Split-Panel rechts vom Terminal (Reverse-Proxy-iframe) ──
@@ -11028,6 +11554,20 @@
         const modal = document.getElementById('file-preview-modal');
         const body = document.getElementById('file-preview-body');
         document.getElementById('file-preview-name').textContent = entry.name || relPath.split('/').pop();
+        // Datei-Icon im Preview-Header (app-weite Konsistenz). Inline-<svg> →
+        // die --vscode-ctp-* Tokens lösen auf + retinten pro Flavor.
+        if (window.fileIconSvg) {
+          const fname = entry.name || relPath.split('/').pop();
+          const svg = window.fileIconSvg(fname, false);
+          const titleEl = document.getElementById('file-preview-name');
+          const prev = titleEl.querySelector('.fp-title-icon');
+          if (prev) prev.remove();
+          const wrap = document.createElement('span');
+          wrap.className = 'fp-title-icon file-icon';
+          wrap.style.cssText = 'margin-right:6px;vertical-align:-2px;';
+          wrap.innerHTML = svg;
+          titleEl.prepend(wrap);
+        }
         document.getElementById('file-preview-size').textContent = entry.size != null ? formatSize(entry.size) : '';
         body.innerHTML = `<div class="preview-oversize">${t('preview.loading')}</div>`;
         modal.classList.add('open');
@@ -11611,6 +12151,9 @@
           paneEl.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`;
           return;
         }
+        // NB: Datei-Icons (fileIcon) hier bewusst NICHT injiziert — die Diff-
+        // Dateiliste/diff2html rendert eigenes Markup; Post-Processing wäre
+        // fragil. Backlog.
         const groups = ['unstaged', 'staged', 'untracked'];
         listEl.innerHTML = groups.map(cat => {
           const fs = currentFiles.filter(f => f.category === cat);
@@ -12030,14 +12573,17 @@
         e.preventDefault();
         const relPath = row.dataset.path;
         const isFile = row.dataset.type !== 'dir';
+        const parentRel = relPath.includes('/') ? relPath.split('/').slice(0, -1).join('/') : '';
         showMenu(e.clientX, e.clientY, [
-          { label: t('filebrowser.context.open'), action: () => row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })) },
+          { label: t('filebrowser.context.open'), action: () => row.dispatchEvent(new MouseEvent('click', { bubbles: true })) },
+          { label: t('filebrowser.context.select'), action: () => window.FileBrowser?.enterSelectMode?.(row) },
           ...(isFile ? [{ label: t('filebrowser.context.download'), action: () => downloadFile(projectId, relPath, relPath.split('/').pop()) }] : []),
+          { label: t('filebrowser.context.newFile'), action: () => newFilePrompt(projectId, isFile ? parentRel : relPath) },
           { label: t('filebrowser.context.rename'), action: () => startRename(projectId, row) },
           { label: t('filebrowser.context.copyTo'), action: () => promptOp(projectId, relPath, 'copy') },
           { label: t('filebrowser.context.moveTo'), action: () => promptOp(projectId, relPath, 'move') },
           '---',
-          { label: t('filebrowser.context.moveToTrash'), action: () => confirmDelete(projectId, row, relPath) },
+          { label: t('filebrowser.context.moveToTrash'), action: () => deleteRows(projectId, window.FileBrowser?.selectedRows?.(row) || [row]) },
           '---',
           { label: t('filebrowser.context.copyPath'), action: () => navigator.clipboard?.writeText(relPath).catch(() => {}) },
         ]);
@@ -12092,45 +12638,48 @@
         input.addEventListener('blur', () => setTimeout(cancel, 100));
       }
 
-      function confirmDelete(projectId, row, relPath) {
-        const labelSpan = row.querySelector('span:last-child');
-        if (!labelSpan) return;
-        const oldLabel = labelSpan.textContent;
-        if (row.classList.contains('pending-delete')) return; // already armed
-        row.classList.add('pending-delete');
-        labelSpan.textContent = `✓? ${oldLabel}`;
-        const armed = Date.now();
-        const revertTimer = setTimeout(() => {
-          if (!row.isConnected) return;
-          row.classList.remove('pending-delete');
-          const lbl = row.querySelector('span:last-child');
-          if (lbl) lbl.textContent = oldLabel;
-        }, 3000);
-        const onClick = async (ev) => {
-          ev.stopPropagation();
-          if (Date.now() - armed < 80) return; // debounce double-fire from same click
-          row.removeEventListener('click', onClick, true);
-          clearTimeout(revertTimer);
-          const res = await authedFetch(`/api/projects/${projectId}/files`, {
-            method: 'DELETE',
-            body: { paths: [relPath] },
-          });
-          if (res.ok) {
-            row.remove();
-          } else {
-            notify(t('filebrowser.toast.deleteFailed'), 'error');
-            row.classList.remove('pending-delete');
-            const lbl = row.querySelector('span:last-child');
-            if (lbl) lbl.textContent = oldLabel;
-          }
-        };
-        row.addEventListener('click', onClick, true);
+      // Löschen über themed Dialog. Akzeptiert eine Liste von rows (Multi-Select)
+      // oder eine einzelne row. Erfolg → Zeilen entfernen + Toast (Papierkorb,
+      // wiederherstellbar via Finder).
+      async function deleteRows(projectId, rows) {
+        const list = Array.isArray(rows) ? rows : [rows];
+        if (!list.length) return;
+        const paths = list.map(r => r.dataset.path);
+        const single = list.length === 1;
+        const title = single
+          ? t('filebrowser.delete.titleOne', { name: paths[0].split('/').pop() })
+          : t('filebrowser.delete.titleMany', { n: list.length });
+        const ok = await window.showConfirmDialog({
+          title,
+          body: t('filebrowser.delete.body'),
+          confirmLabel: t('filebrowser.delete.confirm'),
+          cancelLabel: t('dialog.cancel'),
+          danger: true,
+        });
+        if (!ok) return;
+        const res = await authedFetch(`/api/projects/${projectId}/files`, {
+          method: 'DELETE',
+          body: { paths },
+        });
+        if (res.ok) {
+          for (const r of list) r.remove();
+          notify(t('filebrowser.delete.toast'), 'success');
+          window.FileBrowser?.clearSelection?.();
+        } else {
+          notify(t('filebrowser.toast.deleteFailed'), 'error');
+        }
       }
 
       async function promptOp(projectId, relPath, op) {
-        const label = op === 'copy' ? t('filebrowser.prompt.copy') : t('filebrowser.prompt.move');
-        const to = window.prompt(t('filebrowser.prompt.targetPath', { label }), relPath);
-        if (!to || to === relPath) return;
+        const title = op === 'copy' ? t('filebrowser.prompt.copy') : t('filebrowser.prompt.move');
+        const to = await window.showInputDialog({
+          title,
+          label: t('filebrowser.prompt.targetLabel'),
+          value: relPath,
+          confirmLabel: title,
+          validate: (v) => (!v ? t('filebrowser.prompt.required') : (v === relPath ? t('filebrowser.prompt.samePath') : null)),
+        });
+        if (to == null) return;
         const res = await authedFetch(`/api/projects/${projectId}/files`, {
           method: 'PATCH',
           body: { op, from: relPath, to },
@@ -12143,22 +12692,60 @@
         if (refreshBtn) refreshBtn.click();
       }
 
-      async function mkdirPrompt(projectId, parentRel = '') {
-        const name = window.prompt(t('filebrowser.prompt.newFolder'));
-        if (!name) return;
-        const res = await authedFetch(`/api/projects/${projectId}/files/mkdir`, {
-          method: 'POST',
-          body: { path: parentRel, name },
+      // Inline-Erzeugung (Ordner/Datei) — Input-Zeile am Zielort, Enter legt an.
+      // Muster wie startRename. parentRel '' = Root-Tree.
+      function inlineCreate(projectId, parentRel, kind) {
+        const container = parentRel === ''
+          ? document.getElementById('files-tree')
+          : (() => {
+              const dirRow = [...document.querySelectorAll('.file-row[data-type="dir"]')]
+                .find(r => r.dataset.path === parentRel);
+              const c = dirRow && dirRow.nextElementSibling;
+              return (c && c.classList.contains('file-children')) ? c : document.getElementById('files-tree');
+            })();
+        if (!container) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'file-create-row';
+        // Inline-<svg> → die --vscode-ctp-* Tokens lösen auf + retinten pro Flavor.
+        const iconEl = document.createElement('span');
+        iconEl.className = 'icon-img file-icon';
+        if (window.fileIconSvg) iconEl.innerHTML = window.fileIconSvg('x', kind === 'folder');
+        const input = document.createElement('input');
+        input.className = 'rename-input';
+        input.placeholder = kind === 'folder' ? t('filebrowser.create.folderPlaceholder') : t('filebrowser.create.filePlaceholder');
+        wrap.appendChild(iconEl);
+        wrap.appendChild(input);
+        container.prepend(wrap);
+        input.focus();
+        let settled = false;
+        const cancel = () => { if (settled) return; settled = true; wrap.remove(); };
+        const commit = async () => {
+          if (settled) return;
+          const name = input.value.trim();
+          if (!name) { cancel(); return; }
+          settled = true;
+          const url = kind === 'folder'
+            ? `/api/projects/${projectId}/files/mkdir`
+            : `/api/projects/${projectId}/files/new`;
+          const res = await authedFetch(url, { method: 'POST', body: { path: parentRel, name } });
+          wrap.remove();
+          if (!res.ok) {
+            notify(t(kind === 'folder' ? 'filebrowser.toast.createFailed' : 'filebrowser.toast.createFileFailed'), 'error');
+            return;
+          }
+          const refreshBtn = document.getElementById('files-refresh');
+          if (refreshBtn) refreshBtn.click();
+        };
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+          if (ev.key === 'Escape') { ev.preventDefault(); cancel(); }
         });
-        if (!res.ok) {
-          notify(t('filebrowser.toast.createFailed'), 'error');
-          return;
-        }
-        const refreshBtn = document.getElementById('files-refresh');
-        if (refreshBtn) refreshBtn.click();
+        input.addEventListener('blur', () => setTimeout(cancel, 100));
       }
+      function mkdirPrompt(projectId, parentRel = '') { inlineCreate(projectId, parentRel, 'folder'); }
+      function newFilePrompt(projectId, parentRel = '') { inlineCreate(projectId, parentRel, 'file'); }
 
-      return { openRowContextMenu, mkdirPrompt };
+      return { openRowContextMenu, mkdirPrompt, newFilePrompt, deleteRows };
     })();
 
     window.FileActions = FileActions;

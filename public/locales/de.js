@@ -132,6 +132,11 @@ window.__I18N_BUNDLES.de = {
   // Touch bar
   'terminal.touchBar.aria': 'Virtuelle Tasten',
 
+  // Generic dialogs
+  'dialog.confirm': 'Bestätigen',
+  'dialog.cancel': 'Abbrechen',
+  'dialog.ok': 'OK',
+
   // File browser toolbar
   'filebrowser.toolbar.newFolder': '+ Ordner',
   'filebrowser.toolbar.newFolderTitle': 'Neuer Ordner',
@@ -139,6 +144,8 @@ window.__I18N_BUNDLES.de = {
   'filebrowser.toolbar.uploadTitle': 'Datei hochladen',
   'filebrowser.toolbar.refreshTitle': 'Neu laden',
   'filebrowser.toolbar.closeTitle': 'Schließen',
+  'filebrowser.toolbar.newFileTitle': 'Neue Datei',
+  'filebrowser.toolbar.filterTitle': 'Filter',
 
   // File browser tree
   'filebrowser.tree.loading': 'Lädt…',
@@ -152,19 +159,41 @@ window.__I18N_BUNDLES.de = {
   'filebrowser.context.rename': 'Umbenennen',
   'filebrowser.context.copyTo': 'Kopieren nach…',
   'filebrowser.context.moveTo': 'Verschieben nach…',
-  'filebrowser.context.moveToTrash': 'In Papierkorb',
+  'filebrowser.context.moveToTrash': 'In den Papierkorb',
   'filebrowser.context.copyPath': 'Pfad kopieren',
+  'filebrowser.context.newFile': 'Neue Datei',
+  'filebrowser.context.select': 'Auswählen',
+
+  // File browser delete dialog
+  'filebrowser.delete.titleOne': '„{name}" in den Papierkorb verschieben?',
+  'filebrowser.delete.titleMany': '{n} Elemente in den Papierkorb verschieben?',
+  'filebrowser.delete.body': 'Elemente lassen sich über den macOS-Papierkorb im Finder wiederherstellen.',
+  'filebrowser.delete.confirm': 'In den Papierkorb',
+  'filebrowser.delete.toast': 'In den Papierkorb verschoben',
 
   // File browser prompts & toasts
   'filebrowser.prompt.copy': 'Kopieren nach',
   'filebrowser.prompt.move': 'Verschieben nach',
   'filebrowser.prompt.targetPath': '{label} (relativer Zielpfad):',
+  'filebrowser.prompt.targetLabel': 'Relativer Zielpfad',
+  'filebrowser.prompt.required': 'Pfad eingeben',
+  'filebrowser.prompt.samePath': 'Anderen Pfad wählen',
   'filebrowser.prompt.newFolder': 'Neuer Ordner:',
+  'filebrowser.create.folderPlaceholder': 'Ordnername…',
+  'filebrowser.create.filePlaceholder': 'Dateiname…',
+  'filebrowser.sel.count': '{n} ausgewählt',
+  'filebrowser.sel.trash': 'Papierkorb',
+  'filebrowser.sel.move': 'Verschieben',
+  'filebrowser.sel.clear': 'Aufheben',
+  'filebrowser.search.placeholder': 'Geladene Dateien filtern…',
+  'filebrowser.filter.hideIgnored': 'Ignorierte ausblenden',
+  'filebrowser.filter.showHidden': 'Versteckte anzeigen',
   'filebrowser.toast.renameFailed': 'Umbenennen fehlgeschlagen',
   'filebrowser.toast.deleteFailed': 'Löschen fehlgeschlagen',
   'filebrowser.toast.copyFailed': 'Kopieren fehlgeschlagen',
   'filebrowser.toast.moveFailed': 'Verschieben fehlgeschlagen',
   'filebrowser.toast.createFailed': 'Anlegen fehlgeschlagen',
+  'filebrowser.toast.createFileFailed': 'Datei konnte nicht erstellt werden',
   'filebrowser.toast.cannotCreateFolder': 'Ordner erstellen nicht verfügbar',
 
   // File preview modal

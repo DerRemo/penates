@@ -28,6 +28,7 @@ import {
   listDir as filesListDir,
   readFile as filesReadFile,
   mkdir as filesMkdir,
+  createEmptyFile as filesCreateEmptyFile,
   renameOrMove as filesRenameOrMove,
   copy as filesCopy,
   deleteToTrash as filesDeleteToTrash,
@@ -50,7 +51,7 @@ import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
-import { parseStatusV2, getDiff } from './lib/git-diff.js';
+import { parseStatusV2, getDiff, gitStatusMap } from './lib/git-diff.js';
 import { captureScrollback } from './lib/scrollback.js';
 import { saveSessionImage } from './lib/session-images.js';
 import { isPreviewHost, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
@@ -971,6 +972,16 @@ app.post('/api/projects/:id/files/mkdir', async (req, res) => {
   } catch (e) { handleFileError(res, e); }
 });
 
+app.post('/api/projects/:id/files/new', async (req, res) => {
+  try {
+    const project = await resolveFileSource(req.params.id);
+    if (!project) return res.status(404).json({ error: 'not-found' });
+    const { path: parent, name } = req.body || {};
+    const result = await filesCreateEmptyFile(project.path, String(parent || ''), String(name || ''));
+    res.json(result);
+  } catch (e) { handleFileError(res, e); }
+});
+
 app.patch('/api/projects/:id/files', async (req, res) => {
   try {
     const project = await resolveFileSource(req.params.id);
@@ -1001,6 +1012,15 @@ app.get('/api/projects/:id/files/download', async (req, res) => {
     if (!project) return res.status(404).json({ error: 'not-found' });
     const rel = typeof req.query.path === 'string' ? req.query.path : '';
     filesStreamToResponse(project.path, rel, res);
+  } catch (e) { handleFileError(res, e); }
+});
+
+app.get('/api/projects/:id/files/git', async (req, res) => {
+  try {
+    const project = await resolveFileSource(req.params.id);
+    if (!project) return res.status(404).json({ error: 'not-found' });
+    // null wenn kein Repo → Frontend zeigt einfach keine Marker.
+    res.json({ files: gitStatusMap(project.path) || {} });
   } catch (e) { handleFileError(res, e); }
 });
 

@@ -132,6 +132,11 @@ window.__I18N_BUNDLES.en = {
   // Touch bar
   'terminal.touchBar.aria': 'Virtual Keys',
 
+  // Generic dialogs
+  'dialog.confirm': 'Confirm',
+  'dialog.cancel': 'Cancel',
+  'dialog.ok': 'OK',
+
   // File browser toolbar
   'filebrowser.toolbar.newFolder': '+ Folder',
   'filebrowser.toolbar.newFolderTitle': 'New Folder',
@@ -139,6 +144,8 @@ window.__I18N_BUNDLES.en = {
   'filebrowser.toolbar.uploadTitle': 'Upload File',
   'filebrowser.toolbar.refreshTitle': 'Refresh',
   'filebrowser.toolbar.closeTitle': 'Close',
+  'filebrowser.toolbar.newFileTitle': 'New File',
+  'filebrowser.toolbar.filterTitle': 'Filter',
 
   // File browser tree
   'filebrowser.tree.loading': 'Loading…',
@@ -154,17 +161,39 @@ window.__I18N_BUNDLES.en = {
   'filebrowser.context.moveTo': 'Move to…',
   'filebrowser.context.moveToTrash': 'Move to Trash',
   'filebrowser.context.copyPath': 'Copy Path',
+  'filebrowser.context.newFile': 'New File',
+  'filebrowser.context.select': 'Select',
+
+  // File browser delete dialog
+  'filebrowser.delete.titleOne': 'Move "{name}" to Trash?',
+  'filebrowser.delete.titleMany': 'Move {n} items to Trash?',
+  'filebrowser.delete.body': 'You can restore items from the macOS Trash via Finder.',
+  'filebrowser.delete.confirm': 'Move to Trash',
+  'filebrowser.delete.toast': 'Moved to Trash',
 
   // File browser prompts & toasts
   'filebrowser.prompt.copy': 'Copy to',
   'filebrowser.prompt.move': 'Move to',
   'filebrowser.prompt.targetPath': '{label} (relative target path):',
+  'filebrowser.prompt.targetLabel': 'Relative target path',
+  'filebrowser.prompt.required': 'Enter a path',
+  'filebrowser.prompt.samePath': 'Choose a different path',
   'filebrowser.prompt.newFolder': 'New Folder:',
+  'filebrowser.create.folderPlaceholder': 'Folder name…',
+  'filebrowser.create.filePlaceholder': 'File name…',
+  'filebrowser.sel.count': '{n} selected',
+  'filebrowser.sel.trash': 'Trash',
+  'filebrowser.sel.move': 'Move',
+  'filebrowser.sel.clear': 'Clear',
+  'filebrowser.search.placeholder': 'Filter loaded files…',
+  'filebrowser.filter.hideIgnored': 'Hide ignored',
+  'filebrowser.filter.showHidden': 'Show hidden',
   'filebrowser.toast.renameFailed': 'Rename failed',
   'filebrowser.toast.deleteFailed': 'Delete failed',
   'filebrowser.toast.copyFailed': 'Copy failed',
   'filebrowser.toast.moveFailed': 'Move failed',
   'filebrowser.toast.createFailed': 'Create failed',
+  'filebrowser.toast.createFileFailed': 'Could not create file',
   'filebrowser.toast.cannotCreateFolder': 'Cannot create folder',
 
   // File preview modal
