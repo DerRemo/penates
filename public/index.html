@@ -3864,6 +3864,59 @@
     .changes-group-label { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
     .changes-empty { padding: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
 
+    /* ── History-Tab: lineare Commit-Timeline ─────────────────────── */
+    .history-list { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) 0; }
+    .history-commit {
+      display: flex; gap: var(--space-3); padding: var(--space-2) var(--space-3);
+      cursor: pointer; position: relative;
+    }
+    .history-commit:hover { background: var(--bg-elevated); }
+    /* Verbindungslinie + Dot (Timeline-Rail links). */
+    .history-commit .hc-rail { position: relative; flex: 0 0 12px; }
+    .history-commit .hc-rail::before {
+      content: ""; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; background: var(--border);
+    }
+    .history-commit:first-child .hc-rail::before { top: 10px; }
+    .history-commit:last-child .hc-rail::before { bottom: calc(100% - 10px); }
+    .history-commit .hc-dot {
+      position: absolute; left: 1px; top: 6px; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--text-muted); box-shadow: 0 0 0 2px var(--bg-surface);
+    }
+    .history-commit .hc-main { flex: 1; min-width: 0; }
+    .history-commit .hc-line1 { display: flex; align-items: center; gap: var(--space-2); }
+    .history-commit .hc-type {
+      font-size: var(--text-xs); font-family: var(--font-mono); padding: 0 6px; border-radius: var(--radius-sm);
+      background: var(--bg-elevated); flex-shrink: 0;
+    }
+    .history-commit .hc-subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: var(--text-sm); }
+    .history-commit .hc-ref {
+      font-size: var(--text-xs); font-family: var(--font-mono); padding: 0 6px; border-radius: var(--radius-sm);
+      background: var(--accent-muted); color: var(--accent); flex-shrink: 0;
+    }
+    .history-commit .hc-line2 { display: flex; gap: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+    .history-commit .hc-sha { font-family: var(--font-mono); }
+    .history-more {
+      margin: var(--space-2) auto; padding: var(--space-1) var(--space-3); display: block;
+      background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--text-secondary); font-size: var(--text-xs); cursor: pointer;
+    }
+    .history-more[hidden] { display: none; }
+    .history-empty { padding: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+
+    /* ── Branches-Tab: LOCAL / REMOTE (read-only) ─────────────────── */
+    .branches-list { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) 0; }
+    .branches-group-label { padding: var(--space-2) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+    .branch-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
+    .branch-row .br-icon { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+    .branch-row .br-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); color: var(--text-primary); }
+    .branch-row.current .br-name { color: var(--accent); font-weight: 600; }
+    .branch-row .br-current { font-size: var(--text-xs); color: var(--accent); background: var(--accent-muted); border-radius: var(--radius-sm); padding: 0 6px; flex-shrink: 0; }
+    .branch-row .br-upstream { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
+    .branch-row .br-ab { font-size: var(--text-xs); font-family: var(--font-mono); white-space: nowrap; }
+    .branch-row .br-ahead { color: var(--green); }
+    .branch-row .br-behind { color: var(--orange); }
+    .branches-empty { padding: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+
     /* ── Diff View ─────────────────────────────────────────────── */
     /* Diff-Panel: rechts gedockt, gespiegelt zum Preview-Panel (mutually exclusive). */
     .diff-panel {
@@ -4238,6 +4291,9 @@
     window.fileIcon = _fileIcon;
     // Inline-SVG-Markup — die --vscode-ctp-* Tokens lösen auf → retintet pro Flavor.
     window.fileIconSvg = _fileIconSvg;
+    import { commitTypeColor as _commitTypeColor, commitType as _commitType } from './commit-type.js';
+    window.commitTypeColor = _commitTypeColor;
+    window.commitType = _commitType;
     import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
   </script>
   <script>
@@ -12312,6 +12368,104 @@
                setHeader, currentSession, isOpen };
     })();
     window.RepoPanel = RepoPanel;
+
+    // ── RepoHistory ───────────────────────────────────────────────
+    // Lädt /git/log und rendert eine lineare Timeline. Paginiert via skip.
+    // Tap auf einen Commit → RepoPanel.Changes zeigt ihn (showCommitSource).
+    const RepoHistory = (() => {
+      const el = (id) => document.getElementById(id);
+      const LIMIT = 50;
+      let sessionName = null, loadedOnce = false, loading = false, count = 0, hasMore = false;
+
+      // Grobe relative Zeit (kein i18n-Plural-Aufwand; Tokens reichen).
+      function relTime(iso) {
+        const then = new Date(iso).getTime();
+        if (!then) return '';
+        const s = Math.max(0, (Date.now() - then) / 1000);
+        if (s < 60) return `${Math.floor(s)}s`;
+        if (s < 3600) return `${Math.floor(s / 60)}m`;
+        if (s < 86400) return `${Math.floor(s / 3600)}h`;
+        if (s < 2592000) return `${Math.floor(s / 86400)}d`;
+        return new Date(iso).toLocaleDateString();
+      }
+
+      function rowHtml(c) {
+        const type = (window.commitType && window.commitType(c.subject)) || '';
+        const color = (window.commitTypeColor && window.commitTypeColor(c.subject)) || null;
+        const typeBadge = type ? `<span class="hc-type" style="color:var(${color || '--text-muted'})">${escapeHtml(type)}</span>` : '';
+        const dotStyle = color ? ` style="background:var(${color})"` : '';
+        const refs = (c.refs || []).map(r => `<span class="hc-ref">${escapeHtml(r)}</span>`).join('');
+        return `<div class="history-commit" role="button" tabindex="0" data-sha="${escapeHtml(c.sha)}" data-subject="${escapeHtml(c.subject)}">
+          <span class="hc-rail"><span class="hc-dot"${dotStyle}></span></span>
+          <span class="hc-main">
+            <span class="hc-line1">${typeBadge}<span class="hc-subject" title="${escapeHtml(c.subject)}">${escapeHtml(c.subject)}</span>${refs}</span>
+            <span class="hc-line2"><span class="hc-sha">${escapeHtml(c.shortSha)}</span><span>${escapeHtml(c.authorName)}</span><span>${relTime(c.isoDate)}</span></span>
+          </span>
+        </div>`;
+      }
+
+      async function fetchPage(skip) {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(sessionName)}/git/log?limit=${LIMIT}&skip=${skip}`, {
+          headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      }
+
+      async function load(name) {
+        if (name) sessionName = name;
+        if (!sessionName) return;
+        if (loadedOnce && name === sessionName) return; // idempotent beim Tab-Reentry
+        loadedOnce = true; count = 0;
+        const list = el('history-list');
+        list.innerHTML = '';
+        el('history-more').hidden = true;
+        if (loading) return;
+        loading = true;
+        try {
+          const data = await fetchPage(0);
+          const commits = data.commits || [];
+          if (!commits.length) { list.innerHTML = `<div class="history-empty">${t('repo.history.empty')}</div>`; hasMore = false; return; }
+          list.insertAdjacentHTML('beforeend', commits.map(rowHtml).join(''));
+          count = commits.length; hasMore = !!data.hasMore;
+          el('history-more').hidden = !hasMore;
+          wireRows();
+        } catch (e) {
+          list.innerHTML = `<div class="history-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
+        } finally { loading = false; }
+      }
+
+      async function loadMore() {
+        if (loading || !hasMore) return;
+        loading = true;
+        try {
+          const data = await fetchPage(count);
+          const commits = data.commits || [];
+          el('history-list').insertAdjacentHTML('beforeend', commits.map(rowHtml).join(''));
+          count += commits.length; hasMore = !!data.hasMore;
+          el('history-more').hidden = !hasMore;
+          wireRows();
+        } catch {} finally { loading = false; }
+      }
+
+      function wireRows() {
+        el('history-list').querySelectorAll('.history-commit:not([data-wired])').forEach(row => {
+          row.setAttribute('data-wired', '1');
+          row.addEventListener('click', () => {
+            const sha = row.getAttribute('data-sha');
+            const subject = row.getAttribute('data-subject');
+            try { window.RepoPanel?.selectTab?.('changes'); } catch {}
+            try { window.DiffView?.showCommitSource?.(sha, subject); } catch {}
+          });
+        });
+      }
+
+      function _cleanup() { loadedOnce = false; sessionName = null; count = 0; hasMore = false; }
+
+      el('history-more')?.addEventListener('click', loadMore);
+      return { load, loadMore, _cleanup };
+    })();
+    window.RepoHistory = RepoHistory;
 
     // ── Diff View (Task 6): clickable git badge → diff2html, live refresh ──
     const DiffView = (() => {
