@@ -7780,17 +7780,63 @@
           });
         }
 
+      // Robust clipboard copy. navigator.clipboard.writeText() rejects in some
+      // browsers (notably Firefox, even over HTTPS with a real user gesture),
+      // which surfaced as a bogus "Copy failed" toast even though copying was
+      // expected to work. execCommand('copy') runs synchronously inside the
+      // keydown gesture and works in Firefox + non-secure contexts; we only
+      // toast when BOTH paths fail. The temp textarea is off-screen and the
+      // xterm selection highlight is its own (not the DOM selection), so this
+      // doesn't disturb the terminal; we restore focus afterwards.
+      function copyToClipboard(text) {
+        let ok = false;
+        const active = document.activeElement;
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+          document.body.appendChild(ta);
+          ta.select();
+          ok = document.execCommand('copy');
+          ta.remove();
+        } catch { ok = false; }
+        try { if (active && active.focus) active.focus({ preventScroll: true }); } catch {}
+        if (ok) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(() => showToast(t('toast.copyFailed'), 'error'));
+        } else {
+          showToast(t('toast.copyFailed'), 'error');
+        }
+      }
+
       // Cmd/Ctrl+C copies the xterm selection (xterm never does this itself).
       // CRITICAL: only intercept when a selection exists — otherwise Ctrl+C
       // must pass through as SIGINT or the terminal becomes unusable.
       term.attachCustomKeyEventHandler((ev) => {
         if (ev.type !== 'keydown') return true;
+        // Ctrl+V (without meta/shift/alt): let the browser's NATIVE paste fire.
+        // xterm otherwise converts Ctrl+<letter> to a C0 control char — Ctrl+V
+        // → ^V (0x16) — and cancels the event, which suppresses the native
+        // paste. The inner TUI then receives ^V (claude reads that as "paste
+        // image", hence the "no image in clipboard" message) and the text is
+        // never inserted. Returning false makes xterm bail BEFORE preventDefault
+        // (see keyDown: `customKeyEventHandler(e)===false → return false`), so the
+        // browser pastes: text → xterm's textarea paste listener (bracketed),
+        // image → our capture 'paste' handler → ImageAnnotator. This is also the
+        // only path that works in Firefox, which blocks navigator.clipboard
+        // .readText() for web pages. Cmd+V (metaKey) already pastes natively and
+        // is untouched; Ctrl+Shift+V (shiftKey) keeps its existing behavior.
+        if (ev.ctrlKey && !ev.metaKey && !ev.shiftKey && !ev.altKey
+            && (ev.key === 'v' || ev.key === 'V')) {
+          return false;
+        }
         const isCopy = (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey
           && (ev.key === 'c' || ev.key === 'C');
         if (!isCopy || !term.hasSelection()) return true;
         const text = term.getSelection();
         if (!text) return true;
-        navigator.clipboard.writeText(text).catch(() => showToast(t('toast.copyFailed'), 'error'));
+        copyToClipboard(text);
         return false;
       });
 
