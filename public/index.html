@@ -2436,6 +2436,14 @@
       min-width: 0;
     }
 
+    /* Back-Button: auf Desktop (pointer:fine) ausgeblendet — die persistente
+       Sidebar bietet "Dashboard" (setView('dashboard') → disconnectTerminal()),
+       also kein Funktionsverlust. Auf Touch (pointer:coarse) ist der globale
+       Header in der Terminal-View versteckt (siehe @media (pointer:coarse)
+       weiter unten), daher ist der Back-Button dort der einzige Ausgang →
+       wird unten wieder eingeblendet. */
+    #disconnect-btn { display: none; }
+
     .terminal-container {
       flex: 1;
       position: relative;
@@ -2532,6 +2540,9 @@
       body[data-current-view="terminal"] .terminal-toolbar {
         padding-top: max(var(--space-3), env(safe-area-inset-top));
       }
+      /* Auf Touch ist der globale Header (inkl. Hamburger) in der Terminal-
+         View versteckt → der Back-Button ist der einzige Weg zurück. */
+      body[data-current-view="terminal"] #disconnect-btn { display: inline-flex; }
     }
 
     .touch-key {
@@ -3155,6 +3166,11 @@
     .conn-status[data-state="connecting"] { color: var(--orange); background: var(--orange-dim); }
     .conn-status[data-state="connecting"] .dot { animation: pulse 1s ease infinite; }
     .conn-status[data-state="disconnected"] { color: var(--red); background: var(--red-dim); }
+    /* Verbindungs-Status leise: im Normalbetrieb (connected) unsichtbar.
+       Punkt+Text erscheinen nur bei connecting (gelb, Puls) / disconnected
+       (rot) / Reconnect (connecting mit Reconnect-Label). setConnStatus-Logik
+       bleibt unverändert — wir setzen weiter data-state. */
+    .conn-status[data-state="connected"] { display: none; }
 
     /* ── D4: Keyboard-Shortcut Help Overlay ─────────────────────────── */
     .kbd-help-overlay {
