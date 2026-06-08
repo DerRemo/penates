@@ -121,4 +121,28 @@ test.describe('Terminal-View redesign', () => {
     const tip = await page.locator('.terminal-name-group').getAttribute('data-tooltip');
     expect(tip && tip.length).toBeTruthy();
   });
+
+  test('double-click renames the session inline', async ({ authedPage: page }) => {
+    const name = `e2e-tname-${Date.now()}`;
+    const newName = `e2e-tname2-${Date.now()}`;
+    const token = await page.evaluate(() => localStorage.getItem('cchub_token'));
+    await page.request.post('/api/sessions', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { name, directory: '/tmp', command: 'bash --noprofile --norc' },
+    });
+    try {
+      await navigateToSession(page, `cc-${name}`);
+      await waitForTerminal(page);
+      await page.locator('#terminal-session-name').dblclick();
+      const input = page.locator('.terminal-name-group .rename-input');
+      await expect(input).toBeVisible();
+      await input.fill(newName);
+      await input.press('Enter');
+      await expect(page.locator('#terminal-session-name')).toHaveText(newName, { timeout: 10_000 });
+    } finally {
+      // unter beiden möglichen Namen aufräumen
+      await page.request.delete(`/api/sessions/cc-${encodeURIComponent(newName)}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      await page.request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+    }
+  });
 });

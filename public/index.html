@@ -2537,6 +2537,19 @@
     }
     #terminal-cli-logo { color: var(--text-secondary); }
 
+    /* Inline-Rename des Session-Namens (Doppelklick, Task 11). */
+    .terminal-session-name.editing { display: none; }
+    .terminal-name-group .rename-input {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      color: var(--text-primary);
+      background: var(--bg-elevated);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 2px 6px;
+      min-width: 80px;
+    }
+
     .terminal-session-name {
       font-family: var(--font-mono);
       font-weight: 600;
@@ -8228,6 +8241,70 @@
       });
     }
 
+    // ── Inline-Rename des Session-Namens (Doppelklick) ───────────
+    // Modelliert nach startRename (Filebrowser), spricht aber den Sessions-
+    // Endpoint PATCH /api/sessions/:name {newName}. Der Server hängt den
+    // cc-Prefix selbst an und liefert den neuen prefixed Namen zurück; wir
+    // ziehen currentSessionName nach, damit der WS-Reconnect-Loop weiter
+    // den richtigen tmux-Namen nutzt.
+    function startTerminalRename() {
+      const nameEl = document.getElementById('terminal-session-name');
+      if (!nameEl || !currentSessionName) return;
+      if (nameEl.classList.contains('editing')) return;
+      const fullName = currentSessionName;            // inkl. cc-Prefix
+      const oldDisplay = fullName.replace(/^cc-/, ''); // angezeigter Name
+      const input = document.createElement('input');
+      input.className = 'rename-input';
+      input.value = oldDisplay;
+      nameEl.classList.add('editing');
+      nameEl.after(input);
+      input.focus();
+      input.select();
+      let settled = false;
+      const cancel = () => {
+        if (settled) return;
+        settled = true;
+        input.remove();
+        nameEl.classList.remove('editing');
+      };
+      const commit = async () => {
+        if (settled) return;
+        const newDisplay = input.value.trim();
+        // Name-Whitelist serverseitig: ^[\w\-. ]{1,64}$. Leerer/identischer
+        // Name → abbrechen ohne Request.
+        if (!newDisplay || newDisplay === oldDisplay) { cancel(); return; }
+        settled = true;
+        try {
+          const res = await fetch(`/api/sessions/${encodeURIComponent(fullName)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', ...apiHeaders() },
+            body: JSON.stringify({ newName: newDisplay }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();          // { success, name: 'cc-<new>' }
+          const newFull = data.name || ('cc-' + newDisplay);
+          // KRITISCH: currentSessionName auf den neuen prefixed Namen ziehen,
+          // damit der Reconnect-Loop (wsUrl(currentSessionName)) weiter greift.
+          currentSessionName = newFull;
+          window.currentSessionName = newFull;
+          nameEl.textContent = newFull.replace(/^cc-/, '');
+          input.remove();
+          nameEl.classList.remove('editing');
+          showToast(t('toast.sessionRenamed', { name: newDisplay }), 'success');
+          refreshSessions();
+        } catch {
+          settled = false;
+          showToast(t('toast.renameFailed'), 'error');
+          cancel();
+        }
+      };
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+        if (ev.key === 'Escape') { ev.preventDefault(); cancel(); }
+      });
+      input.addEventListener('blur', () => setTimeout(cancel, 100));
+    }
+
     // ── Connection-Status-UI ─────────────────────────────────────
     function setConnStatus(state, label) {
       const el = document.getElementById('conn-status');
@@ -9341,6 +9418,7 @@
     // Teardown (disconnectTerminal). Kein Direkt-Aufruf von disconnectTerminal
     // hier, damit die History-Integration konsistent bleibt.
     document.getElementById('disconnect-btn').addEventListener('click', () => setView('dashboard'));
+    document.getElementById('terminal-session-name').addEventListener('dblclick', startTerminalRename);
     document.getElementById('btn-toggle-search').addEventListener('click', () => window.TerminalSearch && window.TerminalSearch.toggle());
     document.getElementById('project-back-btn').addEventListener('click', () => setView('dashboard'));
     document.getElementById('project-new-session-btn').addEventListener('click', (e) => {
