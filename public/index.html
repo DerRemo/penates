@@ -3515,8 +3515,29 @@
       user-select: none;
       -webkit-touch-callout: none;
     }
-    .file-row:hover { background: rgba(255,255,255,.04); }
+    .file-row:hover { background: var(--bg-elevated); }
     .file-row.drop-target { outline: 1px solid var(--accent); background: var(--accent-muted); }
+    /* Multi-Select: Akzent-Tint + linke Akzent-Kante. */
+    .file-row.selected { background: var(--accent-muted); box-shadow: inset 2px 0 0 var(--accent); }
+    /* Hover-Checkbox (Desktop) bzw. immer sichtbar im Touch-Select-Mode. */
+    .file-row .sel-check {
+      width: 14px; height: 14px; flex-shrink: 0; margin-right: 2px;
+      border: 1px solid var(--border); border-radius: 3px;
+      display: none; align-items: center; justify-content: center;
+      color: var(--accent-contrast); background: transparent; font-size: 10px; line-height: 1;
+    }
+    .file-row:hover .sel-check,
+    .files-tree.select-mode .file-row .sel-check { display: inline-flex; }
+    .file-row.selected .sel-check { background: var(--accent); border-color: var(--accent); }
+    /* Selektions-Aktionsleiste am Panel-Fuß. */
+    .files-selbar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2); border-top: 1px solid var(--border);
+      background: var(--bg-surface); flex-shrink: 0;
+    }
+    .files-selbar[hidden] { display: none; }
+    .files-selbar__count { font-size: var(--text-xs); color: var(--text-secondary); }
+    .files-selbar__spacer { flex: 1; }
     .file-row[data-type="dir"]::before {
       content: "▸";
       display: inline-block;
@@ -4410,6 +4431,13 @@
           <button id="files-close" title="Close" data-i18n-attr="title:filebrowser.toolbar.closeTitle">×</button>
         </div>
         <div class="files-tree" id="files-tree"></div>
+        <div class="files-selbar" id="files-selbar" hidden>
+          <span class="files-selbar__count" id="files-selbar-count"></span>
+          <span class="files-selbar__spacer"></span>
+          <button class="btn btn-danger btn-sm" type="button" id="files-sel-trash"></button>
+          <button class="btn btn-ghost btn-sm" type="button" id="files-sel-move"></button>
+          <button class="btn btn-ghost btn-sm" type="button" id="files-sel-clear"></button>
+        </div>
       </aside>
       <div class="preview-resizer" id="preview-resizer" style="display:none"></div>
       <aside class="preview-panel" id="preview-panel">
@@ -10465,6 +10493,68 @@
       let wsBackoff = 500;
       const seenSeq = new Map(); // projectId → max seq
 
+      // ── Multi-Select-State ───────────────────────────────────────
+      const selected = new Set();        // relPaths
+      let selectMode = false;            // Touch: Tap toggelt statt öffnet
+      let lastClickedPath = null;        // Anker für Shift+Range
+
+      function visibleRows() {
+        return [...document.querySelectorAll('#files-tree .file-row')];
+      }
+      function applySelClass(row) {
+        row.classList.toggle('selected', selected.has(row.dataset.path));
+      }
+      function updateSelbar() {
+        const bar = document.getElementById('files-selbar');
+        if (!bar) return;
+        if (selected.size === 0) { bar.hidden = true; return; }
+        bar.hidden = false;
+        document.getElementById('files-selbar-count').textContent =
+          t('filebrowser.sel.count', { n: selected.size });
+      }
+      function setSelected(path, on) {
+        if (on) selected.add(path); else selected.delete(path);
+        const row = visibleRows().find(r => r.dataset.path === path);
+        if (row) applySelClass(row);
+        updateSelbar();
+      }
+      function clearSelection() {
+        selected.clear();
+        selectMode = false;
+        document.getElementById('files-tree')?.classList.remove('select-mode');
+        visibleRows().forEach(applySelClass);
+        updateSelbar();
+      }
+      function toggleRow(path) { setSelected(path, !selected.has(path)); lastClickedPath = path; }
+      function selectRange(toPath) {
+        const rows = visibleRows();
+        const from = rows.findIndex(r => r.dataset.path === lastClickedPath);
+        const to = rows.findIndex(r => r.dataset.path === toPath);
+        if (from === -1 || to === -1) { toggleRow(toPath); return; }
+        const [a, b] = from < to ? [from, to] : [to, from];
+        for (let i = a; i <= b; i++) selected.add(rows[i].dataset.path);
+        rows.forEach(applySelClass);
+        updateSelbar();
+      }
+      function enterSelectMode(row) {
+        selectMode = true;
+        document.getElementById('files-tree')?.classList.add('select-mode');
+        if (row) toggleRow(row.dataset.path);
+      }
+      // rows für FileActions.deleteRows: aktuelle Selektion, sonst die geklickte.
+      function selectedRows(fallbackRow) {
+        if (selected.size === 0) return fallbackRow ? [fallbackRow] : [];
+        const set = new Set(selected);
+        return visibleRows().filter(r => set.has(r.dataset.path));
+      }
+      // Nach Tree-Refresh: verschwundene Pfade aus der Selektion werfen.
+      function pruneSelection() {
+        const live = new Set(visibleRows().map(r => r.dataset.path));
+        for (const p of [...selected]) if (!live.has(p)) selected.delete(p);
+        visibleRows().forEach(applySelClass);
+        updateSelbar();
+      }
+
       function loadOpenFolders(id) {
         openFolders.clear();
         try {
@@ -10505,6 +10595,10 @@
           e.dataTransfer.effectAllowed = 'copy';
         });
 
+        const check = document.createElement('span');
+        check.className = 'sel-check';
+        check.textContent = '✓';
+
         const icon = document.createElement('span');
         icon.className = 'icon';
         // Geteilter fileIcon-Helper (Catppuccin, vendored). Fallback auf das
@@ -10521,11 +10615,21 @@
         label.textContent = entry.name;
         label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0';
 
+        btn.appendChild(check);
         btn.appendChild(icon);
         btn.appendChild(label);
-        // Single click opens files (preview) or toggles folders — works on
-        // touch too, where dblclick never fires. onRowClick handles both.
-        btn.addEventListener('click', () => onRowClick(btn, entry));
+        // Checkbox togglet IMMER (auch ohne Modifier). Klick auf die Zeile:
+        // mit Cmd/Ctrl toggeln, mit Shift Range, im Select-Mode toggeln,
+        // sonst normales onRowClick (öffnen / auf-zu).
+        check.addEventListener('click', (e) => { e.stopPropagation(); toggleRow(btn.dataset.path); });
+        btn.addEventListener('click', (e) => {
+          if (e.metaKey || e.ctrlKey) { e.preventDefault(); toggleRow(btn.dataset.path); return; }
+          if (e.shiftKey) { e.preventDefault(); selectRange(btn.dataset.path); return; }
+          if (selectMode) { e.preventDefault(); toggleRow(btn.dataset.path); return; }
+          lastClickedPath = btn.dataset.path;
+          onRowClick(btn, entry);
+        });
+        applySelClass(btn);
         return btn;
       }
 
@@ -10596,6 +10700,10 @@
         document.getElementById('files-sidebar').classList.add('open');
         document.getElementById('files-resizer').style.display = '';
         document.getElementById('files-breadcrumb').textContent = '/';
+        document.getElementById('files-sel-trash').textContent = t('filebrowser.sel.trash');
+        document.getElementById('files-sel-move').textContent = t('filebrowser.sel.move');
+        document.getElementById('files-sel-clear').textContent = t('filebrowser.sel.clear');
+        clearSelection();
 
         // Restore saved width
         const savedWidth = localStorage.getItem(WIDTH_KEY);
@@ -10624,6 +10732,7 @@
               if (match) expandFolder(match, savedPath);
             }
           }
+          pruneSelection();
         } catch (e) {
           tree.innerHTML = `<div style="padding:8px;color:var(--red,#f88)">${e.message}</div>`;
         }
@@ -10688,6 +10797,32 @@
             inp.click();
           });
         }
+
+        // Selektions-Aktionsleiste.
+        document.getElementById('files-sel-trash')?.addEventListener('click', () => {
+          if (window.FileActions && currentProject) {
+            window.FileActions.deleteRows(currentProject.id, selectedRows());
+          }
+        });
+        document.getElementById('files-sel-move')?.addEventListener('click', () => {
+          // Move für die Selektion: einfacher Zielordner-Prompt pro Datei wäre
+          // laut, daher v1 = Move des ersten Eintrags (Bulk-Move → Backlog).
+          const rows = selectedRows();
+          if (rows.length && window.FileActions && currentProject) {
+            window.FileActions.openRowContextMenu(currentProject.id, rows[0],
+              { preventDefault() {}, clientX: 0, clientY: 0 });
+          }
+        });
+        document.getElementById('files-sel-clear')?.addEventListener('click', clearSelection);
+
+        // Entf/Backspace löscht die Selektion (oder die fokussierte Zeile).
+        document.getElementById('files-tree')?.addEventListener('keydown', (e) => {
+          if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+          const rows = selected.size ? selectedRows() : (document.activeElement?.classList?.contains('file-row') ? [document.activeElement] : []);
+          if (!rows.length) return;
+          e.preventDefault();
+          if (window.FileActions && currentProject) window.FileActions.deleteRows(currentProject.id, rows);
+        });
       }
 
       function wireResizer() {
@@ -10838,6 +10973,7 @@
               expandFolder(row, row.dataset.path);
             }
           }
+          pruneSelection();
         } catch (e) {
           console.warn('[FileBrowser] refreshContainer failed', e);
         }
@@ -10902,7 +11038,8 @@
         wireTreeDnD();
       });
 
-      return { open, close, toggle, activateForSession, wireButtons, wireResizer, wireTreeDnD };
+      return { open, close, toggle, activateForSession, wireButtons, wireResizer, wireTreeDnD,
+               clearSelection, selectedRows, enterSelectMode, selectMode: () => selectMode };
     })();
 
     // ── Browser-Preview: Split-Panel rechts vom Terminal (Reverse-Proxy-iframe) ──

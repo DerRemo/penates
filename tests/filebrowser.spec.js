@@ -269,6 +269,22 @@ test.describe('Filebrowser', () => {
     await expect(page.locator('#files-upload-picker')).toBeVisible();
   });
 
+  test('cmd/ctrl-click multi-selects and shows the action bar', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const rows = page.locator('#files-tree .file-row');
+    if (await rows.count() < 2) { test.skip(true, 'need >=2 rows'); return; }
+    const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await rows.nth(0).click({ modifiers: [mod] });
+    await rows.nth(1).click({ modifiers: [mod] });
+    await expect(page.locator('.file-row.selected')).toHaveCount(2);
+    await expect(page.locator('#files-selbar')).toBeVisible();
+    await expect(page.locator('#files-selbar-count')).toContainText(/2/);
+    await page.locator('#files-sel-clear').click();
+    await expect(page.locator('#files-selbar')).toBeHidden();
+  });
+
   test('file rows use Catppuccin icon images (no emoji)', async ({ authedPage: page }) => {
     const toggleBtn = page.locator('#btn-toggle-files');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
