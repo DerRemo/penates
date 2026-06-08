@@ -3602,7 +3602,7 @@
       .files-resizer { display: none; }
     }
 
-    /* ── Browser-Preview Panel (Split rechts vom Terminal) ─────────── */
+    /* ── Preview-Panel: eingebettete Browser-Chrome (Calm-Card) ───── */
     .preview-panel {
       flex: 0 0 var(--preview-width, 420px);
       min-width: 0;
@@ -3614,61 +3614,97 @@
       overflow: hidden;
     }
     .preview-panel.open { display: flex; }
-    .preview-toolbar {
-      display: flex; gap: 6px; align-items: center;
-      padding: 6px 8px; border-bottom: 1px solid var(--border);
+
+    /* Chrome-Zeile: [reload] [address] [open-tab] [close] */
+    .preview-chrome {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2); border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
-    .preview-toolbar select, .preview-toolbar input, .preview-toolbar button {
-      background: var(--bg-elevated, #16181d); color: var(--text-primary, #e5e7eb);
-      border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
-      font: inherit; min-height: 32px; cursor: pointer;
+    /* Icon-Buttons reuse .btn.btn-ghost.btn-sm → hier quadratisch (wie Terminal-Toolbar). */
+    .preview-chrome .btn {
+      width: 32px; height: 32px; padding: 0; gap: 0;
+      border-color: transparent; color: var(--text-secondary); flex-shrink: 0;
     }
-    .preview-toolbar button:hover { border-color: var(--accent, #2dd4bf); }
-    /* Port-Combobox: ein Eingabefeld + Chevron, der eine themengetreue Liste öffnet. */
-    .preview-toolbar .preview-port-combo { position: relative; flex: 1 1 auto; display: flex; }
-    .preview-toolbar .preview-port-combo .preview-port-input {
-      flex: 1 1 auto; width: 100%; padding-right: 28px; cursor: text;
+    .preview-chrome .btn:hover {
+      background: var(--bg-elevated); color: var(--text-primary); border-color: transparent;
     }
-    .preview-toolbar .preview-port-toggle {
-      position: absolute; right: 1px; top: 1px; bottom: 1px; width: 26px; min-height: 0;
-      border: 0; background: transparent; color: var(--text-muted, #9aa0ab);
-      display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer;
-      border-radius: 0 6px 6px 0;
+    .preview-chrome .btn svg { width: 15px; height: 15px; }
+
+    /* Adressleiste: Pille mit :port-Feld, Prozess-Chip, Chevron. */
+    .preview-address {
+      position: relative; flex: 1 1 auto; min-width: 0;
+      display: flex; align-items: center; gap: var(--space-1);
+      height: 32px; padding: 0 4px 0 var(--space-2);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border); border-radius: var(--radius-md);
     }
-    .preview-toolbar .preview-port-combo:focus-within .preview-port-input { border-color: var(--accent, #2dd4bf); }
-    .preview-toolbar .preview-port-combo:focus-within .preview-port-toggle,
-    .preview-toolbar .preview-port-toggle:hover { color: var(--accent, #2dd4bf); }
+    .preview-address:focus-within { border-color: var(--accent); }
+    .preview-address__scheme {
+      flex-shrink: 0; user-select: none;
+      color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-sm);
+    }
+    /* :-Prefix nur zeigen, wenn ein Port im Feld steht (sonst nur Placeholder). */
+    .preview-address:has(.preview-port-input:placeholder-shown) .preview-address__scheme { display: none; }
+    .preview-port-input {
+      flex: 1 1 auto; min-width: 0; width: 100%; height: 100%; padding: 0;
+      background: transparent; border: 0; outline: none;
+      color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-sm);
+    }
+    .preview-port-input::placeholder { color: var(--text-muted); font-family: var(--font-ui); }
+    .preview-address__proc {
+      flex-shrink: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      padding: 2px var(--space-2); border-radius: var(--radius-sm);
+      background: var(--bg-surface); color: var(--text-muted);
+      font-family: var(--font-ui); font-size: var(--text-xs);
+    }
+    .preview-address__proc[hidden] { display: none; }
+    .preview-port-toggle {
+      flex-shrink: 0; width: 22px; height: 22px; padding: 0; border: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm);
+    }
+    .preview-address:focus-within .preview-port-toggle,
+    .preview-port-toggle:hover { color: var(--accent); }
+
+    /* Port-Dropdown */
     .preview-port-list {
-      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
-      margin: 0; padding: 4px; list-style: none; max-height: 220px; overflow: auto;
-      background: var(--bg-elevated, #16181d); border: 1px solid var(--border, #2a2d35);
-      border-radius: 8px; box-shadow: 0 10px 28px rgba(0,0,0,.5);
+      position: absolute; top: calc(100% + var(--space-1)); left: 0; right: 0; z-index: 5;
+      margin: 0; padding: var(--space-1); list-style: none; max-height: 220px; overflow: auto;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: var(--radius-md); box-shadow: var(--shadow-card);
     }
     .preview-port-list[hidden] { display: none; }
     .preview-port-list li {
-      padding: 7px 10px; border-radius: 6px; cursor: pointer; display: flex; gap: 8px; align-items: baseline;
+      padding: var(--space-2); border-radius: var(--radius-sm); cursor: pointer;
+      display: flex; gap: var(--space-2); align-items: baseline;
     }
-    .preview-port-list li .pp-port { color: var(--accent, #2dd4bf); font-weight: 600; font-family: var(--font-mono, "JetBrains Mono", monospace); }
-    .preview-port-list li .pp-proc { color: var(--text-muted, #9aa0ab); font-size: .85em; }
-    .preview-port-list li:hover, .preview-port-list li.active { background: rgba(45,212,191,.13); }
-    .preview-port-list .pp-empty { padding: 7px 10px; color: var(--text-muted, #9aa0ab); font-size: .85em; }
+    .preview-port-list li .pp-port { color: var(--accent); font-weight: 600; font-family: var(--font-mono); }
+    .preview-port-list li .pp-proc { color: var(--text-muted); font-size: var(--text-xs); }
+    .preview-port-list li:hover, .preview-port-list li.active { background: var(--accent-soft); }
+    .preview-port-list .pp-empty { padding: var(--space-2); color: var(--text-muted); font-size: var(--text-xs); }
+
+    /* Body + iframe + overlay */
     .preview-body { position: relative; flex: 1; min-height: 0; }
     .preview-body #preview-iframe {
       width: 100%; height: 100%; border: 0; background: #fff; display: block;
     }
     .preview-overlay {
       position: absolute; inset: 0; display: none;
-      align-items: center; justify-content: center; text-align: center;
-      padding: 1.5rem; color: var(--text-muted, #9aa0ab);
-      background: var(--bg-surface); font-size: 0.92rem; line-height: 1.5;
+      align-items: center; justify-content: center; background: var(--bg-surface);
     }
     .preview-overlay.show { display: flex; }
+    /* Panel-scoped empty-state: kompakter als der 80px-Default des globalen .empty-state. */
+    .preview-overlay .empty-state { padding: var(--space-5) var(--space-4); max-width: 320px; }
+    .preview-overlay .empty-state-icon { width: 48px; height: 48px; margin: 0 auto var(--space-3); }
+    .preview-overlay .empty-state .preview-state-action { margin-top: var(--space-3); }
+
     .preview-resizer {
-      flex: 0 0 4px; background: transparent; cursor: col-resize; transition: background 150ms;
+      flex: 0 0 6px; background: transparent; cursor: col-resize; transition: background 150ms;
     }
     .preview-resizer:hover, .preview-resizer.dragging { background: var(--accent); }
     @media (pointer: coarse) {
-      .preview-panel.open { position: fixed; inset: 0; z-index: 91; flex: 1; }
+      .preview-panel.open { position: fixed; inset: 0; z-index: 91; flex: 1; border-radius: 0; }
       .preview-resizer { display: none; }
     }
 
@@ -4703,20 +4739,28 @@
       </aside>
       <div class="preview-resizer" id="preview-resizer" style="display:none"></div>
       <aside class="preview-panel" id="preview-panel">
-        <div class="preview-toolbar">
-          <div class="preview-port-combo" id="preview-port-combo">
+        <div class="preview-chrome">
+          <button id="preview-reload" class="btn btn-ghost btn-sm" type="button" data-tooltip="Reload" title="Reload" aria-label="Reload" data-i18n-attr="data-tooltip:preview.header.reload;title:preview.header.reload;aria-label:preview.header.reload">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          </button>
+          <div class="preview-address" id="preview-port-combo">
+            <span class="preview-address__scheme" aria-hidden="true">:</span>
             <input id="preview-port-input" class="preview-port-input" type="text" inputmode="numeric"
                    role="combobox" aria-expanded="false" aria-controls="preview-port-list" aria-autocomplete="list"
                    autocomplete="off" spellcheck="false"
                    data-i18n-attr="placeholder:preview.header.portPlaceholder" placeholder="Port…" />
+            <span class="preview-address__proc" id="preview-proc-chip" hidden></span>
             <button id="preview-port-toggle" class="preview-port-toggle" type="button" tabindex="-1" aria-label="Ports" data-i18n-attr="aria-label:preview.header.ports">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <ul id="preview-port-list" class="preview-port-list" role="listbox" hidden></ul>
           </div>
-          <button id="preview-reload" title="Reload" data-i18n-attr="title:preview.header.reload">⟳</button>
-          <button id="preview-open-tab" title="Open in new tab" data-i18n-attr="title:preview.header.openTab">↗</button>
-          <button id="preview-close" title="Close" data-i18n-attr="title:preview.header.close">×</button>
+          <button id="preview-open-tab" class="btn btn-ghost btn-sm" type="button" data-tooltip="Open in new tab" title="Open in new tab" aria-label="Open in new tab" data-i18n-attr="data-tooltip:preview.header.openTab;title:preview.header.openTab;aria-label:preview.header.openTab">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+          </button>
+          <button id="preview-close" class="btn btn-ghost btn-sm" type="button" data-tooltip="Close" title="Close" aria-label="Close" data-i18n-attr="data-tooltip:preview.header.close;title:preview.header.close;aria-label:preview.header.close">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>
+          </button>
         </div>
         <div class="preview-body" id="preview-body">
           <div class="preview-overlay" id="preview-overlay"></div>
@@ -11460,11 +11504,75 @@
 
       const el = (id) => document.getElementById(id);
 
-      function setOverlay(text) {
+      function clearOverlay() {
         const ov = el('preview-overlay');
-        if (!text) { ov.classList.remove('show'); ov.textContent = ''; return; }
-        ov.textContent = text;
+        ov.classList.remove('show');
+        ov.innerHTML = '';
+      }
+
+      // Calm empty-/error-state: icon + heading + subtext (+ optional action button).
+      function showState({ title, body, actionLabel, onAction }) {
+        const ov = el('preview-overlay');
+        ov.innerHTML = '';
+        const wrap = document.createElement('div');
+        wrap.className = 'empty-state';
+        const icon = document.createElement('div');
+        icon.className = 'empty-state-icon';
+        icon.innerHTML = '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M2 9h20"/><circle cx="5.5" cy="6.5" r=".6" fill="currentColor"/></svg>';
+        const h = document.createElement('h3');
+        h.textContent = title;
+        const p = document.createElement('p');
+        p.textContent = body;
+        wrap.append(icon, h, p);
+        if (actionLabel && onAction) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-ghost btn-sm preview-state-action';
+          btn.textContent = actionLabel;
+          btn.addEventListener('click', onAction);
+          wrap.appendChild(btn);
+        }
+        ov.appendChild(wrap);
         ov.classList.add('show');
+      }
+
+      // State helpers (one per overlay situation).
+      function stateNotConfigured() {
+        showState({ title: t('preview.state.notConfiguredTitle'), body: t('preview.empty.notConfigured') });
+      }
+      function stateChoosePort() {
+        showState({
+          title: t('preview.state.choosePortTitle'),
+          body: t('preview.empty.choosePort'),
+          actionLabel: t('preview.action.choosePort'),
+          onAction: () => { el('preview-port-input').focus(); openList(); },
+        });
+      }
+      function stateNoPorts() {
+        showState({
+          title: t('preview.state.noPortsTitle'),
+          body: t('preview.empty.noPorts'),
+          actionLabel: t('preview.action.rescan'),
+          onAction: async () => { await fetchPorts(); renderPortList(); if (ports.length) stateChoosePort(); },
+        });
+      }
+      function stateNoServer(port) {
+        showState({
+          title: t('preview.state.noServerTitle').replace('{n}', port),
+          body: t('preview.error.noServer').replace('{n}', port),
+          actionLabel: t('preview.action.rescan'),
+          onAction: async () => { await fetchPorts(); renderPortList(); loadPort(selectedPort()); },
+        });
+      }
+
+      // Process chip: show the active port's process (from the already-fetched ports[]).
+      function updateProcessChip() {
+        const chip = el('preview-proc-chip');
+        if (!chip) return;
+        const p = selectedPort();
+        const match = p ? ports.find((x) => x.port === p) : null;
+        if (match && match.process) { chip.textContent = match.process; chip.hidden = false; }
+        else { chip.textContent = ''; chip.hidden = true; }
       }
 
       // Single source of truth: das Eingabefeld der Combobox.
@@ -11483,16 +11591,17 @@
       // Preview-Host stecken soll (POST /select), dann das iframe auf den Host laden.
       async function loadPort(port) {
         if (!config || !config.enabled || !config.host) return;
-        if (!port) { setOverlay(t('preview.empty.choosePort')); el('preview-iframe').src = 'about:blank'; return; }
+        updateProcessChip();
+        if (!port) { stateChoosePort(); el('preview-iframe').src = 'about:blank'; return; }
         try {
           const r = await fetch('/api/preview/select', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
             body: JSON.stringify({ port }),
           });
-          if (!r.ok) { setOverlay(t('preview.error.noServer').replace('{n}', port)); return; }
-        } catch { setOverlay(t('preview.error.noServer').replace('{n}', port)); return; }
-        setOverlay(null);
+          if (!r.ok) { stateNoServer(port); return; }
+        } catch { stateNoServer(port); return; }
+        clearOverlay();
         el('preview-iframe').src = iframeUrl(port);
         try { localStorage.setItem(portKey(sessionName), String(port)); } catch {}
       }
@@ -11598,12 +11707,13 @@
 
       async function refresh() {
         await fetchConfig();
-        if (!config.enabled) { setOverlay(t('preview.empty.notConfigured')); el('preview-iframe').src = 'about:blank'; return; }
+        if (!config.enabled) { stateNotConfigured(); el('preview-iframe').src = 'about:blank'; return; }
         await fetchPorts();
         renderPortList();
         const last = (() => { try { return localStorage.getItem(portKey(sessionName)); } catch { return null; } })();
-        if (last && /^\d+$/.test(last)) { el('preview-port-input').value = last; loadPort(parseInt(last, 10)); }
-        else setOverlay(t('preview.empty.choosePort'));
+        if (last && /^\d+$/.test(last)) { el('preview-port-input').value = last; updateProcessChip(); loadPort(parseInt(last, 10)); }
+        else if (!ports.length) stateNoPorts();
+        else stateChoosePort();
       }
 
       function toggle() {
@@ -11653,7 +11763,7 @@
           if (listOpen()) { closeList(); } else { input.focus(); openList(); }
         });
         input.addEventListener('focus', openList);                // Focus → alle Ports
-        input.addEventListener('input', filterList);              // Tippen → filtern
+        input.addEventListener('input', () => { filterList(); updateProcessChip(); });  // Tippen → filtern + Chip
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
