@@ -2456,8 +2456,8 @@
       flex-shrink: 0;
     }
     /* Git-Dot: ausstehende Änderungen in der Session-cwd. ~7px, --orange,
-       oben-rechts am Diff-Icon, mit Container-farbenem Ring zum Absetzen. */
-    #btn-toggle-diff[data-dirty="true"]::after {
+       oben-rechts am Repo-Icon, mit Container-farbenem Ring zum Absetzen. */
+    #btn-toggle-repo[data-dirty="true"]::after {
       content: "";
       position: absolute;
       top: 5px;
@@ -4510,14 +4510,11 @@
         </span>
       </div>
       <div class="terminal-toolbar-right">
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-files" type="button" style="display:none" data-tooltip="Files" aria-label="Show files" title="Show files" data-i18n-attr="aria-label:terminal.toolbar.filesAria;title:terminal.toolbar.filesTitle">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-repo" type="button" style="display:none" data-tooltip="Repo" aria-label="Repo" title="Repo" data-i18n-attr="data-tooltip:repo.toggle;aria-label:repo.toggleAria;title:repo.toggleAria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
         </button>
         <button class="btn btn-ghost btn-sm" id="btn-toggle-preview" type="button" style="display:none" data-tooltip="Preview" aria-label="Toggle preview" title="Toggle preview" data-i18n-attr="aria-label:preview.toggleAria;title:preview.toggleAria">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        </button>
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-diff" type="button" style="display:none" data-tooltip="Diff" aria-label="Toggle diff" title="Toggle diff" data-i18n-attr="aria-label:diff.toggleAria;title:diff.toggleAria">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
         </button>
         <span class="terminal-toolbar-divider" aria-hidden="true"></span>
         <button class="btn btn-ghost btn-sm" id="image-picker-btn" type="button" data-tooltip="Insert image" aria-label="Insert image" title="Insert image" data-i18n-attr="aria-label:imagePaste.pickerTitle;title:imagePaste.pickerTitle">
@@ -5371,9 +5368,9 @@
       if (!VALID_VIEWS.has(name)) name = 'dashboard';
       const { fromPopstate = false, sessionName = null, projectId = null } = opts;
       const prev = currentView;
-      // Diff ist jetzt ein rechtes Panel in der Terminal-View → WS trennen,
-      // sobald die Terminal-View verlassen wird.
-      if (prev === 'terminal' && name !== 'terminal') { try { DiffView._cleanup(); } catch {} }
+      // Repo-Panel (Changes/History/Branches) ist ein rechtes Panel in der
+      // Terminal-View → beim Verlassen alles abräumen (WS trennen etc.).
+      if (prev === 'terminal' && name !== 'terminal') { try { window.RepoPanel?.cleanup?.(); } catch {} }
       currentView = name;
       document.body.setAttribute('data-current-view', name);
       // Sidebar-Markierung nachziehen — beim Session-Wechsel und bei
@@ -8135,10 +8132,9 @@
       // Folge-Refresh. Session-Info für den Match kommt aus dem bereits
       // geladenen sessions-Array.
       updateIdeaCaptureButton(name);
-      // v0.6.0: Filebrowser-Button einblenden und Sidebar-State wiederherstellen
-      if (window.FileBrowser) window.FileBrowser.activateForSession(name);
+      // Repo-Panel (Files+Changes+History+Branches) + Preview einblenden.
+      if (window.RepoPanel) window.RepoPanel.activateForSession(name);
       if (window.PreviewPanel) window.PreviewPanel.activateForSession(name);
-      if (window.DiffView) window.DiffView.activateForSession(name);
       if (window.TerminalGitDot) window.TerminalGitDot.connect(name);
       if (window.VoiceInput) window.VoiceInput.refreshConfig();
       hideIdeaPrompt();
@@ -8765,15 +8761,11 @@
       window.currentSessionName = null;
       sendPresence();
       setCtrlSticky(false);
-      // v0.6.0: Sidebar schließen + Toggle-Button verbergen beim Verlassen der Terminal-View
-      if (window.FileBrowser) window.FileBrowser.close();
+      // Repo-Panel abräumen (schließt Files+Changes+History+Branches, versteckt Toggle).
+      if (window.RepoPanel) window.RepoPanel.cleanup();
       if (window.TerminalSearch) window.TerminalSearch.close();
       if (window.TerminalGitDot) window.TerminalGitDot.disconnect();
       _lastRemoteCopyToast = 0;
-      const _ftBtn = document.getElementById('btn-toggle-files');
-      if (_ftBtn) _ftBtn.style.display = 'none';
-      const _dfBtn = document.getElementById('btn-toggle-diff');
-      if (_dfBtn) _dfBtn.style.display = 'none';
     }
 
     // ── Recovery / Adoption ──────────────────────────────────────
@@ -10966,15 +10958,11 @@
       }
 
       async function open(project) {
-        // Files + Preview + Diff sind gegenseitig exklusiv — nie zwei offen.
-        try { window.PreviewPanel?.close?.(); } catch {}
-        try { window.DiffView?.close?.(); } catch {}
+        // Panel-Sichtbarkeit besitzt RepoPanel; hier nur Tree rendern.
         currentProject = project;
         window.__currentProjectForFiles = project;
         window.currentProjectId = project.id; // used by FileActions (Task 11)
         sidebarOpen = true;
-        document.getElementById('files-sidebar').classList.add('open');
-        document.getElementById('files-resizer').style.display = '';
         renderBreadcrumb();
         document.getElementById('files-sel-trash').textContent = t('filebrowser.sel.trash');
         document.getElementById('files-sel-move').textContent = t('filebrowser.sel.move');
@@ -11044,9 +11032,7 @@
         currentProject = null; // ensure reconnect loop bails
         sidebarOpen = false;
         window.currentProjectId = null;
-        document.getElementById('files-sidebar').classList.remove('open');
-        document.getElementById('files-resizer').style.display = 'none';
-        if (persist) { try { localStorage.setItem(openKey(stateSession), '0'); } catch {} }
+        // Panel-Sichtbarkeit besitzt RepoPanel; hier nur internen State räumen.
       }
 
       function toggle(project) {
@@ -11063,11 +11049,6 @@
             if (!currentProject) return;
             await fetchGitMap();
             renderRoot();
-          });
-
-        document.getElementById('btn-toggle-files')
-          ?.addEventListener('click', () => {
-            toggle(window.__currentProjectForFiles || currentProject);
           });
 
         // mkdir — wired to FileActions (Task 11)
@@ -11207,10 +11188,10 @@
       // Quelle ist ein registriertes Projekt ODER (Fallback) die Session selbst
       // (Pseudo-id `session:<name>`, cwd serverseitig live aufgelöst), damit der
       // Picker für JEDE Session funktioniert — nicht nur projekt-gebundene.
+      // Von RepoPanel.open aufgerufen: Quelle bestimmen + Tree in #files-tree
+      // rendern. Panel-Sichtbarkeit besitzt RepoPanel (Tab-Logik).
       function activateForSession(sessionName) {
         const session = Array.isArray(sessions) ? sessions.find(s => s.name === sessionName) : null;
-        const toggleBtn = document.getElementById('btn-toggle-files');
-        if (!toggleBtn) return;
         const match = (session && Array.isArray(projectsCache))
           ? findMatchingProject(session.path, projectsCache)
           : null;
@@ -11225,18 +11206,13 @@
             ensureProjectsLoaded().then(() => activateForSession(sessionName));
           }
         }
-        toggleBtn.style.display = '';
         window.__currentProjectForFiles = source;
         stateSession = sessionName;
-        // If sidebar was open for a different source, tear it down (no persist —
-        // keep the previous session's remembered state intact)
-        if (sidebarOpen && currentProject && currentProject.id !== source.id) {
+        // Bei Quell-Wechsel den alten Tree-State abräumen, dann neu rendern.
+        if (currentProject && currentProject.id !== source.id) {
           close(false);
         }
-        // Restore THIS session's remembered open state
-        const wasOpen = localStorage.getItem(openKey(sessionName)) === '1';
-        if (wasOpen && !sidebarOpen) open(window.__currentProjectForFiles);
-        else if (!wasOpen && sidebarOpen) close(false);
+        open(source);
       }
 
       // ── WS live-sync helpers ─────────────────────────────────────
@@ -12555,9 +12531,8 @@
     // FileBrowser/PreviewPanel/DiffView einzugreifen.
     (function () {
       const PAIRS = [
-        ['btn-toggle-files', 'files-sidebar'],
+        ['btn-toggle-repo', 'repo-panel'],
         ['btn-toggle-preview', 'preview-panel'],
-        ['btn-toggle-diff', 'diff-panel'],
       ];
       function sync() {
         for (const [btnId, panelId] of PAIRS) {
@@ -12585,7 +12560,7 @@
       let ws = null, refetchTimer = null, sessionName = null;
 
       function setDirty(v) {
-        const btn = document.getElementById('btn-toggle-diff');
+        const btn = document.getElementById('btn-toggle-repo');
         if (btn) btn.setAttribute('data-dirty', v ? 'true' : 'false');
       }
 
