@@ -764,46 +764,6 @@
       .header { gap: var(--space-2); padding-left: max(var(--space-3), env(safe-area-inset-left)); padding-right: max(var(--space-3), env(safe-area-inset-right)); }
     }
 
-    /* ── Terminal-Header (neu, in .terminal-view) ───────────────── */
-    .terminal-header {
-      display: flex;
-      align-items: center;
-      gap: var(--space-3);
-      padding: var(--space-3) var(--space-4);
-      background: var(--bg-surface);
-      border-bottom: 1px solid var(--border-subtle);
-      min-height: 48px;
-      flex-wrap: wrap;
-    }
-    .terminal-header__meta {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      flex: 1;
-      min-width: 0;
-    }
-    .terminal-header__name {
-      font-family: var(--font-mono);
-      font-weight: 600;
-      font-size: var(--text-md);
-      color: var(--accent);
-      white-space: nowrap;
-    }
-    .terminal-header__path {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .terminal-header__actions {
-      display: flex;
-      gap: var(--space-2);
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
     /* ── View Container ───────────────────────────────────────────── */
     .container {
       position: relative;
