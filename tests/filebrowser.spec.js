@@ -269,6 +269,15 @@ test.describe('Filebrowser', () => {
     await expect(page.locator('#files-upload-picker')).toBeVisible();
   });
 
+  test('breadcrumb shows the panel root name', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const bc = page.locator('#files-breadcrumb');
+    await expect(bc).not.toHaveText('/');
+    await expect(bc.locator('.bc-root')).toBeVisible();
+  });
+
   test('fuzzy search filters loaded rows and highlights matches', async ({ authedPage: page }) => {
     const toggleBtn = page.locator('#btn-toggle-files');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }

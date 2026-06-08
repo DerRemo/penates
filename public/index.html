@@ -3478,6 +3478,9 @@
       font-size: 11px;
       color: var(--text-secondary);
     }
+    .files-toolbar .breadcrumb .bc-seg { cursor: default; }
+    .files-toolbar .breadcrumb .bc-root { cursor: pointer; color: var(--text-secondary); }
+    .files-toolbar .breadcrumb .bc-root:hover { color: var(--accent); }
     /* Icon-only-Toolbar — quadratische Ghost-Buttons, Entdeckbarkeit per Tooltip. */
     .files-toolbar button {
       width: 30px; height: 30px; padding: 0;
@@ -10784,7 +10787,7 @@
         sidebarOpen = true;
         document.getElementById('files-sidebar').classList.add('open');
         document.getElementById('files-resizer').style.display = '';
-        document.getElementById('files-breadcrumb').textContent = '/';
+        renderBreadcrumb();
         document.getElementById('files-sel-trash').textContent = t('filebrowser.sel.trash');
         document.getElementById('files-sel-move').textContent = t('filebrowser.sel.move');
         document.getElementById('files-sel-clear').textContent = t('filebrowser.sel.clear');
@@ -10798,6 +10801,25 @@
         await renderRoot();
         try { localStorage.setItem(openKey(stateSession), '1'); } catch {}
         connectWs(project.id);
+      }
+
+      // Breadcrumb: Panel-Root-Basename, klickbar → kollabiert auf die Wurzel.
+      function renderBreadcrumb() {
+        const bc = document.getElementById('files-breadcrumb');
+        if (!bc) return;
+        const rootName = (currentProject && (currentProject.name || (currentProject.path || '').split('/').filter(Boolean).pop())) || '/';
+        bc.innerHTML = '';
+        const root = document.createElement('span');
+        root.className = 'bc-seg bc-root';
+        root.textContent = rootName;
+        root.title = (currentProject && currentProject.path) || '';
+        root.addEventListener('click', () => {
+          // Alle offenen Ordner zuklappen → reiner Wurzel-Tree.
+          openFolders.clear();
+          saveOpenFolders(currentProject.id);
+          renderRoot();
+        });
+        bc.appendChild(root);
       }
 
       async function renderRoot() {
