@@ -12,7 +12,7 @@ test.describe('Settings & Preferences', () => {
     );
     const newThemeValue = initialTheme === 'mocha' ? 'latte' : 'mocha';
 
-    await page.locator(`#settings-appearance [data-theme-value="${newThemeValue}"]`).click();
+    await page.locator(`#sec-appearance [data-theme-value="${newThemeValue}"]`).click();
     await page.waitForTimeout(300);
     const newTheme = await page.evaluate(() =>
       document.documentElement.getAttribute('data-theme')
@@ -20,7 +20,7 @@ test.describe('Settings & Preferences', () => {
     expect(newTheme).toBe(newThemeValue);
 
     // Toggle back
-    await page.locator(`#settings-appearance [data-theme-value="${initialTheme}"]`).click();
+    await page.locator(`#sec-appearance [data-theme-value="${initialTheme}"]`).click();
     await page.waitForTimeout(300);
     const restored = await page.evaluate(() =>
       document.documentElement.getAttribute('data-theme')
@@ -37,7 +37,7 @@ test.describe('Settings & Preferences', () => {
     );
     const targetTheme = initialTheme === 'mocha' ? 'latte' : 'mocha';
 
-    await page.locator(`#settings-appearance [data-theme-value="${targetTheme}"]`).click();
+    await page.locator(`#sec-appearance [data-theme-value="${targetTheme}"]`).click();
     await page.waitForTimeout(300);
 
     await page.reload();
@@ -51,7 +51,7 @@ test.describe('Settings & Preferences', () => {
     // Restore original
     await page.click('#sidebar-settings-entry');
     await page.waitForSelector('body[data-current-view="settings"]', { timeout: 10_000 });
-    await page.locator(`#settings-appearance [data-theme-value="${initialTheme}"]`).click();
+    await page.locator(`#sec-appearance [data-theme-value="${initialTheme}"]`).click();
     await page.waitForTimeout(300);
   });
 
@@ -157,14 +157,15 @@ test.describe('Settings & Preferences', () => {
 // ── v0.7.1: Settings page ─────────────────────────────────────────────────
 
 test.describe('Settings page', () => {
-  test('sidebar entry opens settings page with all five sections', async ({ authedPage: page }) => {
+  test('sidebar entry opens settings page with all sections', async ({ authedPage: page }) => {
     await page.locator('#sidebar-settings-entry').click();
     await expect(page.locator('#settings-view')).toBeVisible();
-    await expect(page.getByRole('heading', { name: /appearance/i })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /language/i })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /notifications/i })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /help/i })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /about/i })).toBeVisible();
+    // Section labels are .settings-seclabel divs (not <h*> headings). Assert each
+    // real section renders. (Language is folded into Appearance — no own section.)
+    for (const id of ['sec-appearance', 'sec-terminal', 'sec-notifications',
+                      'sec-behavior', 'sec-server', 'sec-account', 'sec-help']) {
+      await expect(page.locator(`#${id}`)).toBeVisible();
+    }
   });
 
   test('theme toggle switches data-theme attribute', async ({ authedPage: page }) => {
@@ -172,13 +173,13 @@ test.describe('Settings page', () => {
     await page.waitForSelector('body[data-current-view="settings"]', { timeout: 10_000 });
 
     const html = page.locator('html');
-    await page.locator('#settings-appearance [data-theme-value="latte"]').click();
+    await page.locator('#sec-appearance [data-theme-value="latte"]').click();
     await expect(html).toHaveAttribute('data-theme', 'latte');
-    await page.locator('#settings-appearance [data-theme-value="mocha"]').click();
+    await page.locator('#sec-appearance [data-theme-value="mocha"]').click();
     await expect(html).toHaveAttribute('data-theme', 'mocha');
-    await page.locator('#settings-appearance [data-theme-value="frappe"]').click();
+    await page.locator('#sec-appearance [data-theme-value="frappe"]').click();
     await expect(html).toHaveAttribute('data-theme', 'frappe');
-    await page.locator('#settings-appearance [data-theme-value="macchiato"]').click();
+    await page.locator('#sec-appearance [data-theme-value="macchiato"]').click();
     await expect(html).toHaveAttribute('data-theme', 'macchiato');
   });
 
@@ -186,7 +187,7 @@ test.describe('Settings page', () => {
     await page.locator('#sidebar-settings-entry').click();
     await page.waitForSelector('body[data-current-view="settings"]', { timeout: 10_000 });
 
-    await page.locator('#settings-language [data-lang-value="de"]').click();
+    await page.locator('#sec-appearance [data-lang-value="de"]').click();
     // location.reload() is called — wait for page to finish loading
     await page.waitForLoadState('load');
     await page.waitForSelector('body[data-current-view]', { timeout: 10_000 });
@@ -196,7 +197,7 @@ test.describe('Settings page', () => {
     // Flip back to English
     await page.locator('#sidebar-settings-entry').click();
     await page.waitForSelector('body[data-current-view="settings"]', { timeout: 10_000 });
-    await page.locator('#settings-language [data-lang-value="en"]').click();
+    await page.locator('#sec-appearance [data-lang-value="en"]').click();
     await page.waitForLoadState('load');
     await page.waitForSelector('body[data-current-view]', { timeout: 10_000 });
     await expect(page.locator('#sidebar-settings-entry')).toContainText(/Settings/i);
