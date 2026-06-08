@@ -7770,15 +7770,17 @@
         term.loadAddon(new UnicodeGraphemesAddon.UnicodeGraphemesAddon());
       } catch { /* Unicode-Addon nicht verfügbar → eingebaute Breiten-Tabellen */ }
         window._fitAddon = fitAddon;  // for live font-size changes from Settings
-        // Bell (pref): brief visual flash on the terminal element.
-        if (window.Prefs && window.Prefs.get.termBell()) {
-          term.onBell(() => {
-            const elx = term.element;
-            if (!elx) return;
-            elx.classList.add('term-bell-flash');
-            setTimeout(() => elx.classList.remove('term-bell-flash'), 160);
-          });
-        }
+        // Bell (pref): brief visual flash on the terminal element. Handler is
+        // ALWAYS attached and checks the pref at call time, so toggling "Terminal
+        // bell" in Settings takes effect live on the running terminal — no
+        // reconnect needed.
+        term.onBell(() => {
+          if (!(window.Prefs && window.Prefs.get.termBell())) return;
+          const elx = term.element;
+          if (!elx) return;
+          elx.classList.add('term-bell-flash');
+          setTimeout(() => elx.classList.remove('term-bell-flash'), 160);
+        });
 
       // Robust clipboard copy. navigator.clipboard.writeText() rejects in some
       // browsers (notably Firefox, even over HTTPS with a real user gesture),
@@ -7809,6 +7811,18 @@
           showToast(t('toast.copyFailed'), 'error');
         }
       }
+
+      // Copy-on-select (pref): mirror the xterm selection into the clipboard as
+      // it changes, via the same robust copy path as Cmd/Ctrl+C. Pref is checked
+      // at call time so the Settings toggle takes effect live. Empty selections
+      // (a plain click clearing the highlight) are ignored so we never clobber
+      // the clipboard with "".
+      term.onSelectionChange(() => {
+        if (!(window.Prefs && window.Prefs.get.termCopyOnSelect())) return;
+        if (!term.hasSelection()) return;
+        const sel = term.getSelection();
+        if (sel) copyToClipboard(sel);
+      });
 
       // Cmd/Ctrl+C copies the xterm selection (xterm never does this itself).
       // CRITICAL: only intercept when a selection exists — otherwise Ctrl+C
@@ -9627,7 +9641,17 @@
       const sb = document.getElementById('pref-term-scrollback');
       if (sb) {
         sb.value = String(P.get.termScrollback());
-        sb.addEventListener('change', () => P.setRaw('termScrollback', P.get.termScrollback()));
+        sb.addEventListener('change', () => {
+          // Persist the INPUT's value (not the stored one), then re-read through
+          // the getter so it's clamped to 500..10000. Previously this read the
+          // old stored value back, so the number input never actually took.
+          P.setRaw('termScrollback', sb.value);
+          const v = P.get.termScrollback();
+          sb.value = String(v);
+          // xterm 6 supports live scrollback resizing — apply to the open terminal
+          // instead of waiting for the next (re)connect.
+          if (window.term) window.term.options.scrollback = v;
+        });
       }
       const cursorBtns = Array.from(document.querySelectorAll('#sec-terminal [data-cursor-value]'));
       function syncCursor() {
