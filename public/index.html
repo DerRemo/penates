@@ -2460,6 +2460,59 @@
       flex-shrink: 0;
     }
 
+    /* ── CSS-Tooltips (Extra 1) ───────────────────────────────────
+       Themed Tooltip statt nativem title (das hat ~1s Delay + OS-Look).
+       Nur auf Geräten mit präzisem Pointer (kein Tooltip auf Touch).
+       title bleibt im Markup als A11y-Fallback. Tokens-only. */
+    @media (pointer: fine) {
+      [data-tooltip] { position: relative; }
+      [data-tooltip]::after,
+      [data-tooltip]::before {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 50%;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--dur-fast) var(--ease-out);
+        z-index: 60;
+      }
+      [data-tooltip]::after {
+        content: attr(data-tooltip);
+        transform: translateX(-50%);
+        white-space: nowrap;
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-sm);
+        padding: 4px 8px;
+        font-size: var(--text-xs);
+        font-weight: 500;
+        font-family: var(--font-ui);
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      [data-tooltip]::before {
+        content: "";
+        transform: translateX(-50%) translateY(-3px) rotate(45deg);
+        width: 7px; height: 7px;
+        background: var(--bg-elevated);
+        border-left: 1px solid var(--border);
+        border-top: 1px solid var(--border);
+      }
+      [data-tooltip]:hover::after,
+      [data-tooltip]:focus-visible::after,
+      [data-tooltip]:hover::before,
+      [data-tooltip]:focus-visible::before {
+        opacity: 1;
+        transition-delay: .25s;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      [data-tooltip]::after,
+      [data-tooltip]::before { transition: none; }
+    }
+
     .terminal-session-name {
       font-family: var(--font-mono);
       font-weight: 600;
@@ -4185,7 +4238,7 @@
   <div class="terminal-view" id="terminal-view" data-view="terminal">
     <div class="terminal-toolbar">
       <div class="terminal-toolbar-left">
-        <button class="btn btn-ghost btn-sm" id="disconnect-btn" type="button" aria-label="Back to dashboard" title="Back" data-i18n-attr="aria-label:terminal.toolbar.backAria;title:terminal.toolbar.backTitle">
+        <button class="btn btn-ghost btn-sm" id="disconnect-btn" type="button" data-tooltip="Back" aria-label="Back to dashboard" title="Back" data-i18n-attr="aria-label:terminal.toolbar.backAria;title:terminal.toolbar.backTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         </button>
         <span class="terminal-session-name" id="terminal-session-name"></span>
@@ -4194,27 +4247,27 @@
         </span>
       </div>
       <div class="terminal-toolbar-right">
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-files" type="button" style="display:none" aria-label="Show files" title="Show files" data-i18n-attr="aria-label:terminal.toolbar.filesAria;title:terminal.toolbar.filesTitle">
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-files" type="button" style="display:none" data-tooltip="Files" aria-label="Show files" title="Show files" data-i18n-attr="aria-label:terminal.toolbar.filesAria;title:terminal.toolbar.filesTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </button>
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-preview" type="button" style="display:none" aria-label="Toggle preview" title="Toggle preview" data-i18n-attr="aria-label:preview.toggleAria;title:preview.toggleAria">
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-preview" type="button" style="display:none" data-tooltip="Preview" aria-label="Toggle preview" title="Toggle preview" data-i18n-attr="aria-label:preview.toggleAria;title:preview.toggleAria">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
         </button>
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-diff" type="button" style="display:none" aria-label="Toggle diff" title="Toggle diff" data-i18n-attr="aria-label:diff.toggleAria;title:diff.toggleAria">
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-diff" type="button" style="display:none" data-tooltip="Diff" aria-label="Toggle diff" title="Toggle diff" data-i18n-attr="aria-label:diff.toggleAria;title:diff.toggleAria">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
         </button>
         <span class="terminal-toolbar-divider" aria-hidden="true"></span>
-        <button class="btn btn-ghost btn-sm" id="image-picker-btn" type="button" aria-label="Insert image" title="Insert image" data-i18n-attr="aria-label:imagePaste.pickerTitle;title:imagePaste.pickerTitle">
+        <button class="btn btn-ghost btn-sm" id="image-picker-btn" type="button" data-tooltip="Insert image" aria-label="Insert image" title="Insert image" data-i18n-attr="aria-label:imagePaste.pickerTitle;title:imagePaste.pickerTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         </button>
         <input type="file" id="image-picker-input" accept="image/*" style="display:none" />
-        <button class="btn btn-ghost btn-sm" id="voice-btn" type="button" style="display:none" aria-label="Speak" title="Speak" data-i18n-attr="aria-label:voice.btnTitle;title:voice.btnTitle">
+        <button class="btn btn-ghost btn-sm" id="voice-btn" type="button" style="display:none" data-tooltip="Speak" aria-label="Speak" title="Speak" data-i18n-attr="aria-label:voice.btnTitle;title:voice.btnTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
         </button>
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-search" type="button" aria-label="Search" title="Search" data-i18n-attr="aria-label:terminal.search.toggle;title:terminal.search.toggle">
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-search" type="button" data-tooltip="Search" aria-label="Search" title="Search" data-i18n-attr="aria-label:terminal.search.toggle;title:terminal.search.toggle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
         </button>
-        <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
+        <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden data-tooltip="Capture idea" aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
         </button>
       </div>

@@ -45,4 +45,11 @@ test.describe('Terminal-View redesign', () => {
     await page.waitForSelector('#files-sidebar.open', { timeout: 5_000 });
     await expect(filesBtn).toHaveClass(/is-active/);
   });
+
+  test('toolbar buttons carry data-tooltip', async ({ authedPage: page, hubSession }) => {
+    await navigateToSession(page, hubSession.name);
+    await waitForTerminal(page);
+    await expect(page.locator('#btn-toggle-search')).toHaveAttribute('data-tooltip', 'Search');
+    await expect(page.locator('#image-picker-btn')).toHaveAttribute('data-tooltip', 'Insert image');
+  });
 });
