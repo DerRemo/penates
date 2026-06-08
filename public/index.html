@@ -211,6 +211,16 @@
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
+      /* Catppuccin-Icon-Palette (css-variables-SVGs unter vendor/catppuccin-icons
+         referenzieren var(--vscode-ctp-*)). Pro Flavor gesetzt → Icons retinten
+         sich beim Theme-Wechsel automatisch. Mocha-Werte. */
+      --vscode-ctp-rosewater: #f5e0dc; --vscode-ctp-flamingo: #f2cdcd; --vscode-ctp-pink: #f5c2e7;
+      --vscode-ctp-mauve: #cba6f7; --vscode-ctp-red: #f38ba8; --vscode-ctp-maroon: #eba0ac;
+      --vscode-ctp-peach: #fab387; --vscode-ctp-yellow: #f9e2af; --vscode-ctp-green: #a6e3a1;
+      --vscode-ctp-teal: #94e2d5; --vscode-ctp-sky: #89dceb; --vscode-ctp-sapphire: #74c7ec;
+      --vscode-ctp-blue: #89b4fa; --vscode-ctp-lavender: #b4befe; --vscode-ctp-text: #cdd6f4;
+      --vscode-ctp-subtext1: #bac2de; --vscode-ctp-subtext0: #a6adc8; --vscode-ctp-overlay2: #9399b2;
+      --vscode-ctp-overlay1: #7f849c; --vscode-ctp-overlay0: #6c7086;
     }
 
     /* FRAPPÉ */
@@ -272,6 +282,14 @@
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
+      /* Catppuccin-Icon-Palette — Frappé. */
+      --vscode-ctp-rosewater: #f2d5cf; --vscode-ctp-flamingo: #eebebe; --vscode-ctp-pink: #f4b8e4;
+      --vscode-ctp-mauve: #ca9ee6; --vscode-ctp-red: #e78284; --vscode-ctp-maroon: #ea999c;
+      --vscode-ctp-peach: #ef9f76; --vscode-ctp-yellow: #e5c890; --vscode-ctp-green: #a6d189;
+      --vscode-ctp-teal: #81c8be; --vscode-ctp-sky: #99d1db; --vscode-ctp-sapphire: #85c1dc;
+      --vscode-ctp-blue: #8caaee; --vscode-ctp-lavender: #babbf1; --vscode-ctp-text: #c6d0f5;
+      --vscode-ctp-subtext1: #b5bfe2; --vscode-ctp-subtext0: #a5adce; --vscode-ctp-overlay2: #949cbb;
+      --vscode-ctp-overlay1: #838ba7; --vscode-ctp-overlay0: #737994;
     }
 
     /* MACCHIATO */
@@ -333,6 +351,14 @@
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
+      /* Catppuccin-Icon-Palette — Macchiato. */
+      --vscode-ctp-rosewater: #f4dbd6; --vscode-ctp-flamingo: #f0c6c6; --vscode-ctp-pink: #f5bde6;
+      --vscode-ctp-mauve: #c6a0f6; --vscode-ctp-red: #ed8796; --vscode-ctp-maroon: #ee99a0;
+      --vscode-ctp-peach: #f5a97f; --vscode-ctp-yellow: #eed49f; --vscode-ctp-green: #a6da95;
+      --vscode-ctp-teal: #8bd5ca; --vscode-ctp-sky: #91d7e3; --vscode-ctp-sapphire: #7dc4e4;
+      --vscode-ctp-blue: #8aadf4; --vscode-ctp-lavender: #b7bdf8; --vscode-ctp-text: #cad3f5;
+      --vscode-ctp-subtext1: #b8c0e0; --vscode-ctp-subtext0: #a5adcb; --vscode-ctp-overlay2: #939ab7;
+      --vscode-ctp-overlay1: #8087a2; --vscode-ctp-overlay0: #6e738d;
     }
 
     /* LATTE (Default-Light). Hellstes = Base als raised Card; Page=Mantle,
@@ -395,6 +421,14 @@
       --shadow: var(--shadow-card);
       --shadow-lg: var(--shadow-modal);
       --shadow-overlay: var(--shadow-modal);
+      /* Catppuccin-Icon-Palette — Latte (Default-Flavor). */
+      --vscode-ctp-rosewater: #dc8a78; --vscode-ctp-flamingo: #dd7878; --vscode-ctp-pink: #ea76cb;
+      --vscode-ctp-mauve: #8839ef; --vscode-ctp-red: #d20f39; --vscode-ctp-maroon: #e64553;
+      --vscode-ctp-peach: #fe640b; --vscode-ctp-yellow: #df8e1d; --vscode-ctp-green: #40a02b;
+      --vscode-ctp-teal: #179299; --vscode-ctp-sky: #04a5e5; --vscode-ctp-sapphire: #209fb5;
+      --vscode-ctp-blue: #1e66f5; --vscode-ctp-lavender: #7287fd; --vscode-ctp-text: #4c4f69;
+      --vscode-ctp-subtext1: #5c5f77; --vscode-ctp-subtext0: #6c6f85; --vscode-ctp-overlay2: #7c7f93;
+      --vscode-ctp-overlay1: #8c8fa1; --vscode-ctp-overlay0: #9ca0b0;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2300,11 +2334,13 @@
     }
 
     .tree-icon {
-      display: inline-block;
-      width: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
       font-size: 12px;
       flex-shrink: 0;
-      opacity: 0.8;
     }
 
     .tree-name {
@@ -3491,7 +3527,16 @@
     }
     .file-row[data-type="dir"].expanded::before { content: "▾"; }
     .file-row[data-type="file"]::before { content: ""; display: inline-block; width: 10px; }
-    .file-row .icon { width: 14px; text-align: center; flex-shrink: 0; }
+    /* Catppuccin-Datei-Icon als <img> (css-variables-SVG, retintet per Flavor). */
+    .file-row .icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .file-row .icon img { width: 16px; height: 16px; display: block; }
     .file-children { padding-left: 16px; }
     .files-resizer {
       flex: 0 0 4px;
@@ -4037,6 +4082,12 @@
   </style>
   <script src="/locales/en.js"></script>
   <script src="/locales/de.js"></script>
+  <!-- Geteilte ESM-Module für die Non-Module-IIFEs erreichbar machen (wie clis.js).
+       fileIcon → Datei-Icons (Catppuccin), Fuse → Fuzzy-Filter. -->
+  <script type="module">
+    import { fileIcon as _fileIcon } from './file-icons.js';
+    window.fileIcon = _fileIcon;
+  </script>
   <script>
     // i18n translator bootstrap — mirrors lib/i18n.js createTranslator (tested there).
     (function () {
@@ -8718,10 +8769,15 @@
         row.className = 'tree-row';
         row.innerHTML = `
           <span class="tree-arrow">▸</span>
-          <span class="tree-icon">📁</span>
+          <span class="tree-icon"></span>
           <span class="tree-name"></span>
         `;
         row.querySelector('.tree-name').textContent = entry.name;
+        if (window.fileIcon) {
+          const { src } = window.fileIcon(entry.name, true);
+          const ic = row.querySelector('.tree-icon');
+          if (ic) ic.innerHTML = `<img src="${src}" alt="" style="width:16px;height:16px;display:block;">`;
+        }
 
         row.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -8838,9 +8894,10 @@
 
         const row = document.createElement('div');
         row.className = 'tree-row tree-row-new';
+        const folderIconSrc = window.fileIcon ? window.fileIcon('x', true).src : '';
         row.innerHTML = `
           <span class="tree-arrow empty">▸</span>
-          <span class="tree-icon">📁</span>
+          <span class="tree-icon">${folderIconSrc ? `<img src="${folderIconSrc}" alt="" style="width:16px;height:16px;display:block;">` : ''}</span>
           <input type="text" autocomplete="off" spellcheck="false"
                  placeholder="${escapeHtml(t('treePicker.mkdir.placeholder'))}">
           <span class="tree-mkdir-hint"></span>
@@ -10314,14 +10371,6 @@
         return res.json();
       }
 
-      function iconForExt(name) {
-        const ext = (name.split('.').pop() || '').toLowerCase();
-        const map = { js: '📜', ts: '📜', mjs: '📜', cjs: '📜', json: '⚙', md: '📝', html: '🌐', css: '🎨',
-                      png: '🖼', jpg: '🖼', jpeg: '🖼', gif: '🖼', svg: '🖼', pdf: '📕', sh: '⚡',
-                      env: '🔑', gitignore: '🔒', lock: '🔒' };
-        return map[ext] || '📄';
-      }
-
       function renderRow(entry, parentPath) {
         const btn = document.createElement('button');
         btn.className = 'file-row';
@@ -10341,7 +10390,15 @@
 
         const icon = document.createElement('span');
         icon.className = 'icon';
-        icon.textContent = entry.type === 'dir' ? '📁' : iconForExt(entry.name);
+        // Geteilter fileIcon-Helper (Catppuccin, vendored). Fallback auf das
+        // generische Datei-/Ordner-Icon, falls das Modul noch lädt.
+        if (window.fileIcon) {
+          const { src } = window.fileIcon(entry.name, entry.type === 'dir');
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = '';
+          icon.appendChild(img);
+        }
 
         const label = document.createElement('span');
         label.textContent = entry.name;
@@ -11028,6 +11085,19 @@
         const modal = document.getElementById('file-preview-modal');
         const body = document.getElementById('file-preview-body');
         document.getElementById('file-preview-name').textContent = entry.name || relPath.split('/').pop();
+        // Datei-Icon im Preview-Header (app-weite Konsistenz).
+        if (window.fileIcon) {
+          const fname = entry.name || relPath.split('/').pop();
+          const { src } = window.fileIcon(fname, false);
+          const titleEl = document.getElementById('file-preview-name');
+          const prev = titleEl.querySelector('.fp-title-icon');
+          if (prev) prev.remove();
+          const img = document.createElement('img');
+          img.className = 'fp-title-icon';
+          img.src = src; img.alt = '';
+          img.style.cssText = 'width:16px;height:16px;margin-right:6px;vertical-align:-2px;';
+          titleEl.prepend(img);
+        }
         document.getElementById('file-preview-size').textContent = entry.size != null ? formatSize(entry.size) : '';
         body.innerHTML = `<div class="preview-oversize">${t('preview.loading')}</div>`;
         modal.classList.add('open');
@@ -11611,6 +11681,9 @@
           paneEl.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`;
           return;
         }
+        // NB: Datei-Icons (fileIcon) hier bewusst NICHT injiziert — die Diff-
+        // Dateiliste/diff2html rendert eigenes Markup; Post-Processing wäre
+        // fragil. Backlog.
         const groups = ['unstaged', 'staged', 'untracked'];
         listEl.innerHTML = groups.map(cat => {
           const fs = currentFiles.filter(f => f.category === cat);

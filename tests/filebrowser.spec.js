@@ -263,6 +263,14 @@ test.describe('Filebrowser', () => {
     await expect(page.locator('#files-upload-picker')).toBeVisible();
   });
 
+  test('file rows use Catppuccin icon images (no emoji)', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const firstIconImg = page.locator('#files-tree .file-row .icon img').first();
+    await expect(firstIconImg).toHaveAttribute('src', /catppuccin-icons\/.+\.svg/);
+  });
+
   test('downloads a file via context menu', async ({ authedPage: page, projectSession, isTouch }) => {
     test.skip(isTouch, 'context menu requires right-click, not available on touch devices');
 
