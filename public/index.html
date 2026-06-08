@@ -12343,8 +12343,8 @@
       let currentSession = null, currentFiles = [], selectedPath = null;
       let ws = null, refetchTimer = null;
       let stateSession = null;
-      const WIDTH_KEY = 'cchub_diff_width';
-      const openKey = (s) => `cchub_diff_open:${s || ''}`; // per-session open/closed memory
+      let viewMode = (() => { try { return localStorage.getItem('cchub_changes_mode') || 'list'; } catch { return 'list'; } })(); // 'list' | 'diff'
+      let source = { kind: 'worktree', sha: null, subject: null };   // 'worktree' | 'commit'
       const el = (id) => document.getElementById(id);
 
       async function ensureD2H() {
@@ -12360,90 +12360,120 @@
         return d2hLoaded;
       }
 
-      // Öffnet das Diff-Panel für eine Session (Toggle/Badge).
-      async function open(sessionName) {
-        currentSession = sessionName;
-        selectedPath = null;
-        showPanel(true);
-        el('diff-title').textContent = t('diff.title', { name: sessionName });
-        await refetch();
-        connectWs(sessionName);
+      function applyViewMode() {
+        const pane = el('repo-pane-changes');
+        if (pane) { pane.classList.toggle('mode-list', viewMode === 'list'); pane.classList.toggle('mode-diff', viewMode === 'diff'); }
+        el('changes-mode-list')?.classList.toggle('active', viewMode === 'list');
+        el('changes-mode-diff')?.classList.toggle('active', viewMode === 'diff');
+      }
+      function setViewMode(m) {
+        viewMode = (m === 'diff') ? 'diff' : 'list';
+        try { localStorage.setItem('cchub_changes_mode', viewMode); } catch {}
+        applyViewMode();
       }
 
-      function showPanel(v) {
-        // Files + Preview + Diff sind gegenseitig exklusiv — nie zwei offen.
-        if (v) {
-          try { window.FileBrowser?.close?.(); } catch {}
-          try { window.PreviewPanel?.close?.(); } catch {}
+      // Vom RepoPanel beim Wechsel auf das Changes-Tab (lazy refresh).
+      function onTabShown() {
+        applyViewMode();
+        if (source.kind === 'worktree') refetch();
+        // Commit-Ansicht ist statisch → bereits gerendert.
+      }
+
+      // Working-Tree-Quelle (default). Lädt /diff, verbindet Live-WS.
+      function showWorktree() {
+        source = { kind: 'worktree', sha: null, subject: null };
+        el('changes-source').textContent = t('repo.changes.workingTree');
+        el('changes-back').hidden = true;
+        const live = el('diff-live'); if (live) live.style.display = '';
+        refetch();
+        connectWs(currentSession);
+      }
+
+      // Commit-Quelle (aus History gewählt).
+      async function showCommitSource(sha, subject) {
+        disconnectWs();
+        source = { kind: 'commit', sha, subject: subject || '' };
+        el('changes-source').textContent = t('repo.changes.commit', { sha: sha.slice(0, 7), subject: subject || '' });
+        el('changes-back').hidden = false;
+        const live = el('diff-live'); if (live) live.style.display = 'none';
+        try {
+          const res = await fetch(`/api/sessions/${encodeURIComponent(currentSession)}/git/commit/${sha}`, {
+            headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          el('diff-branch').textContent = '';
+          renderFiles((data.files || []).map(f => ({ ...f, category: 'commit' })));
+          try { window.RepoPanel?.setHeader?.({ branch: t('repo.tab.changes'), sha: data.shortSha, stats: t('repo.changes.fileCount', { n: (data.files || []).length }) }); } catch {}
+        } catch (e) {
+          el('changes-list').innerHTML = '';
+          el('diff-pane').innerHTML = `<div class="changes-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
         }
-        el('diff-panel').classList.toggle('open', v);
-        el('diff-resizer').style.display = v ? '' : 'none';
-        // Gegen window.currentSessionName persisten (autoritativ), da stateSession
-        // beim Cross-Close noch auf der vorigen Session laggen kann.
-        const sn = window.currentSessionName || stateSession || currentSession;
-        try { localStorage.setItem(openKey(sn), v ? '1' : '0'); } catch {}
-        if (!v) disconnectWs();
       }
 
-      function toggle() {
-        if (el('diff-panel').classList.contains('open')) { close(); return; }
-        open(window.currentSessionName || currentSession);
-      }
-
-      function close() { showPanel(false); }
+      function toggle() { try { window.RepoPanel?.toggle?.('changes'); } catch {} }
+      function close() { try { window.RepoPanel?.close?.(); } catch {} }
 
       async function refetch() {
-        if (!currentSession) return;
+        if (!currentSession || source.kind !== 'worktree') return;
         try {
           const res = await fetch(`/api/sessions/${encodeURIComponent(currentSession)}/diff`, {
             headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          render(await res.json());
+          const data = await res.json();
+          if (!data || !data.isRepo) {
+            el('diff-branch').textContent = ''; el('changes-list').innerHTML = '';
+            el('diff-pane').innerHTML = `<div class="changes-empty">${t('diff.noRepo')}</div>`;
+            return;
+          }
+          const ab = [];
+          if (data.ahead) ab.push(`↑${data.ahead}`);
+          if (data.behind) ab.push(`↓${data.behind}`);
+          el('diff-branch').textContent = `${data.branch || ''} ${ab.join(' ')}`.trim();
+          try { window.RepoPanel?.setHeader?.({ branch: data.branch || '', stats: t('repo.changes.fileCount', { n: (data.files || []).length }) }); } catch {}
+          renderFiles(data.files || []);
         } catch (e) {
-          document.getElementById('diff-pane').innerHTML =
-            `<div class="diff-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
+          el('diff-pane').innerHTML = `<div class="changes-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
         }
       }
 
-      function render(data) {
-        const branchEl = document.getElementById('diff-branch');
-        const listEl = document.getElementById('diff-filelist');
-        const paneEl = document.getElementById('diff-pane');
-        if (!data || !data.isRepo) {
-          branchEl.textContent = ''; listEl.innerHTML = '';
-          paneEl.innerHTML = `<div class="diff-empty">${t('diff.noRepo')}</div>`;
-          return;
-        }
-        const ab = [];
-        if (data.ahead) ab.push(`↑${data.ahead}`);
-        if (data.behind) ab.push(`↓${data.behind}`);
-        branchEl.textContent = `${data.branch || ''} ${ab.join(' ')}`.trim();
-        currentFiles = data.files || [];
+      // Baut die List-Ansicht (#changes-list) und wählt eine Datei für die
+      // Diff-Ansicht (#diff-pane). Funktioniert für Working-Tree (category
+      // unstaged/staged/untracked) UND Commit (category 'commit').
+      function renderFiles(files) {
+        currentFiles = files;
+        const listEl = el('changes-list');
+        const paneEl = el('diff-pane');
         if (!currentFiles.length) {
-          listEl.innerHTML = '';
-          paneEl.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`;
+          listEl.innerHTML = ''; paneEl.innerHTML = `<div class="changes-empty">${t('diff.empty')}</div>`;
           return;
         }
-        // NB: Datei-Icons (fileIcon) hier bewusst NICHT injiziert — die Diff-
-        // Dateiliste/diff2html rendert eigenes Markup; Post-Processing wäre
-        // fragil. Backlog.
-        const groups = ['unstaged', 'staged', 'untracked'];
+        const groups = ['unstaged', 'staged', 'untracked', 'commit'];
         listEl.innerHTML = groups.map(cat => {
           const fs = currentFiles.filter(f => f.category === cat);
           if (!fs.length) return '';
           const rows = fs.map(f => {
             const idx = currentFiles.indexOf(f);
-            return `<div class="diff-file" role="button" tabindex="0" data-idx="${idx}">
-              <span class="diff-status">${escapeHtml(f.status)}</span>
-              <span class="diff-path" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</span>
-              <span class="stat-add">+${f.additions}</span><span class="stat-del">−${f.deletions}</span>
+            const parts = f.path.split('/');
+            const name = parts.pop();
+            const dir = parts.length ? parts.join('/') + '/' : '';
+            const icon = window.fileIconSvg ? `<span class="cr-icon">${window.fileIconSvg(name, false)}</span>` : '';
+            return `<div class="changes-row" role="button" tabindex="0" data-idx="${idx}">
+              <span class="cr-dot" data-cat="${cat}"></span>${icon}
+              <span class="cr-path" title="${escapeHtml(f.path)}"><span class="cr-dir">${escapeHtml(dir)}</span><span class="cr-name">${escapeHtml(name)}</span></span>
+              <span class="cr-add">+${f.additions || 0}</span><span class="cr-del">−${f.deletions || 0}</span>
             </div>`;
           }).join('');
-          return `<div class="diff-group-label">${t('diff.group.' + cat)} (${fs.length})</div>${rows}`;
+          const label = cat === 'commit' ? '' : `<div class="changes-group-label">${t('diff.group.' + cat)} (${fs.length})</div>`;
+          return label + rows;
         }).join('');
-        listEl.querySelectorAll('.diff-file').forEach(el => {
-          el.addEventListener('click', () => selectFile(parseInt(el.getAttribute('data-idx'), 10)));
+        listEl.querySelectorAll('.changes-row').forEach(row => {
+          row.addEventListener('click', () => {
+            // Klick in List → in Diff-Modus wechseln und diese Datei zeigen.
+            setViewMode('diff');
+            selectFile(parseInt(row.getAttribute('data-idx'), 10));
+          });
         });
         const keep = currentFiles.findIndex(f => f.path === selectedPath);
         selectFile(keep >= 0 ? keep : 0);
@@ -12451,15 +12481,14 @@
 
       async function selectFile(idx) {
         const f = currentFiles[idx];
-        const pane = document.getElementById('diff-pane');
-        document.querySelectorAll('.diff-file').forEach(el =>
-          el.classList.toggle('active', parseInt(el.getAttribute('data-idx'), 10) === idx));
-        if (!f) { pane.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`; return; }
+        const pane = el('diff-pane');
+        document.querySelectorAll('.changes-row').forEach(r =>
+          r.classList.toggle('active', parseInt(r.getAttribute('data-idx'), 10) === idx));
+        if (!f) { pane.innerHTML = `<div class="changes-empty">${t('diff.empty')}</div>`; return; }
         selectedPath = f.path;
-        if (f.binary) { pane.innerHTML = `<div class="diff-empty">${t('diff.binary')}</div>`; return; }
-        if (f.oversize) { pane.innerHTML = `<div class="diff-empty">${t('diff.oversize')}</div>`; return; }
-        if (!f.diff) { pane.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`; return; }
-        // Panel ist schmal → side-by-side nur bei genug Breite, sonst line-by-line.
+        if (f.binary) { pane.innerHTML = `<div class="changes-empty">${t('diff.binary')}</div>`; return; }
+        if (f.oversize) { pane.innerHTML = `<div class="changes-empty">${t('diff.oversize')}</div>`; return; }
+        if (!f.diff) { pane.innerHTML = `<div class="changes-empty">${t('diff.empty')}</div>`; return; }
         const outputFormat = pane.clientWidth >= 760 ? 'side-by-side' : 'line-by-line';
         try {
           const html = await ensureD2H();
@@ -12496,60 +12525,25 @@
         }
       }
 
-      function wireResizer() {
-        const resizer = el('diff-resizer');
-        if (!resizer) return;
-        resizer.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          resizer.classList.add('dragging');
-          const startX = e.clientX;
-          const startWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--diff-width')) || 460;
-          const onMove = (ev) => {
-            // Panel ist rechts → Breite wächst nach links (startX - clientX).
-            const w = Math.max(280, Math.min(window.innerWidth * 0.7, startWidth + (startX - ev.clientX)));
-            document.documentElement.style.setProperty('--diff-width', w + 'px');
-          };
-          const onUp = () => {
-            resizer.classList.remove('dragging');
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            try { localStorage.setItem(WIDTH_KEY, getComputedStyle(document.documentElement).getPropertyValue('--diff-width').trim()); } catch {}
-          };
-          document.addEventListener('mousemove', onMove);
-          document.addEventListener('mouseup', onUp);
-        });
-      }
-
-      // Vom Terminal-View aufgerufen — Toggle einblenden + gemerkten Open-Zustand
-      // dieser Session wiederherstellen.
+      // Vom RepoPanel.open aufgerufen — Working-Tree als Default-Quelle.
       function activateForSession(name) {
         stateSession = name;
-        const btn = el('btn-toggle-diff');
-        if (btn) btn.style.display = '';
-        const wasOpen = (() => { try { return localStorage.getItem(openKey(name)) === '1'; } catch { return false; } })();
-        if (wasOpen) open(name);
-        else showPanel(false);
+        currentSession = name;
+        selectedPath = null;
+        source = { kind: 'worktree', sha: null, subject: null };
+        applyViewMode();
+        showWorktree();
       }
 
-      try { const w = localStorage.getItem(WIDTH_KEY); if (w) document.documentElement.style.setProperty('--diff-width', w); } catch {}
-      el('diff-refresh').addEventListener('click', refetch);
-      el('diff-close').addEventListener('click', close);
-      el('btn-toggle-diff').addEventListener('click', toggle);
-      wireResizer();
+      el('diff-refresh')?.addEventListener('click', () => {
+        if (source.kind === 'worktree') refetch(); else if (source.sha) showCommitSource(source.sha, source.subject);
+      });
+      el('changes-back')?.addEventListener('click', () => showWorktree());
+      el('changes-mode-list')?.addEventListener('click', () => { setViewMode('list'); });
+      el('changes-mode-diff')?.addEventListener('click', () => { setViewMode('diff'); if (selectedPath == null && currentFiles.length) selectFile(0); });
 
-      // Delegated capture-phase badge click — verbindet zur Session und öffnet
-      // das Diff-Panel (ersetzt die frühere Vollbild-Ansicht).
-      document.addEventListener('click', (e) => {
-        const badge = e.target.closest && e.target.closest('.git-badge[data-diff-session]');
-        if (!badge) return;
-        e.stopPropagation();
-        e.preventDefault();
-        const name = badge.getAttribute('data-diff-session');
-        connectToSession(name);
-        open(name);
-      }, true);
-
-      return { open, close, toggle, activateForSession, _cleanup: disconnectWs };
+      return { activateForSession, onTabShown, showCommitSource, showWorktree,
+               toggle, close, setViewMode, _cleanup: disconnectWs };
     })();
     window.DiffView = DiffView;
 
