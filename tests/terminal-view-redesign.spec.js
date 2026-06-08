@@ -110,4 +110,15 @@ test.describe('Terminal-View redesign', () => {
     await page.locator('#terminal-container').click();
     await expect(page.locator('#terminal-container')).toHaveClass(/term-focused/);
   });
+
+  test('session name shows CLI logo and cwd tooltip', async ({ authedPage: page, hubSession }) => {
+    await navigateToSession(page, hubSession.name);
+    await waitForTerminal(page);
+    // Logo-Slot enthält ein SVG (Brand oder Fallback-Glyph).
+    await expect(page.locator('#terminal-cli-logo svg')).toBeVisible();
+    // cwd-Tooltip auf der Namen-Gruppe ist gesetzt (nicht leer). Auf der Gruppe
+    // statt dem Namen-Span, weil dessen overflow:hidden das ::after klippen würde.
+    const tip = await page.locator('.terminal-name-group').getAttribute('data-tooltip');
+    expect(tip && tip.length).toBeTruthy();
+  });
 });

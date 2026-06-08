@@ -2527,6 +2527,16 @@
       [data-tooltip]::before { transition: none; }
     }
 
+    /* CLI-Logo + Name als Gruppe links in der Toolbar. */
+    .terminal-name-group {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-width: 0;
+      position: relative; /* Anker für den cwd-Tooltip am Namen */
+    }
+    #terminal-cli-logo { color: var(--text-secondary); }
+
     .terminal-session-name {
       font-family: var(--font-mono);
       font-weight: 600;
@@ -4315,7 +4325,10 @@
         <button class="btn btn-ghost btn-sm" id="disconnect-btn" type="button" data-tooltip="Back" aria-label="Back to dashboard" title="Back" data-i18n-attr="aria-label:terminal.toolbar.backAria;title:terminal.toolbar.backTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         </button>
-        <span class="terminal-session-name" id="terminal-session-name"></span>
+        <span class="terminal-name-group" data-tooltip="">
+          <span class="cli-logo cli-logo--fallback" id="terminal-cli-logo" aria-hidden="true"></span>
+          <span class="terminal-session-name" id="terminal-session-name"></span>
+        </span>
         <span class="conn-status" id="conn-status" data-state="connecting">
           <span class="dot"></span><span id="conn-status-label" data-i18n="terminal.connStatus.connecting">Connecting</span>
         </span>
@@ -7845,6 +7858,17 @@
       // Terminal-Attach, kein DOM-Switcher mehr.
       setView('terminal', { sessionName: name });
       document.getElementById('terminal-session-name').textContent = displayName;
+      // CLI-Logo (Extra 5) + cwd-Pfad als Tooltip (Extra 6) aus dem Session-
+      // Objekt der bereits geladenen Liste. command → Logo, path → Tooltip.
+      {
+        const s = Array.isArray(sessions) ? sessions.find(x => x.name === name) : null;
+        const logoSlot = document.getElementById('terminal-cli-logo');
+        if (logoSlot) logoSlot.outerHTML = cardCliLogo(s ? s.command : null).replace('class="cli-logo', 'id="terminal-cli-logo" class="cli-logo');
+        // cwd-Tooltip auf die Gruppe (nicht den Namen-Span — der hat
+        // overflow:hidden fürs Ellipsis und würde das ::after-Tooltip klippen).
+        const grp = document.querySelector('.terminal-name-group');
+        if (grp) grp.setAttribute('data-tooltip', (s && s.path) ? s.path : displayName);
+      }
       // Idea-Capture-Button: aktivieren wenn die Session zu einem Projekt
       // gehört. Match kommt aus dem Projects-Cache, der evtl. noch cold ist
       // — in dem Fall block wir nicht, sondern hängen den Reveal an einen
