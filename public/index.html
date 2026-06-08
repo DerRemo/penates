@@ -2556,6 +2556,11 @@
          durchgängig für dunkle Backgrounds designt sind. */
       background: #0a0e14;
       overflow: hidden;
+      /* Calm-Card: abgerundet + Schatten. Radius/Shadow sind rein visuell,
+         der Fit-Addon misst den Innenbereich (padding unverändert) — die
+         messbare Innenfläche bleibt gleich. overflow:hidden klippt die Ecken. */
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
       /* Browser-native Text-Selection unterdrücken: xterm nutzt den DOM-
          Renderer (echte <span>s), Shift+Drag würde ohne das die DOM-Spans
          nativ markieren (blaue Default-Selection) zusätzlich zu unserem
@@ -2645,6 +2650,9 @@
       /* Auf Touch ist der globale Header (inkl. Hamburger) in der Terminal-
          View versteckt → der Back-Button ist der einzige Weg zurück. */
       body[data-current-view="terminal"] #disconnect-btn { display: inline-flex; }
+      /* Touch: nahezu full-bleed — jeder Pixel zählt mit Touch-Bar + Tastatur. */
+      body[data-current-view="terminal"] .terminal-layout { gap: 0; padding: 0; }
+      body[data-current-view="terminal"] .terminal-container { border-radius: 0; box-shadow: none; }
     }
 
     .touch-key {
@@ -2760,6 +2768,9 @@
       .terminal-toolbar .btn svg { width: 14px; height: 14px; }
       .conn-status { padding: 4px 8px; font-size: var(--text-xs); }
       .conn-status #conn-status-label { display: none; }
+      /* Mobile: Card-Außenabstand reduzieren, Terminal-Platz erhalten. */
+      .terminal-layout { gap: var(--space-1); padding: var(--space-1); }
+      .terminal-container { border-radius: var(--radius-md); }
     }
 
     @media (max-width: 480px) {
@@ -3323,7 +3334,15 @@
     }
 
     /* ── v0.6.0 Filebrowser Sidebar ────────────────────────────── */
-    .terminal-layout { display: flex; height: 100%; min-height: 0; }
+    /* Calm-Card-Layout: Terminal-Pane + Seiten-Panels als abgesetzte Cards
+       mit Außenabstand zum View-Rand und kleinem Gap dazwischen. */
+    .terminal-layout {
+      display: flex;
+      height: 100%;
+      min-height: 0;
+      gap: var(--space-2);
+      padding: var(--space-3);
+    }
     .term-search {
       position: absolute;
       top: 8px;
@@ -3377,6 +3396,7 @@
       min-width: 0;
       background: var(--bg-surface);
       border-left: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       display: none;
       flex-direction: column;
       overflow: hidden;
@@ -3481,6 +3501,7 @@
       min-width: 0;
       background: var(--bg-surface);
       border-left: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       display: none;
       flex-direction: column;
       overflow: hidden;
@@ -3636,6 +3657,7 @@
       flex: 0 0 var(--diff-width, 460px);
       min-width: 0; background: var(--bg-surface);
       border-left: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       display: none; flex-direction: column; overflow: hidden;
     }
     .diff-panel.open { display: flex; }

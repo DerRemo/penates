@@ -85,4 +85,14 @@ test.describe('Terminal-View redesign', () => {
       }).catch(() => {});
     }
   });
+
+  test('terminal container is a rounded card on desktop', async ({ authedPage: page, hubSession, isTouch }) => {
+    test.skip(isTouch, 'mobile is near full-bleed (radius 0)');
+    await navigateToSession(page, hubSession.name);
+    await waitForTerminal(page);
+    const radius = await page.locator('#terminal-container').evaluate(
+      el => getComputedStyle(el).borderTopLeftRadius
+    );
+    expect(parseInt(radius, 10)).toBeGreaterThan(0);
+  });
 });
