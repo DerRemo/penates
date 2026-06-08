@@ -2606,6 +2606,13 @@
       .terminal-connecting .spinner { display: none; }
     }
 
+    /* Fokus-Ring (Extra 3): dezenter Akzent-Rand, wenn das Terminal
+       Tastatur-Fokus hat. Hook an xterms Helper-Textarea focus/blur.
+       Rein visuell, inset box-shadow stört den Fit nicht. */
+    .terminal-container.term-focused {
+      box-shadow: var(--shadow-card), inset 0 0 0 1px var(--accent);
+    }
+
     /* ── v0.6.0 Task 14: Terminal Drop Overlay ─────────────────────── */
     .terminal-drop-overlay {
       position: absolute; inset: 0;
@@ -8041,6 +8048,10 @@
           ta.setAttribute('autocapitalize', 'off');
           ta.setAttribute('autocomplete', 'off');
           ta.setAttribute('spellcheck', 'false');
+          // Fokus-Ring an der Card (Extra 3): xterms Helper-Textarea ist das
+          // Element, das Tastatur-Fokus erhält. focus/blur → Klasse am Container.
+          ta.addEventListener('focus', () => container.classList.add('term-focused'));
+          ta.addEventListener('blur', () => container.classList.remove('term-focused'));
         }
       }
 

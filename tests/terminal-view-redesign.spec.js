@@ -103,4 +103,11 @@ test.describe('Terminal-View redesign', () => {
     await expect(page.locator('#terminal-container')).not.toHaveClass(/is-connecting/);
     await expect(page.locator('#term-connecting')).toBeHidden();
   });
+
+  test('terminal card shows a focus ring class on focus', async ({ authedPage: page, hubSession }) => {
+    await navigateToSession(page, hubSession.name);
+    await waitForTerminal(page);
+    await page.locator('#terminal-container').click();
+    await expect(page.locator('#terminal-container')).toHaveClass(/term-focused/);
+  });
 });
