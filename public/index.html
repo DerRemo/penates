@@ -12467,6 +12467,58 @@
     })();
     window.RepoHistory = RepoHistory;
 
+    // ── RepoBranches ──────────────────────────────────────────────
+    // Lädt /git/branches und rendert LOCAL + REMOTE (read-only).
+    const RepoBranches = (() => {
+      const el = (id) => document.getElementById(id);
+      let sessionName = null, loadedOnce = false;
+      const BRANCH_ICON = '<svg class="br-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9M18 9V6m0 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>';
+
+      function localRow(b) {
+        const ab = [];
+        if (b.ahead) ab.push(`<span class="br-ahead">↑${b.ahead}</span>`);
+        if (b.behind) ab.push(`<span class="br-behind">↓${b.behind}</span>`);
+        return `<div class="branch-row${b.current ? ' current' : ''}">
+          ${BRANCH_ICON}
+          <span class="br-name" title="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span>
+          ${b.current ? `<span class="br-current">${t('repo.branches.current')}</span>` : ''}
+          ${b.upstream ? `<span class="br-upstream">${escapeHtml(b.upstream)}</span>` : ''}
+          <span class="br-ab">${ab.join(' ')}</span>
+        </div>`;
+      }
+      function remoteRow(b) {
+        return `<div class="branch-row">${BRANCH_ICON}<span class="br-name" title="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span></div>`;
+      }
+
+      async function load(name) {
+        if (name) sessionName = name;
+        if (!sessionName) return;
+        if (loadedOnce && name === sessionName) return; // idempotent
+        loadedOnce = true;
+        const list = el('branches-list');
+        list.innerHTML = '';
+        try {
+          const res = await fetch(`/api/sessions/${encodeURIComponent(sessionName)}/git/branches`, {
+            headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const local = data.local || [], remote = data.remote || [];
+          if (!local.length && !remote.length) { list.innerHTML = `<div class="branches-empty">${t('repo.branches.empty')}</div>`; return; }
+          let html = '';
+          if (local.length) html += `<div class="branches-group-label">${t('repo.branches.local')} (${local.length})</div>` + local.map(localRow).join('');
+          if (remote.length) html += `<div class="branches-group-label">${t('repo.branches.remote')} (${remote.length})</div>` + remote.map(remoteRow).join('');
+          list.innerHTML = html;
+        } catch (e) {
+          list.innerHTML = `<div class="branches-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
+        }
+      }
+
+      function _cleanup() { loadedOnce = false; sessionName = null; }
+      return { load, _cleanup };
+    })();
+    window.RepoBranches = RepoBranches;
+
     // ── Diff View (Task 6): clickable git badge → diff2html, live refresh ──
     const DiffView = (() => {
       let d2hLoaded = null, cssInjected = false;
