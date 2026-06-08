@@ -89,12 +89,17 @@ export async function dismissModal(page) {
 }
 
 export async function openFileSidebar(page) {
-  const sidebar = page.locator('#files-sidebar');
-  const isOpen = await sidebar.evaluate(el => el.classList.contains('open'));
+  // Der Files-Tree lebt jetzt im Repo-Panel (Files-Tab). Panel öffnen, dann
+  // den Files-Tab aktivieren; der Tree rendert in #files-tree (jetzt im
+  // #repo-pane-files).
+  const panel = page.locator('#repo-panel');
+  const isOpen = await panel.evaluate(el => el.classList.contains('open'));
   if (!isOpen) {
-    await page.click('#btn-toggle-files');
-    await page.waitForSelector('#files-sidebar.open', { timeout: 5_000 });
+    await page.click('#btn-toggle-repo');
+    await page.waitForSelector('#repo-panel.open', { timeout: 5_000 });
   }
+  await page.click('#repo-tab-files');
+  await page.waitForSelector('#repo-pane-files.active', { timeout: 5_000 });
   await page.waitForSelector('#files-tree .file-row', { timeout: 8_000 });
 }
 

@@ -101,18 +101,20 @@ test.describe('Mobile-specific features', () => {
     await page.waitForTimeout(500);
   });
 
-  test('mobile file picker button exists in sidebar', async ({ authedPage: page, hubSession }) => {
+  test('mobile file picker button exists in the repo Files tab', async ({ authedPage: page, hubSession }) => {
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
-      test.skip(true, 'file toggle not visible');
+      test.skip(true, 'repo toggle not visible');
       return;
     }
 
     await toggleBtn.tap();
-    await page.waitForSelector('#files-sidebar.open', { timeout: 5_000 });
+    await page.waitForSelector('#repo-panel.open', { timeout: 5_000 });
+    await page.tap('#repo-tab-files');
+    await page.waitForSelector('#repo-pane-files.active', { timeout: 5_000 });
     await expect(page.locator('#files-upload-picker')).toBeVisible();
   });
 });

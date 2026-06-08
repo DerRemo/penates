@@ -9,7 +9,7 @@ test.describe('File Preview', () => {
   });
 
   test('text file opens with syntax highlighting', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -39,7 +39,7 @@ test.describe('File Preview', () => {
   });
 
   test('image file shows img element', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -61,7 +61,7 @@ test.describe('File Preview', () => {
   });
 
   test('preview modal closes via Escape', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -82,7 +82,7 @@ test.describe('File Preview', () => {
   });
 
   test('copy path button in preview', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;

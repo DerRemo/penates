@@ -13,31 +13,31 @@ test.describe('Filebrowser', () => {
     await waitForTerminal(page);
   });
 
-  test('sidebar opens and closes via toggle', async ({ authedPage: page, isTouch }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+  test('repo panel opens and closes via toggle', async ({ authedPage: page, isTouch }) => {
+    const toggleBtn = page.locator('#btn-toggle-repo');
     const btnVisible = await toggleBtn.isVisible();
     if (!btnVisible) {
-      test.skip(true, 'file toggle not visible (no project context)');
+      test.skip(true, 'repo toggle not visible (no project context)');
       return;
     }
 
-    const sidebar = page.locator('#files-sidebar');
-    const wasOpen = await sidebar.evaluate(el => el.classList.contains('open'));
+    const panel = page.locator('#repo-panel');
+    const wasOpen = await panel.evaluate(el => el.classList.contains('open'));
 
     if (wasOpen) {
-      await page.click('#files-close');
-      await expect(sidebar).not.toHaveClass(/open/, { timeout: 3_000 });
+      await page.click('#repo-close');
+      await expect(panel).not.toHaveClass(/open/, { timeout: 3_000 });
     }
 
     await toggleBtn.click();
-    await expect(sidebar).toHaveClass(/open/, { timeout: 5_000 });
+    await expect(panel).toHaveClass(/open/, { timeout: 5_000 });
 
-    await page.click('#files-close');
-    await expect(sidebar).not.toHaveClass(/open/, { timeout: 3_000 });
+    await page.click('#repo-close');
+    await expect(panel).not.toHaveClass(/open/, { timeout: 3_000 });
   });
 
   test('file tree loads and shows entries', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -50,7 +50,7 @@ test.describe('Filebrowser', () => {
   });
 
   test('folder expand loads children (lazy)', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -74,7 +74,7 @@ test.describe('Filebrowser', () => {
   });
 
   test('mkdir creates folder via toolbar', async ({ authedPage: page, projectSession }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -103,7 +103,7 @@ test.describe('Filebrowser', () => {
 
   test('context menu rename works', async ({ authedPage: page, projectSession, isTouch }) => {
     test.skip(isTouch, 'context menu requires right-click, not available on touch devices');
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -157,7 +157,7 @@ test.describe('Filebrowser', () => {
 
   test('delete uses a themed dialog, not the legacy ✓? second-click', async ({ authedPage: page, projectSession, isTouch }) => {
     test.skip(isTouch, 'context menu requires right-click, not available on touch devices');
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
     // Eine wegwerfbare Datei via API anlegen, damit der Test idempotent ist.
@@ -181,7 +181,7 @@ test.describe('Filebrowser', () => {
 
   test('context menu copy path', async ({ authedPage: page, isTouch }) => {
     test.skip(isTouch, 'context menu requires right-click, not available on touch devices');
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -200,7 +200,7 @@ test.describe('Filebrowser', () => {
   });
 
   test('refresh button reloads tree', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -215,7 +215,7 @@ test.describe('Filebrowser', () => {
   });
 
   test('sidebar state persists after reload', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -231,15 +231,15 @@ test.describe('Filebrowser', () => {
     }
 
     await page.waitForTimeout(2_000);
-    const sidebar = page.locator('#files-sidebar');
-    const isOpen = await sidebar.evaluate(el => el.classList.contains('open'));
+    const panel = page.locator('#repo-panel');
+    const isOpen = await panel.evaluate(el => el.classList.contains('open'));
     expect(isOpen).toBe(true);
   });
 
   test('sidebar resize via drag handle', async ({ authedPage: page, isTouch }) => {
     test.skip(isTouch, 'drag resize not available on touch devices');
 
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -261,7 +261,7 @@ test.describe('Filebrowser', () => {
   });
 
   test('upload file picker button exists', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
@@ -309,7 +309,7 @@ test.describe('Filebrowser', () => {
   });
 
   test('filter menu toggles hidden files via all=1', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
     const before = await page.locator('#files-tree .file-row').count();
@@ -328,7 +328,7 @@ test.describe('Filebrowser', () => {
   });
 
   test('breadcrumb shows the panel root name', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
     const bc = page.locator('#files-breadcrumb');
@@ -337,7 +337,7 @@ test.describe('Filebrowser', () => {
   });
 
   test('fuzzy search filters loaded rows and highlights matches', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
     const total = await page.locator('#files-tree .file-row').count();
@@ -352,19 +352,19 @@ test.describe('Filebrowser', () => {
   });
 
   test('files toolbar is icon-only with tooltips and the panel is a card', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
     const refresh = page.locator('#files-refresh');
     await expect(refresh).toHaveAttribute('data-tooltip', /.+/);
     await expect(refresh.locator('svg')).toBeVisible();
-    const radius = await page.locator('#files-sidebar').evaluate(el => getComputedStyle(el).borderTopLeftRadius);
+    const radius = await page.locator('#repo-panel').evaluate(el => getComputedStyle(el).borderTopLeftRadius);
     expect(parseInt(radius, 10)).toBeGreaterThan(0);
   });
 
   test('cmd/ctrl-click multi-selects and shows the action bar', async ({ authedPage: page, isTouch }) => {
     test.skip(isTouch, 'modifier-click multi-select is a desktop pointer interaction; touch uses select-mode');
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
     const rows = page.locator('#files-tree .file-row');
@@ -380,7 +380,7 @@ test.describe('Filebrowser', () => {
   });
 
   test('file rows use inline Catppuccin SVG icons (not <img>, not emoji)', async ({ authedPage: page }) => {
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
     // Icons müssen INLINE-<svg> sein, nicht <img> — sonst können die css-variables
@@ -393,7 +393,7 @@ test.describe('Filebrowser', () => {
   test('downloads a file via context menu', async ({ authedPage: page, projectSession, isTouch }) => {
     test.skip(isTouch, 'context menu requires right-click, not available on touch devices');
 
-    const toggleBtn = page.locator('#btn-toggle-files');
+    const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) {
       test.skip(true, 'file toggle not visible');
       return;
