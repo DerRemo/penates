@@ -11533,6 +11533,34 @@
     })();
     window.DiffView = DiffView;
 
+    // ── PanelToggleSync ───────────────────────────────────────────
+    // Spiegelt den Offen-Zustand der drei rechten Panels (Files/Preview/Diff)
+    // auf den Active-State (.is-active) ihrer Toolbar-Toggles — entkoppelt von
+    // den jeweiligen IIFEs via MutationObserver auf der class-Attribut-Änderung
+    // des Panels. So bleibt sichtbar, welches Panel offen ist, ohne in
+    // FileBrowser/PreviewPanel/DiffView einzugreifen.
+    (function () {
+      const PAIRS = [
+        ['btn-toggle-files', 'files-sidebar'],
+        ['btn-toggle-preview', 'preview-panel'],
+        ['btn-toggle-diff', 'diff-panel'],
+      ];
+      function sync() {
+        for (const [btnId, panelId] of PAIRS) {
+          const btn = document.getElementById(btnId);
+          const panel = document.getElementById(panelId);
+          if (!btn || !panel) continue;
+          btn.classList.toggle('is-active', panel.classList.contains('open'));
+        }
+      }
+      const mo = new MutationObserver(sync);
+      for (const [, panelId] of PAIRS) {
+        const panel = document.getElementById(panelId);
+        if (panel) mo.observe(panel, { attributes: true, attributeFilter: ['class'] });
+      }
+      sync(); // Initialer Abgleich (z.B. nach Reload mit erinnertem Open-State).
+    })();
+
     // ── TerminalSearch (Terminal-Stack B) ─────────────────────────────
     // In-Terminal-Suche über @xterm/addon-search. Die Toolbar-Lupe toggelt
     // ein schwebendes Overlay, das term.buffer.active durchsucht. Self-

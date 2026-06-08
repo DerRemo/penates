@@ -32,4 +32,17 @@ test.describe('Terminal-View redesign', () => {
     // Hairline-Divider vorhanden.
     await expect(page.locator('.terminal-toolbar-divider')).toHaveCount(1);
   });
+
+  test('panel toggle shows active state when its panel is open', async ({ authedPage: page, hubSession, isTouch }) => {
+    test.skip(isTouch, 'panels are fullscreen overlays on touch — toolbar toggles not clickable');
+    await navigateToSession(page, hubSession.name);
+    await waitForTerminal(page);
+    const filesBtn = page.locator('#btn-toggle-files');
+    // Der Files-Toggle ist nur sichtbar, wenn die Session aktivierbar ist.
+    if (!(await filesBtn.isVisible())) test.skip(true, 'files toggle not available for this session');
+    await expect(filesBtn).not.toHaveClass(/is-active/);
+    await filesBtn.click();
+    await page.waitForSelector('#files-sidebar.open', { timeout: 5_000 });
+    await expect(filesBtn).toHaveClass(/is-active/);
+  });
 });
