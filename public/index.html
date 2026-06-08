@@ -2654,7 +2654,6 @@
       .logo-text { display: none; }
       /* Terminal-Toolbar: Button-Labels entfernen, nur Icons stehen lassen. */
       .terminal-toolbar .btn-label { display: none; }
-      #kill-current-btn { padding: 6px 10px; }
     }
 
     /* Mobile: Modals werden zu Bottom-Sheets. Slide-up von unten, volle
@@ -4175,10 +4174,6 @@
         <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
           <span class="btn-label" data-i18n="terminal.toolbar.captureIdea">Capture idea</span>
-        </button>
-        <button class="btn btn-danger btn-sm" id="kill-current-btn" type="button" aria-label="Kill session" title="Kill session" data-i18n-attr="aria-label:terminal.toolbar.killAria;title:terminal.toolbar.killTitle">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          <span class="btn-label" data-i18n="terminal.toolbar.kill">Kill</span>
         </button>
       </div>
     </div>
@@ -8440,28 +8435,6 @@
       refreshSessions();
     });
 
-    function killCurrentSession() {
-      if (!currentSessionName) return;
-      const name = currentSessionName;
-      // Direkt inline statt killSession() aufzurufen, damit wir nicht zwei
-      // refreshSessions() hintereinander triggern (disconnectTerminal ruft
-      // selbst schon refresh auf).
-      const displayName = name.replace(/^cc-/, '');
-      if (!confirm(t('confirm.killSession', { name: displayName }))) return;
-      fetch(`/api/sessions/${encodeURIComponent(name)}`, {
-        method: 'DELETE',
-        headers: apiHeaders(),
-      }).then(res => {
-        if (!res.ok) throw new Error();
-        showToast(t('toast.sessionKilled', { name: displayName }), 'success');
-      }).catch(() => {
-        showToast(t('toast.killFailed'), 'error');
-      }).finally(() => {
-        disconnectTerminal();
-        setView('dashboard');
-      });
-    }
-
     // ── Directory tree picker ───────────────────────────────────
     // Factory-Pattern: jeder Picker bekommt seinen eigenen State
     // (selectedDir), damit Session- und Projekt-Modal unabhängig
@@ -9305,7 +9278,6 @@
       window.visualViewport.addEventListener('resize', updateKeyboardInset);
       window.visualViewport.addEventListener('scroll', updateKeyboardInset);
     }
-    document.getElementById('kill-current-btn').addEventListener('click', killCurrentSession);
     document.getElementById('layout-grid-btn').addEventListener('click', () => {
       setLayout('grid');
       if (sessions === null) renderSkeleton();
