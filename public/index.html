@@ -3566,6 +3566,10 @@
       justify-content: center;
     }
     .file-row .icon img { width: 16px; height: 16px; display: block; }
+    /* Inline-<svg> Datei-Icon — die --vscode-ctp-* Tokens lösen auf → retintet pro Flavor.
+       App-weit: FileBrowser-Row, Dir-Picker, Preview-Header, Inline-Create. */
+    .file-icon { width: 16px; height: 16px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+    .file-icon svg { width: 100%; height: 100%; display: block; }
     /* Git-Marker: dezenter Punkt rechts am Label. Token-Farben:
        untracked=grün, modified=orange, staged=teal(accent). */
     .file-row .git-marker {
@@ -4124,8 +4128,10 @@
   <!-- Geteilte ESM-Module für die Non-Module-IIFEs erreichbar machen (wie clis.js).
        fileIcon → Datei-Icons (Catppuccin), Fuse → Fuzzy-Filter. -->
   <script type="module">
-    import { fileIcon as _fileIcon } from './file-icons.js';
+    import { fileIcon as _fileIcon, fileIconSvg as _fileIconSvg } from './file-icons.js';
     window.fileIcon = _fileIcon;
+    // Inline-SVG-Markup — die --vscode-ctp-* Tokens lösen auf → retintet pro Flavor.
+    window.fileIconSvg = _fileIconSvg;
     import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
   </script>
   <script>
@@ -8867,10 +8873,10 @@
           <span class="tree-name"></span>
         `;
         row.querySelector('.tree-name').textContent = entry.name;
-        if (window.fileIcon) {
-          const { src } = window.fileIcon(entry.name, true);
+        if (window.fileIconSvg) {
+          const svg = window.fileIconSvg(entry.name, true);
           const ic = row.querySelector('.tree-icon');
-          if (ic) ic.innerHTML = `<img src="${src}" alt="" style="width:16px;height:16px;display:block;">`;
+          if (ic) { ic.classList.add('file-icon'); ic.innerHTML = svg; }
         }
 
         row.addEventListener('click', async (e) => {
@@ -8988,10 +8994,10 @@
 
         const row = document.createElement('div');
         row.className = 'tree-row tree-row-new';
-        const folderIconSrc = window.fileIcon ? window.fileIcon('x', true).src : '';
+        const folderIconSvg = window.fileIconSvg ? window.fileIconSvg('x', true) : '';
         row.innerHTML = `
           <span class="tree-arrow empty">▸</span>
-          <span class="tree-icon">${folderIconSrc ? `<img src="${folderIconSrc}" alt="" style="width:16px;height:16px;display:block;">` : ''}</span>
+          <span class="tree-icon file-icon">${folderIconSvg}</span>
           <input type="text" autocomplete="off" spellcheck="false"
                  placeholder="${escapeHtml(t('treePicker.mkdir.placeholder'))}">
           <span class="tree-mkdir-hint"></span>
@@ -10733,15 +10739,13 @@
         check.textContent = '✓';
 
         const icon = document.createElement('span');
-        icon.className = 'icon';
-        // Geteilter fileIcon-Helper (Catppuccin, vendored). Fallback auf das
-        // generische Datei-/Ordner-Icon, falls das Modul noch lädt.
-        if (window.fileIcon) {
-          const { src } = window.fileIcon(entry.name, entry.type === 'dir');
-          const img = document.createElement('img');
-          img.src = src;
-          img.alt = '';
-          icon.appendChild(img);
+        icon.className = 'icon file-icon';
+        // Geteilter fileIconSvg-Helper (Catppuccin, vendored). Inline-<svg> →
+        // die --vscode-ctp-* Tokens lösen auf und retinten pro Flavor (kein
+        // <img src>, das rendert isoliert + zeigt die Icons nicht). Fallback:
+        // leer, falls das Modul noch lädt.
+        if (window.fileIconSvg) {
+          icon.innerHTML = window.fileIconSvg(entry.name, entry.type === 'dir');
         }
 
         const label = document.createElement('span');
@@ -11550,18 +11554,19 @@
         const modal = document.getElementById('file-preview-modal');
         const body = document.getElementById('file-preview-body');
         document.getElementById('file-preview-name').textContent = entry.name || relPath.split('/').pop();
-        // Datei-Icon im Preview-Header (app-weite Konsistenz).
-        if (window.fileIcon) {
+        // Datei-Icon im Preview-Header (app-weite Konsistenz). Inline-<svg> →
+        // die --vscode-ctp-* Tokens lösen auf + retinten pro Flavor.
+        if (window.fileIconSvg) {
           const fname = entry.name || relPath.split('/').pop();
-          const { src } = window.fileIcon(fname, false);
+          const svg = window.fileIconSvg(fname, false);
           const titleEl = document.getElementById('file-preview-name');
           const prev = titleEl.querySelector('.fp-title-icon');
           if (prev) prev.remove();
-          const img = document.createElement('img');
-          img.className = 'fp-title-icon';
-          img.src = src; img.alt = '';
-          img.style.cssText = 'width:16px;height:16px;margin-right:6px;vertical-align:-2px;';
-          titleEl.prepend(img);
+          const wrap = document.createElement('span');
+          wrap.className = 'fp-title-icon file-icon';
+          wrap.style.cssText = 'margin-right:6px;vertical-align:-2px;';
+          wrap.innerHTML = svg;
+          titleEl.prepend(wrap);
         }
         document.getElementById('file-preview-size').textContent = entry.size != null ? formatSize(entry.size) : '';
         body.innerHTML = `<div class="preview-oversize">${t('preview.loading')}</div>`;
@@ -12701,14 +12706,14 @@
         if (!container) return;
         const wrap = document.createElement('div');
         wrap.className = 'file-create-row';
-        const img = document.createElement('img');
-        img.className = 'icon-img';
-        img.src = window.fileIcon ? window.fileIcon('x', kind === 'folder').src : '';
-        img.alt = '';
+        // Inline-<svg> → die --vscode-ctp-* Tokens lösen auf + retinten pro Flavor.
+        const iconEl = document.createElement('span');
+        iconEl.className = 'icon-img file-icon';
+        if (window.fileIconSvg) iconEl.innerHTML = window.fileIconSvg('x', kind === 'folder');
         const input = document.createElement('input');
         input.className = 'rename-input';
         input.placeholder = kind === 'folder' ? t('filebrowser.create.folderPlaceholder') : t('filebrowser.create.filePlaceholder');
-        wrap.appendChild(img);
+        wrap.appendChild(iconEl);
         wrap.appendChild(input);
         container.prepend(wrap);
         input.focus();

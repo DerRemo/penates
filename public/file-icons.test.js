@@ -47,3 +47,38 @@ test('fileIcon returns key + svg-url markup', () => {
     assert.match(r.src, /catppuccin-icons\/javascript\.svg$/);
   });
 });
+
+test('fileIconSvg returns inline <svg> markup for the resolved key', () => {
+  return import('./file-icons.js').then(({ fileIconSvg }) => {
+    const js = fileIconSvg('app.js', false);
+    // Must be inline SVG markup (so var(--vscode-ctp-*) resolves on the host page).
+    assert.ok(js.startsWith('<svg'), 'should return inline <svg> markup');
+    // The JS icon tints via the yellow css-variable — proves the var() refs survived.
+    assert.match(js, /var\(--vscode-ctp-yellow\)/);
+
+    // Folders resolve to the folder svg.
+    const dir = fileIconSvg('src', true);
+    assert.ok(dir.startsWith('<svg'));
+    assert.deepEqual(dir, fileIconSvg('node_modules', true), 'all dirs share the folder svg');
+
+    // Unknown extension falls back to the generic _file svg.
+    const unknown = fileIconSvg('mystery.qwerty', false);
+    assert.ok(unknown.startsWith('<svg'));
+    assert.deepEqual(unknown, fileIconSvg('noext', false), 'unknown ext → _file svg');
+
+    // Distinct file types resolve to distinct markup (not all the fallback).
+    const ts = fileIconSvg('main.ts', false);
+    assert.notDeepEqual(js, ts, 'js and ts should render different svgs');
+    assert.notDeepEqual(js, unknown, 'known type should not equal the _file fallback');
+  });
+});
+
+test('fileIconSvg markup matches the vendored ICON_SVG data for the key', () => {
+  return Promise.all([
+    import('./file-icons.js'),
+    import('./catppuccin-icons-data.js'),
+  ]).then(([{ fileIconSvg, iconKey }, { ICON_SVG }]) => {
+    assert.equal(fileIconSvg('main.ts', false), ICON_SVG[iconKey('main.ts', false)]);
+    assert.equal(fileIconSvg('x', true), ICON_SVG['_folder']);
+  });
+});

@@ -2,6 +2,13 @@
 // unter public/vendor/catppuccin-icons/). Browser-import (FileBrowser, Dir-
 // Picker, FilePreview, Diff) UND node:test nutzen dieselbe Datei (wie clis.js).
 // Reines Daten-/Funktionsmodul, kein DOM. Unbekanntes → _file, Ordner → _folder.
+//
+// WICHTIG: Render-Stellen injizieren das Icon als INLINE-<svg> (fileIconSvg),
+// NICHT als <img src>. Ein über <img> geladenes SVG rendert in isoliertem
+// Kontext und kann var(--vscode-ctp-*) der Host-Seite nicht auflösen → die
+// Icons bleiben unsichtbar. Inline im DOM löst die CSS-Variablen auf und
+// retintet pro Hub-Flavor. iconKey/iconSrc bleiben für Back-Compat erhalten.
+import { ICON_SVG } from './catppuccin-icons-data.js';
 
 // Spezialnamen schlagen die Extension (exakter Dateiname, lowercase-Vergleich).
 const BY_NAME = {
@@ -59,9 +66,19 @@ export function iconSrc(key) {
   return `vendor/catppuccin-icons/${key}.svg`;
 }
 
-// Browser-Helper: { key, src } für eine Datei/Ordner. Render-Stellen bauen
-// daraus ein <img src=…> (css-variables-SVG retintet sich per Hub-Flavor).
+// Browser-Helper: { key, src } für eine Datei/Ordner. Legacy — Render-Stellen
+// nutzen jetzt fileIconSvg (inline). Bleibt für etwaige Alt-Aufrufer erhalten.
 export function fileIcon(name, isDir) {
   const key = iconKey(name, isDir);
   return { key, src: iconSrc(key) };
+}
+
+// Liefert das inline-<svg>-Markup für die aufgelöste Datei/Ordner. Inline statt
+// <img src> → var(--vscode-ctp-*) der Host-Seite löst auf und retintet pro
+// Flavor. Quelle: vendored Catppuccin-SVGs (vertrauenswürdig, kein <script>/
+// Event-Handler — die Vendor-Pipeline garantiert das). Fallback _file, falls
+// ein Key wider Erwarten fehlt.
+export function fileIconSvg(name, isDir) {
+  const key = iconKey(name, isDir);
+  return ICON_SVG[key] || ICON_SVG['_file'] || '';
 }
