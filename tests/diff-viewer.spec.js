@@ -1,12 +1,15 @@
-// E2E für den Diff-Viewer (Spec 2): Git-Badge → diff-view, Datei-Liste,
-// diff2html-Render (viewport-abhängig side-by-side/line-by-line), Live-Refresh.
+// E2E für den Diff-Viewer, jetzt das Changes-Tab im Repo-Panel (P-A): Repo-
+// Toggle → Repo-Panel → Changes-Tab, List⇄Diff-Toggle, diff2html-Render,
+// Live-Refresh, ein konsolidierter Repo-Toggle (kein separater Files/Diff),
+// Git-Dot am Repo-Toggle.
 //
 // Die Session wird als FOREIGN tmux-Session erstellt (direkt via `tmux
 // new-session`, KEIN cc-Prefix, KEIN API-Call) in einem dirty Git-Repo. Der
-// Hub listet foreign Sessions; deren Card trägt jetzt ebenfalls den Git-Badge,
-// weil das Backend für jede Session mit auflösbarem cwd `git` liefert. Foreign
-// (z.B. Moshi-gestartete) Sessions sind das Kern-Interop-Szenario.
+// Hub listet foreign Sessions; deren Card trägt den Git-Badge, weil das Backend
+// für jede Session mit auflösbarem cwd `git` liefert. Foreign (z.B. Moshi-
+// gestartete) Sessions sind das Kern-Interop-Szenario.
 import { test, expect } from './fixtures.js';
+import { ensureSidebarOpen } from './helpers.js';
 import { execFileSync } from 'child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
@@ -49,7 +52,31 @@ function startSession() {
   execFileSync(TMUX, ['new-session', '-d', '-s', SESSION, '-c', repoDir, 'bash', '--noprofile', '--norc'], { stdio: 'pipe' });
 }
 
-test.describe('Diff-Viewer', () => {
+// Navigiert robust zur (foreign) Session. Der `[data-session]`-Eintrag lebt im
+// Sidebar — auf Mobile ist das ein Off-Canvas-Drawer, der erst geöffnet werden
+// muss (sonst ist der Eintrag „outside of the viewport"); auf Desktop ist die
+// Sidebar permanent sichtbar (ensureSidebarOpen ist dort ein No-Op).
+async function openSession(page) {
+  await page.goto('/');
+  await ensureSidebarOpen(page);
+  const card = page.locator(`[data-session="${SESSION}"]`);
+  await card.waitFor({ timeout: 10000 });
+  await card.scrollIntoViewIfNeeded();
+  await card.click();
+  await expect(page.locator('body')).toHaveAttribute('data-current-view', 'terminal');
+}
+
+// Öffnet das Repo-Panel auf dem Changes-Tab für die aktive Session.
+async function openChanges(page) {
+  const repoToggle = page.locator('#btn-toggle-repo');
+  await expect(repoToggle).toBeVisible({ timeout: 8000 });
+  await repoToggle.click();
+  await expect(page.locator('#repo-panel')).toHaveClass(/open/, { timeout: 10000 });
+  await page.locator('#repo-tab-changes').click();
+  await expect(page.locator('#repo-pane-changes')).toHaveClass(/active/, { timeout: 5000 });
+}
+
+test.describe('Repo panel — Changes (P-A)', () => {
   test.beforeEach(async ({}, testInfo) => {
     SESSION = `diff-e2e-${testInfo.workerIndex}-${Date.now().toString(36)}`;
     makeDirtyRepo(); killSession(); startSession();
@@ -59,72 +86,78 @@ test.describe('Diff-Viewer', () => {
     if (repoDir) { rmSync(repoDir, { recursive: true, force: true }); repoDir = null; }
   });
 
-  test('Diff-Panel öffnet via Toggle und zeigt die Datei-Liste', async ({ authedPage }) => {
-    // Einstieg seit dem minimal-card-Redesign: Session öffnen, dann der
-    // #btn-toggle-diff-Toggle in der Terminal-Toolbar (der frühere Card-
-    // Git-Badge-Shortcut entfiel mit den minimal cards).
-    await authedPage.goto('/');
-    await authedPage.click(`[data-session="${SESSION}"]`);
-    await expect(authedPage.locator('body')).toHaveAttribute('data-current-view', 'terminal');
-    const diffToggle = authedPage.locator('#btn-toggle-diff');
-    await expect(diffToggle).toBeVisible({ timeout: 8000 });
-    await diffToggle.click();
-    await expect(authedPage.locator('#diff-panel')).toHaveClass(/open/, { timeout: 10000 });
-
-    // Datei-Liste zeigt die geänderte + die untracked Datei
-    await expect(authedPage.locator('#diff-filelist .diff-file', { hasText: 'a.txt' })).toBeVisible();
-    await expect(authedPage.locator('#diff-filelist .diff-file', { hasText: 'new.txt' })).toBeVisible();
-
-    // Diff der gewählten Datei rendert (diff2html .d2h-wrapper ODER <pre>-Fallback)
-    await authedPage.locator('#diff-filelist .diff-file', { hasText: 'a.txt' }).click();
-    const rendered = authedPage.locator('#diff-pane .d2h-wrapper, #diff-pane pre');
-    await expect(rendered).toBeVisible({ timeout: 15000 });
-  });
-
-  test('Diff-Toggle ist mit dem Files-Panel gegenseitig exklusiv', async ({ authedPage, isTouch }) => {
-    // Auf Touch sind die Panels Vollbild-Overlays, die die Toolbar überdecken —
-    // die Toggles sind dann nicht per Klick erreichbar (wie bei Files/Preview).
+  test('one Repo toggle (no separate Files/Diff) opens the panel', async ({ authedPage, isTouch }) => {
+    await openSession(authedPage);
+    // Konsolidierung: keine separaten Files-/Diff-Toggles mehr.
+    await expect(authedPage.locator('#btn-toggle-files')).toHaveCount(0);
+    await expect(authedPage.locator('#btn-toggle-diff')).toHaveCount(0);
+    const repoToggle = authedPage.locator('#btn-toggle-repo');
+    await expect(repoToggle).toBeVisible({ timeout: 8000 });
     test.skip(isTouch, 'panels are fullscreen overlays on touch — toolbar toggles not clickable');
-    await authedPage.goto('/');
-    await authedPage.click(`[data-session="${SESSION}"]`);
-    await expect(authedPage.locator('body')).toHaveAttribute('data-current-view', 'terminal');
-
-    const diffToggle = authedPage.locator('#btn-toggle-diff');
-    await expect(diffToggle).toBeVisible({ timeout: 8000 });
-    await diffToggle.click();
-    await expect(authedPage.locator('#diff-panel')).toHaveClass(/open/, { timeout: 8000 });
-
-    // Files öffnen → Diff schließt
-    await authedPage.click('#btn-toggle-files');
-    await expect(authedPage.locator('#files-sidebar')).toHaveClass(/open/, { timeout: 5000 });
-    await expect(authedPage.locator('#diff-panel')).not.toHaveClass(/open/);
-
-    // Diff wieder öffnen → Files schließt
-    await diffToggle.click();
-    await expect(authedPage.locator('#diff-panel')).toHaveClass(/open/);
-    await expect(authedPage.locator('#files-sidebar')).not.toHaveClass(/open/);
+    await repoToggle.click();
+    await expect(authedPage.locator('#repo-panel')).toHaveClass(/open/, { timeout: 10000 });
   });
 
-  test('Live-Refresh aktualisiert die Datei-Liste', async ({ authedPage }) => {
-    await authedPage.goto('/');
-    await authedPage.click(`[data-session="${SESSION}"]`);
-    await expect(authedPage.locator('body')).toHaveAttribute('data-current-view', 'terminal');
-    const diffToggle = authedPage.locator('#btn-toggle-diff');
-    await expect(diffToggle).toBeVisible({ timeout: 8000 });
-    await diffToggle.click();
-    await expect(authedPage.locator('#diff-panel')).toHaveClass(/open/, { timeout: 10000 });
-    await expect(authedPage.locator('#diff-filelist .diff-file', { hasText: 'new.txt' })).toBeVisible({ timeout: 15000 });
+  test('Changes shows working-tree diff with List⇄Diff toggle', async ({ authedPage, isTouch }) => {
+    test.skip(isTouch, 'panels are fullscreen overlays on touch — toolbar toggles not clickable');
+    await openSession(authedPage);
+    await openChanges(authedPage);
+
+    // List-Modus: die geänderte + die untracked Datei als Zeilen.
+    await expect(authedPage.locator('#repo-pane-changes')).toHaveClass(/mode-list/);
+    await expect(authedPage.locator('#changes-list .changes-row', { hasText: 'a.txt' })).toBeVisible({ timeout: 10000 });
+    await expect(authedPage.locator('#changes-list .changes-row', { hasText: 'new.txt' })).toBeVisible();
+
+    // Klick auf Zeile → Diff-Modus + diff2html (.d2h-wrapper ODER <pre>-Fallback).
+    await authedPage.locator('#changes-list .changes-row', { hasText: 'a.txt' }).click();
+    await expect(authedPage.locator('#repo-pane-changes')).toHaveClass(/mode-diff/);
+    await expect(authedPage.locator('#diff-pane .d2h-wrapper, #diff-pane pre')).toBeVisible({ timeout: 15000 });
+
+    // Zurück zu List.
+    await authedPage.locator('#changes-mode-list').click();
+    await expect(authedPage.locator('#repo-pane-changes')).toHaveClass(/mode-list/);
+  });
+
+  test('Repo-Toggle ist mit dem Preview-Panel gegenseitig exklusiv', async ({ authedPage, isTouch }) => {
+    // Auf Touch sind die Panels Vollbild-Overlays, die die Toolbar überdecken —
+    // die Toggles sind dann nicht per Klick erreichbar.
+    test.skip(isTouch, 'panels are fullscreen overlays on touch — toolbar toggles not clickable');
+    await openSession(authedPage);
+
+    const repoToggle = authedPage.locator('#btn-toggle-repo');
+    await expect(repoToggle).toBeVisible({ timeout: 8000 });
+    await repoToggle.click();
+    await expect(authedPage.locator('#repo-panel')).toHaveClass(/open/, { timeout: 8000 });
+
+    // Preview öffnen → Repo schließt.
+    await authedPage.click('#btn-toggle-preview');
+    await expect(authedPage.locator('#preview-panel')).toHaveClass(/open/, { timeout: 5000 });
+    await expect(authedPage.locator('#repo-panel')).not.toHaveClass(/open/);
+
+    // Repo wieder öffnen → Preview schließt.
+    await repoToggle.click();
+    await expect(authedPage.locator('#repo-panel')).toHaveClass(/open/);
+    await expect(authedPage.locator('#preview-panel')).not.toHaveClass(/open/);
+  });
+
+  test('git-dot am Repo-Toggle wenn die cwd dirty ist', async ({ authedPage }) => {
+    await openSession(authedPage);
+    await expect(authedPage.locator('#btn-toggle-repo')).toHaveAttribute('data-dirty', 'true', { timeout: 12000 });
+  });
+
+  test('Live-Refresh aktualisiert die Changes-Liste', async ({ authedPage, isTouch }) => {
+    test.skip(isTouch, 'panels are fullscreen overlays on touch — toolbar toggles not clickable');
+    await openSession(authedPage);
+    await openChanges(authedPage);
+    await expect(authedPage.locator('#changes-list .changes-row', { hasText: 'new.txt' })).toBeVisible({ timeout: 15000 });
 
     // Neue untracked Datei im Repo → Live-Refresh über den File-Watcher.
     // Der Watcher (server-seitig) abonniert erst, wenn der WS-`subscribeSession`
-    // angekommen ist — das passiert kurz NACH dem Öffnen der Diff-View. Ein
-    // einzelner Write direkt nach dem ersten Render kann dieses Fenster
-    // verpassen (fs.watch hat kein Replay). Wir schreiben die Datei daher
-    // periodisch neu, bis sie auftaucht: jeder Write ist ein frisches
-    // Watcher-Event, also greift spätestens der erste nach dem Subscribe.
+    // angekommen ist — das passiert kurz NACH dem Öffnen der Changes-View. Wir
+    // schreiben die Datei daher periodisch neu, bis sie auftaucht.
     await expect(async () => {
       writeFileSync(join(repoDir, 'live.txt'), 'added-live\n');
-      await expect(authedPage.locator('#diff-filelist .diff-file', { hasText: 'live.txt' })).toBeVisible({ timeout: 1500 });
+      await expect(authedPage.locator('#changes-list .changes-row', { hasText: 'live.txt' })).toBeVisible({ timeout: 1500 });
     }).toPass({ timeout: 12000 });
   });
 });

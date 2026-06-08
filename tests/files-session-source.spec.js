@@ -44,11 +44,13 @@ test.describe('Files-Picker pro Session (ohne Projekt)', () => {
     await item.click();
     await page.waitForSelector('body[data-current-view="terminal"]', { timeout: 10000 });
 
-    const toggle = page.locator('#btn-toggle-files');
+    const toggle = page.locator('#btn-toggle-repo');
     await expect(toggle).toBeVisible({ timeout: 8000 });
     await toggle.click();
 
-    await expect(page.locator('#files-sidebar')).toHaveClass(/open/, { timeout: 5000 });
+    await expect(page.locator('#repo-panel')).toHaveClass(/open/, { timeout: 5000 });
+    await page.click('#repo-tab-files');
+    await page.waitForSelector('#repo-pane-files.active', { timeout: 5000 });
     // Tree zeigt den cwd-Inhalt (Datei + Unterordner)
     await expect(page.locator('#files-tree .file-row[data-path="probe.txt"]')).toBeVisible({ timeout: 8000 });
     await expect(page.locator('#files-tree .file-row[data-path="sub"]')).toBeVisible();

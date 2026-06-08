@@ -2456,8 +2456,8 @@
       flex-shrink: 0;
     }
     /* Git-Dot: ausstehende Änderungen in der Session-cwd. ~7px, --orange,
-       oben-rechts am Diff-Icon, mit Container-farbenem Ring zum Absetzen. */
-    #btn-toggle-diff[data-dirty="true"]::after {
+       oben-rechts am Repo-Icon, mit Container-farbenem Ring zum Absetzen. */
+    #btn-toggle-repo[data-dirty="true"]::after {
       content: "";
       position: absolute;
       top: 5px;
@@ -3758,6 +3758,165 @@
     #voice-btn.voice-busy { opacity: 0.6; pointer-events: none; }
     @keyframes voicePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
 
+    /* ── Repo-Panel (Files · Changes · History · Branches) ─────────
+       Ein rechtes Card-Panel, das Files + Diff vereint. Tokens-only,
+       Card-Radius wie Terminal/Files. Mutual-exclusive mit Browser-
+       Preview (eigener rechter Slot), intern nur Tab-Wechsel. */
+    .repo-panel {
+      flex: 0 0 var(--repo-width, 460px);
+      min-width: 0;
+      display: none;
+      flex-direction: column;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .repo-panel.open { display: flex; }
+    .repo-header {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+      font-size: var(--text-xs); color: var(--text-secondary);
+    }
+    .repo-header__cwd {
+      flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; font-family: var(--font-mono); color: var(--text-primary);
+    }
+    .repo-header__meta { font-family: var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+    .repo-header__close {
+      width: 28px; height: 28px; padding: 0; border: 1px solid transparent;
+      background: transparent; color: var(--text-secondary); border-radius: var(--radius-sm);
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .repo-header__close:hover { background: var(--bg-elevated); color: var(--text-primary); }
+    .repo-tabs {
+      display: flex; gap: 0; flex-shrink: 0; overflow-x: auto;
+      border-bottom: 1px solid var(--border); scrollbar-width: none;
+    }
+    .repo-tabs::-webkit-scrollbar { display: none; }
+    .repo-tab {
+      flex: 0 0 auto; padding: var(--space-2) var(--space-3);
+      background: transparent; border: none; border-bottom: 2px solid transparent;
+      color: var(--text-muted); font-size: var(--text-sm); font-weight: 500;
+      font-family: var(--font-ui); cursor: pointer; white-space: nowrap;
+    }
+    .repo-tab:hover { color: var(--text-secondary); }
+    .repo-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .repo-panes { flex: 1; min-height: 0; position: relative; }
+    .repo-pane { display: none; position: absolute; inset: 0; flex-direction: column; min-height: 0; }
+    .repo-pane.active { display: flex; }
+    .repo-resizer {
+      flex: 0 0 6px; cursor: col-resize; background: transparent;
+    }
+    .repo-resizer:hover, .repo-resizer.dragging { background: var(--accent); }
+    @media (pointer: coarse) {
+      .repo-panel.open { position: fixed; inset: 0; z-index: 92; flex: 1; border-radius: 0; }
+      .repo-resizer { display: none; }
+    }
+    /* Changes-Tab: Quelle/Back · Branch · List⇄Diff · Refresh. */
+    .changes-bar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+      font-size: var(--text-xs); color: var(--text-secondary);
+    }
+    .changes-source { font-family: var(--font-mono); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .changes-back { background: transparent; border: none; color: var(--accent); cursor: pointer; font-size: var(--text-xs); padding: 0; white-space: nowrap; }
+    .changes-spacer { flex: 1; }
+    .diff-branch { font-family: var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+    .seg-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; }
+    .seg-toggle__btn {
+      padding: 2px 10px; background: transparent; border: none; cursor: pointer;
+      color: var(--text-muted); font-size: var(--text-xs); font-family: var(--font-ui);
+    }
+    .seg-toggle__btn.active { background: var(--accent-muted); color: var(--accent); }
+    .changes-refresh, .repo-icon-btn {
+      width: 28px; height: 28px; padding: 0; border: 1px solid transparent; background: transparent;
+      color: var(--text-secondary); border-radius: var(--radius-sm); cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .changes-refresh:hover { background: var(--bg-elevated); color: var(--text-primary); }
+    .changes-body { flex: 1; min-height: 0; position: relative; }
+    /* List- vs Diff-Modus: genau eine Ansicht sichtbar (vom JS via .mode-* am Pane). */
+    .changes-list, .changes-diff { position: absolute; inset: 0; overflow: auto; }
+    #repo-pane-changes.mode-list .changes-diff { display: none; }
+    #repo-pane-changes.mode-diff .changes-list { display: none; }
+    /* List-Modus: Datei-Zeilen mit Status-Dot + Pfad + numstat. */
+    .changes-row {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-1) var(--space-3); cursor: pointer; font-size: var(--text-sm);
+    }
+    .changes-row:hover { background: var(--bg-elevated); }
+    .changes-row.active { background: var(--accent-muted); }
+    .changes-row .cr-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .changes-row .cr-dot[data-cat="untracked"] { background: var(--green); }
+    .changes-row .cr-dot[data-cat="unstaged"] { background: var(--orange); }
+    .changes-row .cr-dot[data-cat="staged"] { background: var(--accent); }
+    .changes-row .cr-dot[data-cat="commit"] { background: var(--text-muted); }
+    .changes-row .cr-icon { width: 16px; height: 16px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+    .changes-row .cr-icon svg, .changes-row .cr-icon img { width: 16px; height: 16px; display: block; }
+    .changes-row .cr-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
+    .changes-row .cr-path .cr-dir { color: var(--text-muted); }
+    .changes-row .cr-path .cr-name { color: var(--text-primary); font-weight: 500; }
+    .changes-row .cr-add { color: var(--green); font-family: var(--font-mono); }
+    .changes-row .cr-del { color: var(--red); font-family: var(--font-mono); }
+    .changes-group-label { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+    .changes-empty { padding: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+
+    /* ── History-Tab: lineare Commit-Timeline ─────────────────────── */
+    .history-list { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) 0; }
+    .history-commit {
+      display: flex; gap: var(--space-3); padding: var(--space-2) var(--space-3);
+      cursor: pointer; position: relative;
+    }
+    .history-commit:hover { background: var(--bg-elevated); }
+    /* Verbindungslinie + Dot (Timeline-Rail links). */
+    .history-commit .hc-rail { position: relative; flex: 0 0 12px; }
+    .history-commit .hc-rail::before {
+      content: ""; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; background: var(--border);
+    }
+    .history-commit:first-child .hc-rail::before { top: 10px; }
+    .history-commit:last-child .hc-rail::before { bottom: calc(100% - 10px); }
+    .history-commit .hc-dot {
+      position: absolute; left: 1px; top: 6px; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--text-muted); box-shadow: 0 0 0 2px var(--bg-surface);
+    }
+    .history-commit .hc-main { flex: 1; min-width: 0; }
+    .history-commit .hc-line1 { display: flex; align-items: center; gap: var(--space-2); }
+    .history-commit .hc-type {
+      font-size: var(--text-xs); font-family: var(--font-mono); padding: 0 6px; border-radius: var(--radius-sm);
+      background: var(--bg-elevated); flex-shrink: 0;
+    }
+    .history-commit .hc-subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: var(--text-sm); }
+    .history-commit .hc-ref {
+      font-size: var(--text-xs); font-family: var(--font-mono); padding: 0 6px; border-radius: var(--radius-sm);
+      background: var(--accent-muted); color: var(--accent); flex-shrink: 0;
+    }
+    .history-commit .hc-line2 { display: flex; gap: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+    .history-commit .hc-sha { font-family: var(--font-mono); }
+    .history-more {
+      margin: var(--space-2) auto; padding: var(--space-1) var(--space-3); display: block;
+      background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--text-secondary); font-size: var(--text-xs); cursor: pointer;
+    }
+    .history-more[hidden] { display: none; }
+    .history-empty { padding: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+
+    /* ── Branches-Tab: LOCAL / REMOTE (read-only) ─────────────────── */
+    .branches-list { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) 0; }
+    .branches-group-label { padding: var(--space-2) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+    .branch-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
+    .branch-row .br-icon { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+    .branch-row .br-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); color: var(--text-primary); }
+    .branch-row.current .br-name { color: var(--accent); font-weight: 600; }
+    .branch-row .br-current { font-size: var(--text-xs); color: var(--accent); background: var(--accent-muted); border-radius: var(--radius-sm); padding: 0 6px; flex-shrink: 0; }
+    .branch-row .br-upstream { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
+    .branch-row .br-ab { font-size: var(--text-xs); font-family: var(--font-mono); white-space: nowrap; }
+    .branch-row .br-ahead { color: var(--green); }
+    .branch-row .br-behind { color: var(--orange); }
+    .branches-empty { padding: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+
     /* ── Diff View ─────────────────────────────────────────────── */
     /* Diff-Panel: rechts gedockt, gespiegelt zum Preview-Panel (mutually exclusive). */
     .diff-panel {
@@ -4132,6 +4291,9 @@
     window.fileIcon = _fileIcon;
     // Inline-SVG-Markup — die --vscode-ctp-* Tokens lösen auf → retintet pro Flavor.
     window.fileIconSvg = _fileIconSvg;
+    import { commitTypeColor as _commitTypeColor, commitType as _commitType } from './commit-type.js';
+    window.commitTypeColor = _commitTypeColor;
+    window.commitType = _commitType;
     import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
   </script>
   <script>
@@ -4404,14 +4566,11 @@
         </span>
       </div>
       <div class="terminal-toolbar-right">
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-files" type="button" style="display:none" data-tooltip="Files" aria-label="Show files" title="Show files" data-i18n-attr="aria-label:terminal.toolbar.filesAria;title:terminal.toolbar.filesTitle">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-repo" type="button" style="display:none" data-tooltip="Repo" aria-label="Repo" title="Repo" data-i18n-attr="data-tooltip:repo.toggle;aria-label:repo.toggleAria;title:repo.toggleAria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
         </button>
         <button class="btn btn-ghost btn-sm" id="btn-toggle-preview" type="button" style="display:none" data-tooltip="Preview" aria-label="Toggle preview" title="Toggle preview" data-i18n-attr="aria-label:preview.toggleAria;title:preview.toggleAria">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        </button>
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-diff" type="button" style="display:none" data-tooltip="Diff" aria-label="Toggle diff" title="Toggle diff" data-i18n-attr="aria-label:diff.toggleAria;title:diff.toggleAria">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
         </button>
         <span class="terminal-toolbar-divider" aria-hidden="true"></span>
         <button class="btn btn-ghost btn-sm" id="image-picker-btn" type="button" data-tooltip="Insert image" aria-label="Insert image" title="Insert image" data-i18n-attr="aria-label:imagePaste.pickerTitle;title:imagePaste.pickerTitle">
@@ -4444,41 +4603,85 @@
           <span data-i18n="terminal.connStatus.connecting">Connecting</span>
         </div>
       </div>
-      <div class="files-resizer" id="files-resizer" style="display:none"></div>
-      <aside class="files-sidebar" id="files-sidebar">
-        <div class="files-toolbar">
-          <span class="breadcrumb" id="files-breadcrumb"></span>
-          <button id="files-mkdir" type="button" data-tooltip="New folder" title="New folder" aria-label="New folder" data-i18n-attr="data-tooltip:filebrowser.toolbar.newFolderTitle;title:filebrowser.toolbar.newFolderTitle;aria-label:filebrowser.toolbar.newFolderTitle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6M9 14h6"/></svg>
-          </button>
-          <button id="files-newfile" type="button" data-tooltip="New file" title="New file" aria-label="New file" data-i18n-attr="data-tooltip:filebrowser.toolbar.newFileTitle;title:filebrowser.toolbar.newFileTitle;aria-label:filebrowser.toolbar.newFileTitle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 12v6M9 15h6"/></svg>
-          </button>
-          <button id="files-upload-picker" type="button" data-tooltip="Upload" title="Upload" aria-label="Upload" data-i18n-attr="data-tooltip:filebrowser.toolbar.uploadTitle;title:filebrowser.toolbar.uploadTitle;aria-label:filebrowser.toolbar.uploadTitle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-          </button>
-          <button id="files-filter" type="button" data-tooltip="Filter" title="Filter" aria-label="Filter" data-i18n-attr="data-tooltip:filebrowser.toolbar.filterTitle;title:filebrowser.toolbar.filterTitle;aria-label:filebrowser.toolbar.filterTitle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></svg>
-          </button>
-          <button id="files-refresh" type="button" data-tooltip="Refresh" title="Refresh" aria-label="Refresh" data-i18n-attr="data-tooltip:filebrowser.toolbar.refreshTitle;title:filebrowser.toolbar.refreshTitle;aria-label:filebrowser.toolbar.refreshTitle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-          </button>
-          <button id="files-close" type="button" data-tooltip="Close" title="Close" aria-label="Close" data-i18n-attr="data-tooltip:filebrowser.toolbar.closeTitle;title:filebrowser.toolbar.closeTitle;aria-label:filebrowser.toolbar.closeTitle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      <div class="repo-resizer" id="repo-resizer" style="display:none"></div>
+      <aside class="repo-panel" id="repo-panel">
+        <div class="repo-header">
+          <span class="repo-header__cwd" id="repo-cwd"></span>
+          <span class="repo-header__meta" id="repo-meta"></span>
+          <button class="repo-header__close" id="repo-close" type="button" aria-label="Close" title="Close" data-i18n-attr="aria-label:repo.close;title:repo.close">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
-        <div class="files-search">
-          <svg class="files-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" id="files-search-input" autocomplete="off" spellcheck="false"
-                 data-i18n-attr="placeholder:filebrowser.search.placeholder" placeholder="Filter loaded files…">
+        <div class="repo-tabs" role="tablist">
+          <button class="repo-tab" id="repo-tab-files" type="button" role="tab" data-tab="files" data-i18n="repo.tab.files">Files</button>
+          <button class="repo-tab" id="repo-tab-changes" type="button" role="tab" data-tab="changes" data-i18n="repo.tab.changes">Changes</button>
+          <button class="repo-tab" id="repo-tab-history" type="button" role="tab" data-tab="history" data-i18n="repo.tab.history">History</button>
+          <button class="repo-tab" id="repo-tab-branches" type="button" role="tab" data-tab="branches" data-i18n="repo.tab.branches">Branches</button>
         </div>
-        <div class="files-tree" id="files-tree"></div>
-        <div class="files-selbar" id="files-selbar" hidden>
-          <span class="files-selbar__count" id="files-selbar-count"></span>
-          <span class="files-selbar__spacer"></span>
-          <button class="btn btn-danger btn-sm" type="button" id="files-sel-trash"></button>
-          <button class="btn btn-ghost btn-sm" type="button" id="files-sel-move"></button>
-          <button class="btn btn-ghost btn-sm" type="button" id="files-sel-clear"></button>
+        <div class="repo-panes">
+          <!-- FILES PANE: hostet den FileBrowser-Tree (rendert weiter in #files-tree). -->
+          <div class="repo-pane" id="repo-pane-files" role="tabpanel">
+            <div class="files-toolbar">
+              <span class="breadcrumb" id="files-breadcrumb"></span>
+              <button id="files-mkdir" type="button" data-tooltip="New folder" title="New folder" aria-label="New folder" data-i18n-attr="data-tooltip:filebrowser.toolbar.newFolderTitle;title:filebrowser.toolbar.newFolderTitle;aria-label:filebrowser.toolbar.newFolderTitle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6M9 14h6"/></svg>
+              </button>
+              <button id="files-newfile" type="button" data-tooltip="New file" title="New file" aria-label="New file" data-i18n-attr="data-tooltip:filebrowser.toolbar.newFileTitle;title:filebrowser.toolbar.newFileTitle;aria-label:filebrowser.toolbar.newFileTitle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 12v6M9 15h6"/></svg>
+              </button>
+              <button id="files-upload-picker" type="button" data-tooltip="Upload" title="Upload" aria-label="Upload" data-i18n-attr="data-tooltip:filebrowser.toolbar.uploadTitle;title:filebrowser.toolbar.uploadTitle;aria-label:filebrowser.toolbar.uploadTitle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+              </button>
+              <button id="files-filter" type="button" data-tooltip="Filter" title="Filter" aria-label="Filter" data-i18n-attr="data-tooltip:filebrowser.toolbar.filterTitle;title:filebrowser.toolbar.filterTitle;aria-label:filebrowser.toolbar.filterTitle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></svg>
+              </button>
+              <button id="files-refresh" type="button" data-tooltip="Refresh" title="Refresh" aria-label="Refresh" data-i18n-attr="data-tooltip:filebrowser.toolbar.refreshTitle;title:filebrowser.toolbar.refreshTitle;aria-label:filebrowser.toolbar.refreshTitle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </button>
+            </div>
+            <div class="files-search">
+              <svg class="files-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="files-search-input" autocomplete="off" spellcheck="false" data-i18n-attr="placeholder:filebrowser.search.placeholder" placeholder="Filter loaded files…">
+            </div>
+            <div class="files-tree" id="files-tree"></div>
+            <div class="files-selbar" id="files-selbar" hidden>
+              <span class="files-selbar__count" id="files-selbar-count"></span>
+              <span class="files-selbar__spacer"></span>
+              <button class="btn btn-danger btn-sm" type="button" id="files-sel-trash"></button>
+              <button class="btn btn-ghost btn-sm" type="button" id="files-sel-move"></button>
+              <button class="btn btn-ghost btn-sm" type="button" id="files-sel-clear"></button>
+            </div>
+          </div>
+          <!-- CHANGES PANE: hostet DiffView (List⇄Diff + Working-Tree/Commit). -->
+          <div class="repo-pane" id="repo-pane-changes" role="tabpanel">
+            <div class="changes-bar">
+              <span class="changes-source" id="changes-source"></span>
+              <button class="changes-back" id="changes-back" type="button" hidden data-i18n="repo.changes.workingTree">← Working tree</button>
+              <span class="changes-spacer"></span>
+              <span class="diff-branch" id="diff-branch"></span>
+              <span class="diff-live" id="diff-live" title="Live"></span>
+              <div class="seg-toggle" id="changes-viewmode" role="group">
+                <button class="seg-toggle__btn active" id="changes-mode-list" type="button" data-mode="list" data-i18n="repo.changes.list">List</button>
+                <button class="seg-toggle__btn" id="changes-mode-diff" type="button" data-mode="diff" data-i18n="repo.changes.diff">Diff</button>
+              </div>
+              <button class="changes-refresh" id="diff-refresh" type="button" aria-label="Refresh" title="Refresh" data-i18n-attr="aria-label:diff.refresh;title:diff.refresh">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </button>
+            </div>
+            <div class="changes-body">
+              <div class="changes-list" id="changes-list"></div>
+              <div class="changes-diff" id="diff-pane"></div>
+            </div>
+          </div>
+          <!-- HISTORY PANE (P-B). -->
+          <div class="repo-pane" id="repo-pane-history" role="tabpanel">
+            <div class="history-list" id="history-list"></div>
+            <button class="history-more" id="history-more" type="button" hidden data-i18n="repo.history.loadMore">Load more</button>
+          </div>
+          <!-- BRANCHES PANE (P-C). -->
+          <div class="repo-pane" id="repo-pane-branches" role="tabpanel">
+            <div class="branches-list" id="branches-list"></div>
+          </div>
         </div>
       </aside>
       <div class="preview-resizer" id="preview-resizer" style="display:none"></div>
@@ -4501,20 +4704,6 @@
         <div class="preview-body" id="preview-body">
           <div class="preview-overlay" id="preview-overlay"></div>
           <iframe id="preview-iframe" referrerpolicy="no-referrer" title="Preview"></iframe>
-        </div>
-      </aside>
-      <div class="diff-resizer" id="diff-resizer" style="display:none"></div>
-      <aside class="diff-panel" id="diff-panel">
-        <div class="diff-header">
-          <span class="diff-title" id="diff-title">Diff</span>
-          <span class="diff-branch" id="diff-branch"></span>
-          <span class="diff-live" id="diff-live" title="Live"></span>
-          <button class="btn btn-ghost diff-refresh" id="diff-refresh" type="button" aria-label="Refresh" title="Refresh" data-i18n-attr="aria-label:diff.refresh;title:diff.refresh">↻</button>
-          <button class="btn btn-ghost" id="diff-close" type="button" aria-label="Close" title="Close" data-i18n-attr="aria-label:diff.close;title:diff.close">×</button>
-        </div>
-        <div class="diff-body">
-          <aside class="diff-filelist" id="diff-filelist"></aside>
-          <section class="diff-pane" id="diff-pane"></section>
         </div>
       </aside>
     </div>
@@ -5235,9 +5424,9 @@
       if (!VALID_VIEWS.has(name)) name = 'dashboard';
       const { fromPopstate = false, sessionName = null, projectId = null } = opts;
       const prev = currentView;
-      // Diff ist jetzt ein rechtes Panel in der Terminal-View → WS trennen,
-      // sobald die Terminal-View verlassen wird.
-      if (prev === 'terminal' && name !== 'terminal') { try { DiffView._cleanup(); } catch {} }
+      // Repo-Panel (Changes/History/Branches) ist ein rechtes Panel in der
+      // Terminal-View → beim Verlassen alles abräumen (WS trennen etc.).
+      if (prev === 'terminal' && name !== 'terminal') { try { window.RepoPanel?.cleanup?.(); } catch {} }
       currentView = name;
       document.body.setAttribute('data-current-view', name);
       // Sidebar-Markierung nachziehen — beim Session-Wechsel und bei
@@ -7999,10 +8188,9 @@
       // Folge-Refresh. Session-Info für den Match kommt aus dem bereits
       // geladenen sessions-Array.
       updateIdeaCaptureButton(name);
-      // v0.6.0: Filebrowser-Button einblenden und Sidebar-State wiederherstellen
-      if (window.FileBrowser) window.FileBrowser.activateForSession(name);
+      // Repo-Panel (Files+Changes+History+Branches) + Preview einblenden.
+      if (window.RepoPanel) window.RepoPanel.activateForSession(name);
       if (window.PreviewPanel) window.PreviewPanel.activateForSession(name);
-      if (window.DiffView) window.DiffView.activateForSession(name);
       if (window.TerminalGitDot) window.TerminalGitDot.connect(name);
       if (window.VoiceInput) window.VoiceInput.refreshConfig();
       hideIdeaPrompt();
@@ -8629,15 +8817,11 @@
       window.currentSessionName = null;
       sendPresence();
       setCtrlSticky(false);
-      // v0.6.0: Sidebar schließen + Toggle-Button verbergen beim Verlassen der Terminal-View
-      if (window.FileBrowser) window.FileBrowser.close();
+      // Repo-Panel abräumen (schließt Files+Changes+History+Branches, versteckt Toggle).
+      if (window.RepoPanel) window.RepoPanel.cleanup();
       if (window.TerminalSearch) window.TerminalSearch.close();
       if (window.TerminalGitDot) window.TerminalGitDot.disconnect();
       _lastRemoteCopyToast = 0;
-      const _ftBtn = document.getElementById('btn-toggle-files');
-      if (_ftBtn) _ftBtn.style.display = 'none';
-      const _dfBtn = document.getElementById('btn-toggle-diff');
-      if (_dfBtn) _dfBtn.style.display = 'none';
     }
 
     // ── Recovery / Adoption ──────────────────────────────────────
@@ -10830,15 +11014,11 @@
       }
 
       async function open(project) {
-        // Files + Preview + Diff sind gegenseitig exklusiv — nie zwei offen.
-        try { window.PreviewPanel?.close?.(); } catch {}
-        try { window.DiffView?.close?.(); } catch {}
+        // Panel-Sichtbarkeit besitzt RepoPanel; hier nur Tree rendern.
         currentProject = project;
         window.__currentProjectForFiles = project;
         window.currentProjectId = project.id; // used by FileActions (Task 11)
         sidebarOpen = true;
-        document.getElementById('files-sidebar').classList.add('open');
-        document.getElementById('files-resizer').style.display = '';
         renderBreadcrumb();
         document.getElementById('files-sel-trash').textContent = t('filebrowser.sel.trash');
         document.getElementById('files-sel-move').textContent = t('filebrowser.sel.move');
@@ -10908,9 +11088,7 @@
         currentProject = null; // ensure reconnect loop bails
         sidebarOpen = false;
         window.currentProjectId = null;
-        document.getElementById('files-sidebar').classList.remove('open');
-        document.getElementById('files-resizer').style.display = 'none';
-        if (persist) { try { localStorage.setItem(openKey(stateSession), '0'); } catch {} }
+        // Panel-Sichtbarkeit besitzt RepoPanel; hier nur internen State räumen.
       }
 
       function toggle(project) {
@@ -10927,11 +11105,6 @@
             if (!currentProject) return;
             await fetchGitMap();
             renderRoot();
-          });
-
-        document.getElementById('btn-toggle-files')
-          ?.addEventListener('click', () => {
-            toggle(window.__currentProjectForFiles || currentProject);
           });
 
         // mkdir — wired to FileActions (Task 11)
@@ -11071,10 +11244,10 @@
       // Quelle ist ein registriertes Projekt ODER (Fallback) die Session selbst
       // (Pseudo-id `session:<name>`, cwd serverseitig live aufgelöst), damit der
       // Picker für JEDE Session funktioniert — nicht nur projekt-gebundene.
+      // Von RepoPanel.open aufgerufen: Quelle bestimmen + Tree in #files-tree
+      // rendern. Panel-Sichtbarkeit besitzt RepoPanel (Tab-Logik).
       function activateForSession(sessionName) {
         const session = Array.isArray(sessions) ? sessions.find(s => s.name === sessionName) : null;
-        const toggleBtn = document.getElementById('btn-toggle-files');
-        if (!toggleBtn) return;
         const match = (session && Array.isArray(projectsCache))
           ? findMatchingProject(session.path, projectsCache)
           : null;
@@ -11089,18 +11262,13 @@
             ensureProjectsLoaded().then(() => activateForSession(sessionName));
           }
         }
-        toggleBtn.style.display = '';
         window.__currentProjectForFiles = source;
         stateSession = sessionName;
-        // If sidebar was open for a different source, tear it down (no persist —
-        // keep the previous session's remembered state intact)
-        if (sidebarOpen && currentProject && currentProject.id !== source.id) {
+        // Bei Quell-Wechsel den alten Tree-State abräumen, dann neu rendern.
+        if (currentProject && currentProject.id !== source.id) {
           close(false);
         }
-        // Restore THIS session's remembered open state
-        const wasOpen = localStorage.getItem(openKey(sessionName)) === '1';
-        if (wasOpen && !sidebarOpen) open(window.__currentProjectForFiles);
-        else if (!wasOpen && sidebarOpen) close(false);
+        open(source);
       }
 
       // ── WS live-sync helpers ─────────────────────────────────────
@@ -12063,14 +12231,302 @@
     window.VoiceInput = VoiceInput;
     document.addEventListener('DOMContentLoaded', () => VoiceInput.wire());
 
+    // ── RepoPanel ─────────────────────────────────────────────────
+    // Besitzt das rechte "Repo"-Panel (Files · Changes · History · Branches).
+    // FileBrowser/DiffView bleiben Logik-Owner und rendern in ihre Panes;
+    // RepoPanel hostet sie + koordiniert Tab-Wechsel/Lifecycle. Mutual-
+    // exclusive mit der Browser-Preview (eigener Slot), intern nur Tabs.
+    const RepoPanel = (() => {
+      const el = (id) => document.getElementById(id);
+      const TAB_KEY = 'cchub_repo_tab';
+      const WIDTH_KEY = 'cchub_repo_width';
+      const TABS = ['files', 'changes', 'history', 'branches'];
+      let sessionName = null;
+      let activeTab = (() => { try { return localStorage.getItem(TAB_KEY) || 'files'; } catch { return 'files'; } })();
+
+      function isOpen() { return el('repo-panel').classList.contains('open'); }
+
+      function showPanel(v) {
+        if (v) { try { window.PreviewPanel?.close?.(); } catch {} } // Repo vs Preview exklusiv
+        el('repo-panel').classList.toggle('open', v);
+        const rz = el('repo-resizer'); if (rz) rz.style.display = v ? '' : 'none';
+        try { localStorage.setItem(`cchub_repo_open:${sessionName || ''}`, v ? '1' : '0'); } catch {}
+      }
+
+      function setHeader({ cwd, branch, sha, stats } = {}) {
+        if (cwd != null) el('repo-cwd').textContent = cwd;
+        const meta = [branch, sha, stats].filter(Boolean).join(' · ');
+        el('repo-meta').textContent = meta;
+      }
+
+      // Aktiviert einen Tab (UI + lazy-Daten). Idempotent.
+      function selectTab(tab) {
+        if (!TABS.includes(tab)) tab = 'files';
+        activeTab = tab;
+        try { localStorage.setItem(TAB_KEY, tab); } catch {}
+        TABS.forEach(t => {
+          el(`repo-tab-${t}`)?.classList.toggle('active', t === tab);
+          el(`repo-pane-${t}`)?.classList.toggle('active', t === tab);
+        });
+        // Lazy-Load pro Tab.
+        if (tab === 'changes') { try { window.DiffView?.onTabShown?.(); } catch {} }
+        if (tab === 'history') { try { window.RepoHistory?.load?.(sessionName); } catch {} }
+        if (tab === 'branches') { try { window.RepoBranches?.load?.(sessionName); } catch {} }
+      }
+
+      // Öffnet das Panel für eine Session und zeigt einen Tab.
+      function open(name, tab) {
+        sessionName = name || window.currentSessionName;
+        showPanel(true);
+        selectTab(tab || activeTab);
+        // Header-Basics (Branch/SHA kommen beim Changes/Files-Refresh dazu).
+        const s = Array.isArray(sessions) ? sessions.find(x => x.name === sessionName) : null;
+        setHeader({ cwd: (s && s.path) || sessionName });
+        // FileBrowser-Tree für die Session aufbauen (rendert in #files-tree).
+        try { window.FileBrowser?.activateForSession?.(sessionName); } catch {}
+        // DiffView fürs Changes-Tab vorbereiten (Working-Tree default).
+        try { window.DiffView?.activateForSession?.(sessionName); } catch {}
+      }
+
+      function close() { showPanel(false); }
+
+      function toggle(tab) {
+        if (isOpen()) {
+          // Wenn ein bestimmter Tab gewünscht ist und ein anderer offen → wechseln statt schließen.
+          if (tab && activeTab !== tab) { selectTab(tab); return; }
+          close();
+        } else {
+          open(window.currentSessionName, tab);
+        }
+      }
+
+      // Vom connectToSession aufgerufen: Toggle zeigen + erinnerten Open-State.
+      function activateForSession(name) {
+        sessionName = name;
+        const btn = el('btn-toggle-repo');
+        if (btn) btn.style.display = '';
+        const wasOpen = (() => { try { return localStorage.getItem(`cchub_repo_open:${name}`) === '1'; } catch { return false; } })();
+        if (wasOpen) open(name, activeTab);
+        else showPanel(false);
+      }
+
+      // Vom disconnectTerminal aufgerufen: alles abräumen.
+      function cleanup() {
+        try { window.DiffView?._cleanup?.(); } catch {}
+        try { window.RepoHistory?._cleanup?.(); } catch {}
+        try { window.RepoBranches?._cleanup?.(); } catch {}
+        showPanel(false);
+        const btn = el('btn-toggle-repo');
+        if (btn) btn.style.display = 'none';
+        sessionName = null;
+      }
+
+      function currentSession() { return sessionName; }
+
+      // Resizer (Breite wächst nach links wie beim alten Diff-Panel).
+      function wireResizer() {
+        const resizer = el('repo-resizer');
+        if (!resizer) return;
+        resizer.addEventListener('mousedown', (e) => {
+          e.preventDefault(); resizer.classList.add('dragging');
+          const startX = e.clientX;
+          const startW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--repo-width')) || 460;
+          const onMove = (ev) => {
+            const w = Math.max(300, Math.min(window.innerWidth * 0.7, startW + (startX - ev.clientX)));
+            document.documentElement.style.setProperty('--repo-width', w + 'px');
+          };
+          const onUp = () => {
+            resizer.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            try { localStorage.setItem(WIDTH_KEY, getComputedStyle(document.documentElement).getPropertyValue('--repo-width').trim()); } catch {}
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      }
+
+      // Wiring (DOMContentLoaded-sicher: das Markup steht statisch im HTML).
+      try { const w = localStorage.getItem(WIDTH_KEY); if (w) document.documentElement.style.setProperty('--repo-width', w); } catch {}
+      TABS.forEach(t => el(`repo-tab-${t}`)?.addEventListener('click', () => selectTab(t)));
+      el('repo-close')?.addEventListener('click', close);
+      el('btn-toggle-repo')?.addEventListener('click', () => toggle());
+      wireResizer();
+
+      // Delegated git-badge-Klick: verbindet + öffnet Changes-Tab (ersetzt
+      // DiffViews früheren eigenen Badge-Handler).
+      document.addEventListener('click', (e) => {
+        const badge = e.target.closest && e.target.closest('.git-badge[data-diff-session]');
+        if (!badge) return;
+        e.stopPropagation(); e.preventDefault();
+        const name = badge.getAttribute('data-diff-session');
+        connectToSession(name);
+        open(name, 'changes');
+      }, true);
+
+      return { open, close, toggle, selectTab, activateForSession, cleanup,
+               setHeader, currentSession, isOpen };
+    })();
+    window.RepoPanel = RepoPanel;
+
+    // ── RepoHistory ───────────────────────────────────────────────
+    // Lädt /git/log und rendert eine lineare Timeline. Paginiert via skip.
+    // Tap auf einen Commit → RepoPanel.Changes zeigt ihn (showCommitSource).
+    const RepoHistory = (() => {
+      const el = (id) => document.getElementById(id);
+      const LIMIT = 50;
+      let sessionName = null, loadedOnce = false, loading = false, count = 0, hasMore = false;
+
+      // Grobe relative Zeit (kein i18n-Plural-Aufwand; Tokens reichen).
+      function relTime(iso) {
+        const then = new Date(iso).getTime();
+        if (!then) return '';
+        const s = Math.max(0, (Date.now() - then) / 1000);
+        if (s < 60) return `${Math.floor(s)}s`;
+        if (s < 3600) return `${Math.floor(s / 60)}m`;
+        if (s < 86400) return `${Math.floor(s / 3600)}h`;
+        if (s < 2592000) return `${Math.floor(s / 86400)}d`;
+        return new Date(iso).toLocaleDateString();
+      }
+
+      function rowHtml(c) {
+        const type = (window.commitType && window.commitType(c.subject)) || '';
+        const color = (window.commitTypeColor && window.commitTypeColor(c.subject)) || null;
+        const typeBadge = type ? `<span class="hc-type" style="color:var(${color || '--text-muted'})">${escapeHtml(type)}</span>` : '';
+        const dotStyle = color ? ` style="background:var(${color})"` : '';
+        const refs = (c.refs || []).map(r => `<span class="hc-ref">${escapeHtml(r)}</span>`).join('');
+        return `<div class="history-commit" role="button" tabindex="0" data-sha="${escapeHtml(c.sha)}" data-subject="${escapeHtml(c.subject)}">
+          <span class="hc-rail"><span class="hc-dot"${dotStyle}></span></span>
+          <span class="hc-main">
+            <span class="hc-line1">${typeBadge}<span class="hc-subject" title="${escapeHtml(c.subject)}">${escapeHtml(c.subject)}</span>${refs}</span>
+            <span class="hc-line2"><span class="hc-sha">${escapeHtml(c.shortSha)}</span><span>${escapeHtml(c.authorName)}</span><span>${relTime(c.isoDate)}</span></span>
+          </span>
+        </div>`;
+      }
+
+      async function fetchPage(skip) {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(sessionName)}/git/log?limit=${LIMIT}&skip=${skip}`, {
+          headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      }
+
+      async function load(name) {
+        if (name) sessionName = name;
+        if (!sessionName) return;
+        if (loadedOnce && name === sessionName) return; // idempotent beim Tab-Reentry
+        loadedOnce = true; count = 0;
+        const list = el('history-list');
+        list.innerHTML = '';
+        el('history-more').hidden = true;
+        if (loading) return;
+        loading = true;
+        try {
+          const data = await fetchPage(0);
+          const commits = data.commits || [];
+          if (!commits.length) { list.innerHTML = `<div class="history-empty">${t('repo.history.empty')}</div>`; hasMore = false; return; }
+          list.insertAdjacentHTML('beforeend', commits.map(rowHtml).join(''));
+          count = commits.length; hasMore = !!data.hasMore;
+          el('history-more').hidden = !hasMore;
+          wireRows();
+        } catch (e) {
+          list.innerHTML = `<div class="history-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
+        } finally { loading = false; }
+      }
+
+      async function loadMore() {
+        if (loading || !hasMore) return;
+        loading = true;
+        try {
+          const data = await fetchPage(count);
+          const commits = data.commits || [];
+          el('history-list').insertAdjacentHTML('beforeend', commits.map(rowHtml).join(''));
+          count += commits.length; hasMore = !!data.hasMore;
+          el('history-more').hidden = !hasMore;
+          wireRows();
+        } catch {} finally { loading = false; }
+      }
+
+      function wireRows() {
+        el('history-list').querySelectorAll('.history-commit:not([data-wired])').forEach(row => {
+          row.setAttribute('data-wired', '1');
+          row.addEventListener('click', () => {
+            const sha = row.getAttribute('data-sha');
+            const subject = row.getAttribute('data-subject');
+            try { window.RepoPanel?.selectTab?.('changes'); } catch {}
+            try { window.DiffView?.showCommitSource?.(sha, subject); } catch {}
+          });
+        });
+      }
+
+      function _cleanup() { loadedOnce = false; sessionName = null; count = 0; hasMore = false; }
+
+      el('history-more')?.addEventListener('click', loadMore);
+      return { load, loadMore, _cleanup };
+    })();
+    window.RepoHistory = RepoHistory;
+
+    // ── RepoBranches ──────────────────────────────────────────────
+    // Lädt /git/branches und rendert LOCAL + REMOTE (read-only).
+    const RepoBranches = (() => {
+      const el = (id) => document.getElementById(id);
+      let sessionName = null, loadedOnce = false;
+      const BRANCH_ICON = '<svg class="br-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9M18 9V6m0 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>';
+
+      function localRow(b) {
+        const ab = [];
+        if (b.ahead) ab.push(`<span class="br-ahead">↑${b.ahead}</span>`);
+        if (b.behind) ab.push(`<span class="br-behind">↓${b.behind}</span>`);
+        return `<div class="branch-row${b.current ? ' current' : ''}">
+          ${BRANCH_ICON}
+          <span class="br-name" title="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span>
+          ${b.current ? `<span class="br-current">${t('repo.branches.current')}</span>` : ''}
+          ${b.upstream ? `<span class="br-upstream">${escapeHtml(b.upstream)}</span>` : ''}
+          <span class="br-ab">${ab.join(' ')}</span>
+        </div>`;
+      }
+      function remoteRow(b) {
+        return `<div class="branch-row">${BRANCH_ICON}<span class="br-name" title="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span></div>`;
+      }
+
+      async function load(name) {
+        if (name) sessionName = name;
+        if (!sessionName) return;
+        if (loadedOnce && name === sessionName) return; // idempotent
+        loadedOnce = true;
+        const list = el('branches-list');
+        list.innerHTML = '';
+        try {
+          const res = await fetch(`/api/sessions/${encodeURIComponent(sessionName)}/git/branches`, {
+            headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const local = data.local || [], remote = data.remote || [];
+          if (!local.length && !remote.length) { list.innerHTML = `<div class="branches-empty">${t('repo.branches.empty')}</div>`; return; }
+          let html = '';
+          if (local.length) html += `<div class="branches-group-label">${t('repo.branches.local')} (${local.length})</div>` + local.map(localRow).join('');
+          if (remote.length) html += `<div class="branches-group-label">${t('repo.branches.remote')} (${remote.length})</div>` + remote.map(remoteRow).join('');
+          list.innerHTML = html;
+        } catch (e) {
+          list.innerHTML = `<div class="branches-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
+        }
+      }
+
+      function _cleanup() { loadedOnce = false; sessionName = null; }
+      return { load, _cleanup };
+    })();
+    window.RepoBranches = RepoBranches;
+
     // ── Diff View (Task 6): clickable git badge → diff2html, live refresh ──
     const DiffView = (() => {
       let d2hLoaded = null, cssInjected = false;
       let currentSession = null, currentFiles = [], selectedPath = null;
       let ws = null, refetchTimer = null;
       let stateSession = null;
-      const WIDTH_KEY = 'cchub_diff_width';
-      const openKey = (s) => `cchub_diff_open:${s || ''}`; // per-session open/closed memory
+      let viewMode = (() => { try { return localStorage.getItem('cchub_changes_mode') || 'list'; } catch { return 'list'; } })(); // 'list' | 'diff'
+      let source = { kind: 'worktree', sha: null, subject: null };   // 'worktree' | 'commit'
       const el = (id) => document.getElementById(id);
 
       async function ensureD2H() {
@@ -12086,90 +12542,120 @@
         return d2hLoaded;
       }
 
-      // Öffnet das Diff-Panel für eine Session (Toggle/Badge).
-      async function open(sessionName) {
-        currentSession = sessionName;
-        selectedPath = null;
-        showPanel(true);
-        el('diff-title').textContent = t('diff.title', { name: sessionName });
-        await refetch();
-        connectWs(sessionName);
+      function applyViewMode() {
+        const pane = el('repo-pane-changes');
+        if (pane) { pane.classList.toggle('mode-list', viewMode === 'list'); pane.classList.toggle('mode-diff', viewMode === 'diff'); }
+        el('changes-mode-list')?.classList.toggle('active', viewMode === 'list');
+        el('changes-mode-diff')?.classList.toggle('active', viewMode === 'diff');
+      }
+      function setViewMode(m) {
+        viewMode = (m === 'diff') ? 'diff' : 'list';
+        try { localStorage.setItem('cchub_changes_mode', viewMode); } catch {}
+        applyViewMode();
       }
 
-      function showPanel(v) {
-        // Files + Preview + Diff sind gegenseitig exklusiv — nie zwei offen.
-        if (v) {
-          try { window.FileBrowser?.close?.(); } catch {}
-          try { window.PreviewPanel?.close?.(); } catch {}
+      // Vom RepoPanel beim Wechsel auf das Changes-Tab (lazy refresh).
+      function onTabShown() {
+        applyViewMode();
+        if (source.kind === 'worktree') refetch();
+        // Commit-Ansicht ist statisch → bereits gerendert.
+      }
+
+      // Working-Tree-Quelle (default). Lädt /diff, verbindet Live-WS.
+      function showWorktree() {
+        source = { kind: 'worktree', sha: null, subject: null };
+        el('changes-source').textContent = t('repo.changes.workingTree');
+        el('changes-back').hidden = true;
+        const live = el('diff-live'); if (live) live.style.display = '';
+        refetch();
+        connectWs(currentSession);
+      }
+
+      // Commit-Quelle (aus History gewählt).
+      async function showCommitSource(sha, subject) {
+        disconnectWs();
+        source = { kind: 'commit', sha, subject: subject || '' };
+        el('changes-source').textContent = t('repo.changes.commit', { sha: sha.slice(0, 7), subject: subject || '' });
+        el('changes-back').hidden = false;
+        const live = el('diff-live'); if (live) live.style.display = 'none';
+        try {
+          const res = await fetch(`/api/sessions/${encodeURIComponent(currentSession)}/git/commit/${sha}`, {
+            headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          el('diff-branch').textContent = '';
+          renderFiles((data.files || []).map(f => ({ ...f, category: 'commit' })));
+          try { window.RepoPanel?.setHeader?.({ branch: t('repo.tab.changes'), sha: data.shortSha, stats: t('repo.changes.fileCount', { n: (data.files || []).length }) }); } catch {}
+        } catch (e) {
+          el('changes-list').innerHTML = '';
+          el('diff-pane').innerHTML = `<div class="changes-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
         }
-        el('diff-panel').classList.toggle('open', v);
-        el('diff-resizer').style.display = v ? '' : 'none';
-        // Gegen window.currentSessionName persisten (autoritativ), da stateSession
-        // beim Cross-Close noch auf der vorigen Session laggen kann.
-        const sn = window.currentSessionName || stateSession || currentSession;
-        try { localStorage.setItem(openKey(sn), v ? '1' : '0'); } catch {}
-        if (!v) disconnectWs();
       }
 
-      function toggle() {
-        if (el('diff-panel').classList.contains('open')) { close(); return; }
-        open(window.currentSessionName || currentSession);
-      }
-
-      function close() { showPanel(false); }
+      function toggle() { try { window.RepoPanel?.toggle?.('changes'); } catch {} }
+      function close() { try { window.RepoPanel?.close?.(); } catch {} }
 
       async function refetch() {
-        if (!currentSession) return;
+        if (!currentSession || source.kind !== 'worktree') return;
         try {
           const res = await fetch(`/api/sessions/${encodeURIComponent(currentSession)}/diff`, {
             headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          render(await res.json());
+          const data = await res.json();
+          if (!data || !data.isRepo) {
+            el('diff-branch').textContent = ''; el('changes-list').innerHTML = '';
+            el('diff-pane').innerHTML = `<div class="changes-empty">${t('diff.noRepo')}</div>`;
+            return;
+          }
+          const ab = [];
+          if (data.ahead) ab.push(`↑${data.ahead}`);
+          if (data.behind) ab.push(`↓${data.behind}`);
+          el('diff-branch').textContent = `${data.branch || ''} ${ab.join(' ')}`.trim();
+          try { window.RepoPanel?.setHeader?.({ branch: data.branch || '', stats: t('repo.changes.fileCount', { n: (data.files || []).length }) }); } catch {}
+          renderFiles(data.files || []);
         } catch (e) {
-          document.getElementById('diff-pane').innerHTML =
-            `<div class="diff-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
+          el('diff-pane').innerHTML = `<div class="changes-empty">${t('common.errorWithMessage', { message: (e && e.message) || e })}</div>`;
         }
       }
 
-      function render(data) {
-        const branchEl = document.getElementById('diff-branch');
-        const listEl = document.getElementById('diff-filelist');
-        const paneEl = document.getElementById('diff-pane');
-        if (!data || !data.isRepo) {
-          branchEl.textContent = ''; listEl.innerHTML = '';
-          paneEl.innerHTML = `<div class="diff-empty">${t('diff.noRepo')}</div>`;
-          return;
-        }
-        const ab = [];
-        if (data.ahead) ab.push(`↑${data.ahead}`);
-        if (data.behind) ab.push(`↓${data.behind}`);
-        branchEl.textContent = `${data.branch || ''} ${ab.join(' ')}`.trim();
-        currentFiles = data.files || [];
+      // Baut die List-Ansicht (#changes-list) und wählt eine Datei für die
+      // Diff-Ansicht (#diff-pane). Funktioniert für Working-Tree (category
+      // unstaged/staged/untracked) UND Commit (category 'commit').
+      function renderFiles(files) {
+        currentFiles = files;
+        const listEl = el('changes-list');
+        const paneEl = el('diff-pane');
         if (!currentFiles.length) {
-          listEl.innerHTML = '';
-          paneEl.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`;
+          listEl.innerHTML = ''; paneEl.innerHTML = `<div class="changes-empty">${t('diff.empty')}</div>`;
           return;
         }
-        // NB: Datei-Icons (fileIcon) hier bewusst NICHT injiziert — die Diff-
-        // Dateiliste/diff2html rendert eigenes Markup; Post-Processing wäre
-        // fragil. Backlog.
-        const groups = ['unstaged', 'staged', 'untracked'];
+        const groups = ['unstaged', 'staged', 'untracked', 'commit'];
         listEl.innerHTML = groups.map(cat => {
           const fs = currentFiles.filter(f => f.category === cat);
           if (!fs.length) return '';
           const rows = fs.map(f => {
             const idx = currentFiles.indexOf(f);
-            return `<div class="diff-file" role="button" tabindex="0" data-idx="${idx}">
-              <span class="diff-status">${escapeHtml(f.status)}</span>
-              <span class="diff-path" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</span>
-              <span class="stat-add">+${f.additions}</span><span class="stat-del">−${f.deletions}</span>
+            const parts = f.path.split('/');
+            const name = parts.pop();
+            const dir = parts.length ? parts.join('/') + '/' : '';
+            const icon = window.fileIconSvg ? `<span class="cr-icon">${window.fileIconSvg(name, false)}</span>` : '';
+            return `<div class="changes-row" role="button" tabindex="0" data-idx="${idx}">
+              <span class="cr-dot" data-cat="${cat}"></span>${icon}
+              <span class="cr-path" title="${escapeHtml(f.path)}"><span class="cr-dir">${escapeHtml(dir)}</span><span class="cr-name">${escapeHtml(name)}</span></span>
+              <span class="cr-add">+${f.additions || 0}</span><span class="cr-del">−${f.deletions || 0}</span>
             </div>`;
           }).join('');
-          return `<div class="diff-group-label">${t('diff.group.' + cat)} (${fs.length})</div>${rows}`;
+          const label = cat === 'commit' ? '' : `<div class="changes-group-label">${t('diff.group.' + cat)} (${fs.length})</div>`;
+          return label + rows;
         }).join('');
-        listEl.querySelectorAll('.diff-file').forEach(el => {
-          el.addEventListener('click', () => selectFile(parseInt(el.getAttribute('data-idx'), 10)));
+        listEl.querySelectorAll('.changes-row').forEach(row => {
+          row.addEventListener('click', () => {
+            // Klick in List → in Diff-Modus wechseln und diese Datei zeigen.
+            setViewMode('diff');
+            selectFile(parseInt(row.getAttribute('data-idx'), 10));
+          });
         });
         const keep = currentFiles.findIndex(f => f.path === selectedPath);
         selectFile(keep >= 0 ? keep : 0);
@@ -12177,15 +12663,14 @@
 
       async function selectFile(idx) {
         const f = currentFiles[idx];
-        const pane = document.getElementById('diff-pane');
-        document.querySelectorAll('.diff-file').forEach(el =>
-          el.classList.toggle('active', parseInt(el.getAttribute('data-idx'), 10) === idx));
-        if (!f) { pane.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`; return; }
+        const pane = el('diff-pane');
+        document.querySelectorAll('.changes-row').forEach(r =>
+          r.classList.toggle('active', parseInt(r.getAttribute('data-idx'), 10) === idx));
+        if (!f) { pane.innerHTML = `<div class="changes-empty">${t('diff.empty')}</div>`; return; }
         selectedPath = f.path;
-        if (f.binary) { pane.innerHTML = `<div class="diff-empty">${t('diff.binary')}</div>`; return; }
-        if (f.oversize) { pane.innerHTML = `<div class="diff-empty">${t('diff.oversize')}</div>`; return; }
-        if (!f.diff) { pane.innerHTML = `<div class="diff-empty">${t('diff.empty')}</div>`; return; }
-        // Panel ist schmal → side-by-side nur bei genug Breite, sonst line-by-line.
+        if (f.binary) { pane.innerHTML = `<div class="changes-empty">${t('diff.binary')}</div>`; return; }
+        if (f.oversize) { pane.innerHTML = `<div class="changes-empty">${t('diff.oversize')}</div>`; return; }
+        if (!f.diff) { pane.innerHTML = `<div class="changes-empty">${t('diff.empty')}</div>`; return; }
         const outputFormat = pane.clientWidth >= 760 ? 'side-by-side' : 'line-by-line';
         try {
           const html = await ensureD2H();
@@ -12222,60 +12707,25 @@
         }
       }
 
-      function wireResizer() {
-        const resizer = el('diff-resizer');
-        if (!resizer) return;
-        resizer.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          resizer.classList.add('dragging');
-          const startX = e.clientX;
-          const startWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--diff-width')) || 460;
-          const onMove = (ev) => {
-            // Panel ist rechts → Breite wächst nach links (startX - clientX).
-            const w = Math.max(280, Math.min(window.innerWidth * 0.7, startWidth + (startX - ev.clientX)));
-            document.documentElement.style.setProperty('--diff-width', w + 'px');
-          };
-          const onUp = () => {
-            resizer.classList.remove('dragging');
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            try { localStorage.setItem(WIDTH_KEY, getComputedStyle(document.documentElement).getPropertyValue('--diff-width').trim()); } catch {}
-          };
-          document.addEventListener('mousemove', onMove);
-          document.addEventListener('mouseup', onUp);
-        });
-      }
-
-      // Vom Terminal-View aufgerufen — Toggle einblenden + gemerkten Open-Zustand
-      // dieser Session wiederherstellen.
+      // Vom RepoPanel.open aufgerufen — Working-Tree als Default-Quelle.
       function activateForSession(name) {
         stateSession = name;
-        const btn = el('btn-toggle-diff');
-        if (btn) btn.style.display = '';
-        const wasOpen = (() => { try { return localStorage.getItem(openKey(name)) === '1'; } catch { return false; } })();
-        if (wasOpen) open(name);
-        else showPanel(false);
+        currentSession = name;
+        selectedPath = null;
+        source = { kind: 'worktree', sha: null, subject: null };
+        applyViewMode();
+        showWorktree();
       }
 
-      try { const w = localStorage.getItem(WIDTH_KEY); if (w) document.documentElement.style.setProperty('--diff-width', w); } catch {}
-      el('diff-refresh').addEventListener('click', refetch);
-      el('diff-close').addEventListener('click', close);
-      el('btn-toggle-diff').addEventListener('click', toggle);
-      wireResizer();
+      el('diff-refresh')?.addEventListener('click', () => {
+        if (source.kind === 'worktree') refetch(); else if (source.sha) showCommitSource(source.sha, source.subject);
+      });
+      el('changes-back')?.addEventListener('click', () => showWorktree());
+      el('changes-mode-list')?.addEventListener('click', () => { setViewMode('list'); });
+      el('changes-mode-diff')?.addEventListener('click', () => { setViewMode('diff'); if (selectedPath == null && currentFiles.length) selectFile(0); });
 
-      // Delegated capture-phase badge click — verbindet zur Session und öffnet
-      // das Diff-Panel (ersetzt die frühere Vollbild-Ansicht).
-      document.addEventListener('click', (e) => {
-        const badge = e.target.closest && e.target.closest('.git-badge[data-diff-session]');
-        if (!badge) return;
-        e.stopPropagation();
-        e.preventDefault();
-        const name = badge.getAttribute('data-diff-session');
-        connectToSession(name);
-        open(name);
-      }, true);
-
-      return { open, close, toggle, activateForSession, _cleanup: disconnectWs };
+      return { activateForSession, onTabShown, showCommitSource, showWorktree,
+               toggle, close, setViewMode, _cleanup: disconnectWs };
     })();
     window.DiffView = DiffView;
 
@@ -12287,9 +12737,8 @@
     // FileBrowser/PreviewPanel/DiffView einzugreifen.
     (function () {
       const PAIRS = [
-        ['btn-toggle-files', 'files-sidebar'],
+        ['btn-toggle-repo', 'repo-panel'],
         ['btn-toggle-preview', 'preview-panel'],
-        ['btn-toggle-diff', 'diff-panel'],
       ];
       function sync() {
         for (const [btnId, panelId] of PAIRS) {
@@ -12317,7 +12766,7 @@
       let ws = null, refetchTimer = null, sessionName = null;
 
       function setDirty(v) {
-        const btn = document.getElementById('btn-toggle-diff');
+        const btn = document.getElementById('btn-toggle-repo');
         if (btn) btn.setAttribute('data-dirty', v ? 'true' : 'false');
       }
 

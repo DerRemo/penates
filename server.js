@@ -52,6 +52,7 @@ import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
 import { parseStatusV2, getDiff, gitStatusMap } from './lib/git-diff.js';
+import { getLog, getBranches, showCommit } from './lib/git-history.js';
 import { captureScrollback } from './lib/scrollback.js';
 import { saveSessionImage } from './lib/session-images.js';
 import { isPreviewHost, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
@@ -1284,6 +1285,53 @@ app.get('/api/sessions/:name/diff', (req, res) => {
     res.json(getDiff(cwd));
   } catch (e) {
     res.status(500).json({ error: 'diff failed', message: String(e && e.message || e) });
+  }
+});
+
+// GET /api/sessions/:name/git/log?limit&before&skip — lineare Commit-History.
+// Muster wie /diff: validName→400, kein cwd→404, fehlertolerant 200 mit leer.
+app.get('/api/sessions/:name/git/log', (req, res) => {
+  const name = req.params.name;
+  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  const cwd = resolveSessionCwd(name);
+  if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
+  const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 50, 200));
+  const skip = parseInt(req.query.skip) || 0;
+  const before = typeof req.query.before === 'string' ? req.query.before : undefined;
+  try {
+    res.json(getLog(cwd, { limit, skip, before }));
+  } catch (e) {
+    res.status(500).json({ error: 'log failed', message: String(e && e.message || e) });
+  }
+});
+
+// GET /api/sessions/:name/git/branches — local + remote (read-only).
+app.get('/api/sessions/:name/git/branches', (req, res) => {
+  const name = req.params.name;
+  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  const cwd = resolveSessionCwd(name);
+  if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
+  try {
+    res.json(getBranches(cwd));
+  } catch (e) {
+    res.status(500).json({ error: 'branches failed', message: String(e && e.message || e) });
+  }
+});
+
+// GET /api/sessions/:name/git/commit/:sha — Header + per-file Diffs eines Commits.
+app.get('/api/sessions/:name/git/commit/:sha', (req, res) => {
+  const name = req.params.name;
+  const sha = req.params.sha;
+  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!/^[0-9a-f]{4,40}$/.test(sha)) return res.status(400).json({ error: 'Invalid sha' });
+  const cwd = resolveSessionCwd(name);
+  if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
+  try {
+    const commit = showCommit(cwd, sha);
+    if (!commit) return res.status(404).json({ error: 'Commit not found' });
+    res.json(commit);
+  } catch (e) {
+    res.status(500).json({ error: 'commit failed', message: String(e && e.message || e) });
   }
 });
 

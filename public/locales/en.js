@@ -361,6 +361,26 @@ window.__I18N_BUNDLES.en = {
   'diff.binary': 'Binary file — no diff',
   'diff.oversize': 'File too large to display',
 
+  // Repo panel (Files · Changes · History · Branches)
+  'repo.toggle': 'Repo',
+  'repo.toggleAria': 'Toggle repo panel',
+  'repo.close': 'Close',
+  'repo.tab.files': 'Files',
+  'repo.tab.changes': 'Changes',
+  'repo.tab.history': 'History',
+  'repo.tab.branches': 'Branches',
+  'repo.changes.list': 'List',
+  'repo.changes.diff': 'Diff',
+  'repo.changes.workingTree': '← Working tree',
+  'repo.changes.commit': 'Commit {sha} · {subject}',
+  'repo.changes.fileCount': '{n} files',
+  'repo.history.loadMore': 'Load more',
+  'repo.history.empty': 'No commits',
+  'repo.branches.local': 'Local',
+  'repo.branches.remote': 'Remote',
+  'repo.branches.current': 'current',
+  'repo.branches.empty': 'No branches',
+
   // Session card — context tooltip
   'sessionCard.noClaudeData': 'No Claude Code data in cwd yet',
 
