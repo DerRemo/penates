@@ -372,6 +372,7 @@ window.__I18N_BUNDLES.de = {
   'repo.changes.list': 'Liste',
   'repo.changes.diff': 'Diff',
   'repo.changes.workingTree': '← Arbeitsstand',
+  'repo.changes.worktreeLabel': 'Arbeitsstand',
   'repo.changes.commit': 'Commit {sha} · {subject}',
   'repo.changes.fileCount': '{n} Dateien',
   'repo.history.loadMore': 'Mehr laden',

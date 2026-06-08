@@ -2402,8 +2402,7 @@
       justify-content: space-between;
       gap: var(--space-3);
       padding: var(--space-3) var(--space-4);
-      background: var(--bg-surface);
-      border-bottom: 1px solid var(--border);
+      background: var(--bg-deep);
       flex-wrap: wrap;
     }
 
@@ -3395,10 +3394,13 @@
        mit Außenabstand zum View-Rand und kleinem Gap dazwischen. */
     .terminal-layout {
       display: flex;
-      height: 100%;
+      /* flex:1 statt height:100% — in der Flex-Column (.terminal-view) füllt das
+         exakt den Restplatz unter der Toolbar. height:100% ergäbe volle View-Höhe
+         und liefe um die Toolbar-Höhe über → unterste Terminal-Zeile abgeschnitten. */
+      flex: 1;
       min-height: 0;
-      gap: var(--space-2);
-      padding: var(--space-3);
+      gap: var(--space-1);
+      padding: var(--space-2);
     }
     .term-search {
       position: absolute;
@@ -3957,6 +3959,23 @@
     .diff-pane pre { font-family: var(--font-mono); font-size: 0.82em; white-space: pre-wrap; word-break: break-word; }
     .diff-pane .d2h-file-header { display: none; }
     .diff-pane .d2h-code-line, .diff-pane .d2h-code-side-line { font-family: var(--font-mono); }
+    /* ── Eigener Unified-Diff-Renderer (ersetzt das fragile CDN-diff2html) ──
+       Rot/Grün via --green-dim/--red-dim (Tints) + --green/--red (Vorzeichen),
+       Zeilennummern-Gutter (alt|neu), Hunk-Header dezent. */
+    .udiff { font-family: var(--font-mono); font-size: 0.82em; line-height: 1.55; }
+    .udiff__row { display: flex; align-items: flex-start; }
+    .udiff__ln { flex: 0 0 auto; width: 3.5ch; padding: 0 6px; text-align: right;
+      color: var(--text-muted); opacity: .55; user-select: none; -webkit-user-select: none; }
+    .udiff__sign { flex: 0 0 auto; width: 2ch; text-align: center; color: var(--text-muted);
+      user-select: none; -webkit-user-select: none; }
+    .udiff__code { flex: 1; min-width: 0; padding-right: var(--space-2);
+      white-space: pre-wrap; word-break: break-word; color: var(--text-primary); }
+    .udiff__row.add { background: var(--green-dim); }
+    .udiff__row.add .udiff__sign { color: var(--green); }
+    .udiff__row.del { background: var(--red-dim); }
+    .udiff__row.del .udiff__sign { color: var(--red); }
+    .udiff__row.hunk { background: var(--bg-elevated); margin: var(--space-1) 0; }
+    .udiff__row.hunk .udiff__code { color: var(--text-muted); padding-left: var(--space-2); }
     @media (max-width: 899px) {
       .diff-body { flex-direction: column; }
       .diff-filelist { width: auto; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
@@ -12519,9 +12538,8 @@
     })();
     window.RepoBranches = RepoBranches;
 
-    // ── Diff View (Task 6): clickable git badge → diff2html, live refresh ──
+    // ── Diff View: eigener Unified-Diff-Renderer (rot/grün), Live-Refresh ──
     const DiffView = (() => {
-      let d2hLoaded = null, cssInjected = false;
       let currentSession = null, currentFiles = [], selectedPath = null;
       let ws = null, refetchTimer = null;
       let stateSession = null;
@@ -12529,17 +12547,36 @@
       let source = { kind: 'worktree', sha: null, subject: null };   // 'worktree' | 'commit'
       const el = (id) => document.getElementById(id);
 
-      async function ensureD2H() {
-        if (d2hLoaded) return d2hLoaded;
-        if (!cssInjected) {
-          const link = document.createElement('link');
-          link.rel = 'stylesheet';
-          link.href = 'https://cdn.jsdelivr.net/npm/diff2html@3.4.48/bundles/css/diff2html.min.css';
-          document.head.appendChild(link);
-          cssInjected = true;
+      // Parst einen Unified-Diff (git diff Text) in getöntes HTML — Rot/Grün,
+      // Zeilennummern (alt|neu), Hunk-Header. Kein CDN, kein Build, themed via Tokens.
+      function renderUnifiedDiff(diffText) {
+        const lines = String(diffText || '').split('\n');
+        let oldLn = 0, newLn = 0;
+        const rows = [];
+        for (const line of lines) {
+          if (line === '') continue; // Split-Artefakt am Ende
+          // Git-Header-Rauschen ausblenden (diff --git/index/---/+++/mode/rename/…)
+          if (/^(diff --git |index |--- |\+\+\+ |new file|deleted file|old mode|new mode|similarity |dissimilarity |rename |copy |\\ No newline)/.test(line)) continue;
+          const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+          if (h) {
+            oldLn = parseInt(h[1], 10); newLn = parseInt(h[2], 10);
+            rows.push(`<div class="udiff__row hunk"><span class="udiff__code">${escapeHtml(line)}</span></div>`);
+            continue;
+          }
+          const c = line[0];
+          if (c === '+') {
+            rows.push(`<div class="udiff__row add"><span class="udiff__ln"></span><span class="udiff__ln">${newLn}</span><span class="udiff__sign">+</span><span class="udiff__code">${escapeHtml(line.slice(1))}</span></div>`);
+            newLn++;
+          } else if (c === '-') {
+            rows.push(`<div class="udiff__row del"><span class="udiff__ln">${oldLn}</span><span class="udiff__ln"></span><span class="udiff__sign">−</span><span class="udiff__code">${escapeHtml(line.slice(1))}</span></div>`);
+            oldLn++;
+          } else {
+            const text = (c === ' ') ? line.slice(1) : line;
+            rows.push(`<div class="udiff__row ctx"><span class="udiff__ln">${oldLn}</span><span class="udiff__ln">${newLn}</span><span class="udiff__sign"></span><span class="udiff__code">${escapeHtml(text)}</span></div>`);
+            oldLn++; newLn++;
+          }
         }
-        d2hLoaded = import('https://cdn.jsdelivr.net/npm/diff2html@3.4.48/+esm').then(m => m.html);
-        return d2hLoaded;
+        return `<div class="udiff">${rows.join('')}</div>`;
       }
 
       function applyViewMode() {
@@ -12564,7 +12601,7 @@
       // Working-Tree-Quelle (default). Lädt /diff, verbindet Live-WS.
       function showWorktree() {
         source = { kind: 'worktree', sha: null, subject: null };
-        el('changes-source').textContent = t('repo.changes.workingTree');
+        el('changes-source').textContent = t('repo.changes.worktreeLabel');
         el('changes-back').hidden = true;
         const live = el('diff-live'); if (live) live.style.display = '';
         refetch();
@@ -12671,15 +12708,8 @@
         if (f.binary) { pane.innerHTML = `<div class="changes-empty">${t('diff.binary')}</div>`; return; }
         if (f.oversize) { pane.innerHTML = `<div class="changes-empty">${t('diff.oversize')}</div>`; return; }
         if (!f.diff) { pane.innerHTML = `<div class="changes-empty">${t('diff.empty')}</div>`; return; }
-        const outputFormat = pane.clientWidth >= 760 ? 'side-by-side' : 'line-by-line';
-        try {
-          const html = await ensureD2H();
-          pane.innerHTML = html(f.diff, { drawFileList: false, matching: 'lines', outputFormat });
-        } catch {
-          const pre = document.createElement('pre');
-          pre.textContent = f.diff;
-          pane.innerHTML = ''; pane.appendChild(pre);
-        }
+        pane.innerHTML = renderUnifiedDiff(f.diff);
+        pane.scrollTop = 0;
       }
 
       function connectWs(sessionName) {
