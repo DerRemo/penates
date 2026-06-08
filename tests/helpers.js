@@ -65,7 +65,14 @@ export async function waitForTerminal(page) {
 }
 
 export async function goBackToDashboard(page) {
-  await page.click('#disconnect-btn');
+  // Back-Button ist nur auf Touch-Viewports (pointer:coarse) sichtbar. Auf
+  // Desktop/Laptop führt der Weg zurück über die Sidebar bzw. history.back().
+  const backBtn = page.locator('#disconnect-btn');
+  if (await backBtn.isVisible()) {
+    await backBtn.click();
+  } else {
+    await page.goBack();
+  }
   await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
 }
 

@@ -254,6 +254,8 @@ window.__I18N_BUNDLES.de = {
   'toast.sessionGone': 'Session existiert nicht mehr',
   'toast.sessionKilled': 'Session „{name}" beendet',
   'toast.killFailed': 'Fehler beim Beenden der Session',
+  'toast.sessionRenamed': 'Session umbenannt zu „{name}"',
+  'toast.renameFailed': 'Umbenennen fehlgeschlagen',
   'toast.noIdleSessions': 'Keine idle Sessions zum Beenden',
   'toast.bulkKillDone': '{n} Session{plural} beendet',
   'toast.bulkKillPartial': '{succeeded} beendet, {failed} fehlgeschlagen',

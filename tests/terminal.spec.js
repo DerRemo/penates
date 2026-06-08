@@ -53,7 +53,7 @@ test.describe('Terminal', () => {
     await expect(page.locator('body')).toHaveAttribute('data-current-view', 'dashboard');
   });
 
-  test('kill button ends session and returns to dashboard', async ({ authedPage: page }) => {
+  test('killing via dashboard card ends the session', async ({ authedPage: page }) => {
     const name = `e2e-kill-${Date.now()}`;
     const token = await getToken(page);
     await page.request.post('/api/sessions', {
@@ -62,12 +62,19 @@ test.describe('Terminal', () => {
     });
 
     try {
-      await navigateToSession(page, `cc-${name}`);
-      await waitForTerminal(page);
-      // killCurrentSession() uses confirm() dialog
+      // Card erscheint via 5s-Poll. Kill über das Karten-Aktionsmenü (Dashboard),
+      // nicht mehr über einen Terminal-Toolbar-Button (entfernt).
+      const card = page.locator(`.session-card[data-name="cc-${name}"]`);
+      await card.waitFor({ timeout: 10_000 });
+      await expect(card).toHaveAttribute('data-status', 'running');
+      // Aktionen sind bis Hover ausgeblendet (visibility:hidden) — erst hovern.
+      await card.hover();
       page.once('dialog', dialog => dialog.accept());
-      await page.click('#kill-current-btn');
-      await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
+      await card.locator('[data-action="kill"]').click();
+      // Hub-erstellte Sessions bleiben in known-sessions registriert → die Karte
+      // wechselt nach dem Kill von running auf dormant (Session beendet, aber
+      // wiederherstellbar), statt zu verschwinden.
+      await expect(card).toHaveAttribute('data-status', 'dormant', { timeout: 10_000 });
     } finally {
       await page.request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, {
         headers: { Authorization: `Bearer ${token}` },

@@ -54,9 +54,13 @@ test.describe('Dashboard', () => {
       await card.click();
       await page.waitForSelector('body[data-current-view="terminal"]', { timeout: 10_000 });
 
+      await goBackToDashboard(page);
+      // Aktionen sind bis Hover ausgeblendet (visibility:hidden) — erst hovern.
+      await card.hover();
       page.once('dialog', dialog => dialog.accept());
-      await page.click('#kill-current-btn');
-      await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
+      await card.locator('[data-action="kill"]').click();
+      // Hub-erstellte Sessions bleiben in known-sessions → Karte wird dormant.
+      await expect(card).toHaveAttribute('data-status', 'dormant', { timeout: 10_000 });
     } finally {
       await page.request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, {
         headers: { Authorization: `Bearer ${token}` },
