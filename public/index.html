@@ -2425,6 +2425,41 @@
       flex-shrink: 0;
     }
 
+    /* Icon-only-Toolbar: quadratische Ghost-Icon-Buttons. Labels sind im
+       Markup entfernt; Entdeckbarkeit übernimmt der CSS-Tooltip (Task 5).
+       SVGs behalten ihre 14-16px-Größe (von .btn-sm svg). */
+    .terminal-toolbar .btn {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      gap: 0;
+      border-color: transparent;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      position: relative; /* Anker für Git-Dot + Tooltip */
+    }
+    .terminal-toolbar .btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border-color: transparent;
+    }
+    /* Active-State: welches rechte Panel offen ist (Files/Diff/Preview),
+       gesetzt von PanelToggleSync (Task 4). Akzent-Tint + Akzent-Icon. */
+    .terminal-toolbar .btn.is-active {
+      background: var(--accent-muted);
+      color: var(--accent);
+      border-color: transparent;
+    }
+    /* Hairline-Divider in der Right-Gruppe zwischen Panel-Toggles
+       (Files/Diff/Preview) und Eingabe-Aktionen (Bild/Voice/Suche). */
+    .terminal-toolbar-divider {
+      width: 1px;
+      align-self: stretch;
+      margin: 4px 2px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
     .terminal-session-name {
       font-family: var(--font-mono);
       font-weight: 600;
@@ -2663,8 +2698,6 @@
     @media (max-width: 480px) {
       /* Header auf sehr kleinen Screens: Logo-Text ausblenden damit Header-Buttons reinpassen */
       .logo-text { display: none; }
-      /* Terminal-Toolbar: Button-Labels entfernen, nur Icons stehen lassen. */
-      .terminal-toolbar .btn-label { display: none; }
     }
 
     /* Mobile: Modals werden zu Bottom-Sheets. Slide-up von unten, volle
@@ -4154,7 +4187,6 @@
       <div class="terminal-toolbar-left">
         <button class="btn btn-ghost btn-sm" id="disconnect-btn" type="button" aria-label="Back to dashboard" title="Back" data-i18n-attr="aria-label:terminal.toolbar.backAria;title:terminal.toolbar.backTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          <span class="btn-label" data-i18n="terminal.toolbar.back">Back</span>
         </button>
         <span class="terminal-session-name" id="terminal-session-name"></span>
         <span class="conn-status" id="conn-status" data-state="connecting">
@@ -4164,32 +4196,26 @@
       <div class="terminal-toolbar-right">
         <button class="btn btn-ghost btn-sm" id="btn-toggle-files" type="button" style="display:none" aria-label="Show files" title="Show files" data-i18n-attr="aria-label:terminal.toolbar.filesAria;title:terminal.toolbar.filesTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span class="btn-label" data-i18n="terminal.toolbar.files">Files</span>
         </button>
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-preview" type="button" style="display:none" aria-label="Toggle preview" title="Toggle preview" data-i18n-attr="aria-label:preview.toggleAria;title:preview.toggleAria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-diff" type="button" style="display:none" aria-label="Toggle diff" title="Toggle diff" data-i18n-attr="aria-label:diff.toggleAria;title:diff.toggleAria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+        </button>
+        <span class="terminal-toolbar-divider" aria-hidden="true"></span>
         <button class="btn btn-ghost btn-sm" id="image-picker-btn" type="button" aria-label="Insert image" title="Insert image" data-i18n-attr="aria-label:imagePaste.pickerTitle;title:imagePaste.pickerTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-          <span class="btn-label" data-i18n="imagePaste.pickerTitle">Insert image</span>
         </button>
         <input type="file" id="image-picker-input" accept="image/*" style="display:none" />
         <button class="btn btn-ghost btn-sm" id="voice-btn" type="button" style="display:none" aria-label="Speak" title="Speak" data-i18n-attr="aria-label:voice.btnTitle;title:voice.btnTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-          <span class="btn-label" id="voice-btn-label" data-i18n="voice.btnTitle">Speak</span>
-        </button>
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-preview" type="button" style="display:none" aria-label="Toggle preview" title="Toggle preview" data-i18n-attr="aria-label:preview.toggleAria;title:preview.toggleAria">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-          <span class="btn-label" data-i18n="preview.toggle">Preview</span>
         </button>
         <button class="btn btn-ghost btn-sm" id="btn-toggle-search" type="button" aria-label="Search" title="Search" data-i18n-attr="aria-label:terminal.search.toggle;title:terminal.search.toggle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-          <span class="btn-label" data-i18n="terminal.search.toggle">Search</span>
-        </button>
-        <button class="btn btn-ghost btn-sm" id="btn-toggle-diff" type="button" style="display:none" aria-label="Toggle diff" title="Toggle diff" data-i18n-attr="aria-label:diff.toggleAria;title:diff.toggleAria">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
-          <span class="btn-label" data-i18n="diff.toggle">Diff</span>
         </button>
         <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
-          <span class="btn-label" data-i18n="terminal.toolbar.captureIdea">Capture idea</span>
         </button>
       </div>
     </div>

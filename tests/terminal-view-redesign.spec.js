@@ -22,4 +22,14 @@ test.describe('Terminal-View redesign', () => {
     // … aber per CSS display:none — also nicht sichtbar.
     await expect(status).toBeHidden();
   });
+
+  test('toolbar is icon-only with a hairline divider', async ({ authedPage: page, hubSession }) => {
+    await navigateToSession(page, hubSession.name);
+    await waitForTerminal(page);
+    // Keine sichtbaren Button-Labels in der Terminal-Toolbar.
+    const visibleLabels = page.locator('.terminal-toolbar .btn-label:visible');
+    await expect(visibleLabels).toHaveCount(0);
+    // Hairline-Divider vorhanden.
+    await expect(page.locator('.terminal-toolbar-divider')).toHaveCount(1);
+  });
 });
