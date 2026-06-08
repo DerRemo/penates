@@ -2575,6 +2575,37 @@
       -webkit-user-select: auto;
     }
 
+    /* Connecting-Overlay (Extra 2): ruhiger Spinner über der dunklen Card,
+       solange data-state ≠ connected (frischer Connect / Reconnect).
+       Sichtbarkeit über .is-connecting an #terminal-container (von
+       setConnStatus gesetzt). Verschwindet, sobald connected. */
+    .terminal-connecting {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-3);
+      background: #0a0e14;
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      pointer-events: none;
+    }
+    .terminal-container.is-connecting .terminal-connecting { display: flex; }
+    .terminal-connecting .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .terminal-connecting .spinner { display: none; }
+    }
+
     /* ── v0.6.0 Task 14: Terminal Drop Overlay ─────────────────────── */
     .terminal-drop-overlay {
       position: absolute; inset: 0;
@@ -4317,6 +4348,10 @@
           <button class="term-search-btn" id="term-search-prev" type="button" aria-label="Previous match" data-i18n-attr="aria-label:terminal.search.prevAria;title:terminal.search.prevAria">‹</button>
           <button class="term-search-btn" id="term-search-next" type="button" aria-label="Next match" data-i18n-attr="aria-label:terminal.search.nextAria;title:terminal.search.nextAria">›</button>
           <button class="term-search-btn" id="term-search-close" type="button" aria-label="Close search" data-i18n-attr="aria-label:terminal.search.closeAria;title:terminal.search.closeAria">✕</button>
+        </div>
+        <div class="terminal-connecting" id="term-connecting" aria-hidden="true">
+          <div class="spinner"></div>
+          <span data-i18n="terminal.connStatus.connecting">Connecting</span>
         </div>
       </div>
       <div class="files-resizer" id="files-resizer" style="display:none"></div>
@@ -7822,7 +7857,7 @@
       // Clear xterm from prior session while preserving the static #term-search
       // overlay (now a child of #terminal-container; term.open() only appends).
       Array.from(container.children).forEach(ch => {
-        if (ch.id !== 'term-search') ch.remove();
+        if (ch.id !== 'term-search' && ch.id !== 'term-connecting') ch.remove();
       });
 
       // Font MUSS geladen sein, bevor xterm seine Char-Width misst,
@@ -8164,6 +8199,10 @@
       const lbl = document.getElementById('conn-status-label');
       el.setAttribute('data-state', state);
       lbl.textContent = label;
+      // Connecting-Overlay in der Card spiegeln (Extra 2): sichtbar solange
+      // nicht connected. data-state-Logik selbst bleibt unverändert.
+      const c = document.getElementById('terminal-container');
+      if (c) c.classList.toggle('is-connecting', state !== 'connected');
     }
 
     // ── WS-Connect mit Auto-Reconnect ────────────────────────────

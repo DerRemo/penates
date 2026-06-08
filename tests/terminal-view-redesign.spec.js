@@ -95,4 +95,12 @@ test.describe('Terminal-View redesign', () => {
     );
     expect(parseInt(radius, 10)).toBeGreaterThan(0);
   });
+
+  test('connecting overlay clears once connected', async ({ authedPage: page, hubSession }) => {
+    await navigateToSession(page, hubSession.name);
+    await waitForTerminal(page);
+    await expect(page.locator('#conn-status')).toHaveAttribute('data-state', 'connected', { timeout: 15_000 });
+    await expect(page.locator('#terminal-container')).not.toHaveClass(/is-connecting/);
+    await expect(page.locator('#term-connecting')).toBeHidden();
+  });
 });
