@@ -41,13 +41,13 @@ test.describe('Terminal-View redesign', () => {
     test.skip(isTouch, 'panels are fullscreen overlays on touch — toolbar toggles not clickable');
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
-    const filesBtn = page.locator('#btn-toggle-files');
-    // Der Files-Toggle ist nur sichtbar, wenn die Session aktivierbar ist.
-    if (!(await filesBtn.isVisible())) test.skip(true, 'files toggle not available for this session');
-    await expect(filesBtn).not.toHaveClass(/is-active/);
-    await filesBtn.click();
-    await page.waitForSelector('#files-sidebar.open', { timeout: 5_000 });
-    await expect(filesBtn).toHaveClass(/is-active/);
+    const repoBtn = page.locator('#btn-toggle-repo');
+    // Der Repo-Toggle ist nur sichtbar, wenn die Session aktivierbar ist.
+    if (!(await repoBtn.isVisible())) test.skip(true, 'repo toggle not available for this session');
+    await expect(repoBtn).not.toHaveClass(/is-active/);
+    await repoBtn.click();
+    await page.waitForSelector('#repo-panel.open', { timeout: 5_000 });
+    await expect(repoBtn).toHaveClass(/is-active/);
   });
 
   test('toolbar buttons carry data-tooltip', async ({ authedPage: page, hubSession }) => {
@@ -58,7 +58,7 @@ test.describe('Terminal-View redesign', () => {
   });
 
   test('git-dot reflects a dirty session cwd', async ({ authedPage: page, isTouch }) => {
-    test.skip(isTouch, 'diff toggle is hidden behind overlays on touch');
+    test.skip(isTouch, 'repo toggle is hidden behind overlays on touch');
     const dir = mkdtempSync(join(tmpdir(), 'cchub-gitdot-'));
     execFileSync('git', ['init', '-q'], { cwd: dir });
     execFileSync('git', ['config', 'user.email', 't@t'], { cwd: dir });
@@ -78,7 +78,7 @@ test.describe('Terminal-View redesign', () => {
     try {
       await navigateToSession(page, `cc-${name}`);
       await waitForTerminal(page);
-      await expect(page.locator('#btn-toggle-diff')).toHaveAttribute('data-dirty', 'true', { timeout: 10_000 });
+      await expect(page.locator('#btn-toggle-repo')).toHaveAttribute('data-dirty', 'true', { timeout: 10_000 });
     } finally {
       await page.request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, {
         headers: { Authorization: `Bearer ${token}` },

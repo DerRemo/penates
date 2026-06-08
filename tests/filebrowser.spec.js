@@ -351,15 +351,19 @@ test.describe('Filebrowser', () => {
     await expect(page.locator('#files-tree .file-row:not([hidden])')).toHaveCount(total);
   });
 
-  test('files toolbar is icon-only with tooltips and the panel is a card', async ({ authedPage: page }) => {
+  test('files toolbar is icon-only with tooltips and the panel is a card', async ({ authedPage: page, isTouch }) => {
     const toggleBtn = page.locator('#btn-toggle-repo');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
     const refresh = page.locator('#files-refresh');
     await expect(refresh).toHaveAttribute('data-tooltip', /.+/);
     await expect(refresh.locator('svg')).toBeVisible();
-    const radius = await page.locator('#repo-panel').evaluate(el => getComputedStyle(el).borderTopLeftRadius);
-    expect(parseInt(radius, 10)).toBeGreaterThan(0);
+    // Card-Radius nur auf Desktop — auf Touch ist das Repo-Panel ein
+    // randloses Vollbild-Overlay (border-radius: 0, bewusst).
+    if (!isTouch) {
+      const radius = await page.locator('#repo-panel').evaluate(el => getComputedStyle(el).borderTopLeftRadius);
+      expect(parseInt(radius, 10)).toBeGreaterThan(0);
+    }
   });
 
   test('cmd/ctrl-click multi-selects and shows the action bar', async ({ authedPage: page, isTouch }) => {
