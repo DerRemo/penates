@@ -11,7 +11,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:screenshots": "playwright test --update-snapshots",
     "vendor:xterm": "node scripts/vendor-xterm.mjs",
-    "vendor:fuse": "node scripts/vendor-fuse.mjs"
+    "vendor:fuse": "node scripts/vendor-fuse.mjs",
+    "vendor:catppuccin-icons": "node scripts/vendor-catppuccin-icons.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
