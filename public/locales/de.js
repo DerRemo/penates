@@ -144,6 +144,8 @@ window.__I18N_BUNDLES.de = {
   'filebrowser.toolbar.uploadTitle': 'Datei hochladen',
   'filebrowser.toolbar.refreshTitle': 'Neu laden',
   'filebrowser.toolbar.closeTitle': 'Schließen',
+  'filebrowser.toolbar.newFileTitle': 'Neue Datei',
+  'filebrowser.toolbar.filterTitle': 'Filter',
 
   // File browser tree
   'filebrowser.tree.loading': 'Lädt…',

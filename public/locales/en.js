@@ -144,6 +144,8 @@ window.__I18N_BUNDLES.en = {
   'filebrowser.toolbar.uploadTitle': 'Upload File',
   'filebrowser.toolbar.refreshTitle': 'Refresh',
   'filebrowser.toolbar.closeTitle': 'Close',
+  'filebrowser.toolbar.newFileTitle': 'New File',
+  'filebrowser.toolbar.filterTitle': 'Filter',
 
   // File browser tree
   'filebrowser.tree.loading': 'Loading…',

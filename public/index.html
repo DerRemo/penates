@@ -3478,17 +3478,15 @@
       font-size: 11px;
       color: var(--text-secondary);
     }
+    /* Icon-only-Toolbar — quadratische Ghost-Buttons, Entdeckbarkeit per Tooltip. */
     .files-toolbar button {
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-size: 11px;
-      white-space: nowrap;
-      flex-shrink: 0;
+      width: 30px; height: 30px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm);
+      color: var(--text-secondary); cursor: pointer; flex-shrink: 0;
+      position: relative; /* Anker für [data-tooltip] */
     }
+    .files-toolbar button svg { width: 15px; height: 15px; }
     .files-toolbar button:hover { color: var(--accent); background: var(--accent-muted); }
     .files-tree {
       flex: 1;
@@ -4424,11 +4422,25 @@
       <div class="files-resizer" id="files-resizer" style="display:none"></div>
       <aside class="files-sidebar" id="files-sidebar">
         <div class="files-toolbar">
-          <span class="breadcrumb" id="files-breadcrumb">/</span>
-          <button id="files-mkdir" title="New Folder" data-i18n-attr="title:filebrowser.toolbar.newFolderTitle" data-i18n="filebrowser.toolbar.newFolder">+ Folder</button>
-          <button id="files-upload-picker" title="Upload File" data-i18n-attr="title:filebrowser.toolbar.uploadTitle" data-i18n="filebrowser.toolbar.upload">+ File</button>
-          <button id="files-refresh" title="Refresh" data-i18n-attr="title:filebrowser.toolbar.refreshTitle">⟳</button>
-          <button id="files-close" title="Close" data-i18n-attr="title:filebrowser.toolbar.closeTitle">×</button>
+          <span class="breadcrumb" id="files-breadcrumb"></span>
+          <button id="files-mkdir" type="button" data-tooltip="New folder" title="New folder" aria-label="New folder" data-i18n-attr="data-tooltip:filebrowser.toolbar.newFolderTitle;title:filebrowser.toolbar.newFolderTitle;aria-label:filebrowser.toolbar.newFolderTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6M9 14h6"/></svg>
+          </button>
+          <button id="files-newfile" type="button" data-tooltip="New file" title="New file" aria-label="New file" data-i18n-attr="data-tooltip:filebrowser.toolbar.newFileTitle;title:filebrowser.toolbar.newFileTitle;aria-label:filebrowser.toolbar.newFileTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 12v6M9 15h6"/></svg>
+          </button>
+          <button id="files-upload-picker" type="button" data-tooltip="Upload" title="Upload" aria-label="Upload" data-i18n-attr="data-tooltip:filebrowser.toolbar.uploadTitle;title:filebrowser.toolbar.uploadTitle;aria-label:filebrowser.toolbar.uploadTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          </button>
+          <button id="files-filter" type="button" data-tooltip="Filter" title="Filter" aria-label="Filter" data-i18n-attr="data-tooltip:filebrowser.toolbar.filterTitle;title:filebrowser.toolbar.filterTitle;aria-label:filebrowser.toolbar.filterTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></svg>
+          </button>
+          <button id="files-refresh" type="button" data-tooltip="Refresh" title="Refresh" aria-label="Refresh" data-i18n-attr="data-tooltip:filebrowser.toolbar.refreshTitle;title:filebrowser.toolbar.refreshTitle;aria-label:filebrowser.toolbar.refreshTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+          <button id="files-close" type="button" data-tooltip="Close" title="Close" aria-label="Close" data-i18n-attr="data-tooltip:filebrowser.toolbar.closeTitle;title:filebrowser.toolbar.closeTitle;aria-label:filebrowser.toolbar.closeTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
         </div>
         <div class="files-tree" id="files-tree"></div>
         <div class="files-selbar" id="files-selbar" hidden>
@@ -10776,6 +10788,16 @@
               window.FileActions.mkdirPrompt(window.currentProjectId, '');
             } else {
               showToast(t('filebrowser.toast.cannotCreateFolder'), 'error');
+            }
+          });
+
+        // new file — inline input at the tree root
+        document.getElementById('files-newfile')
+          ?.addEventListener('click', () => {
+            if (window.FileActions && window.currentProjectId) {
+              window.FileActions.newFilePrompt(window.currentProjectId, '');
+            } else {
+              showToast(t('filebrowser.toast.createFileFailed'), 'error');
             }
           });
 
