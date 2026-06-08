@@ -157,19 +157,34 @@ window.__I18N_BUNDLES.de = {
   'filebrowser.context.rename': 'Umbenennen',
   'filebrowser.context.copyTo': 'Kopieren nach…',
   'filebrowser.context.moveTo': 'Verschieben nach…',
-  'filebrowser.context.moveToTrash': 'In Papierkorb',
+  'filebrowser.context.moveToTrash': 'In den Papierkorb',
   'filebrowser.context.copyPath': 'Pfad kopieren',
+  'filebrowser.context.newFile': 'Neue Datei',
+  'filebrowser.context.select': 'Auswählen',
+
+  // File browser delete dialog
+  'filebrowser.delete.titleOne': '„{name}" in den Papierkorb verschieben?',
+  'filebrowser.delete.titleMany': '{n} Elemente in den Papierkorb verschieben?',
+  'filebrowser.delete.body': 'Elemente lassen sich über den macOS-Papierkorb im Finder wiederherstellen.',
+  'filebrowser.delete.confirm': 'In den Papierkorb',
+  'filebrowser.delete.toast': 'In den Papierkorb verschoben',
 
   // File browser prompts & toasts
   'filebrowser.prompt.copy': 'Kopieren nach',
   'filebrowser.prompt.move': 'Verschieben nach',
   'filebrowser.prompt.targetPath': '{label} (relativer Zielpfad):',
+  'filebrowser.prompt.targetLabel': 'Relativer Zielpfad',
+  'filebrowser.prompt.required': 'Pfad eingeben',
+  'filebrowser.prompt.samePath': 'Anderen Pfad wählen',
   'filebrowser.prompt.newFolder': 'Neuer Ordner:',
+  'filebrowser.create.folderPlaceholder': 'Ordnername…',
+  'filebrowser.create.filePlaceholder': 'Dateiname…',
   'filebrowser.toast.renameFailed': 'Umbenennen fehlgeschlagen',
   'filebrowser.toast.deleteFailed': 'Löschen fehlgeschlagen',
   'filebrowser.toast.copyFailed': 'Kopieren fehlgeschlagen',
   'filebrowser.toast.moveFailed': 'Verschieben fehlgeschlagen',
   'filebrowser.toast.createFailed': 'Anlegen fehlgeschlagen',
+  'filebrowser.toast.createFileFailed': 'Datei konnte nicht erstellt werden',
   'filebrowser.toast.cannotCreateFolder': 'Ordner erstellen nicht verfügbar',
 
   // File preview modal

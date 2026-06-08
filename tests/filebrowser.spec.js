@@ -82,8 +82,12 @@ test.describe('Filebrowser', () => {
 
     await openFileSidebar(page);
     const folderName = `e2e-mkdir-${Date.now()}`;
-    page.once('dialog', d => d.accept(folderName));
+    // mkdir is now an inline input row at the top of the tree (no window.prompt).
     await page.click('#files-mkdir');
+    const createInput = page.locator('.file-create-row .rename-input');
+    await createInput.waitFor({ timeout: 5_000 });
+    await createInput.fill(folderName);
+    await createInput.press('Enter');
 
     const newRow = page.locator(`#files-tree .file-row[data-path="${folderName}"]`);
     await newRow.waitFor({ timeout: 10_000 });
@@ -108,8 +112,15 @@ test.describe('Filebrowser', () => {
     await openFileSidebar(page);
 
     const origName = `e2e-rename-${Date.now()}`;
-    page.once('dialog', d => d.accept(origName));
-    await page.click('#files-mkdir');
+    // Seed via API (mkdir is inline now); then refresh the tree.
+    {
+      const token = await getToken(page);
+      await page.request.post(`/api/projects/${projectSession.projectId}/files/mkdir`, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        data: { path: '', name: origName },
+      });
+      await page.click('#files-refresh');
+    }
     const row = page.locator(`#files-tree .file-row[data-path="${origName}"]`);
     await row.waitFor({ timeout: 10_000 });
 
@@ -142,33 +153,28 @@ test.describe('Filebrowser', () => {
     }
   });
 
-  test('context menu delete with two-click confirm', async ({ authedPage: page, projectSession, isTouch }) => {
+  test('delete uses a themed dialog, not the legacy ✓? second-click', async ({ authedPage: page, projectSession, isTouch }) => {
     test.skip(isTouch, 'context menu requires right-click, not available on touch devices');
     const toggleBtn = page.locator('#btn-toggle-files');
-    if (!(await toggleBtn.isVisible())) {
-      test.skip(true, 'file toggle not visible');
-      return;
-    }
-
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
-
-    const folderName = `e2e-delete-${Date.now()}`;
-    page.once('dialog', d => d.accept(folderName));
-    await page.click('#files-mkdir');
-    const row = page.locator(`#files-tree .file-row[data-path="${folderName}"]`);
-    await row.waitFor({ timeout: 10_000 });
-
+    // Eine wegwerfbare Datei via API anlegen, damit der Test idempotent ist.
+    const projId = projectSession.projectId;
+    const token = await getToken(page);
+    const fname = `e2e-del-${Date.now()}.txt`;
+    await page.request.post(`/api/projects/${encodeURIComponent(projId)}/files/new`, {
+      headers: { Authorization: `Bearer ${token}` }, data: { path: '', name: fname },
+    });
+    await page.click('#files-refresh');
+    const row = page.locator(`#files-tree .file-row[data-path="${fname}"]`);
+    await row.waitFor({ timeout: 5000 });
     await row.click({ button: 'right' });
-    const menu = page.locator('.cchub-contextmenu');
-    await menu.waitFor({ timeout: 3_000 });
-    await menu.locator('button', { hasText: /Move to Trash|In Papierkorb/i }).click();
-    await page.waitForTimeout(200);
-
-    await expect(row).toHaveClass(/pending-delete/, { timeout: 5_000 });
-    await page.waitForTimeout(200);
-    await row.click();
-    await expect(row).not.toBeAttached({ timeout: 5_000 });
-    // Folder is in Trash — no extra API cleanup needed
+    await page.getByText(/Move to Trash|In den Papierkorb/).first().click();
+    // Themed Dialog erscheint (kein ✓?-Label am Row).
+    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible();
+    await expect(row).not.toContainText('✓?');
+    await page.locator('#cchub-confirm-ok').click();
+    await expect(page.locator(`#files-tree .file-row[data-path="${fname}"]`)).toHaveCount(0, { timeout: 5000 });
   });
 
   test('context menu copy path', async ({ authedPage: page, isTouch }) => {

@@ -3782,7 +3782,9 @@
       padding: 1px 4px; font: inherit; border-radius: 3px;
       min-width: 0;
     }
-    .file-row.pending-delete { background: rgba(239, 68, 68, .16); }
+    .file-create-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px; }
+    .file-create-row .icon-img { width: 16px; height: 16px; flex-shrink: 0; }
+    .file-create-row .rename-input { flex: 1; }
 
     /* ── Approval stack (Task 7) ─────────────────────────────── */
     .approval-stack { position: fixed; right: 16px; bottom: 16px; z-index: 320;
@@ -12218,14 +12220,17 @@
         e.preventDefault();
         const relPath = row.dataset.path;
         const isFile = row.dataset.type !== 'dir';
+        const parentRel = relPath.includes('/') ? relPath.split('/').slice(0, -1).join('/') : '';
         showMenu(e.clientX, e.clientY, [
-          { label: t('filebrowser.context.open'), action: () => row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })) },
+          { label: t('filebrowser.context.open'), action: () => row.dispatchEvent(new MouseEvent('click', { bubbles: true })) },
+          { label: t('filebrowser.context.select'), action: () => window.FileBrowser?.enterSelectMode?.(row) },
           ...(isFile ? [{ label: t('filebrowser.context.download'), action: () => downloadFile(projectId, relPath, relPath.split('/').pop()) }] : []),
+          { label: t('filebrowser.context.newFile'), action: () => newFilePrompt(projectId, isFile ? parentRel : relPath) },
           { label: t('filebrowser.context.rename'), action: () => startRename(projectId, row) },
           { label: t('filebrowser.context.copyTo'), action: () => promptOp(projectId, relPath, 'copy') },
           { label: t('filebrowser.context.moveTo'), action: () => promptOp(projectId, relPath, 'move') },
           '---',
-          { label: t('filebrowser.context.moveToTrash'), action: () => confirmDelete(projectId, row, relPath) },
+          { label: t('filebrowser.context.moveToTrash'), action: () => deleteRows(projectId, window.FileBrowser?.selectedRows?.(row) || [row]) },
           '---',
           { label: t('filebrowser.context.copyPath'), action: () => navigator.clipboard?.writeText(relPath).catch(() => {}) },
         ]);
@@ -12280,45 +12285,48 @@
         input.addEventListener('blur', () => setTimeout(cancel, 100));
       }
 
-      function confirmDelete(projectId, row, relPath) {
-        const labelSpan = row.querySelector('span:last-child');
-        if (!labelSpan) return;
-        const oldLabel = labelSpan.textContent;
-        if (row.classList.contains('pending-delete')) return; // already armed
-        row.classList.add('pending-delete');
-        labelSpan.textContent = `✓? ${oldLabel}`;
-        const armed = Date.now();
-        const revertTimer = setTimeout(() => {
-          if (!row.isConnected) return;
-          row.classList.remove('pending-delete');
-          const lbl = row.querySelector('span:last-child');
-          if (lbl) lbl.textContent = oldLabel;
-        }, 3000);
-        const onClick = async (ev) => {
-          ev.stopPropagation();
-          if (Date.now() - armed < 80) return; // debounce double-fire from same click
-          row.removeEventListener('click', onClick, true);
-          clearTimeout(revertTimer);
-          const res = await authedFetch(`/api/projects/${projectId}/files`, {
-            method: 'DELETE',
-            body: { paths: [relPath] },
-          });
-          if (res.ok) {
-            row.remove();
-          } else {
-            notify(t('filebrowser.toast.deleteFailed'), 'error');
-            row.classList.remove('pending-delete');
-            const lbl = row.querySelector('span:last-child');
-            if (lbl) lbl.textContent = oldLabel;
-          }
-        };
-        row.addEventListener('click', onClick, true);
+      // Löschen über themed Dialog. Akzeptiert eine Liste von rows (Multi-Select)
+      // oder eine einzelne row. Erfolg → Zeilen entfernen + Toast (Papierkorb,
+      // wiederherstellbar via Finder).
+      async function deleteRows(projectId, rows) {
+        const list = Array.isArray(rows) ? rows : [rows];
+        if (!list.length) return;
+        const paths = list.map(r => r.dataset.path);
+        const single = list.length === 1;
+        const title = single
+          ? t('filebrowser.delete.titleOne', { name: paths[0].split('/').pop() })
+          : t('filebrowser.delete.titleMany', { n: list.length });
+        const ok = await window.showConfirmDialog({
+          title,
+          body: t('filebrowser.delete.body'),
+          confirmLabel: t('filebrowser.delete.confirm'),
+          cancelLabel: t('dialog.cancel'),
+          danger: true,
+        });
+        if (!ok) return;
+        const res = await authedFetch(`/api/projects/${projectId}/files`, {
+          method: 'DELETE',
+          body: { paths },
+        });
+        if (res.ok) {
+          for (const r of list) r.remove();
+          notify(t('filebrowser.delete.toast'), 'success');
+          window.FileBrowser?.clearSelection?.();
+        } else {
+          notify(t('filebrowser.toast.deleteFailed'), 'error');
+        }
       }
 
       async function promptOp(projectId, relPath, op) {
-        const label = op === 'copy' ? t('filebrowser.prompt.copy') : t('filebrowser.prompt.move');
-        const to = window.prompt(t('filebrowser.prompt.targetPath', { label }), relPath);
-        if (!to || to === relPath) return;
+        const title = op === 'copy' ? t('filebrowser.prompt.copy') : t('filebrowser.prompt.move');
+        const to = await window.showInputDialog({
+          title,
+          label: t('filebrowser.prompt.targetLabel'),
+          value: relPath,
+          confirmLabel: title,
+          validate: (v) => (!v ? t('filebrowser.prompt.required') : (v === relPath ? t('filebrowser.prompt.samePath') : null)),
+        });
+        if (to == null) return;
         const res = await authedFetch(`/api/projects/${projectId}/files`, {
           method: 'PATCH',
           body: { op, from: relPath, to },
@@ -12331,22 +12339,60 @@
         if (refreshBtn) refreshBtn.click();
       }
 
-      async function mkdirPrompt(projectId, parentRel = '') {
-        const name = window.prompt(t('filebrowser.prompt.newFolder'));
-        if (!name) return;
-        const res = await authedFetch(`/api/projects/${projectId}/files/mkdir`, {
-          method: 'POST',
-          body: { path: parentRel, name },
+      // Inline-Erzeugung (Ordner/Datei) — Input-Zeile am Zielort, Enter legt an.
+      // Muster wie startRename. parentRel '' = Root-Tree.
+      function inlineCreate(projectId, parentRel, kind) {
+        const container = parentRel === ''
+          ? document.getElementById('files-tree')
+          : (() => {
+              const dirRow = [...document.querySelectorAll('.file-row[data-type="dir"]')]
+                .find(r => r.dataset.path === parentRel);
+              const c = dirRow && dirRow.nextElementSibling;
+              return (c && c.classList.contains('file-children')) ? c : document.getElementById('files-tree');
+            })();
+        if (!container) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'file-create-row';
+        const img = document.createElement('img');
+        img.className = 'icon-img';
+        img.src = window.fileIcon ? window.fileIcon('x', kind === 'folder').src : '';
+        img.alt = '';
+        const input = document.createElement('input');
+        input.className = 'rename-input';
+        input.placeholder = kind === 'folder' ? t('filebrowser.create.folderPlaceholder') : t('filebrowser.create.filePlaceholder');
+        wrap.appendChild(img);
+        wrap.appendChild(input);
+        container.prepend(wrap);
+        input.focus();
+        let settled = false;
+        const cancel = () => { if (settled) return; settled = true; wrap.remove(); };
+        const commit = async () => {
+          if (settled) return;
+          const name = input.value.trim();
+          if (!name) { cancel(); return; }
+          settled = true;
+          const url = kind === 'folder'
+            ? `/api/projects/${projectId}/files/mkdir`
+            : `/api/projects/${projectId}/files/new`;
+          const res = await authedFetch(url, { method: 'POST', body: { path: parentRel, name } });
+          wrap.remove();
+          if (!res.ok) {
+            notify(t(kind === 'folder' ? 'filebrowser.toast.createFailed' : 'filebrowser.toast.createFileFailed'), 'error');
+            return;
+          }
+          const refreshBtn = document.getElementById('files-refresh');
+          if (refreshBtn) refreshBtn.click();
+        };
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+          if (ev.key === 'Escape') { ev.preventDefault(); cancel(); }
         });
-        if (!res.ok) {
-          notify(t('filebrowser.toast.createFailed'), 'error');
-          return;
-        }
-        const refreshBtn = document.getElementById('files-refresh');
-        if (refreshBtn) refreshBtn.click();
+        input.addEventListener('blur', () => setTimeout(cancel, 100));
       }
+      function mkdirPrompt(projectId, parentRel = '') { inlineCreate(projectId, parentRel, 'folder'); }
+      function newFilePrompt(projectId, parentRel = '') { inlineCreate(projectId, parentRel, 'file'); }
 
-      return { openRowContextMenu, mkdirPrompt };
+      return { openRowContextMenu, mkdirPrompt, newFilePrompt, deleteRows };
     })();
 
     window.FileActions = FileActions;
