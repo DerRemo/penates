@@ -111,7 +111,9 @@ test.describe('Filebrowser', () => {
 
     await openFileSidebar(page);
 
-    const origName = `e2e-rename-${Date.now()}`;
+    // NB: avoid the `e2e-rename-*` prefix — it is gitignored in this repo and the
+    // new ignored-filter (default on) would hide the seeded row. Use a fresh name.
+    const origName = `e2e-fbrn-${Date.now()}`;
     // Seed via API (mkdir is inline now); then refresh the tree.
     {
       const token = await getToken(page);
@@ -133,7 +135,7 @@ test.describe('Filebrowser', () => {
 
       const input = row.locator('.rename-input');
       await input.waitFor({ timeout: 3_000 });
-      newName = `e2e-renamed-${Date.now()}`;
+      newName = `e2e-fbrn2-${Date.now()}`;
       await input.fill(newName);
       await input.press('Enter');
 
@@ -360,7 +362,8 @@ test.describe('Filebrowser', () => {
     expect(parseInt(radius, 10)).toBeGreaterThan(0);
   });
 
-  test('cmd/ctrl-click multi-selects and shows the action bar', async ({ authedPage: page }) => {
+  test('cmd/ctrl-click multi-selects and shows the action bar', async ({ authedPage: page, isTouch }) => {
+    test.skip(isTouch, 'modifier-click multi-select is a desktop pointer interaction; touch uses select-mode');
     const toggleBtn = page.locator('#btn-toggle-files');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
