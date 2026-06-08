@@ -379,12 +379,15 @@ test.describe('Filebrowser', () => {
     await expect(page.locator('#files-selbar')).toBeHidden();
   });
 
-  test('file rows use Catppuccin icon images (no emoji)', async ({ authedPage: page }) => {
+  test('file rows use inline Catppuccin SVG icons (not <img>, not emoji)', async ({ authedPage: page }) => {
     const toggleBtn = page.locator('#btn-toggle-files');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
     await openFileSidebar(page);
-    const firstIconImg = page.locator('#files-tree .file-row .icon img').first();
-    await expect(firstIconImg).toHaveAttribute('src', /catppuccin-icons\/.+\.svg/);
+    // Icons müssen INLINE-<svg> sein, nicht <img> — sonst können die css-variables
+    // SVGs die --vscode-ctp-*-Tokens der Seite nicht auflösen und rendern unsichtbar.
+    const firstIconSvg = page.locator('#files-tree .file-row .icon svg').first();
+    await expect(firstIconSvg).toBeVisible();
+    await expect(page.locator('#files-tree .file-row .icon img')).toHaveCount(0);
   });
 
   test('downloads a file via context menu', async ({ authedPage: page, projectSession, isTouch }) => {
