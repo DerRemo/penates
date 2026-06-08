@@ -28,6 +28,7 @@ import {
   listDir as filesListDir,
   readFile as filesReadFile,
   mkdir as filesMkdir,
+  createEmptyFile as filesCreateEmptyFile,
   renameOrMove as filesRenameOrMove,
   copy as filesCopy,
   deleteToTrash as filesDeleteToTrash,
@@ -967,6 +968,16 @@ app.post('/api/projects/:id/files/mkdir', async (req, res) => {
     if (!project) return res.status(404).json({ error: 'not-found' });
     const { path: parent, name } = req.body || {};
     const result = await filesMkdir(project.path, String(parent || ''), String(name || ''));
+    res.json(result);
+  } catch (e) { handleFileError(res, e); }
+});
+
+app.post('/api/projects/:id/files/new', async (req, res) => {
+  try {
+    const project = await resolveFileSource(req.params.id);
+    if (!project) return res.status(404).json({ error: 'not-found' });
+    const { path: parent, name } = req.body || {};
+    const result = await filesCreateEmptyFile(project.path, String(parent || ''), String(name || ''));
     res.json(result);
   } catch (e) { handleFileError(res, e); }
 });
