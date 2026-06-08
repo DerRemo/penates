@@ -828,9 +828,8 @@
     .usage-accts { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
     .usage-acct { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 17px; box-shadow: var(--shadow-card); }
     .usage-acct-h { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; }
-    .usage-acct-ic { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
-    .usage-acct-ic.cl { background: color-mix(in srgb, var(--peach) 22%, transparent); }
-    .usage-acct-ic.cx { background: color-mix(in srgb, var(--text-secondary) 16%, transparent); }
+    .usage-acct-ic { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex: 0 0 34px; color: var(--cli-color, var(--text-secondary)); background: color-mix(in srgb, var(--cli-color, var(--text-secondary)) 16%, transparent); }
+    .usage-acct-ic svg { width: 20px; height: 20px; display: block; }
     .usage-acct-name { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
     .usage-acct-tier { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
     .usage-acct-fresh { margin-left: auto; font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono); }
@@ -864,9 +863,8 @@
     .usage-prov { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 17px; }
     .usage-prov-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-subtle); }
     .usage-prov-row:last-child { border-bottom: none; }
-    .usage-prov-ic { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex: 0 0 28px; }
-    .usage-prov-ic.cl { background: color-mix(in srgb, var(--peach) 22%, transparent); }
-    .usage-prov-ic.cx { background: color-mix(in srgb, var(--text-secondary) 16%, transparent); }
+    .usage-prov-ic { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex: 0 0 28px; color: var(--cli-color, var(--text-secondary)); background: color-mix(in srgb, var(--cli-color, var(--text-secondary)) 16%, transparent); }
+    .usage-prov-ic svg { width: 17px; height: 17px; display: block; }
     .usage-prov-main { flex: 1; min-width: 0; }
     .usage-prov-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
     .usage-prov-name { font-size: 13.5px; font-weight: 600; }
@@ -5621,11 +5619,12 @@
     function usageAgentMeta(agent) {
       const id = agentToCliId(agent);
       const c = _clisMod && id && _clisMod.CLIS.find(x => x.id === id);
-      return {
-        label: c ? c.label : (agent || '—'),
-        color: c ? c.color : 'var(--text-secondary)',
-        logo: c && c.logo ? c.logo : TERMINAL_GLYPH,
-      };
+      if (c) return { label: c.label, color: c.color, logo: c.logo };
+      // Gemini has no spawnable CLIS entry (Google runs through Antigravity),
+      // but the usage scanner can still report a 'gemini' provider — give it
+      // the real Gemini mark instead of the generic terminal glyph.
+      if (id === 'gemini') return { label: 'Gemini', color: '#4285F4', logo: GEMINI_LOGO };
+      return { label: agent || '—', color: 'var(--text-secondary)', logo: TERMINAL_GLYPH };
     }
     // Rendert einen 5h-Balken pro Agent aus accounts[]. Heute fließt nur
     // claude-code; Codex/Antigravity erscheinen automatisch sobald gemeldet.
@@ -7289,9 +7288,9 @@
         return `<div class="usage-seclabel">${t('usage.section.limits')}</div>`
           + `<div class="usage-acct"><div class="usage-acct-tier">${t('usage.noAccountData')}</div></div>`;
       }
-      const isCodex = (agent) => /codex/i.test(agent || '');
       const cards = withPct.map(a => {
         const ago = a.capturedAt ? formatRelativeTime(a.capturedAt) : '';
+        const m = usageAgentMeta(a.agent);
         const rows = (a.windows || [])
           .filter(w => typeof w.usedPercentage === 'number')
           .map(w => {
@@ -7310,7 +7309,7 @@
         const tier = escapeHtml([a.accountLabel, a.agent].filter(Boolean).join(' · ') || 'Account');
         return `<div class="usage-acct">
           <div class="usage-acct-h">
-            <div class="usage-acct-ic ${isCodex(a.agent) ? 'cx' : 'cl'}">${isCodex(a.agent) ? '◇' : '✳'}</div>
+            <div class="usage-acct-ic" style="--cli-color:${m.color}" aria-hidden="true">${m.logo}</div>
             <div><div class="usage-acct-name">${escapeHtml(a.accountLabel || a.agent || 'Account')}</div><div class="usage-acct-tier">${tier}</div></div>
             ${ago ? `<div class="usage-acct-fresh">${escapeHtml(t('usage.snapshotFresh', { ago }))}</div>` : ''}
           </div>
@@ -7343,14 +7342,14 @@
       const bp = history.byProvider;
       if (!Array.isArray(bp) || !bp.length) return '';
       const colorFor = (m) => /opus/i.test(m) ? 'var(--peach)' : /sonnet/i.test(m) ? 'var(--teal)' : /haiku/i.test(m) ? 'var(--blue)' : 'var(--green)';
-      const isCodex = (p) => p === 'codex';
       const rows = bp.map(p => {
+        const meta = usageAgentMeta(p.provider);
         const total = p.tokens || 1;
         const models = (p.models || []).filter(m => (m.tokens || 0) > 0);
         const seg = models.map(m => `<i style="width:${Math.round((m.tokens / total) * 100)}%;background:${colorFor(m.model)}"></i>`).join('');
         const chips = models.slice(0, 4).map(m => `<span class="usage-mchip"><b>${escapeHtml(m.model)}</b> ${formatTokensCompact(m.tokens)}</span>`).join('');
         return `<div class="usage-prov-row">
-          <div class="usage-prov-ic ${isCodex(p.provider) ? 'cx' : 'cl'}">${isCodex(p.provider) ? '◇' : '✳'}</div>
+          <div class="usage-prov-ic" style="--cli-color:${meta.color}" aria-hidden="true">${meta.logo}</div>
           <div class="usage-prov-main">
             <div class="usage-prov-top"><span class="usage-prov-name">${escapeHtml(p.label || p.provider)}</span><span class="usage-prov-tok">${t('usage.provider.tokens', { tokens: formatTokensCompact(p.tokens) })}</span></div>
             <div class="usage-prov-bar">${seg}</div>
@@ -9327,6 +9326,10 @@
     // CLI-Brand-Logo fürs Card-Rendering. Fällt auf einen Terminal-Glyph
     // zurück, solange clis.js noch lädt oder die CLI unbekannt ist.
     const TERMINAL_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
+    // Official Gemini "spark" mark with the brand blue→purple→pink gradient.
+    // Not in clis.js (that registry is spawnable CLIs only); used as the icon
+    // for a 'gemini' usage provider via usageAgentMeta().
+    const GEMINI_LOGO = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="cchGeminiMark" x1="2" y1="4" x2="22" y2="20" gradientUnits="userSpaceOnUse"><stop stop-color="#4285F4"/><stop offset=".5" stop-color="#9B72CB"/><stop offset="1" stop-color="#D96570"/></linearGradient></defs><path fill="url(#cchGeminiMark)" d="M12 24A14.304 14.304 0 0 0 0 12 14.304 14.304 0 0 0 12 0a14.305 14.305 0 0 0 12 12 14.305 14.305 0 0 0-12 12Z"/></svg>';
     function cardCliLogo(command) {
       let svg = TERMINAL_GLYPH;
       let cls = 'cli-logo cli-logo--fallback';
