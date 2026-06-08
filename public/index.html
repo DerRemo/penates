@@ -3488,6 +3488,13 @@
     }
     .files-toolbar button svg { width: 15px; height: 15px; }
     .files-toolbar button:hover { color: var(--accent); background: var(--accent-muted); }
+    .files-search { display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .files-search__icon { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+    .files-search input { flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+      color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-xs); }
+    .file-row .hl { color: var(--accent); font-weight: 600; }
+    .file-row[hidden], .file-children[hidden] { display: none !important; }
     .files-tree {
       flex: 1;
       overflow: auto;
@@ -4108,6 +4115,7 @@
   <script type="module">
     import { fileIcon as _fileIcon } from './file-icons.js';
     window.fileIcon = _fileIcon;
+    import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
   </script>
   <script>
     // i18n translator bootstrap — mirrors lib/i18n.js createTranslator (tested there).
@@ -4441,6 +4449,11 @@
           <button id="files-close" type="button" data-tooltip="Close" title="Close" aria-label="Close" data-i18n-attr="data-tooltip:filebrowser.toolbar.closeTitle;title:filebrowser.toolbar.closeTitle;aria-label:filebrowser.toolbar.closeTitle">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
+        </div>
+        <div class="files-search">
+          <svg class="files-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="files-search-input" autocomplete="off" spellcheck="false"
+                 data-i18n-attr="placeholder:filebrowser.search.placeholder" placeholder="Filter loaded files…">
         </div>
         <div class="files-tree" id="files-tree"></div>
         <div class="files-selbar" id="files-selbar" hidden>
@@ -10567,6 +10580,66 @@
         updateSelbar();
       }
 
+      // ── Fuzzy-Filter (fuse.js, vendored) ─────────────────────────
+      let filterTerm = '';
+      function applyFilter() {
+        const rows = visibleRows();
+        if (!filterTerm) {
+          // Reset: alles sichtbar, Highlights entfernen.
+          rows.forEach(r => {
+            r.hidden = false;
+            const lbl = r.querySelector('span:last-child');
+            if (lbl) lbl.textContent = lbl.textContent; // strip <span class=hl>
+          });
+          document.querySelectorAll('#files-tree .file-children').forEach(c => { c.hidden = false; });
+          return;
+        }
+        const items = rows.map(r => ({ row: r, name: r.dataset.path.split('/').pop() }));
+        let hits;
+        if (window.Fuse) {
+          const fuse = new window.Fuse(items, { keys: ['name'], threshold: 0.4, ignoreLocation: true, includeMatches: true });
+          hits = new Map(fuse.search(filterTerm).map(res => [res.item.row, res.matches?.[0]]));
+        } else {
+          // Fallback bis fuse geladen ist: simpler Substring.
+          const f = filterTerm.toLowerCase();
+          hits = new Map(items.filter(it => it.name.toLowerCase().includes(f)).map(it => [it.row, null]));
+        }
+        const keep = new Set();
+        for (const row of hits.keys()) {
+          keep.add(row);
+          // Vorfahren (Eltern-.file-children + deren dir-row) sichtbar halten.
+          let el = row.parentElement;
+          while (el && el.id !== 'files-tree') {
+            if (el.classList.contains('file-children')) {
+              keep.add(el);
+              const dirRow = el.previousElementSibling;
+              if (dirRow && dirRow.classList.contains('file-row')) keep.add(dirRow);
+            }
+            el = el.parentElement;
+          }
+        }
+        rows.forEach(r => { r.hidden = !keep.has(r); });
+        document.querySelectorAll('#files-tree .file-children').forEach(c => { c.hidden = !keep.has(c); });
+        // Treffer-Substring hervorheben.
+        for (const [row, match] of hits) {
+          const lbl = row.querySelector('span:last-child');
+          if (!lbl) continue;
+          const name = row.dataset.path.split('/').pop();
+          lbl.innerHTML = highlightMatch(name, match);
+        }
+      }
+      function highlightMatch(name, match) {
+        const esc = (s) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        if (!match || !match.indices || !match.indices.length) return esc(name);
+        let out = '', last = 0;
+        for (const [a, b] of match.indices) {
+          out += esc(name.slice(last, a)) + '<span class="hl">' + esc(name.slice(a, b + 1)) + '</span>';
+          last = b + 1;
+        }
+        out += esc(name.slice(last));
+        return out;
+      }
+
       function loadOpenFolders(id) {
         openFolders.clear();
         try {
@@ -10745,6 +10818,7 @@
             }
           }
           pruneSelection();
+          applyFilter();
         } catch (e) {
           tree.innerHTML = `<div style="padding:8px;color:var(--red,#f88)">${e.message}</div>`;
         }
@@ -10836,6 +10910,14 @@
           }
         });
         document.getElementById('files-sel-clear')?.addEventListener('click', clearSelection);
+
+        const searchInput = document.getElementById('files-search-input');
+        if (searchInput) {
+          searchInput.addEventListener('input', () => {
+            filterTerm = searchInput.value.trim();
+            applyFilter();
+          });
+        }
 
         // Entf/Backspace löscht die Selektion (oder die fokussierte Zeile).
         document.getElementById('files-tree')?.addEventListener('keydown', (e) => {
@@ -10996,6 +11078,7 @@
             }
           }
           pruneSelection();
+          applyFilter();
         } catch (e) {
           console.warn('[FileBrowser] refreshContainer failed', e);
         }

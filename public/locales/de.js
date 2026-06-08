@@ -185,6 +185,7 @@ window.__I18N_BUNDLES.de = {
   'filebrowser.sel.trash': 'Papierkorb',
   'filebrowser.sel.move': 'Verschieben',
   'filebrowser.sel.clear': 'Aufheben',
+  'filebrowser.search.placeholder': 'Geladene Dateien filtern…',
   'filebrowser.toast.renameFailed': 'Umbenennen fehlgeschlagen',
   'filebrowser.toast.deleteFailed': 'Löschen fehlgeschlagen',
   'filebrowser.toast.copyFailed': 'Kopieren fehlgeschlagen',

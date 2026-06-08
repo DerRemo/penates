@@ -269,6 +269,21 @@ test.describe('Filebrowser', () => {
     await expect(page.locator('#files-upload-picker')).toBeVisible();
   });
 
+  test('fuzzy search filters loaded rows and highlights matches', async ({ authedPage: page }) => {
+    const toggleBtn = page.locator('#btn-toggle-files');
+    if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
+    await openFileSidebar(page);
+    const total = await page.locator('#files-tree .file-row').count();
+    if (total < 2) { test.skip(true, 'need >=2 rows'); return; }
+    // Namen einer existierenden Zeile holen und tippfehler-behaftet suchen.
+    const firstName = await page.locator('#files-tree .file-row').first().getAttribute('data-path');
+    const base = firstName.split('/').pop();
+    await page.fill('#files-search-input', base.slice(0, Math.max(2, base.length - 1)));
+    await expect(page.locator('#files-tree .file-row:not([hidden])')).not.toHaveCount(total);
+    await page.fill('#files-search-input', '');
+    await expect(page.locator('#files-tree .file-row:not([hidden])')).toHaveCount(total);
+  });
+
   test('files toolbar is icon-only with tooltips and the panel is a card', async ({ authedPage: page }) => {
     const toggleBtn = page.locator('#btn-toggle-files');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }

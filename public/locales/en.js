@@ -185,6 +185,7 @@ window.__I18N_BUNDLES.en = {
   'filebrowser.sel.trash': 'Trash',
   'filebrowser.sel.move': 'Move',
   'filebrowser.sel.clear': 'Clear',
+  'filebrowser.search.placeholder': 'Filter loaded files…',
   'filebrowser.toast.renameFailed': 'Rename failed',
   'filebrowser.toast.deleteFailed': 'Delete failed',
   'filebrowser.toast.copyFailed': 'Copy failed',
