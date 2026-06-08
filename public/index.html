@@ -3566,6 +3566,14 @@
       justify-content: center;
     }
     .file-row .icon img { width: 16px; height: 16px; display: block; }
+    /* Git-Marker: dezenter Punkt rechts am Label. Token-Farben:
+       untracked=grün, modified=orange, staged=teal(accent). */
+    .file-row .git-marker {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-left: auto;
+    }
+    .file-row .git-marker[data-git="untracked"] { background: var(--green); }
+    .file-row .git-marker[data-git="modified"]  { background: var(--orange); }
+    .file-row .git-marker[data-git="staged"]    { background: var(--accent); }
     .file-children { padding-left: 16px; }
     .files-resizer {
       flex: 0 0 4px;
@@ -10675,6 +10683,26 @@
         return true;
       }
 
+      // ── Git-Status-Map (Tree-Marker) ─────────────────────────────
+      let gitMap = {};   // { path: 'staged'|'modified'|'untracked' }
+      async function fetchGitMap() {
+        if (!currentProject) { gitMap = {}; return; }
+        try {
+          const res = await fetch(`/api/projects/${encodeURIComponent(currentProject.id)}/files/git`, { headers: authHdr() });
+          gitMap = res.ok ? ((await res.json()).files || {}) : {};
+        } catch { gitMap = {}; }
+      }
+      function decorateGit() {
+        for (const row of visibleRows()) {
+          const status = gitMap[row.dataset.path];
+          let m = row.querySelector('.git-marker');
+          if (!status) { if (m) m.remove(); continue; }
+          if (!m) { m = document.createElement('span'); m.className = 'git-marker'; row.appendChild(m); }
+          m.setAttribute('data-git', status);
+          m.title = status;
+        }
+      }
+
       async function fetchList(relPath) {
         const allParam = showHidden ? '&all=1' : '';
         const url = `/api/projects/${encodeURIComponent(currentProject.id)}/files?path=${encodeURIComponent(relPath)}${allParam}`;
@@ -10777,6 +10805,9 @@
               if (match) expandFolder(match, savedPath);
             }
           }
+          // Neue Kinder mit Git-Markern dekorieren + aktiven Filter anwenden.
+          decorateGit();
+          applyFilter();
         } catch (e) {
           const err = document.createElement('div');
           err.style.cssText = 'padding:6px 12px;color:var(--red,#f88);font-size:11px;';
@@ -10816,6 +10847,8 @@
 
         loadOpenFolders(project.id);
         await renderRoot();
+        await fetchGitMap();
+        decorateGit();
         try { localStorage.setItem(openKey(stateSession), '1'); } catch {}
         connectWs(project.id);
       }
@@ -10858,6 +10891,7 @@
           }
           pruneSelection();
           applyFilter();
+          decorateGit();
         } catch (e) {
           tree.innerHTML = `<div style="padding:8px;color:var(--red,#f88)">${e.message}</div>`;
         }
@@ -10885,8 +10919,10 @@
           ?.addEventListener('click', close);
 
         document.getElementById('files-refresh')
-          ?.addEventListener('click', () => {
-            if (currentProject) renderRoot();
+          ?.addEventListener('click', async () => {
+            if (!currentProject) return;
+            await fetchGitMap();
+            renderRoot();
           });
 
         document.getElementById('btn-toggle-files')
@@ -11148,6 +11184,7 @@
           }
           pruneSelection();
           applyFilter();
+          decorateGit();
         } catch (e) {
           console.warn('[FileBrowser] refreshContainer failed', e);
         }

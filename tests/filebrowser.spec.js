@@ -269,6 +269,43 @@ test.describe('Filebrowser', () => {
     await expect(page.locator('#files-upload-picker')).toBeVisible();
   });
 
+  test('git markers appear on changed files', async ({ authedPage: page }) => {
+    const { mkdtempSync, writeFileSync } = await import('fs');
+    const { join } = await import('path');
+    const { tmpdir } = await import('os');
+    const { execFileSync } = await import('child_process');
+    const dir = mkdtempSync(join(tmpdir(), 'cchub-fbgit-'));
+    execFileSync('git', ['init', '-q'], { cwd: dir });
+    execFileSync('git', ['config', 'user.email', 't@t'], { cwd: dir });
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: dir });
+    writeFileSync(join(dir, 'tracked.txt'), 'v1\n');
+    execFileSync('git', ['add', '.'], { cwd: dir });
+    execFileSync('git', ['commit', '-qm', 'init'], { cwd: dir });
+    writeFileSync(join(dir, 'tracked.txt'), 'v2\n');   // modified
+
+    const name = `e2e-fbgit-${Date.now()}`;
+    const token = await getToken(page);
+    const createRes = await page.request.post('/api/sessions', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { name, directory: dir, command: 'bash --noprofile --norc' },
+    });
+    expect(createRes.ok(), `session create failed: ${createRes.status()}`).toBeTruthy();
+    try {
+      // Dashboard reflects new sessions only after a reload.
+      await page.reload();
+      await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
+      await navigateToSession(page, `cc-${name}`);
+      await waitForTerminal(page);
+      await openFileSidebar(page);
+      const marker = page.locator('#files-tree .file-row[data-path="tracked.txt"] .git-marker');
+      await expect(marker).toHaveAttribute('data-git', 'modified', { timeout: 10_000 });
+    } finally {
+      await page.request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
+  });
+
   test('filter menu toggles hidden files via all=1', async ({ authedPage: page }) => {
     const toggleBtn = page.locator('#btn-toggle-files');
     if (!(await toggleBtn.isVisible())) { test.skip(true, 'file toggle not visible'); return; }
