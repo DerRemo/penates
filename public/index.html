@@ -1510,12 +1510,10 @@
     }
 
     /* ── Projekt-Hub (Phase 2): 2-Spalten-Dashboard-Grid ───────────── */
-    .project-hub-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      align-items: start;
-    }
+    /* Zwei unabhängige Spalten (statt CSS-Grid): so koppelt eine sehr lange
+       Pipeline-Spalte NICHT die Höhe der Repo-Spalte → keine Whitespace-Lücke. */
+    .project-hub-grid { display: flex; gap: 14px; align-items: flex-start; }
+    .hub-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
     .hub-cell { min-width: 0; }                 /* erlaubt Text-Truncation in der Spalte */
     .hub-pipeline, .hub-repo {
       background: var(--bg-card);
@@ -1530,6 +1528,7 @@
     .hub-loading, .hub-empty { color: var(--text-muted); font-size: var(--text-sm); padding: 6px 0; }
 
     /* Pipeline-Slice */
+    .hub-pl-scroll { max-height: 56vh; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
     .hub-pl-stage { margin-bottom: 12px; }
     .hub-pl-stage-head { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
     .hub-pl-count { color: var(--text-muted); }
@@ -1560,9 +1559,11 @@
     /* Sessions-Zelle: bottom-margin der inner panel in grid-context neutralisieren */
     .hub-cell[data-block="sessions"] .project-sessions-panel { margin: 0; }
 
-    /* Mobile: eine Spalte */
+    /* Mobile: Spalten stapeln (pipeline · sessions · repo · releases) */
     @media (max-width: 760px) {
-      .project-hub-grid { grid-template-columns: 1fr; }
+      .project-hub-grid { flex-direction: column; }
+      .hub-col { width: 100%; }
+      .hub-pl-scroll { max-height: none; }
     }
 
     /* Delete-Button im Confirm-Pending-State: aus × wird ✓?, kräftiger
@@ -6947,7 +6948,7 @@
           <h3>${t('projects.hub.pipeline')}</h3>
           <button class="hub-link" type="button" data-open-board>${t('projects.hub.openInBoard')} →</button>
         </div>
-        ${stagesHtml || `<div class="hub-empty">${t('projects.hub.pipelineEmpty')}</div>`}
+        <div class="hub-pl-scroll">${stagesHtml || `<div class="hub-empty">${t('projects.hub.pipelineEmpty')}</div>`}</div>
         ${doneN ? `<button class="hub-done-line" type="button" data-open-board>✓ ${t('projects.hub.doneCount', { n: doneN })} →</button>` : ''}`;
 
       cell.querySelectorAll('[data-open-board]').forEach(b =>
@@ -7200,19 +7201,23 @@
 
         body.innerHTML = `
           <div class="project-hub-grid">
-            <section class="hub-cell hub-pipeline" data-block="pipeline" id="hub-pipeline">
-              <div class="hub-loading">${t('projects.detail.loading')}</div>
-            </section>
-            <section class="hub-cell hub-repo" data-block="repo" id="hub-repo">
-              <div class="hub-loading">${t('projects.detail.loading')}</div>
-            </section>
-            <section class="hub-cell" data-block="sessions">${sessionsPanelHtml}</section>
-            <section class="hub-cell" data-block="releases">
-              <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
-              ${section(t('projects.detail.sectionReleased'), p.released?.version, p.released?.items || [], 'released')}
-              ${section(t('projects.detail.sectionDev'),      p.dev?.version,      p.dev?.items      || [], 'dev')}
-              ${changelogHtml}
-            </section>
+            <div class="hub-col">
+              <section class="hub-cell hub-pipeline" data-block="pipeline" id="hub-pipeline">
+                <div class="hub-loading">${t('projects.detail.loading')}</div>
+              </section>
+              <section class="hub-cell" data-block="sessions">${sessionsPanelHtml}</section>
+            </div>
+            <div class="hub-col">
+              <section class="hub-cell hub-repo" data-block="repo" id="hub-repo">
+                <div class="hub-loading">${t('projects.detail.loading')}</div>
+              </section>
+              <section class="hub-cell" data-block="releases">
+                <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
+                ${section(t('projects.detail.sectionReleased'), p.released?.version, p.released?.items || [], 'released')}
+                ${section(t('projects.detail.sectionDev'),      p.dev?.version,      p.dev?.items      || [], 'dev')}
+                ${changelogHtml}
+              </section>
+            </div>
           </div>`;
 
         loadPipelineSlice(p, reqId);
