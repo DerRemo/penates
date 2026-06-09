@@ -886,6 +886,7 @@
       background: var(--bg-elevated); color: var(--text-primary);
       border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font: inherit; cursor: pointer;
     }
+    .board-detail__notes { font: inherit; font-size: var(--text-sm); resize: vertical; min-height: 3.5em; }
     .board-detail__del { margin-top: auto; }
     @media (max-width: 899px) {
       .board-detail { width: 100vw; padding-top: calc(var(--space-4) + 56px); }
@@ -10258,8 +10259,10 @@
     });
 
     document.getElementById('project-ideagen-btn').addEventListener('click', async (e) => {
-      const pid = e.currentTarget.dataset.projectId;
+      const btn = e.currentTarget;
+      const pid = btn.dataset.projectId;
       if (!pid) return;
+      btn.disabled = true;
       try {
         const r = await fetch(`/api/projects/${encodeURIComponent(pid)}/ideagen`, {
           method: 'POST',
@@ -10270,6 +10273,8 @@
         if (data && data.session) connectToSession(data.session);
       } catch (err) {
         showProjectToast(t('projects.hub.ideagenFailed'), 'error');
+      } finally {
+        btn.disabled = false;
       }
     });
 
