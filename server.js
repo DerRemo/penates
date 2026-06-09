@@ -1013,11 +1013,13 @@ app.post('/api/projects/:id/ideagen', async (req, res) => {
   try {
     const project = await getProject(req.params.id);
     if (!project || !project.path) return res.status(404).json({ error: 'Project not found' });
+    // project.missing:true ist OK — Ideen-Gen braucht nur den Projektordner, kein Plan-Doc.
 
-    const sessionName = SESSION_PREFIX + ideaGenSessionName(project.displayName, project.id);
-    if (!validSessionName(sessionName)) {
+    const namePart = ideaGenSessionName(project.displayName, project.id);
+    if (!validSessionName(namePart)) {
       return res.status(400).json({ error: 'Cannot derive a valid session name for this project' });
     }
+    const sessionName = SESSION_PREFIX + namePart;
     // Idempotenz: lebt die deterministische Session schon → attach statt neu spawnen.
     if (getTmuxSessions().some(s => s.name === sessionName)) {
       return res.status(200).json({ session: sessionName, reused: true });
