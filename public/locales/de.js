@@ -290,6 +290,13 @@ window.__I18N_BUNDLES.de = {
   'board.detail.close': 'Schließen',
   'board.detail.delete': 'Karte löschen',
   'board.detail.deleteConfirm': 'Nochmal klicken zum Löschen',
+  'board.brainstorm.confirmTitle': 'Brainstorming starten?',
+  'board.brainstorm.confirmBody': 'Spawnt eine Claude-Session im Projekt, geprimt auf diese Idee, und öffnet sie.',
+  'board.brainstorm.confirmOk': 'Session starten',
+  'board.brainstorm.start': 'Brainstorming-Session starten',
+  'board.brainstorm.attach': 'Brainstorming-Session öffnen',
+  'board.brainstorm.failed': 'Brainstorming-Session konnte nicht gestartet werden.',
+  'board.brainstorm.doc': 'Spec',
 
   // Modals — New Project
   'modal.newProject.title': 'Neues Projekt anlegen',
