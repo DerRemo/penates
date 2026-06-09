@@ -4607,7 +4607,6 @@
           <select id="projects-filter" data-i18n-attr="aria-label:projects.filter.label">
             <option value="all" data-i18n="projects.filter.all">All projects</option>
             <option value="sessions" data-i18n="projects.filter.sessions">With active sessions</option>
-            <option value="backlog" data-i18n="projects.filter.backlog">With open backlog</option>
             <option value="hideMissing" data-i18n="projects.filter.hideMissing">Hide missing ROADMAP</option>
           </select>
         </div>
@@ -4615,7 +4614,6 @@
           <select id="projects-sort" data-i18n-attr="aria-label:projects.sort.label">
             <option value="name" data-i18n="projects.sort.name">Name</option>
             <option value="progress" data-i18n="projects.sort.progress">Progress</option>
-            <option value="backlog" data-i18n="projects.sort.backlog">Backlog</option>
             <option value="sessions" data-i18n="projects.sort.sessions">Active sessions</option>
             <option value="modified" data-i18n="projects.sort.modified">Last modified</option>
           </select>
@@ -4744,7 +4742,7 @@
         <button class="btn btn-ghost btn-sm" id="btn-toggle-search" type="button" data-tooltip="Search" aria-label="Search" title="Search" data-i18n-attr="aria-label:terminal.search.toggle;title:terminal.search.toggle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
         </button>
-        <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden data-tooltip="Capture idea" aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
+        <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden data-tooltip="Capture idea" aria-label="Capture idea" title="Capture idea as a board card" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
         </button>
       </div>
@@ -5565,7 +5563,6 @@
       const cmp = {
         name:     (a, b) => a.displayName.localeCompare(b.displayName),
         progress: (a, b) => pct(b) - pct(a),
-        backlog:  (a, b) => (b.backlogCount ?? 0) - (a.backlogCount ?? 0),
         sessions: (a, b) => projectActiveSessions(b) - projectActiveSessions(a),
         modified: (a, b) => (b.mtimeMs ?? 0) - (a.mtimeMs ?? 0),
       }[mode] || cmp_name_fallback;
@@ -5576,7 +5573,6 @@
     function filterProjects(list) {
       const f = getProjectsFilter();
       if (f === 'sessions')    return list.filter(p => projectActiveSessions(p) > 0);
-      if (f === 'backlog')     return list.filter(p => (p.backlogCount ?? 0) > 0);
       if (f === 'hideMissing') return list.filter(p => !p.missing);
       return list;
     }
@@ -6042,7 +6038,6 @@
                 <div class="project-card-chips">
                   <span class="pchip">${t('projects.releasedLabel')} <b>${relLabel}</b></span>
                   <span class="pchip">${t('projects.devLabel')} <b>${devDone}/${devTotal}</b></span>
-                  <span class="pchip">${t('projects.sort.backlog')} <b>${p.backlogCount ?? 0}</b></span>
                 </div>
               </div>
               <div class="project-card-actions">
@@ -7023,7 +7018,6 @@
           ${sessionsPanelHtml}
           ${section(t('projects.detail.sectionReleased'),     p.released?.version, p.released?.items || [], 'released')}
           ${section(t('projects.detail.sectionDev'),          p.dev?.version,      p.dev?.items      || [], 'dev')}
-          ${section(t('projects.detail.sectionBacklog'), null,               p.backlog         || [], 'backlog')}
           ${p.changelog
             ? `<section class="roadmap-section${isSectionCollapsed(p.id, 'changelog') ? ' collapsed' : ''}" data-section="changelog">
                  <button class="roadmap-section-head" type="button" data-section="changelog"
@@ -7310,7 +7304,6 @@
         const SECTIONS = [
           { key: 'released', label: t('projects.detail.sectionReleased') },
           { key: 'dev',      label: t('projects.detail.sectionDev') },
-          { key: 'backlog',  label: t('projects.detail.sectionBacklog') },
         ];
         closeMoveMenu();
         body.querySelectorAll('.roadmap-item-move').forEach(btn => {
