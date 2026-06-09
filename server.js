@@ -557,9 +557,14 @@ function hubEnvArgs(sessionName) {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// Wartezeit nach Session-Start, bevor der Priming-Prompt via send-keys getippt
+// Wartezeit nach Session-Start, bevor der Priming-Text via send-keys getippt
 // wird — gibt der claude-TUI Zeit, Eingaben anzunehmen. Real-App-getunt.
-const PRIME_DELAY_MS = Number(process.env.BRAINSTORM_PRIME_DELAY_MS) || 1200;
+const PRIME_DELAY_MS = Number(process.env.BRAINSTORM_PRIME_DELAY_MS) || 1500;
+// Gestaffelte Pausen für die Submit-Enters NACH dem Text. Die claude-TUI braucht
+// (inkl. MCP-Init) variabel mehrere Sekunden, bis ein Enter als Submit zählt —
+// daher mehrere Versuche; sobald der Prompt raus ist, sind weitere Enters auf dem
+// leeren Composer No-Ops. Enters fallen damit kumulativ bei ~3/5/7.5/10.5/13.5s.
+const PRIME_SUBMIT_SCHEDULE_MS = [1500, 2000, 2500, 3000, 3000];
 
 // ── REST API ────────────────────────────────────────────────────────────────
 
@@ -988,19 +993,11 @@ app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
     }
     await board.updateCard(card.id, { sessionRef: sessionName });
 
-    // Prime via send-keys (argv → kein Shell-Interp). Fehler ist nicht fatal.
-    let primed = true;
-    try {
-      await sleep(PRIME_DELAY_MS);
-      execFileSync(TMUX, ['send-keys', '-t', sessionName, buildBrainstormPriming(card.title, card.id), 'Enter'], {
-        encoding: 'utf-8', timeout: 5000,
-      });
-    } catch (e) {
-      primed = false;
-      console.error('[brainstorm] priming send-keys failed:', e.message);
-    }
+    // Prime im Hintergrund (blockiert die HTTP-Antwort nicht). Der User wird
+    // sofort in die Session navigiert und sieht das Priming live.
+    primeBrainstormSession(sessionName, card.title, card.id);
 
-    res.status(201).json({ session: sessionName, reused: false, primed });
+    res.status(201).json({ session: sessionName, reused: false });
   } catch (e) {
     res.status(500).json({ error: 'Failed to start brainstorm session', detail: e.message });
   }
@@ -1295,6 +1292,30 @@ async function spawnTmuxSession({ sessionName, dir, cmd, auditMeta = {} }) {
     }
   }
   throw new Error(`Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`);
+}
+
+// Priming einer frisch gespawnten Brainstorming-Session: Idee-Prompt in die
+// claude-TUI tippen + abschicken. Fire-and-forget (await nicht nötig — die
+// HTTP-Antwort wartet nicht). Text via send-keys -l (literal, kein Shell-Interp);
+// Enter gestaffelt mehrfach, weil die TUI inkl. MCP-Init variabel mehrere
+// Sekunden braucht, bis ein Enter submitted. Nach dem Submit sind weitere Enters
+// auf dem leeren Composer No-Ops. Bricht ab, sobald die Session weg ist.
+function primeBrainstormSession(sessionName, title, cardId) {
+  (async () => {
+    try {
+      await sleep(PRIME_DELAY_MS);
+      execFileSync(TMUX, ['send-keys', '-t', sessionName, '-l', buildBrainstormPriming(title, cardId)], {
+        encoding: 'utf-8', timeout: 5000,
+      });
+      for (const wait of PRIME_SUBMIT_SCHEDULE_MS) {
+        await sleep(wait);
+        execFileSync(TMUX, ['send-keys', '-t', sessionName, 'Enter'], { encoding: 'utf-8', timeout: 5000 });
+      }
+    } catch (e) {
+      // Session weg / send-keys-Fehler → Priming aufgeben (nicht fatal).
+      console.error('[brainstorm] priming failed:', e.message);
+    }
+  })();
 }
 
 // Create new session. Session-Name muss Validator bestehen. tmux wird als
