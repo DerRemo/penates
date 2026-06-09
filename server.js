@@ -18,12 +18,13 @@ import * as usageLimits from './lib/usage-limits.js';
 import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
+import * as board from './lib/board.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
-import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject } from './lib/projects.js';
+import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync } from './lib/projects.js';
 import {
   listDir as filesListDir,
   readFile as filesReadFile,
@@ -596,6 +597,15 @@ app.get('/api/sessions', (req, res) => {
       status: 'dormant',
     }));
 
+  // Overview-Projekt-Badge: cwd → Projekt-Registry-Match (exakt oder
+  // Unterverzeichnis). Registry einmal synchron lesen (nicht pro Session).
+  const _projs = getProjectsSync();
+  const projectOf = (cwd) => {
+    if (!cwd) return null;
+    const m = _projs.find(p => cwd === p.path || cwd.startsWith(p.path + '/'));
+    return m ? { id: m.id, name: m.displayName } : null;
+  };
+
   // Enrichment: Activity kommt ausschließlich aus dem Hook-State. Limits
   // und Costs kommen aus dem StatusLine-Hook. Sessions ohne frischen Hook
   // zeigen activity:`unknown` → Label "Aktiv" im Dashboard.
@@ -643,6 +653,7 @@ app.get('/api/sessions', (req, res) => {
     base.muted = knownSessions.isMuted(s.name);
     base.pinned = knownSessions.isPinned(s.name);
     base.git = getGitStatus(s.path);
+    base.project = projectOf(s.path);
     // command für Running-Sessions aus known-sessions nachreichen (tmux
     // liefert es nicht). Dormant tragen es schon; foreign ggf. nicht → null.
     if (base.command == null) {
@@ -885,6 +896,46 @@ app.patch('/api/projects/:id/items', async (req, res) => {
     }
     console.error('[projects] patch failed:', e);
     res.status(500).json({ error: 'Failed to patch project', detail: e.message });
+  }
+});
+
+// ── Idea Pipeline: Board cards ──────────────────────────────────────────
+// Mutationen sind durch den globalen writeLimiter (s.o.) abgedeckt.
+app.get('/api/board/cards', (req, res) => {
+  const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
+  res.json({ cards: board.listCards({ projectId }) });
+});
+
+app.post('/api/board/cards', async (req, res) => {
+  const { projectId, title, priority = null, origin = 'solo', stage = 'idea' } = req.body || {};
+  try {
+    const card = await board.addCard({ projectId, title, priority, origin, stage });
+    res.status(201).json(card);
+  } catch (e) {
+    res.status(400).json({ error: 'Bad request', detail: e.message });
+  }
+});
+
+app.patch('/api/board/cards/:id', async (req, res) => {
+  const { stage, order, ...rest } = req.body || {};
+  try {
+    let card;
+    if (typeof stage === 'string') card = await board.moveCard(req.params.id, stage, order);
+    if (Object.keys(rest).length) card = await board.updateCard(req.params.id, rest);
+    if (!card) card = board.getCard(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    res.json(card);
+  } catch (e) {
+    if (e.message === 'unknown-id') return res.status(404).json({ error: 'Card not found' });
+    res.status(400).json({ error: 'Bad request', detail: e.message });
+  }
+});
+
+app.delete('/api/board/cards/:id', async (req, res) => {
+  try { await board.deleteCard(req.params.id); res.status(204).end(); }
+  catch (e) {
+    if (e.message === 'unknown-id') return res.status(404).json({ error: 'Card not found' });
+    res.status(500).json({ error: 'Failed', detail: e.message });
   }
 });
 
@@ -2230,6 +2281,18 @@ const server = app.listen(PORT, async () => {
   try {
     await knownSessions.load();
     console.log(`  ▸ known-sessions: ${knownSessions.list().length} entries loaded`);
+    await board.load();
+    console.log(`  ▸ board: ${board.listCards().length} cards loaded`);
+    // Idea-Pipeline Phase-1 Cutover: NUR claude-code-hub migrieren (Dogfood).
+    // Idempotent (skip bei vorhandener CHANGELOG.md); Fehler dürfen den Start nicht killen.
+    try {
+      const _projs = await listProjects();
+      const _hub = _projs.find(p => /(^|\/)claude-code-hub$/.test(p.path)) || _projs.find(p => p.path === process.cwd());
+      if (_hub) {
+        const _n = await board.migrateBacklog([{ id: _hub.id, path: _hub.path }]);
+        if (_n) console.log(`  ▸ board: migrated ${_n} backlog item(s) → cards; ROADMAP.md → CHANGELOG.md`);
+      }
+    } catch (e) { console.warn('[board] migration skipped:', e.message); }
     await settings.load({ tmuxMouse: TMUX_MOUSE_DEFAULT, remoteApproval: REMOTE_APPROVAL_DEFAULT });
     const _s = settings.get();
     tmuxMouseMode = _s.tmuxMouse;

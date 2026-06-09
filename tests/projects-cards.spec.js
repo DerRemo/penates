@@ -25,7 +25,9 @@ test.describe('Projects cards (Phase 2)', () => {
     if (await card.count() === 0) test.skip(true, 'no projects registered');
     await expect(card).toBeVisible();
     await expect(card.locator('.project-ring')).toBeVisible();
-    await expect(card.locator('.pchip')).toHaveCount(3);
+    // Backlog chip moved to the global Board (Idea Pipeline Phase 1) → 2 chips:
+    // Released + Dev.
+    await expect(card.locator('.pchip')).toHaveCount(2);
     await expect(card).toHaveAttribute('data-activity', /active|idle|missing/);
   });
 
@@ -41,8 +43,9 @@ test.describe('Projects cards (Phase 2)', () => {
   test('sort + filter selects persist and re-render', async ({ authedPage: page, isMobile }) => {
     await gotoProjects(page, isMobile);
     if (await page.locator('.project-card').count() === 0) test.skip(true, 'no projects registered');
-    await page.selectOption('#projects-sort', 'backlog');
-    await expect(page.locator('#projects-sort')).toHaveValue('backlog');
+    // 'backlog' sort/filter removed in Idea Pipeline Phase 1 — use 'progress'.
+    await page.selectOption('#projects-sort', 'progress');
+    await expect(page.locator('#projects-sort')).toHaveValue('progress');
     await page.selectOption('#projects-filter', 'hideMissing');
     await expect(page.locator('.project-missing')).toHaveCount(0);
   });

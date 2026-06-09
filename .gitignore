@@ -32,6 +32,8 @@ docs/
 
 # Git worktrees
 .worktrees/
-ROADMAP.md
 claude-code-hub-preview.html
 .cch-images/
+
+# Idea-Pipeline migration backups (ROADMAP.md → CHANGELOG.md cutover)
+ROADMAP.md.bak-*

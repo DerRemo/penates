@@ -816,6 +816,85 @@
       color: var(--text-muted);
     }
 
+    /* ── Board-View (Idea Pipeline) ─────────────────────────────────── */
+    .board-view { flex-direction: column; min-height: 0; gap: var(--space-4); padding: var(--space-5); }
+    .board-topbar { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
+    .board-title { font-family: var(--font-display); font-size: var(--text-xl); margin: 0; color: var(--text-primary); }
+    .board-filter {
+      margin-left: auto; background: var(--bg-elevated); color: var(--text-primary);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);
+      font: inherit; cursor: pointer;
+    }
+    .board-filter:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .board-columns {
+      flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 1fr);
+      gap: var(--space-3); overflow-x: auto; align-items: start; padding-bottom: var(--space-2);
+    }
+    .board-col {
+      display: flex; flex-direction: column; min-height: 0; max-height: 100%;
+      background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    }
+    .board-col__head {
+      display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+      padding: var(--space-3); border-bottom: 1px solid var(--border);
+      font-size: var(--text-sm); font-weight: 600; color: var(--text-primary);
+    }
+    .board-col__count {
+      color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-xs);
+      background: var(--bg-elevated); border-radius: var(--radius-pill); padding: 1px var(--space-2); min-width: 1.5em; text-align: center;
+    }
+    .board-col__list {
+      flex: 1; min-height: 48px; overflow-y: auto; padding: var(--space-2);
+      display: flex; flex-direction: column; gap: var(--space-2);
+    }
+    .board-col__empty { min-height: 32px; border: 1px dashed var(--border); border-radius: var(--radius-md); opacity: .35; }
+    .board-col.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
+    .board-col.drop-target .board-col__list { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+    .board-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
+      padding: var(--space-3); cursor: grab; display: flex; flex-direction: column; gap: var(--space-2);
+      transition: border-color .12s ease, box-shadow .12s ease;
+    }
+    .board-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.08)); }
+    .board-card:active { cursor: grabbing; }
+    .board-card.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .board-card.is-dragging { opacity: .45; }
+    .board-card__title { font-size: var(--text-sm); color: var(--text-primary); line-height: 1.4; overflow-wrap: anywhere; }
+    .board-card__meta { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+    .board-card__project {
+      font-size: var(--text-xs); color: var(--text-secondary);
+      background: var(--bg-elevated); border-radius: var(--radius-pill); padding: 2px var(--space-2);
+      max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .board-card__prio {
+      font-size: var(--text-xs); font-family: var(--font-mono); font-weight: 700; color: var(--accent);
+      letter-spacing: .02em;
+    }
+    /* Detail-Panel (rechtes Slide-in) */
+    .board-detail {
+      position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 90vw); z-index: 95;
+      background: var(--bg-surface); border-left: 1px solid var(--border); box-shadow: var(--shadow-modal);
+      display: flex; flex-direction: column; padding: var(--space-4); gap: var(--space-3); overflow-y: auto;
+    }
+    .board-detail[hidden] { display: none; }
+    .board-detail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+    .board-detail__heading { font-family: var(--font-display); font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin: 0; }
+    .board-detail__title { font: inherit; font-size: var(--text-sm); }
+    .board-detail__row { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); color: var(--text-primary); }
+    .board-detail__label { color: var(--text-muted); font-size: var(--text-xs); }
+    .board-detail__row select {
+      background: var(--bg-elevated); color: var(--text-primary);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font: inherit; cursor: pointer;
+    }
+    .board-detail__del { margin-top: auto; }
+    @media (max-width: 899px) {
+      .board-detail { width: 100vw; padding-top: calc(var(--space-4) + 56px); }
+      /* Topbar wraps so the filter + "Add idea" stay reachable (no clip). */
+      .board-topbar { flex-wrap: wrap; }
+      .board-filter { margin-left: 0; flex: 1 1 auto; }
+    }
+    @media (min-width: 900px) { .board-detail__stage-m { display: none; } }
+
     /* ── Usage-View (redesign) ──────────────────────────────────────── */
     .usage-view { display: flex; flex-direction: column; }
     .usage-empty { padding: 48px 24px; text-align: center; color: var(--text-muted); font-size: 14px; }
@@ -1812,6 +1891,22 @@
       flex-shrink: 0;
     }
 
+    /* Overview-Projekt-Badge (cwd → Registry-Match) */
+    .session-card-project {
+      font-family: var(--font-ui);
+      font-weight: 500;
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      border-radius: var(--radius-pill);
+      padding: 1px var(--space-2);
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
     /* Leise Meta-Zeile unter dem Header (Running-Cards): Projektname + Kontext-%.
        Gibt der Card Körper wie im Redesign-Mockup, ohne laut zu sein. */
     .session-meta {
@@ -2380,6 +2475,7 @@
     body[data-current-view="dashboard"]      .main-content [data-view="dashboard"]      { display: block; }
     body[data-current-view="projects"]       .main-content [data-view="projects"]       { display: block; }
     body[data-current-view="usage"]          .main-content [data-view="usage"]          { display: block; }
+    body[data-current-view="board"]          .main-content [data-view="board"]          { display: flex; }
     body[data-current-view="terminal"]       .main-content [data-view="terminal"]       { display: flex; }
     body[data-current-view="project-detail"] .main-content [data-view="project-detail"] { display: flex; }
     body[data-current-view="settings"]       .main-content [data-view="settings"]       { display: block; }
@@ -4428,6 +4524,12 @@
         </span>
         <span class="sidebar__nav-label" data-i18n="sidebar.nav.usage">Usage</span>
       </button>
+      <button class="sidebar__item" type="button" data-sidebar-nav="board">
+        <span class="sidebar__nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="11" rx="1"/><rect x="17" y="3" width="4" height="7" rx="1"/></svg>
+        </span>
+        <span class="sidebar__nav-label" data-i18n="sidebar.nav.board">Board</span>
+      </button>
 
       <div class="sidebar__divider"></div>
 
@@ -4510,7 +4612,6 @@
           <select id="projects-filter" data-i18n-attr="aria-label:projects.filter.label">
             <option value="all" data-i18n="projects.filter.all">All projects</option>
             <option value="sessions" data-i18n="projects.filter.sessions">With active sessions</option>
-            <option value="backlog" data-i18n="projects.filter.backlog">With open backlog</option>
             <option value="hideMissing" data-i18n="projects.filter.hideMissing">Hide missing ROADMAP</option>
           </select>
         </div>
@@ -4518,7 +4619,6 @@
           <select id="projects-sort" data-i18n-attr="aria-label:projects.sort.label">
             <option value="name" data-i18n="projects.sort.name">Name</option>
             <option value="progress" data-i18n="projects.sort.progress">Progress</option>
-            <option value="backlog" data-i18n="projects.sort.backlog">Backlog</option>
             <option value="sessions" data-i18n="projects.sort.sessions">Active sessions</option>
             <option value="modified" data-i18n="projects.sort.modified">Last modified</option>
           </select>
@@ -4551,6 +4651,17 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Board View (Idea Pipeline Phase 1) ── -->
+  <div class="board-view" id="board-view" data-view="board">
+    <div class="board-topbar">
+      <h1 class="board-title" data-i18n="board.title">Board</h1>
+      <select id="board-filter" class="board-filter" data-i18n-attr="aria-label:board.filter.all" aria-label="Filter by project"></select>
+      <button id="board-add-idea" class="btn btn-primary btn-sm" type="button" data-i18n="board.addIdea">Add idea</button>
+    </div>
+    <div class="board-columns" id="board-columns"></div>
+  </div>
+  <aside class="board-detail" id="board-detail" hidden></aside>
 
   <!-- ── Project-Detail View (Phase 0: Shell, Phase 1 fills it) ── -->
   <div class="detail-view" id="project-detail-view" data-view="project-detail">
@@ -4636,7 +4747,7 @@
         <button class="btn btn-ghost btn-sm" id="btn-toggle-search" type="button" data-tooltip="Search" aria-label="Search" title="Search" data-i18n-attr="aria-label:terminal.search.toggle;title:terminal.search.toggle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
         </button>
-        <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden data-tooltip="Capture idea" aria-label="Capture idea" title="Capture idea to project backlog" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
+        <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden data-tooltip="Capture idea" aria-label="Capture idea" title="Capture idea as a board card" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
         </button>
       </div>
@@ -5119,11 +5230,11 @@
   </div>
 
   <!-- Idea-Capture Modal — ersetzt den früheren inline prompt. Öffnet
-       aus der Terminal-Toolbar, schreibt direkt ins Projekt-Backlog. -->
+       aus der Terminal-Toolbar, legt eine Board-Karte an (stage=idea). -->
   <div class="modal-overlay" id="idea-modal" role="dialog" aria-modal="true" aria-labelledby="idea-modal-title">
     <div class="modal">
       <h2 id="idea-modal-title" data-i18n="modal.idea.title">Capture Idea</h2>
-      <p>Will be added to the backlog of <strong id="idea-modal-project">—</strong>.</p>
+      <p><span data-i18n="modal.idea.descPre">Will be added as an idea card for</span> <strong id="idea-modal-project">—</strong>.</p>
       <div class="form-group">
         <label class="form-label" for="idea-modal-input" data-i18n="modal.idea.descLabel">Short Description</label>
         <input type="text" class="form-input" id="idea-modal-input" maxlength="500" autocomplete="off" spellcheck="false" placeholder="e.g. Sidebar should remember which session was last open" data-i18n-attr="placeholder:modal.idea.descPlaceholder">
@@ -5457,7 +5568,6 @@
       const cmp = {
         name:     (a, b) => a.displayName.localeCompare(b.displayName),
         progress: (a, b) => pct(b) - pct(a),
-        backlog:  (a, b) => (b.backlogCount ?? 0) - (a.backlogCount ?? 0),
         sessions: (a, b) => projectActiveSessions(b) - projectActiveSessions(a),
         modified: (a, b) => (b.mtimeMs ?? 0) - (a.mtimeMs ?? 0),
       }[mode] || cmp_name_fallback;
@@ -5468,7 +5578,6 @@
     function filterProjects(list) {
       const f = getProjectsFilter();
       if (f === 'sessions')    return list.filter(p => projectActiveSessions(p) > 0);
-      if (f === 'backlog')     return list.filter(p => (p.backlogCount ?? 0) > 0);
       if (f === 'hideMissing') return list.filter(p => !p.missing);
       return list;
     }
@@ -5479,7 +5588,7 @@
     // um: body[data-current-view], History-Integration, Polling-Lifecycle,
     // view-spezifischen Init (Terminal-Attach / Project-Lade).
     let currentView = 'dashboard';
-    const VALID_VIEWS = new Set(['dashboard', 'projects', 'usage', 'terminal', 'project-detail', 'settings']);
+    const VALID_VIEWS = new Set(['dashboard', 'projects', 'usage', 'board', 'terminal', 'project-detail', 'settings']);
 
     function setView(name, opts = {}) {
       if (!VALID_VIEWS.has(name)) name = 'dashboard';
@@ -5513,6 +5622,8 @@
           history.pushState({ view: 'projects' }, '');
         } else if (name === 'usage' && history.state?.view !== 'usage') {
           history.pushState({ view: 'usage' }, '');
+        } else if (name === 'board' && history.state?.view !== 'board') {
+          history.pushState({ view: 'board' }, '');
         } else if (name === 'dashboard' && history.state?.view && history.state.view !== 'dashboard') {
           // Zurück zu Dashboard ohne fromPopstate → history.back() auslösen,
           // damit der Eintrag aus dem History-Stack geräumt wird. popstate
@@ -5548,9 +5659,10 @@
       // View-spezifischer Render beim Betreten.
       if (name === 'projects') { renderProjectsWithSearch(projectSearchQuery); openProjectEventsWs(); }
       if (name === 'usage')    { renderUsage(); }
+      if (name === 'board')    { try { window.BoardView?.activate(); } catch {} }
 
-      // Letzte Nav-View merken (nur die drei Top-Level-Nav-Ziele) für den Init-Restore.
-      if (name === 'dashboard' || name === 'projects' || name === 'usage') {
+      // Letzte Nav-View merken (nur die Top-Level-Nav-Ziele) für den Init-Restore.
+      if (name === 'dashboard' || name === 'projects' || name === 'usage' || name === 'board') {
         try { localStorage.setItem(NAV_VIEW_KEY, name); } catch {}
       }
     }
@@ -5931,7 +6043,6 @@
                 <div class="project-card-chips">
                   <span class="pchip">${t('projects.releasedLabel')} <b>${relLabel}</b></span>
                   <span class="pchip">${t('projects.devLabel')} <b>${devDone}/${devTotal}</b></span>
-                  <span class="pchip">${t('projects.sort.backlog')} <b>${p.backlogCount ?? 0}</b></span>
                 </div>
               </div>
               <div class="project-card-actions">
@@ -6336,6 +6447,7 @@
       const navKey = currentView === 'dashboard' ? 'sessions'
         : currentView === 'projects' ? 'projects'
         : currentView === 'usage' ? 'usage'
+        : currentView === 'board' ? 'board'
         : null;
       if (!navKey) return; // terminal/project-detail/settings: kein Nav-Highlight
       const target = document.querySelector(`.sidebar__item[data-sidebar-nav="${navKey}"]`);
@@ -6684,7 +6796,13 @@
       if (!text || !projectId) return;
       input.disabled = true;
       try {
-        await patchItem(projectId, { action: 'add', section: 'backlog', text });
+        // Idea-Pipeline: Capture legt jetzt eine Board-Karte an (stage=idea),
+        // nicht mehr ein Backlog-Item in der ROADMAP/CHANGELOG.
+        await fetch('/api/board/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+          body: JSON.stringify({ projectId, title: text, stage: 'idea', origin: 'solo' }),
+        }).then(r => { if (!r.ok) throw Object.assign(new Error('add failed'), { status: r.status }); });
         showToast(t('toast.ideaAdded'), 'success');
         // Rapid-Fire: Input leeren und offen halten, damit mehrere Ideen
         // am Stück erfasst werden können. Schließen via Escape/Button.
@@ -6905,7 +7023,6 @@
           ${sessionsPanelHtml}
           ${section(t('projects.detail.sectionReleased'),     p.released?.version, p.released?.items || [], 'released')}
           ${section(t('projects.detail.sectionDev'),          p.dev?.version,      p.dev?.items      || [], 'dev')}
-          ${section(t('projects.detail.sectionBacklog'), null,               p.backlog         || [], 'backlog')}
           ${p.changelog
             ? `<section class="roadmap-section${isSectionCollapsed(p.id, 'changelog') ? ' collapsed' : ''}" data-section="changelog">
                  <button class="roadmap-section-head" type="button" data-section="changelog"
@@ -7192,7 +7309,6 @@
         const SECTIONS = [
           { key: 'released', label: t('projects.detail.sectionReleased') },
           { key: 'dev',      label: t('projects.detail.sectionDev') },
-          { key: 'backlog',  label: t('projects.detail.sectionBacklog') },
         ];
         closeMoveMenu();
         body.querySelectorAll('.roadmap-item-move').forEach(btn => {
@@ -7884,6 +8000,7 @@
               <div class="session-name">
                 ${cardCliLogo(s.command)}
                 <span class="session-name-text">${escapeHtml(displayName)}</span>
+                ${s.project ? `<span class="session-card-project" title="${escapeHtml(s.project.name)}">${escapeHtml(s.project.name)}</span>` : ''}
               </div>
               <div class="session-status ${act.cls}" title="${escapeHtml(act.title)}">${label}</div>
             </div>
@@ -7913,6 +8030,7 @@
               <div class="session-name">
                 ${cardCliLogo(s.command || 'claude')}
                 <span class="session-name-text">${escapeHtml(displayName)}</span>
+                ${s.project ? `<span class="session-card-project" title="${escapeHtml(s.project.name)}">${escapeHtml(s.project.name)}</span>` : ''}
               </div>
               <div class="session-status unknown" title="${t('sessionCard.dormantBadgeTitle')}">${t('sessionCard.status.dormant')} · ${escapeHtml(lastSeen)}</div>
             </div>
@@ -7946,6 +8064,7 @@
               <div class="session-name">
                 <span class="cli-logo cli-logo--fallback" aria-hidden="true">${TERMINAL_GLYPH}</span>
                 <span class="session-name-text">${escapeHtml(displayName)}</span>
+                ${s.project ? `<span class="session-card-project" title="${escapeHtml(s.project.name)}">${escapeHtml(s.project.name)}</span>` : ''}
               </div>
               <span class="foreign-badge">tmux</span>
             </div>
@@ -10059,6 +10178,7 @@
         if (nav === 'sessions') setView('dashboard');
         else if (nav === 'projects') setView('projects');
         else if (nav === 'usage') setView('usage');
+        else if (nav === 'board') setView('board');
         return;
       }
       const settingsBtn = e.target.closest('#sidebar-settings-entry');
@@ -10768,6 +10888,185 @@
     initBehaviorPrefs();
     initAccountData();
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
+
+    // ── Idea Pipeline: BoardView ─────────────────────────────────
+    // 6-Spalten-Kanban (idea→done). Drag = Stufenwechsel (PATCH stage),
+    // Projekt-Filter, +Idee (POST), rechtes Detail-Panel (Titel/Prio/Stage,
+    // 2-Klick-Delete). Quelle: /api/board/cards + /api/projects.
+    const BoardView = (() => {
+      const STAGES = ['idea','brainstorming','spec','implement','review','done'];
+      let cards = [];
+      let projects = [];          // [{id, displayName}]
+      let filter = '';            // projectId or '' = all
+      let wired = false;
+
+      const el = (id) => document.getElementById(id);
+      const authH = () => (AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {});
+      const jsonH = () => ({ 'Content-Type': 'application/json', ...authH() });
+      const projName = (id) => (projects.find(p => p.id === id)?.displayName) || id;
+
+      async function fetchCards() {
+        try {
+          const r = await fetch('/api/board/cards', { headers: authH() });
+          cards = (await r.json()).cards || [];
+        } catch { cards = []; }
+      }
+      async function fetchProjects() {
+        try {
+          const r = await fetch('/api/projects', { headers: authH() });
+          const b = await r.json();
+          projects = (b.projects || b || []).map(p => ({ id: p.id, displayName: p.displayName || p.name || p.id }));
+        } catch { projects = []; }
+      }
+
+      function renderFilter() {
+        const sel = el('board-filter');
+        if (!sel) return;
+        sel.innerHTML = `<option value="">${escapeHtml(t('board.filter.all'))}</option>` +
+          projects.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.displayName)}</option>`).join('');
+        sel.value = filter;
+      }
+
+      function cardHtml(c) {
+        const prio = c.priority ? c.priority.toUpperCase() : '';
+        const active = (detailId === c.id) ? ' is-active' : '';
+        return `<div class="board-card${active}" draggable="true" data-id="${c.id}">
+          <div class="board-card__title">${escapeHtml(c.title)}</div>
+          <div class="board-card__meta">
+            <span class="board-card__project">${escapeHtml(projName(c.projectId))}</span>
+            ${prio ? `<span class="board-card__prio">${escapeHtml(prio)}</span>` : ''}
+          </div></div>`;
+      }
+
+      function render() {
+        const cols = el('board-columns');
+        if (!cols) return;
+        const visible = cards.filter(c => !filter || c.projectId === filter);
+        cols.innerHTML = STAGES.map(stage => {
+          const list = visible.filter(c => c.stage === stage).sort((a,b) => (a.order??0)-(b.order??0));
+          const inner = list.length
+            ? list.map(cardHtml).join('')
+            : `<div class="board-col__empty"></div>`;
+          return `<div class="board-col" data-stage="${stage}">
+            <div class="board-col__head"><span>${escapeHtml(t('board.stage.'+stage))}</span>
+              <span class="board-col__count">${list.length}</span></div>
+            <div class="board-col__list" data-stage="${stage}">${inner}</div>
+          </div>`;
+        }).join('');
+        wireDnd();
+      }
+
+      // ── Drag & Drop (Desktop) ──
+      let dragId = null;
+      function wireDnd() {
+        const cols = el('board-columns');
+        cols.querySelectorAll('.board-card').forEach(card => {
+          card.addEventListener('dragstart', (e) => {
+            dragId = card.dataset.id; e.dataTransfer.effectAllowed = 'move';
+            try { e.dataTransfer.setData('text/plain', dragId); } catch {}
+            card.classList.add('is-dragging');
+          });
+          card.addEventListener('dragend', () => { card.classList.remove('is-dragging'); dragId = null; });
+        });
+        cols.querySelectorAll('.board-col__list').forEach(list => {
+          const col = list.closest('.board-col');
+          list.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('drop-target'); });
+          list.addEventListener('dragleave', (e) => { if (!col.contains(e.relatedTarget)) col.classList.remove('drop-target'); });
+          list.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            col.classList.remove('drop-target');
+            const id = dragId || (() => { try { return e.dataTransfer.getData('text/plain'); } catch { return null; } })();
+            if (!id) return;
+            const card = cards.find(x => x.id === id);
+            const stage = list.dataset.stage;
+            if (card && card.stage !== stage) await patchCard(id, { stage });
+            dragId = null;
+          });
+        });
+      }
+
+      // ── API mutations ──
+      async function patchCard(id, body) {
+        try {
+          const r = await fetch(`/api/board/cards/${id}`, { method:'PATCH', headers: jsonH(), body: JSON.stringify(body) });
+          if (r.ok) { const c = await r.json(); const i = cards.findIndex(x=>x.id===id); if (i>=0) cards[i]=c; render(); if (detailId===id) openDetail(id); }
+        } catch {}
+      }
+      async function addIdea(projectId, title) {
+        try {
+          const r = await fetch('/api/board/cards', { method:'POST', headers: jsonH(),
+            body: JSON.stringify({ projectId, title, stage:'idea', origin:'solo' }) });
+          if (r.ok) { cards.push(await r.json()); render(); }
+        } catch {}
+      }
+      async function removeCard(id) {
+        try {
+          const r = await fetch(`/api/board/cards/${id}`, { method:'DELETE', headers: authH() });
+          if (r.ok || r.status===204) { cards = cards.filter(x=>x.id!==id); closeDetail(); render(); }
+        } catch {}
+      }
+
+      // ── Detail panel ──
+      let detailId = null, deleteArmed = false;
+      function openDetail(id) {
+        const c = cards.find(x=>x.id===id); if (!c) return;
+        detailId = id; deleteArmed = false;
+        const created = (() => { try { return new Date(c.createdAt).toLocaleString(); } catch { return c.createdAt || '—'; } })();
+        const stageOpts = STAGES.map(s => `<option value="${s}"${s===c.stage?' selected':''}>${escapeHtml(t('board.stage.'+s))}</option>`).join('');
+        el('board-detail').innerHTML = `
+          <div class="board-detail__head">
+            <h2 class="board-detail__heading">${escapeHtml(t('board.title'))}</h2>
+            <button class="btn btn-ghost btn-sm" id="board-detail-close" type="button" aria-label="${escapeHtml(t('board.detail.close'))}" title="${escapeHtml(t('board.detail.close'))}">✕</button>
+          </div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.title'))}</span>
+            <input class="form-input board-detail__title" id="board-detail-title" value="${escapeHtml(c.title)}" maxlength="500"></div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.project'))}</span><span>${escapeHtml(projName(c.projectId))}</span></div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.priority'))}</span>
+            <select id="board-detail-prio">
+              <option value=""${!c.priority?' selected':''}>${escapeHtml(t('board.card.noPriority'))}</option>
+              ${['p0','p1','p2'].map(p=>`<option value="${p}"${c.priority===p?' selected':''}>${p.toUpperCase()}</option>`).join('')}
+            </select></div>
+          <div class="board-detail__row board-detail__stage-m"><span class="board-detail__label">${escapeHtml(t('board.detail.stage'))}</span>
+            <select id="board-detail-stage">${stageOpts}</select></div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.origin'))}</span><span>${escapeHtml(t('board.origin.'+(c.origin||'solo')))}</span></div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.created'))}</span><span>${escapeHtml(created)}</span></div>
+          <button class="btn btn-danger btn-sm board-detail__del" id="board-detail-del" type="button">${escapeHtml(t('board.detail.delete'))}</button>`;
+        el('board-detail').hidden = false;
+        el('board-detail-close').addEventListener('click', closeDetail);
+        el('board-detail-title').addEventListener('change', (e)=>{ const v=e.target.value.trim(); if (v) patchCard(id,{title:v}); });
+        el('board-detail-prio').addEventListener('change', (e)=>patchCard(id,{priority:e.target.value||null}));
+        el('board-detail-stage').addEventListener('change', (e)=>patchCard(id,{stage:e.target.value}));
+        el('board-detail-del').addEventListener('click', (e)=>{
+          if (!deleteArmed) { deleteArmed=true; e.target.textContent=t('board.detail.deleteConfirm'); return; }
+          removeCard(id);
+        });
+        render(); // re-mark active card
+      }
+      function closeDetail() { detailId=null; deleteArmed=false; const d=el('board-detail'); if (d){ d.hidden = true; d.innerHTML=''; } render(); }
+
+      function wire() {
+        if (wired) return; wired = true;
+        el('board-filter').addEventListener('change', (e)=>{ filter=e.target.value; render(); });
+        el('board-add-idea').addEventListener('click', async ()=>{
+          const pid = filter || projects[0]?.id;
+          if (!pid) { showToast(t('board.empty'),'info'); return; }
+          const title = await showInputDialog({ title: t('board.addIdea'), label: t('modal.idea.descLabel'), placeholder: t('modal.idea.descPlaceholder') });
+          if (title && title.trim()) addIdea(pid, title.trim());
+        });
+        el('board-columns').addEventListener('click', (e)=>{
+          const card = e.target.closest('.board-card'); if (card) openDetail(card.dataset.id);
+        });
+        document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && detailId && currentView==='board') closeDetail(); });
+      }
+
+      async function activate() {
+        wire();
+        await Promise.all([fetchProjects(), fetchCards()]);
+        renderFilter(); render();
+      }
+      return { activate, _addIdea: addIdea };
+    })();
+    window.BoardView = BoardView;
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────
     window.FileBrowser = (() => {
