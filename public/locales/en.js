@@ -504,6 +504,17 @@ window.__I18N_BUNDLES.en = {
   'projects.detail.moveTo': 'Move to',
   'projects.detail.moveCurrent': '(current)',
   'projects.detail.editVersion': 'Edit version',
+  'projects.hub.pipeline': 'Pipeline',
+  'projects.hub.repo': 'Repository',
+  'projects.hub.openInBoard': 'Open in Board',
+  'projects.hub.pipelineEmpty': 'No cards yet.',
+  'projects.hub.doneCount': '{n} done',
+  'projects.hub.commitsEmpty': 'No commits yet.',
+  'projects.hub.openFiles': 'Open file browser',
+  'projects.hub.notRepo': 'Not a git repository.',
+  'projects.hub.clean': 'clean',
+  'projects.hub.dirty': 'uncommitted changes',
+  'projects.hub.addIdea': 'Add idea',
 
   // Release modal
   'projects.release.title': 'Finalize version',

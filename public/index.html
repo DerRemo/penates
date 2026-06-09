@@ -1509,6 +1509,63 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
+    /* ── Projekt-Hub (Phase 2): 2-Spalten-Dashboard-Grid ───────────── */
+    /* Zwei unabhängige Spalten (statt CSS-Grid): so koppelt eine sehr lange
+       Pipeline-Spalte NICHT die Höhe der Repo-Spalte → keine Whitespace-Lücke. */
+    .project-hub-grid { display: flex; gap: 14px; align-items: flex-start; }
+    .hub-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+    .hub-cell { min-width: 0; }                 /* erlaubt Text-Truncation in der Spalte */
+    .hub-pipeline, .hub-repo {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 15px 16px;
+    }
+    .hub-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .hub-card-head h3 { font-size: 12.5px; font-weight: 650; margin: 0; }
+    .hub-link { background: none; border: none; color: var(--accent); font-size: var(--text-xs); cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+    .hub-link:hover { background: var(--teal-glow); }
+    .hub-loading, .hub-empty { color: var(--text-muted); font-size: var(--text-sm); padding: 6px 0; }
+
+    /* Pipeline-Slice */
+    .hub-pl-scroll { max-height: 56vh; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+    .hub-pl-stage { margin-bottom: 12px; }
+    .hub-pl-stage-head { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+    .hub-pl-count { color: var(--text-muted); }
+    .hub-pl-card { display: flex; align-items: center; gap: 8px; padding: 6px 9px; margin-bottom: 4px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 7px; cursor: pointer; }
+    .hub-pl-card:hover { border-color: var(--border-strong); background: var(--bg-card-hover); }
+    .hub-pl-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
+    .hub-pl-prio { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: .03em; }
+    .hub-done-line { background: none; border: none; color: var(--text-secondary); font-size: var(--text-xs); cursor: pointer; padding: 4px 0; }
+    .hub-done-line:hover { color: var(--accent); }
+
+    /* Repo-Glance */
+    .hub-repo-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--text-sm); }
+    .pg-branch { font-family: var(--font-mono, monospace); color: var(--text-primary); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 1px 7px; }
+    .pg-state.is-clean { color: var(--text-muted); }
+    .pg-state.is-dirty { color: var(--accent); }
+    .pg-ab { color: var(--text-secondary); font-size: var(--text-xs); }
+    .hub-commits { list-style: none; margin: 0; padding: 0; }
+    .hub-commits li { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; border-top: 1px solid var(--border-subtle); font-size: var(--text-sm); }
+    .hub-commits li:first-child { border-top: none; }
+    .hub-commit-hash { font-family: var(--font-mono, monospace); color: var(--text-muted); font-size: var(--text-xs); flex-shrink: 0; }
+    .hub-commit-subj { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hub-commit-date { color: var(--text-muted); font-size: var(--text-xs); flex-shrink: 0; }
+
+    /* Header-Badge */
+    .detail-git-badge { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-secondary); }
+    .detail-git-badge .pg-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+    /* Sessions-Zelle: bottom-margin der inner panel in grid-context neutralisieren */
+    .hub-cell[data-block="sessions"] .project-sessions-panel { margin: 0; }
+
+    /* Mobile: Spalten stapeln (pipeline · sessions · repo · releases) */
+    @media (max-width: 760px) {
+      .project-hub-grid { flex-direction: column; }
+      .hub-col { width: 100%; }
+      .hub-pl-scroll { max-height: none; }
+    }
+
     /* Delete-Button im Confirm-Pending-State: aus × wird ✓?, kräftiger
        rot, um den Zwischenschritt klar zu machen. Revert automatisch
        nach 3s falls nicht bestätigt. */
@@ -4672,8 +4729,13 @@
           <span class="btn-label" data-i18n="terminal.toolbar.back">Back</span>
         </button>
         <span class="detail-title" id="project-detail-title">—</span>
+        <span class="detail-git-badge" id="project-git-badge" hidden></span>
       </div>
       <div class="detail-toolbar-right">
+        <button class="btn btn-ghost btn-sm" id="project-add-idea-btn" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span data-i18n="projects.hub.addIdea">Add idea</span>
+        </button>
         <button class="btn btn-ghost btn-sm" id="project-release-btn" type="button" hidden title="Move dev items to Released, bump versions, write changelog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           <span data-i18n="projects.detail.finalizeVersion">Finalize version</span>
@@ -6854,6 +6916,107 @@
     function closeMoveMenu() {
       if (openMoveMenuEl) { openMoveMenuEl.remove(); openMoveMenuEl = null; document.removeEventListener('click', closeMoveMenu); }
     }
+
+    async function loadPipelineSlice(p, reqId) {
+      const cell = document.getElementById('hub-pipeline');
+      if (!cell) return;
+      let cards = [];
+      try {
+        const r = await fetch('/api/board/cards?projectId=' + encodeURIComponent(p.id), { headers: apiHeaders() });
+        if (r.ok) cards = (await r.json()).cards || [];
+      } catch {}
+      if (reqId !== projectDetailReq) return;
+
+      const LIVE = ['idea', 'brainstorming', 'spec', 'implement', 'review'];
+      const byStage = (st) => cards.filter(c => c.stage === st).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const doneN = cards.filter(c => c.stage === 'done').length;
+
+      const stagesHtml = LIVE.map(st => {
+        const list = byStage(st);
+        if (!list.length) return '';
+        return `<div class="hub-pl-stage">
+            <div class="hub-pl-stage-head"><span>${escapeHtml(t('board.stage.' + st))}</span><span class="hub-pl-count">${list.length}</span></div>
+            ${list.map(c => `<div class="hub-pl-card" data-card-id="${escapeHtml(c.id)}" role="button" tabindex="0" title="${escapeHtml(c.title)}">
+              <span class="hub-pl-title">${escapeHtml(c.title)}</span>
+              ${c.priority ? `<span class="hub-pl-prio">${escapeHtml(c.priority.toUpperCase())}</span>` : ''}
+            </div>`).join('')}
+          </div>`;
+      }).join('');
+
+      cell.innerHTML = `
+        <div class="hub-card-head">
+          <h3>${t('projects.hub.pipeline')}</h3>
+          <button class="hub-link" type="button" data-open-board>${t('projects.hub.openInBoard')} →</button>
+        </div>
+        <div class="hub-pl-scroll">${stagesHtml || `<div class="hub-empty">${t('projects.hub.pipelineEmpty')}</div>`}</div>
+        ${doneN ? `<button class="hub-done-line" type="button" data-open-board>✓ ${t('projects.hub.doneCount', { n: doneN })} →</button>` : ''}`;
+
+      cell.querySelectorAll('[data-open-board]').forEach(b =>
+        b.addEventListener('click', () => window.BoardView?.openForProject?.(p.id)));
+      cell.querySelectorAll('.hub-pl-card').forEach(card => {
+        const go = () => window.BoardView?.openForProject?.(p.id, card.dataset.cardId);
+        card.addEventListener('click', go);
+        card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      });
+    }
+
+    async function loadRepoGlance(p, reqId) {
+      const cell = document.getElementById('hub-repo');
+      if (!cell) return;
+      let data = null;
+      try {
+        const r = await fetch('/api/projects/' + encodeURIComponent(p.id) + '/git', { headers: apiHeaders() });
+        if (r.ok) data = await r.json();
+      } catch {}
+      if (reqId !== projectDetailReq) return;
+
+      const st = data?.status || null;
+      const commits = data?.commits || [];
+
+      // Kompakter Git-Badge im Hub-Header.
+      const badge = document.getElementById('project-git-badge');
+      if (badge) {
+        if (st) {
+          badge.hidden = false;
+          badge.innerHTML = `<span class="pg-branch">${escapeHtml(st.branch || '—')}</span>`
+            + (st.dirty ? `<span class="pg-dot" title="${t('projects.hub.dirty')}"></span>` : '')
+            + (st.ahead ? `<span class="pg-ab">↑${st.ahead}</span>` : '')
+            + (st.behind ? `<span class="pg-ab">↓${st.behind}</span>` : '');
+        } else { badge.hidden = true; badge.innerHTML = ''; }
+      }
+
+      if (!st) {
+        cell.innerHTML = `<div class="hub-card-head"><h3>${t('projects.hub.repo')}</h3></div>
+          <div class="hub-empty">${t('projects.hub.notRepo')}</div>`;
+        return;
+      }
+
+      const statusPills = `<div class="hub-repo-status">
+          <span class="pg-branch">${escapeHtml(st.branch || '—')}</span>
+          <span class="pg-state ${st.dirty ? 'is-dirty' : 'is-clean'}">${st.dirty ? t('projects.hub.dirty') : t('projects.hub.clean')}</span>
+          ${st.ahead ? `<span class="pg-ab">↑${st.ahead}</span>` : ''}${st.behind ? `<span class="pg-ab">↓${st.behind}</span>` : ''}
+        </div>`;
+      const commitsHtml = commits.length
+        ? `<ul class="hub-commits">${commits.map(c => `<li>
+            <code class="hub-commit-hash">${escapeHtml(c.hash)}</code>
+            <span class="hub-commit-subj">${escapeHtml(c.subject)}</span>
+            <span class="hub-commit-date">${escapeHtml(c.relDate)}</span>
+          </li>`).join('')}</ul>`
+        : `<div class="hub-empty">${t('projects.hub.commitsEmpty')}</div>`;
+
+      cell.innerHTML = `
+        <div class="hub-card-head">
+          <h3>${t('projects.hub.repo')}</h3>
+          <button class="hub-link" type="button" data-open-files>${t('projects.hub.openFiles')} →</button>
+        </div>
+        ${statusPills}
+        ${commitsHtml}`;
+
+      cell.querySelector('[data-open-files]')?.addEventListener('click', () => {
+        try { window.FileBrowser?.open?.({ id: p.id, path: p.path, name: p.displayName }); } catch {}
+      });
+    }
+
     async function renderProjectDetail(id) {
       const body  = document.querySelector('#project-detail-view .detail-body');
       const title = document.getElementById('project-detail-title');
@@ -6889,6 +7052,10 @@
       if (startBtnEl) startBtnEl.hidden = true;
       const releaseBtnEl = document.getElementById('project-release-btn');
       if (releaseBtnEl) releaseBtnEl.hidden = true;
+      const addIdeaBtnEl = document.getElementById('project-add-idea-btn');
+      if (addIdeaBtnEl) addIdeaBtnEl.hidden = true;
+      const gitBadgeEl = document.getElementById('project-git-badge');
+      if (gitBadgeEl) { gitBadgeEl.hidden = true; gitBadgeEl.innerHTML = ''; }
 
       try {
         const res = await fetch('/api/projects/' + encodeURIComponent(id), { headers: apiHeaders() });
@@ -7001,6 +7168,8 @@
           startBtn.hidden = false;
           startBtn.dataset.projectPath = p.path;
         }
+        const addIdeaBtn = document.getElementById('project-add-idea-btn');
+        if (addIdeaBtn) { addIdeaBtn.hidden = false; addIdeaBtn.dataset.projectId = p.id; }
         // Release-Button: nur anzeigen wenn die Roadmap mindestens ein
         // Dev-Item hat und Dev-Version + Released-Version gesetzt sind.
         // Alles andere wäre ein No-Op-Release.
@@ -7018,21 +7187,41 @@
           }
         }
 
+        // Changelog-Sektion (unverändert, nur in eine Variable extrahiert).
+        const changelogHtml = p.changelog
+          ? `<section class="roadmap-section${isSectionCollapsed(p.id, 'changelog') ? ' collapsed' : ''}" data-section="changelog">
+               <button class="roadmap-section-head" type="button" data-section="changelog"
+                       aria-expanded="${isSectionCollapsed(p.id, 'changelog') ? 'false' : 'true'}">
+                 <span class="roadmap-chevron" aria-hidden="true">▾</span>
+                 <span class="roadmap-section-label">${t('projects.detail.sectionChangelog')}</span>
+               </button>
+               <pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre>
+             </section>`
+          : '';
+
         body.innerHTML = `
-          <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
-          ${sessionsPanelHtml}
-          ${section(t('projects.detail.sectionReleased'),     p.released?.version, p.released?.items || [], 'released')}
-          ${section(t('projects.detail.sectionDev'),          p.dev?.version,      p.dev?.items      || [], 'dev')}
-          ${p.changelog
-            ? `<section class="roadmap-section${isSectionCollapsed(p.id, 'changelog') ? ' collapsed' : ''}" data-section="changelog">
-                 <button class="roadmap-section-head" type="button" data-section="changelog"
-                         aria-expanded="${isSectionCollapsed(p.id, 'changelog') ? 'false' : 'true'}">
-                   <span class="roadmap-chevron" aria-hidden="true">▾</span>
-                   <span class="roadmap-section-label">${t('projects.detail.sectionChangelog')}</span>
-                 </button>
-                 <pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre>
-               </section>`
-            : ''}`;
+          <div class="project-hub-grid">
+            <div class="hub-col">
+              <section class="hub-cell hub-pipeline" data-block="pipeline" id="hub-pipeline">
+                <div class="hub-loading">${t('projects.detail.loading')}</div>
+              </section>
+              <section class="hub-cell" data-block="sessions">${sessionsPanelHtml}</section>
+            </div>
+            <div class="hub-col">
+              <section class="hub-cell hub-repo" data-block="repo" id="hub-repo">
+                <div class="hub-loading">${t('projects.detail.loading')}</div>
+              </section>
+              <section class="hub-cell" data-block="releases">
+                <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
+                ${section(t('projects.detail.sectionReleased'), p.released?.version, p.released?.items || [], 'released')}
+                ${section(t('projects.detail.sectionDev'),      p.dev?.version,      p.dev?.items      || [], 'dev')}
+                ${changelogHtml}
+              </section>
+            </div>
+          </div>`;
+
+        loadPipelineSlice(p, reqId);
+        loadRepoGlance(p, reqId);
 
         // Click-Delegation für die Session-Items
         body.querySelectorAll('.project-session-item').forEach(item => {
@@ -10036,6 +10225,30 @@
       });
     });
 
+    document.getElementById('project-add-idea-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('project-add-idea-btn');
+      const pid = btn.dataset.projectId;
+      if (!pid) return;
+      const title = await showInputDialog({
+        title: t('board.addIdea'),
+        label: t('modal.idea.descLabel'),
+        placeholder: t('modal.idea.descPlaceholder'),
+      });
+      if (!title || !title.trim()) return;
+      try {
+        const r = await fetch('/api/board/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+          body: JSON.stringify({ projectId: pid, title: title.trim(), stage: 'idea', origin: 'solo' }),
+        });
+        if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { status: r.status });
+        showProjectToast(t('projects.detail.itemAdded'), 'success');
+        renderProjectDetail(pid);   // refreshes the Pipeline-Slice
+      } catch (e) {
+        if (e.status !== 401) showProjectToast(t('common.errorWithMessage', { message: e.message }));
+      }
+    });
+
     async function submitRelease() {
       const modal = document.getElementById('release-modal');
       const projectId = modal.dataset.projectId;
@@ -10899,6 +11112,7 @@
       let projects = [];          // [{id, displayName}]
       let filter = '';            // projectId or '' = all
       let wired = false;
+      let pendingOpenId = null;   // card to auto-open after activate (from Projekt-Hub)
 
       const el = (id) => document.getElementById(id);
       const authH = () => (AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {});
@@ -11059,12 +11273,24 @@
         document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && detailId && currentView==='board') closeDetail(); });
       }
 
+      // Entry point aus dem Projekt-Hub: Board gefiltert auf ein Projekt
+      // öffnen, optional eine bestimmte Karte im Detail-Panel.
+      function openForProject(projectId, cardId) {
+        filter = projectId || '';
+        pendingOpenId = cardId || null;
+        setView('board');
+      }
+
       async function activate() {
         wire();
         await Promise.all([fetchProjects(), fetchCards()]);
         renderFilter(); render();
+        if (pendingOpenId) {
+          const id = pendingOpenId; pendingOpenId = null;
+          if (cards.some(c => c.id === id)) openDetail(id);
+        }
       }
-      return { activate, _addIdea: addIdea };
+      return { activate, _addIdea: addIdea, openForProject };
     })();
     window.BoardView = BoardView;
 

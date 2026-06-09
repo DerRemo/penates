@@ -504,6 +504,17 @@ window.__I18N_BUNDLES.de = {
   'projects.detail.moveTo': 'Verschieben nach',
   'projects.detail.moveCurrent': '(aktuell)',
   'projects.detail.editVersion': 'Version bearbeiten',
+  'projects.hub.pipeline': 'Pipeline',
+  'projects.hub.repo': 'Repository',
+  'projects.hub.openInBoard': 'Im Board öffnen',
+  'projects.hub.pipelineEmpty': 'Noch keine Karten.',
+  'projects.hub.doneCount': '{n} fertig',
+  'projects.hub.commitsEmpty': 'Noch keine Commits.',
+  'projects.hub.openFiles': 'Dateibrowser öffnen',
+  'projects.hub.notRepo': 'Kein Git-Repository.',
+  'projects.hub.clean': 'sauber',
+  'projects.hub.dirty': 'unverschriebene Änderungen',
+  'projects.hub.addIdea': 'Idee hinzufügen',
 
   // Release modal
   'projects.release.title': 'Version abschließen',
