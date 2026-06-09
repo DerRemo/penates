@@ -19,7 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as board from './lib/board.js';
-import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming } from './lib/brainstorm-spawn.js';
+import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -565,6 +565,11 @@ const PRIME_DELAY_MS = Number(process.env.BRAINSTORM_PRIME_DELAY_MS) || 1500;
 // daher mehrere Versuche; sobald der Prompt raus ist, sind weitere Enters auf dem
 // leeren Composer No-Ops. Enters fallen damit kumulativ bei ~3/5/7.5/10.5/13.5s.
 const PRIME_SUBMIT_SCHEDULE_MS = [1500, 2000, 2500, 3000, 3000];
+// Robustes Tippen: bis zu N Versuche, den Prompt-Text in den Composer zu bekommen
+// (Trust-Gate akzeptieren / variable Boot-Zeit abwarten), je mit kurzer Verify-Pause.
+const PRIME_TYPE_ATTEMPTS = Number(process.env.BRAINSTORM_PRIME_TYPE_ATTEMPTS) || 8;
+const PRIME_TYPE_WAIT_MS = Number(process.env.BRAINSTORM_PRIME_TYPE_WAIT_MS) || 1200;
+const PRIME_TRUST_WAIT_MS = Number(process.env.BRAINSTORM_PRIME_TRUST_WAIT_MS) || 1500;
 
 // ── REST API ────────────────────────────────────────────────────────────────
 
@@ -998,7 +1003,7 @@ app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
 
     // Prime im Hintergrund (blockiert die HTTP-Antwort nicht). Der User wird
     // sofort in die Session navigiert und sieht das Priming live.
-    primeBrainstormSession(sessionName, card.title, card.id);
+    primeSession(sessionName, buildBrainstormPriming(card.title, card.id));
 
     res.status(201).json({ session: sessionName, reused: false });
   } catch (e) {
@@ -1030,7 +1035,7 @@ app.post('/api/projects/:id/ideagen', async (req, res) => {
       return res.status(500).json({ error: e.message });
     }
     // Prime im Hintergrund (blockiert die HTTP-Antwort nicht).
-    primeIdeaGenSession(sessionName, project.id, project.displayName);
+    primeSession(sessionName, buildIdeaGenPriming(project.id, project.displayName));
     res.status(201).json({ session: sessionName, reused: false });
   } catch (e) {
     res.status(500).json({ error: 'Failed to start idea generation session', detail: e.message });
@@ -1328,46 +1333,57 @@ async function spawnTmuxSession({ sessionName, dir, cmd, auditMeta = {} }) {
   throw new Error(`Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`);
 }
 
-// Priming einer frisch gespawnten Brainstorming-Session: Idee-Prompt in die
-// claude-TUI tippen + abschicken. Fire-and-forget (await nicht nötig — die
-// HTTP-Antwort wartet nicht). Text via send-keys -l (literal, kein Shell-Interp);
-// Enter gestaffelt mehrfach, weil die TUI inkl. MCP-Init variabel mehrere
-// Sekunden braucht, bis ein Enter submitted. Nach dem Submit sind weitere Enters
-// auf dem leeren Composer No-Ops. Bricht ab, sobald die Session weg ist.
-function primeBrainstormSession(sessionName, title, cardId) {
+// capture-pane (Plain-Text) einer Session; fehlertolerant (Session weg → '').
+function capturePane(sessionName) {
+  try {
+    return execFileSync(TMUX, ['capture-pane', '-t', sessionName, '-p'], { encoding: 'utf-8', timeout: 5000 });
+  } catch { return ''; }
+}
+
+// Robustes Priming einer frisch gespawnten Session (Brainstorming/Ideen-Gen):
+// den Prompt in die claude-TUI tippen + abschicken. Fire-and-forget (die HTTP-
+// Antwort wartet nicht). Frisch gespawnte Sessions zeigen in noch-nicht-vertrauten
+// Verzeichnissen claudes „Do you trust this folder?"-Gate und brauchen variabel
+// Boot-/MCP-Zeit, bevor der Composer Eingaben annimmt — daher NICHT einmal blind
+// tippen (Text ginge verloren), sondern:
+//   1) Trust-Gate erkennen → mit Enter akzeptieren (Default „Yes, I trust this folder"),
+//   2) Text via send-keys -l tippen und per capture-pane verifizieren, dass er
+//      wirklich im Composer gelandet ist (sonst erneut versuchen),
+//   3) erst dann via gestaffelter Enters submitten (No-Ops nach dem Submit).
+// Alles via execFileSync/argv (kein Shell-Interp). Bricht ab, wenn die Session weg ist.
+function primeSession(sessionName, promptText) {
   (async () => {
     try {
+      const marker = promptText.slice(0, 20);
       await sleep(PRIME_DELAY_MS);
-      execFileSync(TMUX, ['send-keys', '-t', sessionName, '-l', buildBrainstormPriming(title, cardId)], {
-        encoding: 'utf-8', timeout: 5000,
-      });
+      let landed = false;
+      for (let i = 0; i < PRIME_TYPE_ATTEMPTS && !landed; i++) {
+        const pane = capturePane(sessionName);
+        if (pane.includes(marker)) { landed = true; break; }   // schon getippt (Vor-Versuch) → nicht doppelt tippen
+        if (looksLikeTrustPrompt(pane)) {
+          execFileSync(TMUX, ['send-keys', '-t', sessionName, 'Enter'], { encoding: 'utf-8', timeout: 5000 });
+          await sleep(PRIME_TRUST_WAIT_MS);
+          continue;
+        }
+        // Tippen + verifizieren. Bound: tippt die TUI unter extrem langsamem Boot
+        // die Keys in den pty-Buffer, ohne sie ≥2 Capture-Zyklen lang zu rendern,
+        // kann erneut getippt werden → doppelter Prompt (harmlos/recoverable). In
+        // der Praxis decken PRIME_DELAY/TRUST/TYPE-Waits das ab (real-app verifiziert).
+        execFileSync(TMUX, ['send-keys', '-t', sessionName, '-l', promptText], { encoding: 'utf-8', timeout: 5000 });
+        await sleep(PRIME_TYPE_WAIT_MS);
+        if (capturePane(sessionName).includes(marker)) landed = true;
+      }
+      if (!landed) {
+        console.error('[prime] priming text never landed in composer for', sessionName);
+        return;   // Session bleibt nutzbar — User kann manuell prompten.
+      }
       for (const wait of PRIME_SUBMIT_SCHEDULE_MS) {
         await sleep(wait);
         execFileSync(TMUX, ['send-keys', '-t', sessionName, 'Enter'], { encoding: 'utf-8', timeout: 5000 });
       }
     } catch (e) {
       // Session weg / send-keys-Fehler → Priming aufgeben (nicht fatal).
-      console.error('[brainstorm] priming failed:', e.message);
-    }
-  })();
-}
-
-// Priming einer frisch gespawnten Ideen-Generierungs-Session (Phase 3-B). Wie
-// primeBrainstormSession, aber mit dem divergenten Ideen-Gen-Prompt; selbe
-// Hintergrund-Staggered-Enter-Mechanik (TUI-Submit braucht inkl. MCP-Init Zeit).
-function primeIdeaGenSession(sessionName, projectId, projectName) {
-  (async () => {
-    try {
-      await sleep(PRIME_DELAY_MS);
-      execFileSync(TMUX, ['send-keys', '-t', sessionName, '-l', buildIdeaGenPriming(projectId, projectName)], {
-        encoding: 'utf-8', timeout: 5000,
-      });
-      for (const wait of PRIME_SUBMIT_SCHEDULE_MS) {
-        await sleep(wait);
-        execFileSync(TMUX, ['send-keys', '-t', sessionName, 'Enter'], { encoding: 'utf-8', timeout: 5000 });
-      }
-    } catch (e) {
-      console.error('[ideagen] priming failed:', e.message);
+      console.error('[prime] priming failed:', e.message);
     }
   })();
 }
