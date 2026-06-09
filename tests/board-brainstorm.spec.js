@@ -71,7 +71,7 @@ test.describe('Board brainstorm spawn (Phase 3)', () => {
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({ session: 'cc-stub', reused: false, primed: true }),
+        body: JSON.stringify({ session: 'cc-stub', reused: false }),
       });
     });
 
