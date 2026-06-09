@@ -5266,28 +5266,43 @@
   </div>
 
   <div class="modal-overlay" id="new-project-modal" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
-    <div class="modal">
-      <h2 id="new-project-title" data-i18n="modal.newProject.title">Create New Project</h2>
-      <p data-i18n-html="modal.newProject.description">Create a new <code>ROADMAP.md</code> in an existing directory. It will be registered as a project and appear in the Projects tab.</p>
-      <div class="form-group">
-        <label class="form-label" data-i18n="modal.newProject.nameLabel">Display Name</label>
-        <input class="form-input" id="new-project-name" placeholder="e.g. Kalvo Backend" autocomplete="off" spellcheck="false" maxlength="80" data-i18n-attr="placeholder:modal.newProject.namePlaceholder">
+    <div class="modal modal--wide">
+      <div class="ns-header">
+        <span class="ns-header-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h6l2 2h10v9a1 1 0 0 1-1 1H3z"/></svg></span>
+        <h2 id="new-project-title" data-i18n="modal.newProject.title">Create New Project</h2>
       </div>
-      <div class="form-group">
-        <label class="form-label" data-i18n="modal.newProject.dirLabel">Project Directory</label>
-        <div class="tree-picker" id="new-project-tree-picker">
-          <div class="tree-selected" id="new-project-tree-selected" dir="rtl">~</div>
-          <div class="tree-list" id="new-project-tree-root">
-            <div class="tree-empty" data-i18n="treePicker.loading">Loading…</div>
+      <div class="ns-split">
+        <!-- LEFT: directory (browse or create) -->
+        <div class="ns-left">
+          <label class="form-label" data-i18n="modal.newProject.dirLabel">Project Directory</label>
+          <div class="tree-picker" id="new-project-tree-picker">
+            <div class="tree-picker-header">
+              <div class="tree-selected" id="new-project-tree-selected" dir="rtl">~</div>
+              <button class="tree-mkdir-btn" id="new-project-mkdir-btn" type="button"
+                      data-i18n-attr="title:treePicker.mkdir.title" title="Neuer Ordner">
+                <span data-i18n="treePicker.mkdir.button">+ Ordner</span>
+              </button>
+            </div>
+            <div class="tree-list" id="new-project-tree-root">
+              <div class="tree-empty" data-i18n="treePicker.loading">Loading…</div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-ghost" type="button" id="new-project-cancel" data-i18n="modal.newProject.cancel">Cancel</button>
-        <button class="btn btn-primary" type="button" id="new-project-submit">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          <span data-i18n="modal.newProject.create">Create</span>
-        </button>
+        <!-- RIGHT: name · actions -->
+        <div class="ns-right">
+          <div class="form-group">
+            <label class="form-label" data-i18n="modal.newProject.nameLabel">Display Name</label>
+            <input class="form-input" id="new-project-name" placeholder="e.g. Kalvo Backend" autocomplete="off" spellcheck="false" maxlength="80" data-i18n-attr="placeholder:modal.newProject.namePlaceholder">
+          </div>
+          <p style="font-size:var(--text-xs);color:var(--text-muted);line-height:1.5;margin:0;" data-i18n-html="modal.newProject.description">Pick or create a directory. It will be registered as a project and appear in the Projects tab.</p>
+          <div class="modal-actions">
+            <button class="btn btn-ghost" type="button" id="new-project-cancel" data-i18n="modal.newProject.cancel">Cancel</button>
+            <button class="btn btn-primary" type="button" id="new-project-submit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              <span data-i18n="modal.newProject.create">Create</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -9659,7 +9674,7 @@
 
     // Projekt-Modal Picker wird beim ersten Öffnen des New-Project-Modals
     // initialisiert (siehe openNewProjectModal() unten).
-    const projectTreePicker = createTreePicker({ rootElId: 'new-project-tree-root', selectedElId: 'new-project-tree-selected' });
+    const projectTreePicker = createTreePicker({ rootElId: 'new-project-tree-root', selectedElId: 'new-project-tree-selected', allowMkdir: true, mkdirBtnId: 'new-project-mkdir-btn' });
 
     // CLI-Registry lazy laden (lokales ESM-Modul, kein CDN). Fallback bei
     // Ladefehler: Default-claude, Modal bleibt nutzbar.
@@ -9891,6 +9906,7 @@
     }
     function closeNewProjectModal() {
       document.getElementById('new-project-modal').classList.remove('open');
+      projectTreePicker.cancelPendingInput?.();
     }
     document.getElementById('new-project-modal').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) closeNewProjectModal();

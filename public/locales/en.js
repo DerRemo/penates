@@ -303,7 +303,7 @@ window.__I18N_BUNDLES.en = {
 
   // Modals — New Project
   'modal.newProject.title': 'Create New Project',
-  'modal.newProject.description': 'Create a new <code>ROADMAP.md</code> in an existing directory. It will be registered as a project and appear in the Projects tab.',
+  'modal.newProject.description': 'Pick an existing folder or create a new one. It will be registered as a project and appear in the Projects tab.',
   'modal.newProject.nameLabel': 'Display Name',
   'modal.newProject.namePlaceholder': 'e.g. Kalvo Backend',
   'modal.newProject.dirLabel': 'Project Directory',
