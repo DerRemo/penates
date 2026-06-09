@@ -262,6 +262,7 @@ window.__I18N_BUNDLES.en = {
   'modal.idea.title': 'Capture Idea',
   'modal.idea.descPre': 'Will be added as an idea card for',
   'modal.idea.descLabel': 'Short Description',
+  'modal.idea.projectLabel': 'Project',
   'modal.idea.descPlaceholder': 'e.g. Sidebar should remember which session was last open',
   'modal.idea.cancel': 'Close',
   'modal.idea.save': 'Save',
@@ -274,7 +275,7 @@ window.__I18N_BUNDLES.en = {
   'board.empty': 'No cards yet — capture an idea.',
   'board.card.noPriority': '—',
   'board.stage.idea': 'Ideas',
-  'board.stage.brainstorming': 'Brainstorming',
+  'board.stage.brainstorming': 'Brainstorming/Spec',
   'board.stage.spec': 'Spec',
   'board.stage.implement': 'Build',
   'board.stage.review': 'Review',
@@ -302,7 +303,7 @@ window.__I18N_BUNDLES.en = {
 
   // Modals — New Project
   'modal.newProject.title': 'Create New Project',
-  'modal.newProject.description': 'Create a new <code>ROADMAP.md</code> in an existing directory. It will be registered as a project and appear in the Projects tab.',
+  'modal.newProject.description': 'Pick an existing folder or create a new one. It will be registered as a project and appear in the Projects tab.',
   'modal.newProject.nameLabel': 'Display Name',
   'modal.newProject.namePlaceholder': 'e.g. Kalvo Backend',
   'modal.newProject.dirLabel': 'Project Directory',

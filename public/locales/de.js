@@ -262,6 +262,7 @@ window.__I18N_BUNDLES.de = {
   'modal.idea.title': 'Idee notieren',
   'modal.idea.descPre': 'Wird als Ideen-Karte angelegt für',
   'modal.idea.descLabel': 'Kurze Beschreibung',
+  'modal.idea.projectLabel': 'Projekt',
   'modal.idea.descPlaceholder': 'z.B. Sidebar sollte sich merken welche Session zuletzt offen war',
   'modal.idea.cancel': 'Schließen',
   'modal.idea.save': 'Speichern',
@@ -274,7 +275,7 @@ window.__I18N_BUNDLES.de = {
   'board.empty': 'Noch keine Karten — erfasse eine Idee.',
   'board.card.noPriority': '—',
   'board.stage.idea': 'Ideen',
-  'board.stage.brainstorming': 'Brainstorming',
+  'board.stage.brainstorming': 'Brainstorming/Spec',
   'board.stage.spec': 'Spec',
   'board.stage.implement': 'Umsetzen',
   'board.stage.review': 'Review',
@@ -302,7 +303,7 @@ window.__I18N_BUNDLES.de = {
 
   // Modals — New Project
   'modal.newProject.title': 'Neues Projekt anlegen',
-  'modal.newProject.description': 'Lege eine neue <code>ROADMAP.md</code> unter einem bestehenden Verzeichnis an. Sie wird als Projekt registriert und taucht sofort im Projekte-Tab auf.',
+  'modal.newProject.description': 'Wähle einen bestehenden Ordner oder lege einen neuen an. Er wird als Projekt registriert und erscheint im Projekte-Tab.',
   'modal.newProject.nameLabel': 'Anzeigename',
   'modal.newProject.namePlaceholder': 'z.B. Kalvo Backend',
   'modal.newProject.dirLabel': 'Projektverzeichnis',
