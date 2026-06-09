@@ -970,8 +970,11 @@ app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
   try {
     const card = board.getCard(req.params.id);
     if (!card) return res.status(404).json({ error: 'Card not found' });
+    // Nur die Existenz/den Pfad des Projekts prüfen — ein fehlendes Plan-Doc
+    // (project.missing) ist KEIN Hinderungsgrund: Brainstorming braucht nur den
+    // Projektordner (und legt den Spec ggf. erst an).
     const project = await getProject(card.projectId);
-    if (!project || project.missing) return res.status(404).json({ error: 'Project not found' });
+    if (!project || !project.path) return res.status(404).json({ error: 'Project not found' });
 
     // Idempotenz: lebende verlinkte Session → attach statt neu spawnen.
     const live = getTmuxSessions().map(s => s.name);
