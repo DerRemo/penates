@@ -11193,7 +11193,19 @@
             if (!id) return;
             const card = cards.find(x => x.id === id);
             const stage = list.dataset.stage;
-            if (card && card.stage !== stage) await patchCard(id, { stage });
+            if (card && card.stage !== stage) {
+              const fromIdea = card.stage === 'idea';
+              await patchCard(id, { stage });
+              if (fromIdea && stage === 'brainstorming') {
+                const ok = await showConfirmDialog({
+                  title: t('board.brainstorm.confirmTitle'),
+                  body: t('board.brainstorm.confirmBody'),
+                  confirmLabel: t('board.brainstorm.confirmOk'),
+                  danger: false,
+                });
+                if (ok) startBrainstorm(id);
+              }
+            }
             dragId = null;
           });
         });
@@ -11213,6 +11225,14 @@
           if (r.ok) { cards.push(await r.json()); render(); }
         } catch {}
       }
+      async function startBrainstorm(id) {
+        try {
+          const r = await fetch(`/api/board/cards/${id}/brainstorm`, { method: 'POST', headers: jsonH() });
+          if (!r.ok) { showToast(t('board.brainstorm.failed'), 'error'); return; }
+          const data = await r.json();
+          if (data && data.session) connectToSession(data.session);
+        } catch { showToast(t('board.brainstorm.failed'), 'error'); }
+      }
       async function removeCard(id) {
         try {
           const r = await fetch(`/api/board/cards/${id}`, { method:'DELETE', headers: authH() });
@@ -11224,6 +11244,7 @@
       let detailId = null, deleteArmed = false;
       function openDetail(id) {
         const c = cards.find(x=>x.id===id); if (!c) return;
+        const sessionAlive = !!(c.sessionRef && Array.isArray(sessions) && sessions.some(s => s.name === c.sessionRef));
         detailId = id; deleteArmed = false;
         const created = (() => { try { return new Date(c.createdAt).toLocaleString(); } catch { return c.createdAt || '—'; } })();
         const stageOpts = STAGES.map(s => `<option value="${s}"${s===c.stage?' selected':''}>${escapeHtml(t('board.stage.'+s))}</option>`).join('');
@@ -11244,6 +11265,8 @@
             <select id="board-detail-stage">${stageOpts}</select></div>
           <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.origin'))}</span><span>${escapeHtml(t('board.origin.'+(c.origin||'solo')))}</span></div>
           <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.created'))}</span><span>${escapeHtml(created)}</span></div>
+          ${c.stage !== 'idea' ? `<button class="btn btn-secondary btn-sm board-detail__brainstorm" id="board-detail-brainstorm" type="button">${escapeHtml(sessionAlive ? t('board.brainstorm.attach') : t('board.brainstorm.start'))}</button>` : ''}
+          ${c.brainstormDoc ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.brainstorm.doc'))}</span><span class="board-detail__doc" title="${escapeHtml(c.brainstormDoc)}">${escapeHtml(c.brainstormDoc)}</span></div>` : ''}
           <button class="btn btn-danger btn-sm board-detail__del" id="board-detail-del" type="button">${escapeHtml(t('board.detail.delete'))}</button>`;
         el('board-detail').hidden = false;
         el('board-detail-close').addEventListener('click', closeDetail);
@@ -11254,6 +11277,7 @@
           if (!deleteArmed) { deleteArmed=true; e.target.textContent=t('board.detail.deleteConfirm'); return; }
           removeCard(id);
         });
+        el('board-detail-brainstorm')?.addEventListener('click', () => startBrainstorm(id));
         render(); // re-mark active card
       }
       function closeDetail() { detailId=null; deleteArmed=false; const d=el('board-detail'); if (d){ d.hidden = true; d.innerHTML=''; } render(); }

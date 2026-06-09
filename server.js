@@ -19,6 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as board from './lib/board.js';
+import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -556,6 +557,15 @@ function hubEnvArgs(sessionName) {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// Wartezeit nach Session-Start, bevor der Priming-Text via send-keys getippt
+// wird — gibt der claude-TUI Zeit, Eingaben anzunehmen. Real-App-getunt.
+const PRIME_DELAY_MS = Number(process.env.BRAINSTORM_PRIME_DELAY_MS) || 1500;
+// Gestaffelte Pausen für die Submit-Enters NACH dem Text. Die claude-TUI braucht
+// (inkl. MCP-Init) variabel mehrere Sekunden, bis ein Enter als Submit zählt —
+// daher mehrere Versuche; sobald der Prompt raus ist, sind weitere Enters auf dem
+// leeren Composer No-Ops. Enters fallen damit kumulativ bei ~3/5/7.5/10.5/13.5s.
+const PRIME_SUBMIT_SCHEDULE_MS = [1500, 2000, 2500, 3000, 3000];
+
 // ── REST API ────────────────────────────────────────────────────────────────
 
 // List sessions. Preview wird intern für Activity-Detection geholt, aber
@@ -954,6 +964,48 @@ app.delete('/api/board/cards/:id', async (req, res) => {
   }
 });
 
+// Brainstorming-Session zu einer Karte spawnen (Phase 3): claude im Projekt,
+// auf die Idee geprimt, sessionRef an die Karte. Idempotent (reuse lebende).
+app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
+  try {
+    const card = board.getCard(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    // Nur die Existenz/den Pfad des Projekts prüfen — ein fehlendes Plan-Doc
+    // (project.missing) ist KEIN Hinderungsgrund: Brainstorming braucht nur den
+    // Projektordner (und legt den Spec ggf. erst an).
+    const project = await getProject(card.projectId);
+    if (!project || !project.path) return res.status(404).json({ error: 'Project not found' });
+
+    // Idempotenz: lebende verlinkte Session → attach statt neu spawnen.
+    const live = getTmuxSessions().map(s => s.name);
+    const resolved = resolveBrainstormSpawn(card, live);
+    if (resolved.reuse) return res.status(200).json({ session: resolved.session, reused: true });
+
+    // Eindeutiger Session-Name aus dem Titel.
+    const slug = slugifySessionName(card.title);
+    if (!validSessionName(slug)) return res.status(400).json({ error: 'Cannot derive a valid session name from the idea title' });
+    let namePart = slug, sessionName = SESSION_PREFIX + namePart, n = 2;
+    while (getTmuxSessions().some(s => s.name === sessionName)) { namePart = `${slug}-${n++}`; sessionName = SESSION_PREFIX + namePart; }
+
+    // Spawn (gemeinsamer Helper) + sofort verlinken. spawnTmuxSession wirft bei
+    // Fehler; den Rückgabewert (Session-Objekt) braucht diese Route nicht.
+    try {
+      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', auditMeta: auditLog.extractRequestMeta(req) });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+    await board.updateCard(card.id, { sessionRef: sessionName });
+
+    // Prime im Hintergrund (blockiert die HTTP-Antwort nicht). Der User wird
+    // sofort in die Session navigiert und sieht das Priming live.
+    primeBrainstormSession(sessionName, card.title, card.id);
+
+    res.status(201).json({ session: sessionName, reused: false });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to start brainstorm session', detail: e.message });
+  }
+});
+
 // Pin/Unpin: generischer PATCH auf das Projekt (Body { pinned: boolean }).
 app.patch('/api/projects/:id', async (req, res) => {
   const { pinned } = req.body || {};
@@ -1220,6 +1272,55 @@ app.post('/api/browse/mkdir', (req, res) => {
   }
 });
 
+// Gemeinsamer tmux-Spawn (geteilt von POST /api/sessions und dem Brainstorm-
+// Spawn). Erwartet den FERTIGEN (geprefixten) sessionName; Caller validieren
+// Name + 409-Existenz. Wirft bei new-session-Fehler oder Sofort-Exit.
+async function spawnTmuxSession({ sessionName, dir, cmd, auditMeta = {} }) {
+  execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...hubEnvArgs(sessionName), '-c', dir, cmd], {
+    encoding: 'utf-8', timeout: 5000,
+  });
+  for (let i = 0; i < 20; i++) {
+    await sleep(40);
+    const created = getTmuxSessions().find(s => s.name === sessionName);
+    if (created) {
+      try {
+        await knownSessions.add({ name: sessionName, directory: dir, command: cmd });
+      } catch (e) {
+        console.error('[known-sessions] add failed:', e);
+      }
+      ensureMouseMode();
+      ensureClipboardMode();
+      auditLog.record('session.create', { ...auditMeta, session: sessionName, directory: dir, command: cmd });
+      return created;
+    }
+  }
+  throw new Error(`Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`);
+}
+
+// Priming einer frisch gespawnten Brainstorming-Session: Idee-Prompt in die
+// claude-TUI tippen + abschicken. Fire-and-forget (await nicht nötig — die
+// HTTP-Antwort wartet nicht). Text via send-keys -l (literal, kein Shell-Interp);
+// Enter gestaffelt mehrfach, weil die TUI inkl. MCP-Init variabel mehrere
+// Sekunden braucht, bis ein Enter submitted. Nach dem Submit sind weitere Enters
+// auf dem leeren Composer No-Ops. Bricht ab, sobald die Session weg ist.
+function primeBrainstormSession(sessionName, title, cardId) {
+  (async () => {
+    try {
+      await sleep(PRIME_DELAY_MS);
+      execFileSync(TMUX, ['send-keys', '-t', sessionName, '-l', buildBrainstormPriming(title, cardId)], {
+        encoding: 'utf-8', timeout: 5000,
+      });
+      for (const wait of PRIME_SUBMIT_SCHEDULE_MS) {
+        await sleep(wait);
+        execFileSync(TMUX, ['send-keys', '-t', sessionName, 'Enter'], { encoding: 'utf-8', timeout: 5000 });
+      }
+    } catch (e) {
+      // Session weg / send-keys-Fehler → Priming aufgeben (nicht fatal).
+      console.error('[brainstorm] priming failed:', e.message);
+    }
+  })();
+}
+
 // Create new session. Session-Name muss Validator bestehen. tmux wird als
 // argv aufgerufen, kein Shell-Parsing → keine Quote-Injection möglich.
 app.post('/api/sessions', async (req, res) => {
@@ -1238,50 +1339,11 @@ app.post('/api/sessions', async (req, res) => {
   }
 
   try {
-    // tmux nimmt den Command als einzelnes letztes argv und reicht es per
-    // `/bin/sh -c` weiter — dadurch funktionieren Commands mit Spaces wie
-    // `claude --dangerously-skip-permissions` ohne dass wir selbst eine
-    // Shell anwerfen.
-    execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...hubEnvArgs(sessionName), '-c', dir, cmd], {
-      encoding: 'utf-8', timeout: 5000,
-    });
+    const created = await spawnTmuxSession({ sessionName, dir, cmd, auditMeta: auditLog.extractRequestMeta(req) });
+    return res.status(201).json(created);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
-
-  // Poll statt setTimeout(500): schnell wenn die Session sofort da ist,
-  // geduldig wenn der Kern-Boot mal länger braucht.
-  for (let i = 0; i < 20; i++) {
-    await sleep(40);
-    const created = getTmuxSessions().find(s => s.name === sessionName);
-    if (created) {
-      // Erst nach bestätigtem Session-Start persistieren — sonst stünden
-      // Einträge für tot-geborene Sessions in der JSON (Exit-127-Fälle aus
-      // der Error-Message unten). Fehler beim Write sollen den 201 nicht
-      // blockieren: der User hat eine lebende Session, Recovery-Tracking
-      // ist ein Bonus.
-      try {
-        await knownSessions.add({ name: sessionName, directory: dir, command: cmd });
-      } catch (e) {
-        console.error('[known-sessions] add failed:', e);
-      }
-      // Mouse-Mode sicherstellen: falls beim Server-Start tmux noch nicht
-      // lief, konnte ensureMouseMode() nicht greifen — jetzt läuft tmux sicher.
-      ensureMouseMode();
-      ensureClipboardMode();
-      // Lifecycle-Event fire-and-forget (Latency wichtiger als Crash-Safety)
-      auditLog.record('session.create', {
-        ...auditLog.extractRequestMeta(req),
-        session: sessionName,
-        directory: dir,
-        command: cmd,
-      });
-      return res.status(201).json(created);
-    }
-  }
-  res.status(500).json({
-    error: `Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`,
-  });
 });
 
 // Kill session
