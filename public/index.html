@@ -866,6 +866,9 @@
       background: var(--accent-soft); border-radius: var(--radius-pill); padding: 2px var(--space-2);
       max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
+    .board-card__agent { font-size: var(--text-xs); color: var(--accent); display: inline-flex; align-items: center; gap: var(--space-1); animation: board-agent-pulse 1.6s ease-in-out infinite; }
+    @keyframes board-agent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+    .board-card__branch { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); background: var(--accent-soft); border-radius: var(--radius-pill); padding: 2px var(--space-2); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Detail-Panel (rechtes Slide-in) */
     .board-detail {
       position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 90vw); z-index: 95;
@@ -11206,10 +11209,15 @@
 
       function cardHtml(c) {
         const active = (detailId === c.id) ? ' is-active' : '';
+        const agent = (c.stage === 'implement' && c.sessionRef)
+          ? `<span class="board-card__agent" title="${escapeHtml(t('board.implement.running'))}">⟳ ${escapeHtml(t('board.implement.running'))}</span>` : '';
+        const branch = (c.stage === 'review' && c.branch)
+          ? `<span class="board-card__branch" title="${escapeHtml(c.branch)}">${escapeHtml(c.branch)}</span>` : '';
         return `<div class="board-card${active}" draggable="true" data-id="${c.id}">
           <div class="board-card__title">${escapeHtml(c.title)}</div>
           <div class="board-card__meta">
             <span class="board-card__project">${escapeHtml(projName(c.projectId))}</span>
+            ${agent}${branch}
           </div></div>`;
       }
 
@@ -11255,8 +11263,7 @@
             const card = cards.find(x => x.id === id);
             const stage = list.dataset.stage;
             if (card && card.stage !== stage) {
-              const fromIdea = card.stage === 'idea';
-              if (fromIdea && stage === 'brainstorming') {
+              if (card.stage === 'idea' && stage === 'brainstorming') {
                 // Confirm VOR dem Commit — Cancel lässt die Karte in Ideen.
                 const ok = await showConfirmDialog({
                   title: t('board.brainstorm.confirmTitle'),
@@ -11267,6 +11274,19 @@
                 if (!ok) { dragId = null; return; }
                 await patchCard(id, { stage });
                 startBrainstorm(id);
+              } else if (stage === 'implement') {
+                // Drop-Guard: ohne Spec kein Implement (verhindert kaputten
+                // Zwischenzustand "implement ohne Agent"). KEIN Move bei Abbruch.
+                if (!card.brainstormDoc) { showToast(t('board.implement.noSpec'), 'info'); dragId = null; return; }
+                const ok = await showConfirmDialog({
+                  title: t('board.implement.confirmTitle'),
+                  body: t('board.implement.confirmBody'),
+                  confirmLabel: t('board.implement.confirmOk'),
+                  danger: true,
+                });
+                if (!ok) { dragId = null; return; }
+                await patchCard(id, { stage });
+                startImplement(id);
               } else {
                 await patchCard(id, { stage });
               }
@@ -11297,6 +11317,17 @@
           const data = await r.json();
           if (data && data.session) connectToSession(data.session);
         } catch { showToast(t('board.brainstorm.failed'), 'error'); }
+      }
+      async function startImplement(id) {
+        try {
+          const r = await fetch(`/api/board/cards/${id}/implement`, { method: 'POST', headers: jsonH() });
+          if (!r.ok) {
+            const msg = r.status === 400 ? t('board.implement.noSpec') : t('board.implement.failed');
+            showToast(msg, 'error'); return;
+          }
+          const data = await r.json();
+          if (data && data.session) connectToSession(data.session);
+        } catch { showToast(t('board.implement.failed'), 'error'); }
       }
       async function removeCard(id) {
         try {
@@ -11329,6 +11360,9 @@
           <div class="board-detail__row board-detail__notes-row"><span class="board-detail__label">${escapeHtml(t('board.detail.notes'))}</span>
             <textarea class="form-input board-detail__notes" id="board-detail-notes" rows="3" maxlength="500" placeholder="${escapeHtml(t('board.card.notesPlaceholder'))}">${escapeHtml(c.notes || '')}</textarea></div>
           ${c.stage !== 'idea' ? `<button class="btn btn-secondary btn-sm board-detail__brainstorm" id="board-detail-brainstorm" type="button">${escapeHtml(sessionAlive ? t('board.brainstorm.attach') : t('board.brainstorm.start'))}</button>` : ''}
+          ${(c.brainstormDoc && (c.stage === 'brainstorming' || c.stage === 'implement')) ? `<button class="btn btn-secondary btn-sm board-detail__implement" id="board-detail-implement" type="button">${escapeHtml(sessionAlive ? t('board.implement.attach') : t('board.implement.start'))}</button>` : ''}
+          ${(c.stage === 'review' && c.branch) ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.implement.branch'))}</span><span class="board-detail__doc" title="${escapeHtml(c.branch)}">${escapeHtml(c.branch)}</span></div>` : ''}
+          ${(c.stage === 'review' && c.implementSummary) ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.implement.summary'))}</span><span>${escapeHtml(c.implementSummary)}</span></div>` : ''}
           ${c.brainstormDoc ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.brainstorm.doc'))}</span><span class="board-detail__doc" title="${escapeHtml(c.brainstormDoc)}">${escapeHtml(c.brainstormDoc)}</span></div>` : ''}
           <button class="btn btn-danger btn-sm board-detail__del" id="board-detail-del" type="button">${escapeHtml(t('board.detail.delete'))}</button>`;
         el('board-detail').hidden = false;
@@ -11341,6 +11375,7 @@
           removeCard(id);
         });
         el('board-detail-brainstorm')?.addEventListener('click', () => startBrainstorm(id));
+        el('board-detail-implement')?.addEventListener('click', () => startImplement(id));
         el('board-detail-notes')?.addEventListener('change', (e)=>patchCard(id,{notes:e.target.value.trim()||null}));
         render(); // re-mark active card
       }
