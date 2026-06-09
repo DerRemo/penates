@@ -11289,6 +11289,8 @@
             <select id="board-detail-stage">${stageOpts}</select></div>
           <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.origin'))}</span><span>${escapeHtml(t('board.origin.'+(c.origin||'solo')))}</span></div>
           <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.created'))}</span><span>${escapeHtml(created)}</span></div>
+          <div class="board-detail__row board-detail__notes-row"><span class="board-detail__label">${escapeHtml(t('board.detail.notes'))}</span>
+            <textarea class="form-input board-detail__notes" id="board-detail-notes" rows="3" maxlength="500" placeholder="${escapeHtml(t('board.card.notesPlaceholder'))}">${escapeHtml(c.notes || '')}</textarea></div>
           ${c.stage !== 'idea' ? `<button class="btn btn-secondary btn-sm board-detail__brainstorm" id="board-detail-brainstorm" type="button">${escapeHtml(sessionAlive ? t('board.brainstorm.attach') : t('board.brainstorm.start'))}</button>` : ''}
           ${c.brainstormDoc ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.brainstorm.doc'))}</span><span class="board-detail__doc" title="${escapeHtml(c.brainstormDoc)}">${escapeHtml(c.brainstormDoc)}</span></div>` : ''}
           <button class="btn btn-danger btn-sm board-detail__del" id="board-detail-del" type="button">${escapeHtml(t('board.detail.delete'))}</button>`;
@@ -11302,6 +11304,7 @@
           removeCard(id);
         });
         el('board-detail-brainstorm')?.addEventListener('click', () => startBrainstorm(id));
+        el('board-detail-notes')?.addEventListener('change', (e)=>patchCard(id,{notes:e.target.value.trim()||null}));
         render(); // re-mark active card
       }
       function closeDetail() { detailId=null; deleteArmed=false; const d=el('board-detail'); if (d){ d.hidden = true; d.innerHTML=''; } render(); }
