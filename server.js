@@ -1220,6 +1220,31 @@ app.post('/api/browse/mkdir', (req, res) => {
   }
 });
 
+// Gemeinsamer tmux-Spawn (geteilt von POST /api/sessions und dem Brainstorm-
+// Spawn). Erwartet den FERTIGEN (geprefixten) sessionName; Caller validieren
+// Name + 409-Existenz. Wirft bei new-session-Fehler oder Sofort-Exit.
+async function spawnTmuxSession({ sessionName, dir, cmd, auditMeta = {} }) {
+  execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...hubEnvArgs(sessionName), '-c', dir, cmd], {
+    encoding: 'utf-8', timeout: 5000,
+  });
+  for (let i = 0; i < 20; i++) {
+    await sleep(40);
+    const created = getTmuxSessions().find(s => s.name === sessionName);
+    if (created) {
+      try {
+        await knownSessions.add({ name: sessionName, directory: dir, command: cmd });
+      } catch (e) {
+        console.error('[known-sessions] add failed:', e);
+      }
+      ensureMouseMode();
+      ensureClipboardMode();
+      auditLog.record('session.create', { ...auditMeta, session: sessionName, directory: dir, command: cmd });
+      return created;
+    }
+  }
+  throw new Error(`Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`);
+}
+
 // Create new session. Session-Name muss Validator bestehen. tmux wird als
 // argv aufgerufen, kein Shell-Parsing → keine Quote-Injection möglich.
 app.post('/api/sessions', async (req, res) => {
@@ -1238,50 +1263,11 @@ app.post('/api/sessions', async (req, res) => {
   }
 
   try {
-    // tmux nimmt den Command als einzelnes letztes argv und reicht es per
-    // `/bin/sh -c` weiter — dadurch funktionieren Commands mit Spaces wie
-    // `claude --dangerously-skip-permissions` ohne dass wir selbst eine
-    // Shell anwerfen.
-    execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...hubEnvArgs(sessionName), '-c', dir, cmd], {
-      encoding: 'utf-8', timeout: 5000,
-    });
+    const created = await spawnTmuxSession({ sessionName, dir, cmd, auditMeta: auditLog.extractRequestMeta(req) });
+    return res.status(201).json(created);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
-
-  // Poll statt setTimeout(500): schnell wenn die Session sofort da ist,
-  // geduldig wenn der Kern-Boot mal länger braucht.
-  for (let i = 0; i < 20; i++) {
-    await sleep(40);
-    const created = getTmuxSessions().find(s => s.name === sessionName);
-    if (created) {
-      // Erst nach bestätigtem Session-Start persistieren — sonst stünden
-      // Einträge für tot-geborene Sessions in der JSON (Exit-127-Fälle aus
-      // der Error-Message unten). Fehler beim Write sollen den 201 nicht
-      // blockieren: der User hat eine lebende Session, Recovery-Tracking
-      // ist ein Bonus.
-      try {
-        await knownSessions.add({ name: sessionName, directory: dir, command: cmd });
-      } catch (e) {
-        console.error('[known-sessions] add failed:', e);
-      }
-      // Mouse-Mode sicherstellen: falls beim Server-Start tmux noch nicht
-      // lief, konnte ensureMouseMode() nicht greifen — jetzt läuft tmux sicher.
-      ensureMouseMode();
-      ensureClipboardMode();
-      // Lifecycle-Event fire-and-forget (Latency wichtiger als Crash-Safety)
-      auditLog.record('session.create', {
-        ...auditLog.extractRequestMeta(req),
-        session: sessionName,
-        directory: dir,
-        command: cmd,
-      });
-      return res.status(201).json(created);
-    }
-  }
-  res.status(500).json({
-    error: `Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`,
-  });
 });
 
 // Kill session
