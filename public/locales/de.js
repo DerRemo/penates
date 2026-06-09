@@ -297,6 +297,8 @@ window.__I18N_BUNDLES.de = {
   'board.brainstorm.attach': 'Brainstorming-Session öffnen',
   'board.brainstorm.failed': 'Brainstorming-Session konnte nicht gestartet werden.',
   'board.brainstorm.doc': 'Spec',
+  'board.detail.notes': 'Notizen',
+  'board.card.notesPlaceholder': 'Noch keine Notizen',
 
   // Modals — New Project
   'modal.newProject.title': 'Neues Projekt anlegen',
@@ -522,6 +524,8 @@ window.__I18N_BUNDLES.de = {
   'projects.hub.clean': 'sauber',
   'projects.hub.dirty': 'unverschriebene Änderungen',
   'projects.hub.addIdea': 'Idee hinzufügen',
+  'projects.hub.ideagen': 'Ideen brainstormen',
+  'projects.hub.ideagenFailed': 'Die Ideen-Session konnte nicht gestartet werden.',
 
   // Release modal
   'projects.release.title': 'Version abschließen',

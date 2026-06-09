@@ -19,7 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as board from './lib/board.js';
-import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn } from './lib/brainstorm-spawn.js';
+import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -932,9 +932,9 @@ app.get('/api/board/cards', (req, res) => {
 });
 
 app.post('/api/board/cards', async (req, res) => {
-  const { projectId, title, priority = null, origin = 'solo', stage = 'idea' } = req.body || {};
+  const { projectId, title, priority = null, origin = 'solo', stage = 'idea', theme = null, notes = null } = req.body || {};
   try {
-    const card = await board.addCard({ projectId, title, priority, origin, stage });
+    const card = await board.addCard({ projectId, title, priority, origin, stage, theme, notes });
     res.status(201).json(card);
   } catch (e) {
     res.status(400).json({ error: 'Bad request', detail: e.message });
@@ -1003,6 +1003,37 @@ app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
     res.status(201).json({ session: sessionName, reused: false });
   } catch (e) {
     res.status(500).json({ error: 'Failed to start brainstorm session', detail: e.message });
+  }
+});
+
+// Ideen-Generierungs-Session zu einem Projekt spawnen (Phase 3-B): claude im
+// Projekt, auf divergente Ideen-Generierung geprimt. Idempotent über einen
+// deterministischen Session-Namen (cc-ideas-<projektslug>) — keine Karte/sessionRef.
+app.post('/api/projects/:id/ideagen', async (req, res) => {
+  try {
+    const project = await getProject(req.params.id);
+    if (!project || !project.path) return res.status(404).json({ error: 'Project not found' });
+    // project.missing:true ist OK — Ideen-Gen braucht nur den Projektordner, kein Plan-Doc.
+
+    const namePart = ideaGenSessionName(project.displayName, project.id);
+    if (!validSessionName(namePart)) {
+      return res.status(400).json({ error: 'Cannot derive a valid session name for this project' });
+    }
+    const sessionName = SESSION_PREFIX + namePart;
+    // Idempotenz: lebt die deterministische Session schon → attach statt neu spawnen.
+    if (getTmuxSessions().some(s => s.name === sessionName)) {
+      return res.status(200).json({ session: sessionName, reused: true });
+    }
+    try {
+      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', auditMeta: auditLog.extractRequestMeta(req) });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+    // Prime im Hintergrund (blockiert die HTTP-Antwort nicht).
+    primeIdeaGenSession(sessionName, project.id, project.displayName);
+    res.status(201).json({ session: sessionName, reused: false });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to start idea generation session', detail: e.message });
   }
 });
 
@@ -1317,6 +1348,26 @@ function primeBrainstormSession(sessionName, title, cardId) {
     } catch (e) {
       // Session weg / send-keys-Fehler → Priming aufgeben (nicht fatal).
       console.error('[brainstorm] priming failed:', e.message);
+    }
+  })();
+}
+
+// Priming einer frisch gespawnten Ideen-Generierungs-Session (Phase 3-B). Wie
+// primeBrainstormSession, aber mit dem divergenten Ideen-Gen-Prompt; selbe
+// Hintergrund-Staggered-Enter-Mechanik (TUI-Submit braucht inkl. MCP-Init Zeit).
+function primeIdeaGenSession(sessionName, projectId, projectName) {
+  (async () => {
+    try {
+      await sleep(PRIME_DELAY_MS);
+      execFileSync(TMUX, ['send-keys', '-t', sessionName, '-l', buildIdeaGenPriming(projectId, projectName)], {
+        encoding: 'utf-8', timeout: 5000,
+      });
+      for (const wait of PRIME_SUBMIT_SCHEDULE_MS) {
+        await sleep(wait);
+        execFileSync(TMUX, ['send-keys', '-t', sessionName, 'Enter'], { encoding: 'utf-8', timeout: 5000 });
+      }
+    } catch (e) {
+      console.error('[ideagen] priming failed:', e.message);
     }
   })();
 }

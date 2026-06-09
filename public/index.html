@@ -886,6 +886,7 @@
       background: var(--bg-elevated); color: var(--text-primary);
       border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font: inherit; cursor: pointer;
     }
+    .board-detail__notes { font: inherit; font-size: var(--text-sm); resize: vertical; min-height: 3.5em; }
     .board-detail__del { margin-top: auto; }
     @media (max-width: 899px) {
       .board-detail { width: 100vw; padding-top: calc(var(--space-4) + 56px); }
@@ -4736,6 +4737,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           <span data-i18n="projects.hub.addIdea">Add idea</span>
         </button>
+        <button class="btn btn-ghost btn-sm" id="project-ideagen-btn" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>
+          <span data-i18n="projects.hub.ideagen">Brainstorm ideas</span>
+        </button>
         <button class="btn btn-ghost btn-sm" id="project-release-btn" type="button" hidden title="Move dev items to Released, bump versions, write changelog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           <span data-i18n="projects.detail.finalizeVersion">Finalize version</span>
@@ -7054,6 +7059,8 @@
       if (releaseBtnEl) releaseBtnEl.hidden = true;
       const addIdeaBtnEl = document.getElementById('project-add-idea-btn');
       if (addIdeaBtnEl) addIdeaBtnEl.hidden = true;
+      const ideagenBtnEl = document.getElementById('project-ideagen-btn');
+      if (ideagenBtnEl) ideagenBtnEl.hidden = true;
       const gitBadgeEl = document.getElementById('project-git-badge');
       if (gitBadgeEl) { gitBadgeEl.hidden = true; gitBadgeEl.innerHTML = ''; }
 
@@ -7170,6 +7177,8 @@
         }
         const addIdeaBtn = document.getElementById('project-add-idea-btn');
         if (addIdeaBtn) { addIdeaBtn.hidden = false; addIdeaBtn.dataset.projectId = p.id; }
+        const ideagenBtn = document.getElementById('project-ideagen-btn');
+        if (ideagenBtn) { ideagenBtn.hidden = false; ideagenBtn.dataset.projectId = p.id; }
         // Release-Button: nur anzeigen wenn die Roadmap mindestens ein
         // Dev-Item hat und Dev-Version + Released-Version gesetzt sind.
         // Alles andere wäre ein No-Op-Release.
@@ -10249,6 +10258,26 @@
       }
     });
 
+    document.getElementById('project-ideagen-btn').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const pid = btn.dataset.projectId;
+      if (!pid) return;
+      btn.disabled = true;
+      try {
+        const r = await fetch(`/api/projects/${encodeURIComponent(pid)}/ideagen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+        });
+        if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { status: r.status });
+        const data = await r.json();
+        if (data && data.session) connectToSession(data.session);
+      } catch (err) {
+        showProjectToast(t('projects.hub.ideagenFailed'), 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
     async function submitRelease() {
       const modal = document.getElementById('release-modal');
       const projectId = modal.dataset.projectId;
@@ -11265,6 +11294,8 @@
             <select id="board-detail-stage">${stageOpts}</select></div>
           <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.origin'))}</span><span>${escapeHtml(t('board.origin.'+(c.origin||'solo')))}</span></div>
           <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.created'))}</span><span>${escapeHtml(created)}</span></div>
+          <div class="board-detail__row board-detail__notes-row"><span class="board-detail__label">${escapeHtml(t('board.detail.notes'))}</span>
+            <textarea class="form-input board-detail__notes" id="board-detail-notes" rows="3" maxlength="500" placeholder="${escapeHtml(t('board.card.notesPlaceholder'))}">${escapeHtml(c.notes || '')}</textarea></div>
           ${c.stage !== 'idea' ? `<button class="btn btn-secondary btn-sm board-detail__brainstorm" id="board-detail-brainstorm" type="button">${escapeHtml(sessionAlive ? t('board.brainstorm.attach') : t('board.brainstorm.start'))}</button>` : ''}
           ${c.brainstormDoc ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.brainstorm.doc'))}</span><span class="board-detail__doc" title="${escapeHtml(c.brainstormDoc)}">${escapeHtml(c.brainstormDoc)}</span></div>` : ''}
           <button class="btn btn-danger btn-sm board-detail__del" id="board-detail-del" type="button">${escapeHtml(t('board.detail.delete'))}</button>`;
@@ -11278,6 +11309,7 @@
           removeCard(id);
         });
         el('board-detail-brainstorm')?.addEventListener('click', () => startBrainstorm(id));
+        el('board-detail-notes')?.addEventListener('change', (e)=>patchCard(id,{notes:e.target.value.trim()||null}));
         render(); // re-mark active card
       }
       function closeDetail() { detailId=null; deleteArmed=false; const d=el('board-detail'); if (d){ d.hidden = true; d.innerHTML=''; } render(); }
