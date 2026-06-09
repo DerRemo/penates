@@ -852,7 +852,7 @@ app.get('/api/projects/:id', async (req, res) => {
 app.get('/api/projects/:id/git', async (req, res) => {
   try {
     const project = await resolveFileSource(req.params.id);
-    if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!project) return res.status(404).json({ error: 'not-found' });
     res.json({
       status: getGitStatus(project.path),          // {branch,dirty,ahead,behind} | null
       commits: getRecentCommits(project.path, 5),  // [] bei Nicht-Repo/leerem Repo
