@@ -19,7 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as board from './lib/board.js';
-import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt } from './lib/brainstorm-spawn.js';
+import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -1008,6 +1008,45 @@ app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
     res.status(201).json({ session: sessionName, reused: false });
   } catch (e) {
     res.status(500).json({ error: 'Failed to start brainstorm session', detail: e.message });
+  }
+});
+
+// Autonome Umsetzungs-Session zu einer Karte spawnen (Phase 4): claude
+// --dangerously-skip-permissions im Projekt, auf den Spec geprimt. Der Agent
+// plant + setzt um, committet lokal auf idea/<slug> (kein Push) und advanced
+// die Karte selbst nach review. brainstormDoc ist Pflicht. Idempotent über den
+// deterministischen Namen cc-impl-<slug> (lebt sie schon → attach).
+app.post('/api/board/cards/:id/implement', async (req, res) => {
+  try {
+    const card = board.getCard(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    if (!card.brainstormDoc) {
+      return res.status(400).json({ error: 'This card has no spec yet — finish the brainstorming step first' });
+    }
+    const project = await getProject(card.projectId);
+    if (!project || !project.path) return res.status(404).json({ error: 'Project not found' });
+
+    const namePart = implementSessionName(card.title);
+    if (!validSessionName(namePart)) return res.status(400).json({ error: 'Cannot derive a valid session name from the idea title' });
+    const sessionName = SESSION_PREFIX + namePart;
+
+    // Idempotenz: lebt die deterministische Session schon → attach statt neu spawnen.
+    if (getTmuxSessions().some(s => s.name === sessionName)) {
+      return res.status(200).json({ session: sessionName, reused: true });
+    }
+    try {
+      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude --dangerously-skip-permissions', auditMeta: auditLog.extractRequestMeta(req) });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+    await board.updateCard(card.id, { sessionRef: sessionName });
+
+    // Prime im Hintergrund (blockt die HTTP-Antwort nicht).
+    primeSession(sessionName, buildImplementPriming(card));
+
+    res.status(201).json({ session: sessionName, reused: false });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to start implementation session', detail: e.message });
   }
 });
 
