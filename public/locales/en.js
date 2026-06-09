@@ -260,7 +260,7 @@ window.__I18N_BUNDLES.en = {
 
   // Modals — Idea Capture
   'modal.idea.title': 'Capture Idea',
-  'modal.idea.desc': 'Will be added as an idea card for {project}.',
+  'modal.idea.descPre': 'Will be added as an idea card for',
   'modal.idea.descLabel': 'Short Description',
   'modal.idea.descPlaceholder': 'e.g. Sidebar should remember which session was last open',
   'modal.idea.cancel': 'Close',

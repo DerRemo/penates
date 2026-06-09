@@ -260,7 +260,7 @@ window.__I18N_BUNDLES.de = {
 
   // Modals — Idea Capture
   'modal.idea.title': 'Idee notieren',
-  'modal.idea.desc': 'Wird als Ideen-Karte für {project} angelegt.',
+  'modal.idea.descPre': 'Wird als Ideen-Karte angelegt für',
   'modal.idea.descLabel': 'Kurze Beschreibung',
   'modal.idea.descPlaceholder': 'z.B. Sidebar sollte sich merken welche Session zuletzt offen war',
   'modal.idea.cancel': 'Schließen',

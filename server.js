@@ -24,7 +24,7 @@ import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
-import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject } from './lib/projects.js';
+import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync } from './lib/projects.js';
 import {
   listDir as filesListDir,
   readFile as filesReadFile,
@@ -597,6 +597,15 @@ app.get('/api/sessions', (req, res) => {
       status: 'dormant',
     }));
 
+  // Overview-Projekt-Badge: cwd → Projekt-Registry-Match (exakt oder
+  // Unterverzeichnis). Registry einmal synchron lesen (nicht pro Session).
+  const _projs = getProjectsSync();
+  const projectOf = (cwd) => {
+    if (!cwd) return null;
+    const m = _projs.find(p => cwd === p.path || cwd.startsWith(p.path + '/'));
+    return m ? { id: m.id, name: m.displayName } : null;
+  };
+
   // Enrichment: Activity kommt ausschließlich aus dem Hook-State. Limits
   // und Costs kommen aus dem StatusLine-Hook. Sessions ohne frischen Hook
   // zeigen activity:`unknown` → Label "Aktiv" im Dashboard.
@@ -644,6 +653,7 @@ app.get('/api/sessions', (req, res) => {
     base.muted = knownSessions.isMuted(s.name);
     base.pinned = knownSessions.isPinned(s.name);
     base.git = getGitStatus(s.path);
+    base.project = projectOf(s.path);
     // command für Running-Sessions aus known-sessions nachreichen (tmux
     // liefert es nicht). Dormant tragen es schon; foreign ggf. nicht → null.
     if (base.command == null) {

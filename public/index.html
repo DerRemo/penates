@@ -1886,6 +1886,22 @@
       flex-shrink: 0;
     }
 
+    /* Overview-Projekt-Badge (cwd → Registry-Match) */
+    .session-card-project {
+      font-family: var(--font-ui);
+      font-weight: 500;
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      border-radius: var(--radius-pill);
+      padding: 1px var(--space-2);
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
     /* Leise Meta-Zeile unter dem Header (Running-Cards): Projektname + Kontext-%.
        Gibt der Card Körper wie im Redesign-Mockup, ohne laut zu sein. */
     .session-meta {
@@ -5211,11 +5227,11 @@
   </div>
 
   <!-- Idea-Capture Modal — ersetzt den früheren inline prompt. Öffnet
-       aus der Terminal-Toolbar, schreibt direkt ins Projekt-Backlog. -->
+       aus der Terminal-Toolbar, legt eine Board-Karte an (stage=idea). -->
   <div class="modal-overlay" id="idea-modal" role="dialog" aria-modal="true" aria-labelledby="idea-modal-title">
     <div class="modal">
       <h2 id="idea-modal-title" data-i18n="modal.idea.title">Capture Idea</h2>
-      <p>Will be added to the backlog of <strong id="idea-modal-project">—</strong>.</p>
+      <p><span data-i18n="modal.idea.descPre">Will be added as an idea card for</span> <strong id="idea-modal-project">—</strong>.</p>
       <div class="form-group">
         <label class="form-label" for="idea-modal-input" data-i18n="modal.idea.descLabel">Short Description</label>
         <input type="text" class="form-input" id="idea-modal-input" maxlength="500" autocomplete="off" spellcheck="false" placeholder="e.g. Sidebar should remember which session was last open" data-i18n-attr="placeholder:modal.idea.descPlaceholder">
@@ -6780,7 +6796,13 @@
       if (!text || !projectId) return;
       input.disabled = true;
       try {
-        await patchItem(projectId, { action: 'add', section: 'backlog', text });
+        // Idea-Pipeline: Capture legt jetzt eine Board-Karte an (stage=idea),
+        // nicht mehr ein Backlog-Item in der ROADMAP/CHANGELOG.
+        await fetch('/api/board/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+          body: JSON.stringify({ projectId, title: text, stage: 'idea', origin: 'solo' }),
+        }).then(r => { if (!r.ok) throw Object.assign(new Error('add failed'), { status: r.status }); });
         showToast(t('toast.ideaAdded'), 'success');
         // Rapid-Fire: Input leeren und offen halten, damit mehrere Ideen
         // am Stück erfasst werden können. Schließen via Escape/Button.
@@ -7980,6 +8002,7 @@
               <div class="session-name">
                 ${cardCliLogo(s.command)}
                 <span class="session-name-text">${escapeHtml(displayName)}</span>
+                ${s.project ? `<span class="session-card-project" title="${escapeHtml(s.project.name)}">${escapeHtml(s.project.name)}</span>` : ''}
               </div>
               <div class="session-status ${act.cls}" title="${escapeHtml(act.title)}">${label}</div>
             </div>
@@ -8009,6 +8032,7 @@
               <div class="session-name">
                 ${cardCliLogo(s.command || 'claude')}
                 <span class="session-name-text">${escapeHtml(displayName)}</span>
+                ${s.project ? `<span class="session-card-project" title="${escapeHtml(s.project.name)}">${escapeHtml(s.project.name)}</span>` : ''}
               </div>
               <div class="session-status unknown" title="${t('sessionCard.dormantBadgeTitle')}">${t('sessionCard.status.dormant')} · ${escapeHtml(lastSeen)}</div>
             </div>
@@ -8042,6 +8066,7 @@
               <div class="session-name">
                 <span class="cli-logo cli-logo--fallback" aria-hidden="true">${TERMINAL_GLYPH}</span>
                 <span class="session-name-text">${escapeHtml(displayName)}</span>
+                ${s.project ? `<span class="session-card-project" title="${escapeHtml(s.project.name)}">${escapeHtml(s.project.name)}</span>` : ''}
               </div>
               <span class="foreign-badge">tmux</span>
             </div>
