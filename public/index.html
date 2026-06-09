@@ -6859,6 +6859,107 @@
     function closeMoveMenu() {
       if (openMoveMenuEl) { openMoveMenuEl.remove(); openMoveMenuEl = null; document.removeEventListener('click', closeMoveMenu); }
     }
+
+    async function loadPipelineSlice(p, reqId) {
+      const cell = document.getElementById('hub-pipeline');
+      if (!cell) return;
+      let cards = [];
+      try {
+        const r = await fetch('/api/board/cards?projectId=' + encodeURIComponent(p.id), { headers: apiHeaders() });
+        if (r.ok) cards = (await r.json()).cards || [];
+      } catch {}
+      if (reqId !== projectDetailReq) return;
+
+      const LIVE = ['idea', 'brainstorming', 'spec', 'implement', 'review'];
+      const byStage = (st) => cards.filter(c => c.stage === st).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const doneN = cards.filter(c => c.stage === 'done').length;
+
+      const stagesHtml = LIVE.map(st => {
+        const list = byStage(st);
+        if (!list.length) return '';
+        return `<div class="hub-pl-stage">
+            <div class="hub-pl-stage-head"><span>${escapeHtml(t('board.stage.' + st))}</span><span class="hub-pl-count">${list.length}</span></div>
+            ${list.map(c => `<div class="hub-pl-card" data-card-id="${escapeHtml(c.id)}" role="button" tabindex="0" title="${escapeHtml(c.title)}">
+              <span class="hub-pl-title">${escapeHtml(c.title)}</span>
+              ${c.priority ? `<span class="hub-pl-prio">${escapeHtml(c.priority.toUpperCase())}</span>` : ''}
+            </div>`).join('')}
+          </div>`;
+      }).join('');
+
+      cell.innerHTML = `
+        <div class="hub-card-head">
+          <h3>${t('projects.hub.pipeline')}</h3>
+          <button class="hub-link" type="button" data-open-board>${t('projects.hub.openInBoard')} →</button>
+        </div>
+        ${stagesHtml || `<div class="hub-empty">${t('projects.hub.pipelineEmpty')}</div>`}
+        ${doneN ? `<button class="hub-done-line" type="button" data-open-board>✓ ${t('projects.hub.doneCount', { n: doneN })} →</button>` : ''}`;
+
+      cell.querySelectorAll('[data-open-board]').forEach(b =>
+        b.addEventListener('click', () => window.BoardView?.openForProject?.(p.id)));
+      cell.querySelectorAll('.hub-pl-card').forEach(card => {
+        const go = () => window.BoardView?.openForProject?.(p.id, card.dataset.cardId);
+        card.addEventListener('click', go);
+        card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      });
+    }
+
+    async function loadRepoGlance(p, reqId) {
+      const cell = document.getElementById('hub-repo');
+      if (!cell) return;
+      let data = null;
+      try {
+        const r = await fetch('/api/projects/' + encodeURIComponent(p.id) + '/git', { headers: apiHeaders() });
+        if (r.ok) data = await r.json();
+      } catch {}
+      if (reqId !== projectDetailReq) return;
+
+      const st = data?.status || null;
+      const commits = data?.commits || [];
+
+      // Kompakter Git-Badge im Hub-Header.
+      const badge = document.getElementById('project-git-badge');
+      if (badge) {
+        if (st) {
+          badge.hidden = false;
+          badge.innerHTML = `<span class="pg-branch">${escapeHtml(st.branch || '—')}</span>`
+            + (st.dirty ? `<span class="pg-dot" title="${t('projects.hub.dirty')}"></span>` : '')
+            + (st.ahead ? `<span class="pg-ab">↑${st.ahead}</span>` : '')
+            + (st.behind ? `<span class="pg-ab">↓${st.behind}</span>` : '');
+        } else { badge.hidden = true; badge.innerHTML = ''; }
+      }
+
+      if (!st) {
+        cell.innerHTML = `<div class="hub-card-head"><h3>${t('projects.hub.repo')}</h3></div>
+          <div class="hub-empty">${t('projects.hub.notRepo')}</div>`;
+        return;
+      }
+
+      const statusPills = `<div class="hub-repo-status">
+          <span class="pg-branch">${escapeHtml(st.branch || '—')}</span>
+          <span class="pg-state ${st.dirty ? 'is-dirty' : 'is-clean'}">${st.dirty ? t('projects.hub.dirty') : t('projects.hub.clean')}</span>
+          ${st.ahead ? `<span class="pg-ab">↑${st.ahead}</span>` : ''}${st.behind ? `<span class="pg-ab">↓${st.behind}</span>` : ''}
+        </div>`;
+      const commitsHtml = commits.length
+        ? `<ul class="hub-commits">${commits.map(c => `<li>
+            <code class="hub-commit-hash">${escapeHtml(c.hash)}</code>
+            <span class="hub-commit-subj">${escapeHtml(c.subject)}</span>
+            <span class="hub-commit-date">${escapeHtml(c.relDate)}</span>
+          </li>`).join('')}</ul>`
+        : `<div class="hub-empty">${t('projects.hub.commitsEmpty')}</div>`;
+
+      cell.innerHTML = `
+        <div class="hub-card-head">
+          <h3>${t('projects.hub.repo')}</h3>
+          <button class="hub-link" type="button" data-open-files>${t('projects.hub.openFiles')} →</button>
+        </div>
+        ${statusPills}
+        ${commitsHtml}`;
+
+      cell.querySelector('[data-open-files]')?.addEventListener('click', () => {
+        try { window.FileBrowser?.open?.({ id: p.id, path: p.path, name: p.displayName }); } catch {}
+      });
+    }
+
     async function renderProjectDetail(id) {
       const body  = document.querySelector('#project-detail-view .detail-body');
       const title = document.getElementById('project-detail-title');
@@ -7029,21 +7130,37 @@
           }
         }
 
+        // Changelog-Sektion (unverändert, nur in eine Variable extrahiert).
+        const changelogHtml = p.changelog
+          ? `<section class="roadmap-section${isSectionCollapsed(p.id, 'changelog') ? ' collapsed' : ''}" data-section="changelog">
+               <button class="roadmap-section-head" type="button" data-section="changelog"
+                       aria-expanded="${isSectionCollapsed(p.id, 'changelog') ? 'false' : 'true'}">
+                 <span class="roadmap-chevron" aria-hidden="true">▾</span>
+                 <span class="roadmap-section-label">${t('projects.detail.sectionChangelog')}</span>
+               </button>
+               <pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre>
+             </section>`
+          : '';
+
         body.innerHTML = `
-          <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
-          ${sessionsPanelHtml}
-          ${section(t('projects.detail.sectionReleased'),     p.released?.version, p.released?.items || [], 'released')}
-          ${section(t('projects.detail.sectionDev'),          p.dev?.version,      p.dev?.items      || [], 'dev')}
-          ${p.changelog
-            ? `<section class="roadmap-section${isSectionCollapsed(p.id, 'changelog') ? ' collapsed' : ''}" data-section="changelog">
-                 <button class="roadmap-section-head" type="button" data-section="changelog"
-                         aria-expanded="${isSectionCollapsed(p.id, 'changelog') ? 'false' : 'true'}">
-                   <span class="roadmap-chevron" aria-hidden="true">▾</span>
-                   <span class="roadmap-section-label">${t('projects.detail.sectionChangelog')}</span>
-                 </button>
-                 <pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre>
-               </section>`
-            : ''}`;
+          <div class="project-hub-grid">
+            <section class="hub-cell hub-pipeline" data-block="pipeline" id="hub-pipeline">
+              <div class="hub-loading">${t('projects.detail.loading')}</div>
+            </section>
+            <section class="hub-cell hub-repo" data-block="repo" id="hub-repo">
+              <div class="hub-loading">${t('projects.detail.loading')}</div>
+            </section>
+            <section class="hub-cell" data-block="sessions">${sessionsPanelHtml}</section>
+            <section class="hub-cell" data-block="releases">
+              <div class="roadmap-meta-line"><span class="cmd-path">${escapeHtml(p.path)}</span></div>
+              ${section(t('projects.detail.sectionReleased'), p.released?.version, p.released?.items || [], 'released')}
+              ${section(t('projects.detail.sectionDev'),      p.dev?.version,      p.dev?.items      || [], 'dev')}
+              ${changelogHtml}
+            </section>
+          </div>`;
+
+        loadPipelineSlice(p, reqId);
+        loadRepoGlance(p, reqId);
 
         // Click-Delegation für die Session-Items
         body.querySelectorAll('.project-session-item').forEach(item => {
