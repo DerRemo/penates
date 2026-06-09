@@ -19,6 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as board from './lib/board.js';
+import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -556,6 +557,10 @@ function hubEnvArgs(sessionName) {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// Wartezeit nach Session-Start, bevor der Priming-Prompt via send-keys getippt
+// wird — gibt der claude-TUI Zeit, Eingaben anzunehmen. Real-App-getunt.
+const PRIME_DELAY_MS = Number(process.env.BRAINSTORM_PRIME_DELAY_MS) || 1200;
+
 // ── REST API ────────────────────────────────────────────────────────────────
 
 // List sessions. Preview wird intern für Activity-Detection geholt, aber
@@ -951,6 +956,53 @@ app.delete('/api/board/cards/:id', async (req, res) => {
   catch (e) {
     if (e.message === 'unknown-id') return res.status(404).json({ error: 'Card not found' });
     res.status(500).json({ error: 'Failed', detail: e.message });
+  }
+});
+
+// Brainstorming-Session zu einer Karte spawnen (Phase 3): claude im Projekt,
+// auf die Idee geprimt, sessionRef an die Karte. Idempotent (reuse lebende).
+app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
+  try {
+    const card = board.getCard(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    const project = await getProject(card.projectId);
+    if (!project || project.missing) return res.status(404).json({ error: 'Project not found' });
+
+    // Idempotenz: lebende verlinkte Session → attach statt neu spawnen.
+    const live = getTmuxSessions().map(s => s.name);
+    const resolved = resolveBrainstormSpawn(card, live);
+    if (resolved.reuse) return res.status(200).json({ session: resolved.session, reused: true });
+
+    // Eindeutiger Session-Name aus dem Titel.
+    const slug = slugifySessionName(card.title);
+    if (!validSessionName(slug)) return res.status(400).json({ error: 'Cannot derive a valid session name from the idea title' });
+    let namePart = slug, sessionName = SESSION_PREFIX + namePart, n = 2;
+    while (getTmuxSessions().some(s => s.name === sessionName)) { namePart = `${slug}-${n++}`; sessionName = SESSION_PREFIX + namePart; }
+
+    // Spawn (gemeinsamer Helper) + sofort verlinken.
+    let created;
+    try {
+      created = await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', auditMeta: auditLog.extractRequestMeta(req) });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+    await board.updateCard(card.id, { sessionRef: sessionName });
+
+    // Prime via send-keys (argv → kein Shell-Interp). Fehler ist nicht fatal.
+    let primed = true;
+    try {
+      await sleep(PRIME_DELAY_MS);
+      execFileSync(TMUX, ['send-keys', '-t', sessionName, buildBrainstormPriming(card.title, card.id), 'Enter'], {
+        encoding: 'utf-8', timeout: 5000,
+      });
+    } catch (e) {
+      primed = false;
+      console.error('[brainstorm] priming send-keys failed:', e.message);
+    }
+
+    res.status(201).json({ session: sessionName, reused: false, primed });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to start brainstorm session', detail: e.message });
   }
 });
 
