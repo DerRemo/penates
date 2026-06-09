@@ -10899,6 +10899,7 @@
       let projects = [];          // [{id, displayName}]
       let filter = '';            // projectId or '' = all
       let wired = false;
+      let pendingOpenId = null;   // card to auto-open after activate (from Projekt-Hub)
 
       const el = (id) => document.getElementById(id);
       const authH = () => (AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {});
@@ -11059,12 +11060,24 @@
         document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && detailId && currentView==='board') closeDetail(); });
       }
 
+      // Entry point aus dem Projekt-Hub: Board gefiltert auf ein Projekt
+      // öffnen, optional eine bestimmte Karte im Detail-Panel.
+      function openForProject(projectId, cardId) {
+        filter = projectId || '';
+        pendingOpenId = cardId || null;
+        setView('board');
+      }
+
       async function activate() {
         wire();
         await Promise.all([fetchProjects(), fetchCards()]);
         renderFilter(); render();
+        if (pendingOpenId) {
+          const id = pendingOpenId; pendingOpenId = null;
+          if (cards.some(c => c.id === id)) openDetail(id);
+        }
       }
-      return { activate, _addIdea: addIdea };
+      return { activate, _addIdea: addIdea, openForProject };
     })();
     window.BoardView = BoardView;
 
