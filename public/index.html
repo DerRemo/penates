@@ -1509,6 +1509,62 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
+    /* ── Projekt-Hub (Phase 2): 2-Spalten-Dashboard-Grid ───────────── */
+    .project-hub-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .hub-cell { min-width: 0; }                 /* erlaubt Text-Truncation in der Spalte */
+    .hub-pipeline, .hub-repo {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 15px 16px;
+    }
+    .hub-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .hub-card-head h3 { font-size: 12.5px; font-weight: 650; margin: 0; }
+    .hub-link { background: none; border: none; color: var(--accent); font-size: var(--text-xs); cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+    .hub-link:hover { background: var(--teal-glow); }
+    .hub-loading, .hub-empty { color: var(--text-muted); font-size: var(--text-sm); padding: 6px 0; }
+
+    /* Pipeline-Slice */
+    .hub-pl-stage { margin-bottom: 12px; }
+    .hub-pl-stage-head { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+    .hub-pl-count { color: var(--text-muted); }
+    .hub-pl-card { display: flex; align-items: center; gap: 8px; padding: 6px 9px; margin-bottom: 4px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 7px; cursor: pointer; }
+    .hub-pl-card:hover { border-color: var(--border-strong); background: var(--bg-card-hover); }
+    .hub-pl-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
+    .hub-pl-prio { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: .03em; }
+    .hub-done-line { background: none; border: none; color: var(--text-secondary); font-size: var(--text-xs); cursor: pointer; padding: 4px 0; }
+    .hub-done-line:hover { color: var(--accent); }
+
+    /* Repo-Glance */
+    .hub-repo-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--text-sm); }
+    .pg-branch { font-family: var(--font-mono, monospace); color: var(--text-primary); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 1px 7px; }
+    .pg-state.is-clean { color: var(--text-muted); }
+    .pg-state.is-dirty { color: var(--accent); }
+    .pg-ab { color: var(--text-secondary); font-size: var(--text-xs); }
+    .hub-commits { list-style: none; margin: 0; padding: 0; }
+    .hub-commits li { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; border-top: 1px solid var(--border-subtle); font-size: var(--text-sm); }
+    .hub-commits li:first-child { border-top: none; }
+    .hub-commit-hash { font-family: var(--font-mono, monospace); color: var(--text-muted); font-size: var(--text-xs); flex-shrink: 0; }
+    .hub-commit-subj { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hub-commit-date { color: var(--text-muted); font-size: var(--text-xs); flex-shrink: 0; }
+
+    /* Header-Badge */
+    .detail-git-badge { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-secondary); }
+    .detail-git-badge .pg-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+    /* Sessions-Zelle: bottom-margin der inner panel in grid-context neutralisieren */
+    .hub-cell[data-block="sessions"] .project-sessions-panel { margin: 0; }
+
+    /* Mobile: eine Spalte */
+    @media (max-width: 760px) {
+      .project-hub-grid { grid-template-columns: 1fr; }
+    }
+
     /* Delete-Button im Confirm-Pending-State: aus × wird ✓?, kräftiger
        rot, um den Zwischenschritt klar zu machen. Revert automatisch
        nach 3s falls nicht bestätigt. */
