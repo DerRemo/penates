@@ -1532,7 +1532,6 @@
     .hub-pl-card { display: flex; align-items: center; gap: 8px; padding: 6px 9px; margin-bottom: 4px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 7px; cursor: pointer; }
     .hub-pl-card:hover { border-color: var(--border-strong); background: var(--bg-card-hover); }
     .hub-pl-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
-    .hub-pl-prio { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: .03em; }
     .hub-done-line { background: none; border: none; color: var(--text-secondary); font-size: var(--text-xs); cursor: pointer; padding: 4px 0; }
     .hub-done-line:hover { color: var(--accent); }
 
@@ -5678,7 +5677,12 @@
       const prev = currentView;
       // Repo-Panel (Changes/History/Branches) ist ein rechtes Panel in der
       // Terminal-View → beim Verlassen alles abräumen (WS trennen etc.).
-      if (prev === 'terminal' && name !== 'terminal') { try { window.RepoPanel?.cleanup?.(); } catch {} }
+      // Terminal verlassen → WS/PTY zentral abräumen (deckt alle Exits ab: Sidebar,
+      // Back-Button, Keyboard, popstate, Overview). disconnectTerminal ist idempotent.
+      if (prev === 'terminal' && name !== 'terminal') {
+        try { window.RepoPanel?.cleanup?.(); } catch {}
+        try { disconnectTerminal(); } catch {}
+      }
       // Board-Detail-Panel ist position:fixed → beim Verlassen der Board-View schließen,
       // sonst schwebt es über der neuen View.
       if (prev === 'board' && name !== 'board') { try { window.BoardView?.closeDetail?.(); } catch {} }
@@ -10209,10 +10213,9 @@
     // Refresh-Button entfernt — Sessions aktualisieren sich automatisch
     // (5s-Poll + WebSocket). Der 'r'-Shortcut triggert weiterhin manuell.
     document.getElementById('new-session-btn').addEventListener('click', () => openNewSessionModal());
-    // Zurück-Button im Terminal-Toolbar → setView('dashboard') wird den
-    // History-Eintrag via history.back() räumen, popstate ruft dann das
-    // Teardown (disconnectTerminal). Kein Direkt-Aufruf von disconnectTerminal
-    // hier, damit die History-Integration konsistent bleibt.
+    // Zurück-Button im Terminal-Toolbar → setView('dashboard'). Das Terminal-
+    // Teardown (disconnectTerminal) passiert zentral in setView beim Verlassen
+    // der Terminal-View — kein Direkt-Aufruf hier nötig.
     document.getElementById('disconnect-btn').addEventListener('click', () => setView('dashboard'));
     document.getElementById('terminal-session-name').addEventListener('dblclick', startTerminalRename);
     document.getElementById('btn-toggle-search').addEventListener('click', () => window.TerminalSearch && window.TerminalSearch.toggle());
@@ -10343,8 +10346,7 @@
     // welches Teardown wir machen müssen.
     window.addEventListener('popstate', () => {
       const target = history.state?.view || 'dashboard';
-      const leavingTerminal = currentView === 'terminal';
-      if (leavingTerminal && target !== 'terminal') disconnectTerminal();
+      // Terminal-Teardown beim Verlassen passiert zentral in setView (prev==='terminal').
       setView(target, { fromPopstate: true, ...history.state });
     });
 
