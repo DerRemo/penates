@@ -18,6 +18,7 @@ import * as usageLimits from './lib/usage-limits.js';
 import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
+import * as board from './lib/board.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -885,6 +886,46 @@ app.patch('/api/projects/:id/items', async (req, res) => {
     }
     console.error('[projects] patch failed:', e);
     res.status(500).json({ error: 'Failed to patch project', detail: e.message });
+  }
+});
+
+// ── Idea Pipeline: Board cards ──────────────────────────────────────────
+// Mutationen sind durch den globalen writeLimiter (s.o.) abgedeckt.
+app.get('/api/board/cards', (req, res) => {
+  const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
+  res.json({ cards: board.listCards({ projectId }) });
+});
+
+app.post('/api/board/cards', async (req, res) => {
+  const { projectId, title, priority = null, origin = 'solo', stage = 'idea' } = req.body || {};
+  try {
+    const card = await board.addCard({ projectId, title, priority, origin, stage });
+    res.status(201).json(card);
+  } catch (e) {
+    res.status(400).json({ error: 'Bad request', detail: e.message });
+  }
+});
+
+app.patch('/api/board/cards/:id', async (req, res) => {
+  const { stage, order, ...rest } = req.body || {};
+  try {
+    let card;
+    if (typeof stage === 'string') card = await board.moveCard(req.params.id, stage, order);
+    if (Object.keys(rest).length) card = await board.updateCard(req.params.id, rest);
+    if (!card) card = board.getCard(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    res.json(card);
+  } catch (e) {
+    if (e.message === 'unknown-id') return res.status(404).json({ error: 'Card not found' });
+    res.status(400).json({ error: 'Bad request', detail: e.message });
+  }
+});
+
+app.delete('/api/board/cards/:id', async (req, res) => {
+  try { await board.deleteCard(req.params.id); res.status(204).end(); }
+  catch (e) {
+    if (e.message === 'unknown-id') return res.status(404).json({ error: 'Card not found' });
+    res.status(500).json({ error: 'Failed', detail: e.message });
   }
 });
 
@@ -2230,6 +2271,8 @@ const server = app.listen(PORT, async () => {
   try {
     await knownSessions.load();
     console.log(`  ▸ known-sessions: ${knownSessions.list().length} entries loaded`);
+    await board.load();
+    console.log(`  ▸ board: ${board.listCards().length} cards loaded`);
     await settings.load({ tmuxMouse: TMUX_MOUSE_DEFAULT, remoteApproval: REMOTE_APPROVAL_DEFAULT });
     const _s = settings.get();
     tmuxMouseMode = _s.tmuxMouse;
