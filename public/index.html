@@ -887,7 +887,12 @@
       border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font: inherit; cursor: pointer;
     }
     .board-detail__del { margin-top: auto; }
-    @media (max-width: 899px) { .board-detail { width: 100vw; } }
+    @media (max-width: 899px) {
+      .board-detail { width: 100vw; padding-top: calc(var(--space-4) + 56px); }
+      /* Topbar wraps so the filter + "Add idea" stay reachable (no clip). */
+      .board-topbar { flex-wrap: wrap; }
+      .board-filter { margin-left: 0; flex: 1 1 auto; }
+    }
     @media (min-width: 900px) { .board-detail__stage-m { display: none; } }
 
     /* ── Usage-View (redesign) ──────────────────────────────────────── */
