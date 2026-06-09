@@ -52,7 +52,7 @@ import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
-import { parseStatusV2, getDiff, gitStatusMap } from './lib/git-diff.js';
+import { parseStatusV2, getDiff, gitStatusMap, getRecentCommits } from './lib/git-diff.js';
 import { getLog, getBranches, showCommit } from './lib/git-history.js';
 import { captureScrollback } from './lib/scrollback.js';
 import { saveSessionImage } from './lib/session-images.js';
@@ -844,6 +844,21 @@ app.get('/api/projects/:id', async (req, res) => {
     res.json(project);
   } catch (e) {
     res.status(500).json({ error: 'Failed to load project', detail: e.message });
+  }
+});
+
+// Repo-Glance (Projekt-Hub): Status + letzte Commits. Beide read-only,
+// fehlertolerant (null/[] bei Nicht-Repo). status via 2s-Cache (getGitStatus).
+app.get('/api/projects/:id/git', async (req, res) => {
+  try {
+    const project = await resolveFileSource(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    res.json({
+      status: getGitStatus(project.path),          // {branch,dirty,ahead,behind} | null
+      commits: getRecentCommits(project.path, 5),  // [] bei Nicht-Repo/leerem Repo
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load git info', detail: e.message });
   }
 });
 
