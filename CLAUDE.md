@@ -33,20 +33,25 @@ claude-code-hub/
 └── CLAUDE.md
 ```
 
-Jeder Feature-Bereich hat ein `lib/`-Modul (Express-frei + unit-testbar) plus dünne Routen in `server.js` und ein Frontend-IIFE in `index.html`. Wichtige Module: `files.js`/`file-watcher.js` (Filebrowser), `attention.js`/`attach-tracker.js` (Hook-State + Notifications), `usage.js`/`usage-limits.js`/`pace.js` (Usage), `moshi-hook.js`/`antigravity-usage.js` (Interop), `git-diff.js` (Diff-Viewer), `session-images.js` (Image-Paste), `preview-proxy.js`/`port-scan.js` (Browser-Preview), `voice.js` (Voice-Input), `scrollback.js`/`backoff.js` (Connection-Robustness), `projects.js`/`roadmap.js`/`roadmap-writer.js`/`project-watcher.js` (Projekte/Roadmap), `settings.js`/`server-control.js` (Settings), `approvals.js`, `audit-log.js`, `cf-access.js`, `i18n.js`, `push-subscriptions.js`/`vapid.js`, `known-sessions.js`, `rate-limit.js`, `mutations.js`.
+Jeder Feature-Bereich hat ein `lib/`-Modul (Express-frei + unit-testbar) plus dünne Routen in `server.js` und ein Frontend-IIFE in `index.html`. Wichtige Module: `files.js`/`file-watcher.js` (Filebrowser), `attention.js`/`attach-tracker.js` (Hook-State + Notifications), `usage.js`/`usage-limits.js`/`pace.js` (Usage), `moshi-hook.js`/`antigravity-usage.js` (Interop), `git-diff.js` (Diff-Viewer), `session-images.js` (Image-Paste), `preview-proxy.js`/`port-scan.js` (Browser-Preview), `voice.js` (Voice-Input), `scrollback.js`/`backoff.js` (Connection-Robustness), `projects.js`/`roadmap.js`/`roadmap-writer.js`/`project-watcher.js` (Projekte/Roadmap/Changelog), `board.js` (Idea-Pipeline-Board → `board.json`), `settings.js`/`server-control.js` (Settings), `approvals.js`, `audit-log.js`, `cf-access.js`, `i18n.js`, `push-subscriptions.js`/`vapid.js`, `known-sessions.js`, `rate-limit.js`, `mutations.js`.
 
-## Roadmap / Planung
+## Roadmap / Planung & Board (Idea Pipeline Phase 1)
 
-`ROADMAP.md` ist das **lebende Roadmap-Dokument** und wird seit 2026-04-13 über die Projekt-Verwaltung im Hub selbst gepflegt (dogfood). Struktur folgt dem `lib/roadmap.js`-Parser:
+**Planungs-Dokument pro Projekt ist seit dem Idea-Pipeline-Cutover (2026-06-09) `CHANGELOG.md`** (vorher `ROADMAP.md`). `lib/projects.js`/`project-watcher.js` lesen über `resolveProjectDoc(path)` — **`CHANGELOG.md` bevorzugt, `ROADMAP.md` als Fallback** (un-migrierte Projekte funktionieren weiter). Für das Hub-Repo selbst ist `CHANGELOG.md` **git-getrackt** (die Migration hat die `ROADMAP.md`-Zeile aus `.gitignore` entfernt). Struktur folgt weiter dem `lib/roadmap.js`-Parser:
 
 - **`## Released: vX.Y.Z`** — was aktuell live ist.
 - **`## In Entwicklung: vA.B.C`** — woran gerade gearbeitet wird.
-- **`## Backlog / Ideen`** — P0/P1/P2-Items oder offene Entscheidungen, mit `{priority: p0|p1|p2, theme: …}` bzw. `{type: decision}` als Meta-Suffix.
 - **`## Changelog`** — Narrative pro Release, freies Markdown.
 
-Vor neuer Feature-Arbeit erst `ROADMAP.md` lesen (oder im Hub unter Projekte → claude-code-hub), prüfen ob das Feature schon spezifiziert ist, und bei Planungsänderungen die Datei mitpflegen. Items werden im Hub-Detail-View getoggelt (`PATCH /api/projects/:id/items`); nach Abschluss Checkbox abhaken + im Changelog vermerken.
+**Der Backlog wohnt jetzt auf dem globalen Board, nicht mehr im Doc.** `## Backlog / Ideen` ist aus den Plan-Dokumenten entfernt; die Detail-View rendert nur noch Released / In-Dev / Changelog. Vor neuer Feature-Arbeit das `CHANGELOG.md` + die Board-Karten des Projekts lesen.
 
-**Parser-Regeln beim manuellen Editieren:** nur Top-Level-Checkboxen (keine Indents), keine `{}` im Item-Text (kollidiert mit Meta-Suffix), keine Control-Chars. Änderungen via Hub sind parser-safe validiert.
+**Board (Kanban):** `lib/board.js` (Express-frei, atomare Persistenz nach `known-sessions.js`-Vorbild → `~/.claude-code-hub/board.json`) hält die Karten. Eine Karte = eine Idee mit `{projectId, title, priority, stage, origin, theme, order}`. **Stage-Keys (stabil/englisch):** `idea | brainstorming | spec | implement | review | done` (UI-Labels via i18n). Routen `GET/POST/PATCH/DELETE /api/board/cards` (Mutationen unter dem globalen `writeLimiter`); `board.load()` + hub-only `migrateBacklog()` (idempotent, skip bei vorhandener `CHANGELOG.md`) beim Boot. Frontend: neue Top-Level-View „Board" (`data-view="board"`, `BoardView`-IIFE) — 6 Spalten, HTML5-Drag = Stufenwechsel (`PATCH {stage}`), Projekt-Filter, `+ Idee` (POST), rechtes Detail-Panel (Titel/Prio/Stage editierbar, 2-Klick-Delete; Mobile-Stage-Dropdown als Drag-Fallback).
+
+**Capture-Idea** (Terminal-Toolbar) legt jetzt eine Board-Karte an (`POST /api/board/cards {stage:'idea', origin:'solo'}`) statt eines Backlog-Items. **Overview-Session-Cards** zeigen ein Projekt-Badge (cwd → Registry-Match via `getProjectsSync()`, `project`-Feld in `GET /api/sessions`).
+
+Items in Released/In-Dev werden im Hub-Detail-View getoggelt (`PATCH /api/projects/:id/items`); nach Abschluss Checkbox abhaken + im Changelog vermerken.
+
+**Parser-Regeln beim manuellen Editieren des `CHANGELOG.md`:** nur Top-Level-Checkboxen (keine Indents), keine `{}` im Item-Text (kollidiert mit Meta-Suffix), keine Control-Chars. Änderungen via Hub sind parser-safe validiert. **Board-Karten:** nie `board.json` von Hand editieren (atomarer Store) — über die API/UI.
 
 ## Architektur
 
@@ -81,6 +86,7 @@ Vor neuer Feature-Arbeit erst `ROADMAP.md` lesen (oder im Hub unter Projekte →
 | GET | `/api/usage/history?days=30` | Erweitertes JSONL-Aggregat (`getDailyUsageV2`) |
 | GET | `/api/recent-dirs` | Recency-rankte Arbeitsverzeichnisse (`moshi-hook cwd-list`) |
 | `*` | `/api/projects/*` | Projekt-CRUD + Roadmap-Items (`PATCH …/items`) + Filebrowser (siehe unten) |
+| `*` | `/api/board/cards` | Board-Karten (Idea Pipeline): `GET ?projectId`, `POST`, `PATCH :id` (stage/order via `moveCard`, sonst `updateCard`), `DELETE :id` |
 | `*` | `/api/preview/*`, `/api/voice/*`, `/api/settings`, `/api/server/*` | Feature-Routen (siehe jeweilige Abschnitte) |
 
 ## WebSocket-Protokoll
