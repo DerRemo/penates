@@ -4736,6 +4736,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           <span data-i18n="projects.hub.addIdea">Add idea</span>
         </button>
+        <button class="btn btn-ghost btn-sm" id="project-ideagen-btn" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>
+          <span data-i18n="projects.hub.ideagen">Brainstorm ideas</span>
+        </button>
         <button class="btn btn-ghost btn-sm" id="project-release-btn" type="button" hidden title="Move dev items to Released, bump versions, write changelog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           <span data-i18n="projects.detail.finalizeVersion">Finalize version</span>
@@ -7054,6 +7058,8 @@
       if (releaseBtnEl) releaseBtnEl.hidden = true;
       const addIdeaBtnEl = document.getElementById('project-add-idea-btn');
       if (addIdeaBtnEl) addIdeaBtnEl.hidden = true;
+      const ideagenBtnEl = document.getElementById('project-ideagen-btn');
+      if (ideagenBtnEl) ideagenBtnEl.hidden = true;
       const gitBadgeEl = document.getElementById('project-git-badge');
       if (gitBadgeEl) { gitBadgeEl.hidden = true; gitBadgeEl.innerHTML = ''; }
 
@@ -7170,6 +7176,8 @@
         }
         const addIdeaBtn = document.getElementById('project-add-idea-btn');
         if (addIdeaBtn) { addIdeaBtn.hidden = false; addIdeaBtn.dataset.projectId = p.id; }
+        const ideagenBtn = document.getElementById('project-ideagen-btn');
+        if (ideagenBtn) { ideagenBtn.hidden = false; ideagenBtn.dataset.projectId = p.id; }
         // Release-Button: nur anzeigen wenn die Roadmap mindestens ein
         // Dev-Item hat und Dev-Version + Released-Version gesetzt sind.
         // Alles andere wäre ein No-Op-Release.
@@ -10246,6 +10254,22 @@
         renderProjectDetail(pid);   // refreshes the Pipeline-Slice
       } catch (e) {
         if (e.status !== 401) showProjectToast(t('common.errorWithMessage', { message: e.message }));
+      }
+    });
+
+    document.getElementById('project-ideagen-btn').addEventListener('click', async (e) => {
+      const pid = e.currentTarget.dataset.projectId;
+      if (!pid) return;
+      try {
+        const r = await fetch(`/api/projects/${pid}/ideagen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+        });
+        if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { status: r.status });
+        const data = await r.json();
+        if (data && data.session) connectToSession(data.session);
+      } catch (err) {
+        showProjectToast(t('projects.hub.ideagenFailed'), 'error');
       }
     });
 
