@@ -847,6 +847,7 @@
       flex: 1; min-height: 48px; overflow-y: auto; padding: var(--space-2);
       display: flex; flex-direction: column; gap: var(--space-2);
     }
+    .board-col__empty { min-height: 32px; border: 1px dashed var(--border); border-radius: var(--radius-md); opacity: .35; }
     .board-col.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
     .board-col.drop-target .board-col__list { background: color-mix(in srgb, var(--accent) 6%, transparent); }
     .board-card {
@@ -10864,6 +10865,185 @@
     initBehaviorPrefs();
     initAccountData();
     initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
+
+    // ── Idea Pipeline: BoardView ─────────────────────────────────
+    // 6-Spalten-Kanban (idea→done). Drag = Stufenwechsel (PATCH stage),
+    // Projekt-Filter, +Idee (POST), rechtes Detail-Panel (Titel/Prio/Stage,
+    // 2-Klick-Delete). Quelle: /api/board/cards + /api/projects.
+    const BoardView = (() => {
+      const STAGES = ['idea','brainstorming','spec','implement','review','done'];
+      let cards = [];
+      let projects = [];          // [{id, displayName}]
+      let filter = '';            // projectId or '' = all
+      let wired = false;
+
+      const el = (id) => document.getElementById(id);
+      const authH = () => (AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {});
+      const jsonH = () => ({ 'Content-Type': 'application/json', ...authH() });
+      const projName = (id) => (projects.find(p => p.id === id)?.displayName) || id;
+
+      async function fetchCards() {
+        try {
+          const r = await fetch('/api/board/cards', { headers: authH() });
+          cards = (await r.json()).cards || [];
+        } catch { cards = []; }
+      }
+      async function fetchProjects() {
+        try {
+          const r = await fetch('/api/projects', { headers: authH() });
+          const b = await r.json();
+          projects = (b.projects || b || []).map(p => ({ id: p.id, displayName: p.displayName || p.name || p.id }));
+        } catch { projects = []; }
+      }
+
+      function renderFilter() {
+        const sel = el('board-filter');
+        if (!sel) return;
+        sel.innerHTML = `<option value="">${escapeHtml(t('board.filter.all'))}</option>` +
+          projects.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.displayName)}</option>`).join('');
+        sel.value = filter;
+      }
+
+      function cardHtml(c) {
+        const prio = c.priority ? c.priority.toUpperCase() : '';
+        const active = (detailId === c.id) ? ' is-active' : '';
+        return `<div class="board-card${active}" draggable="true" data-id="${c.id}">
+          <div class="board-card__title">${escapeHtml(c.title)}</div>
+          <div class="board-card__meta">
+            <span class="board-card__project">${escapeHtml(projName(c.projectId))}</span>
+            ${prio ? `<span class="board-card__prio">${escapeHtml(prio)}</span>` : ''}
+          </div></div>`;
+      }
+
+      function render() {
+        const cols = el('board-columns');
+        if (!cols) return;
+        const visible = cards.filter(c => !filter || c.projectId === filter);
+        cols.innerHTML = STAGES.map(stage => {
+          const list = visible.filter(c => c.stage === stage).sort((a,b) => (a.order??0)-(b.order??0));
+          const inner = list.length
+            ? list.map(cardHtml).join('')
+            : `<div class="board-col__empty"></div>`;
+          return `<div class="board-col" data-stage="${stage}">
+            <div class="board-col__head"><span>${escapeHtml(t('board.stage.'+stage))}</span>
+              <span class="board-col__count">${list.length}</span></div>
+            <div class="board-col__list" data-stage="${stage}">${inner}</div>
+          </div>`;
+        }).join('');
+        wireDnd();
+      }
+
+      // ── Drag & Drop (Desktop) ──
+      let dragId = null;
+      function wireDnd() {
+        const cols = el('board-columns');
+        cols.querySelectorAll('.board-card').forEach(card => {
+          card.addEventListener('dragstart', (e) => {
+            dragId = card.dataset.id; e.dataTransfer.effectAllowed = 'move';
+            try { e.dataTransfer.setData('text/plain', dragId); } catch {}
+            card.classList.add('is-dragging');
+          });
+          card.addEventListener('dragend', () => { card.classList.remove('is-dragging'); dragId = null; });
+        });
+        cols.querySelectorAll('.board-col__list').forEach(list => {
+          const col = list.closest('.board-col');
+          list.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('drop-target'); });
+          list.addEventListener('dragleave', (e) => { if (!col.contains(e.relatedTarget)) col.classList.remove('drop-target'); });
+          list.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            col.classList.remove('drop-target');
+            const id = dragId || (() => { try { return e.dataTransfer.getData('text/plain'); } catch { return null; } })();
+            if (!id) return;
+            const card = cards.find(x => x.id === id);
+            const stage = list.dataset.stage;
+            if (card && card.stage !== stage) await patchCard(id, { stage });
+            dragId = null;
+          });
+        });
+      }
+
+      // ── API mutations ──
+      async function patchCard(id, body) {
+        try {
+          const r = await fetch(`/api/board/cards/${id}`, { method:'PATCH', headers: jsonH(), body: JSON.stringify(body) });
+          if (r.ok) { const c = await r.json(); const i = cards.findIndex(x=>x.id===id); if (i>=0) cards[i]=c; render(); if (detailId===id) openDetail(id); }
+        } catch {}
+      }
+      async function addIdea(projectId, title) {
+        try {
+          const r = await fetch('/api/board/cards', { method:'POST', headers: jsonH(),
+            body: JSON.stringify({ projectId, title, stage:'idea', origin:'solo' }) });
+          if (r.ok) { cards.push(await r.json()); render(); }
+        } catch {}
+      }
+      async function removeCard(id) {
+        try {
+          const r = await fetch(`/api/board/cards/${id}`, { method:'DELETE', headers: authH() });
+          if (r.ok || r.status===204) { cards = cards.filter(x=>x.id!==id); closeDetail(); render(); }
+        } catch {}
+      }
+
+      // ── Detail panel ──
+      let detailId = null, deleteArmed = false;
+      function openDetail(id) {
+        const c = cards.find(x=>x.id===id); if (!c) return;
+        detailId = id; deleteArmed = false;
+        const created = (() => { try { return new Date(c.createdAt).toLocaleString(); } catch { return c.createdAt || '—'; } })();
+        const stageOpts = STAGES.map(s => `<option value="${s}"${s===c.stage?' selected':''}>${escapeHtml(t('board.stage.'+s))}</option>`).join('');
+        el('board-detail').innerHTML = `
+          <div class="board-detail__head">
+            <h2 class="board-detail__heading">${escapeHtml(t('board.title'))}</h2>
+            <button class="btn btn-ghost btn-sm" id="board-detail-close" type="button" aria-label="${escapeHtml(t('board.detail.close'))}" title="${escapeHtml(t('board.detail.close'))}">✕</button>
+          </div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.title'))}</span>
+            <input class="form-input board-detail__title" id="board-detail-title" value="${escapeHtml(c.title)}" maxlength="500"></div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.project'))}</span><span>${escapeHtml(projName(c.projectId))}</span></div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.priority'))}</span>
+            <select id="board-detail-prio">
+              <option value=""${!c.priority?' selected':''}>${escapeHtml(t('board.card.noPriority'))}</option>
+              ${['p0','p1','p2'].map(p=>`<option value="${p}"${c.priority===p?' selected':''}>${p.toUpperCase()}</option>`).join('')}
+            </select></div>
+          <div class="board-detail__row board-detail__stage-m"><span class="board-detail__label">${escapeHtml(t('board.detail.stage'))}</span>
+            <select id="board-detail-stage">${stageOpts}</select></div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.origin'))}</span><span>${escapeHtml(t('board.origin.'+(c.origin||'solo')))}</span></div>
+          <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.created'))}</span><span>${escapeHtml(created)}</span></div>
+          <button class="btn btn-danger btn-sm board-detail__del" id="board-detail-del" type="button">${escapeHtml(t('board.detail.delete'))}</button>`;
+        el('board-detail').hidden = false;
+        el('board-detail-close').addEventListener('click', closeDetail);
+        el('board-detail-title').addEventListener('change', (e)=>{ const v=e.target.value.trim(); if (v) patchCard(id,{title:v}); });
+        el('board-detail-prio').addEventListener('change', (e)=>patchCard(id,{priority:e.target.value||null}));
+        el('board-detail-stage').addEventListener('change', (e)=>patchCard(id,{stage:e.target.value}));
+        el('board-detail-del').addEventListener('click', (e)=>{
+          if (!deleteArmed) { deleteArmed=true; e.target.textContent=t('board.detail.deleteConfirm'); return; }
+          removeCard(id);
+        });
+        render(); // re-mark active card
+      }
+      function closeDetail() { detailId=null; deleteArmed=false; const d=el('board-detail'); if (d){ d.hidden = true; d.innerHTML=''; } render(); }
+
+      function wire() {
+        if (wired) return; wired = true;
+        el('board-filter').addEventListener('change', (e)=>{ filter=e.target.value; render(); });
+        el('board-add-idea').addEventListener('click', async ()=>{
+          const pid = filter || projects[0]?.id;
+          if (!pid) { showToast(t('board.empty'),'info'); return; }
+          const title = await showInputDialog({ title: t('board.addIdea'), label: t('modal.idea.descLabel'), placeholder: t('modal.idea.descPlaceholder') });
+          if (title && title.trim()) addIdea(pid, title.trim());
+        });
+        el('board-columns').addEventListener('click', (e)=>{
+          const card = e.target.closest('.board-card'); if (card) openDetail(card.dataset.id);
+        });
+        document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && detailId && currentView==='board') closeDetail(); });
+      }
+
+      async function activate() {
+        wire();
+        await Promise.all([fetchProjects(), fetchCards()]);
+        renderFilter(); render();
+      }
+      return { activate, _addIdea: addIdea };
+    })();
+    window.BoardView = BoardView;
 
     // ── v0.6.0 FileBrowser ───────────────────────────────────────
     window.FileBrowser = (() => {
