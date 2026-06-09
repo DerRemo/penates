@@ -15,6 +15,7 @@ window.__I18N_BUNDLES.en = {
   'sidebar.nav.overview': 'Overview',
   'sidebar.nav.projects': 'Projects',
   'sidebar.nav.usage': 'Usage',
+  'sidebar.nav.board': 'Board',
   'sidebar.brand.subtitle': '{active} active · {dormant} dormant',
   'sidebar.limit.label': '5h limit',
   'sidebar.limit.reset': 'resets in {time}',
@@ -103,7 +104,7 @@ window.__I18N_BUNDLES.en = {
   'terminal.toolbar.filesTitle': 'Show files',
   'terminal.toolbar.files': 'Files',
   'terminal.toolbar.captureIdeaAria': 'Capture idea',
-  'terminal.toolbar.captureIdeaTitle': 'Capture idea to project backlog',
+  'terminal.toolbar.captureIdeaTitle': 'Capture idea as a board card',
   'terminal.toolbar.captureIdea': 'Capture idea',
   'terminal.toolbar.killAria': 'Kill session',
   'terminal.toolbar.killTitle': 'Kill session',
@@ -259,10 +260,36 @@ window.__I18N_BUNDLES.en = {
 
   // Modals — Idea Capture
   'modal.idea.title': 'Capture Idea',
+  'modal.idea.desc': 'Will be added as an idea card for {project}.',
   'modal.idea.descLabel': 'Short Description',
   'modal.idea.descPlaceholder': 'e.g. Sidebar should remember which session was last open',
   'modal.idea.cancel': 'Close',
   'modal.idea.save': 'Save',
+
+  // Board (Idea Pipeline)
+  'board.title': 'Board',
+  'board.filter.all': 'All projects',
+  'board.addIdea': 'Add idea',
+  'board.addIdeaPrompt': 'Idea title',
+  'board.empty': 'No cards yet — capture an idea.',
+  'board.card.noPriority': '—',
+  'board.stage.idea': 'Ideas',
+  'board.stage.brainstorming': 'Brainstorming',
+  'board.stage.spec': 'Spec',
+  'board.stage.implement': 'Build',
+  'board.stage.review': 'Review',
+  'board.stage.done': 'Done',
+  'board.origin.solo': 'Captured',
+  'board.origin.collab': 'Brainstormed',
+  'board.detail.title': 'Title',
+  'board.detail.project': 'Project',
+  'board.detail.priority': 'Priority',
+  'board.detail.origin': 'Origin',
+  'board.detail.created': 'Created',
+  'board.detail.stage': 'Stage',
+  'board.detail.close': 'Close',
+  'board.detail.delete': 'Delete card',
+  'board.detail.deleteConfirm': 'Click again to delete',
 
   // Modals — New Project
   'modal.newProject.title': 'Create New Project',
@@ -326,7 +353,7 @@ window.__I18N_BUNDLES.en = {
   'toast.pushDisabled': 'Push notifications disabled',
   'toast.pushToggleFailed': 'Failed to toggle push notifications',
   'toast.vapidNotLoaded': 'VAPID key not loaded',
-  'toast.ideaAdded': 'Idea added to backlog',
+  'toast.ideaAdded': 'Idea added as a card',
   'toast.genericError': 'Something went wrong.',
 
   // Confirm dialogs

@@ -15,6 +15,7 @@ window.__I18N_BUNDLES.de = {
   'sidebar.nav.overview': 'Übersicht',
   'sidebar.nav.projects': 'Projekte',
   'sidebar.nav.usage': 'Usage',
+  'sidebar.nav.board': 'Board',
   'sidebar.brand.subtitle': '{active} aktiv · {dormant} ruhend',
   'sidebar.limit.label': '5h-Limit',
   'sidebar.limit.reset': 'Reset in {time}',
@@ -103,7 +104,7 @@ window.__I18N_BUNDLES.de = {
   'terminal.toolbar.filesTitle': 'Dateien anzeigen',
   'terminal.toolbar.files': 'Dateien',
   'terminal.toolbar.captureIdeaAria': 'Idee notieren',
-  'terminal.toolbar.captureIdeaTitle': 'Idee ins Projekt-Backlog notieren',
+  'terminal.toolbar.captureIdeaTitle': 'Idee als Board-Karte notieren',
   'terminal.toolbar.captureIdea': 'Idee notieren',
   'terminal.toolbar.killAria': 'Session beenden',
   'terminal.toolbar.killTitle': 'Session beenden',
@@ -259,10 +260,36 @@ window.__I18N_BUNDLES.de = {
 
   // Modals — Idea Capture
   'modal.idea.title': 'Idee notieren',
+  'modal.idea.desc': 'Wird als Ideen-Karte für {project} angelegt.',
   'modal.idea.descLabel': 'Kurze Beschreibung',
   'modal.idea.descPlaceholder': 'z.B. Sidebar sollte sich merken welche Session zuletzt offen war',
   'modal.idea.cancel': 'Schließen',
   'modal.idea.save': 'Speichern',
+
+  // Board (Idea Pipeline)
+  'board.title': 'Board',
+  'board.filter.all': 'Alle Projekte',
+  'board.addIdea': 'Idee hinzufügen',
+  'board.addIdeaPrompt': 'Titel der Idee',
+  'board.empty': 'Noch keine Karten — erfasse eine Idee.',
+  'board.card.noPriority': '—',
+  'board.stage.idea': 'Ideen',
+  'board.stage.brainstorming': 'Brainstorming',
+  'board.stage.spec': 'Spec',
+  'board.stage.implement': 'Umsetzen',
+  'board.stage.review': 'Review',
+  'board.stage.done': 'Fertig',
+  'board.origin.solo': 'Erfasst',
+  'board.origin.collab': 'Gebrainstormt',
+  'board.detail.title': 'Titel',
+  'board.detail.project': 'Projekt',
+  'board.detail.priority': 'Priorität',
+  'board.detail.origin': 'Herkunft',
+  'board.detail.created': 'Erstellt',
+  'board.detail.stage': 'Stufe',
+  'board.detail.close': 'Schließen',
+  'board.detail.delete': 'Karte löschen',
+  'board.detail.deleteConfirm': 'Nochmal klicken zum Löschen',
 
   // Modals — New Project
   'modal.newProject.title': 'Neues Projekt anlegen',
@@ -326,7 +353,7 @@ window.__I18N_BUNDLES.de = {
   'toast.pushDisabled': 'Push-Benachrichtigungen deaktiviert',
   'toast.pushToggleFailed': 'Push-Benachrichtigungen umschalten fehlgeschlagen',
   'toast.vapidNotLoaded': 'VAPID-Key nicht geladen',
-  'toast.ideaAdded': 'Idee ins Backlog geschrieben',
+  'toast.ideaAdded': 'Idee als Karte angelegt',
   'toast.genericError': 'Etwas ist schiefgelaufen.',
 
   // Confirm dialogs
