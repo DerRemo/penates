@@ -979,10 +979,10 @@ app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
     let namePart = slug, sessionName = SESSION_PREFIX + namePart, n = 2;
     while (getTmuxSessions().some(s => s.name === sessionName)) { namePart = `${slug}-${n++}`; sessionName = SESSION_PREFIX + namePart; }
 
-    // Spawn (gemeinsamer Helper) + sofort verlinken.
-    let created;
+    // Spawn (gemeinsamer Helper) + sofort verlinken. spawnTmuxSession wirft bei
+    // Fehler; den Rückgabewert (Session-Objekt) braucht diese Route nicht.
     try {
-      created = await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', auditMeta: auditLog.extractRequestMeta(req) });
+      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', auditMeta: auditLog.extractRequestMeta(req) });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
