@@ -10261,7 +10261,7 @@
       const pid = e.currentTarget.dataset.projectId;
       if (!pid) return;
       try {
-        const r = await fetch(`/api/projects/${pid}/ideagen`, {
+        const r = await fetch(`/api/projects/${encodeURIComponent(pid)}/ideagen`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
         });
