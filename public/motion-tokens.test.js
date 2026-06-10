@@ -24,9 +24,11 @@ test('dead --ease-in token is gone (definition + usage)', () => {
   assert.match(html, /--ease-in-out:/, '--ease-in-out must remain');
 });
 
-test('--ease-drawer token exists and is used', () => {
+test('--ease-drawer token exists and is used in a real transition', () => {
   assert.match(html, /--ease-drawer:\s*cubic-bezier/, 'token definition missing');
-  assert.match(html, /var\(--ease-drawer\)/, 'token never used');
+  // Require usage in an actual `transition:` declaration, not just a doc-comment
+  // mention — otherwise removing the real drawer curve would slip past the guard.
+  assert.match(html, /transition:[^;]*var\(--ease-drawer\)/, 'token never used in a transition');
 });
 
 test('view-enter keyframes exist', () => {
