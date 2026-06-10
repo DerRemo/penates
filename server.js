@@ -53,7 +53,7 @@ import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
-import { parseStatusV2, getDiff, gitStatusMap, getRecentCommits } from './lib/git-diff.js';
+import { parseStatusV2, getDiff, gitStatusMap, getRecentCommits, detectBaseBranch, getBranchDiff } from './lib/git-diff.js';
 import { getLog, getBranches, showCommit } from './lib/git-history.js';
 import { captureScrollback } from './lib/scrollback.js';
 import { saveSessionImage } from './lib/session-images.js';
@@ -1048,6 +1048,22 @@ app.post('/api/board/cards/:id/implement', async (req, res) => {
     res.status(201).json({ session: sessionName, reused: false });
   } catch (e) {
     res.status(500).json({ error: 'Failed to start implementation session', detail: e.message });
+  }
+});
+
+// Branch-Diff einer review-Karte (Phase 5): git diff <base>...idea/<slug>.
+// Read-only. card.branch fehlt → 400; kein Repo → 200 {isRepo:false}.
+app.get('/api/board/cards/:id/branch-diff', async (req, res) => {
+  try {
+    const card = board.getCard(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    if (!card.branch) return res.status(400).json({ error: 'Card has no branch yet' });
+    const project = await getProject(card.projectId);
+    if (!project || !project.path) return res.status(404).json({ error: 'Project not found' });
+    const base = detectBaseBranch(project.path);
+    res.json(getBranchDiff(project.path, base, card.branch));
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to compute branch diff', detail: e.message });
   }
 });
 
