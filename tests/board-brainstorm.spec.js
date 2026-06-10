@@ -6,11 +6,11 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 // endpoint with page.route() and assert the UI contract only. The E2E server
 // runs with BOARD_PATH=/tmp/cchub-e2e-board.json (isolated board).
 //
-// NOTE: Drag→spawn (idea col drag to brainstorming col) is intentionally
-// SKIPPED. board.spec.js has no reliable drag helper; its desktop DnD path
-// requires a two-phase mouse+dispatchEvent fallback and is inherently flaky in
-// headless Chromium. The drag→confirm→spawn path is covered by manual real-app
-// verification. Only the detail-panel button path is tested here.
+// Moving a card INTO a stage is what spawns the session — via drag (desktop) OR
+// the stage dropdown (mobile/detail). Drag in headless Chromium is flaky, so we
+// drive the transition through the stage dropdown (same applyTransition path as
+// drag) and confirm the dialog. The detail panel no longer has a start button —
+// only an attach button when a session is alive.
 
 const NAV_BOARD = '[data-sidebar-nav="board"]';
 
@@ -64,7 +64,8 @@ test.describe('Board brainstorm spawn (Phase 3)', () => {
     }
   });
 
-  test('detail-panel button triggers the brainstorm endpoint', async ({ authedPage: page }) => {
+  test('moving idea→brainstorming via stage dropdown triggers the brainstorm endpoint (after confirm)', async ({ authedPage: page, isMobile }) => {
+    test.skip(!isMobile, 'stage dropdown is mobile-only (≤899px); desktop uses drag → real-app verify');
     let calledUrl = '';
     await page.route('**/api/board/cards/*/brainstorm', async (route) => {
       calledUrl = route.request().url();
@@ -75,33 +76,55 @@ test.describe('Board brainstorm spawn (Phase 3)', () => {
       });
     });
 
-    const card = await seedCard(page, { title: 'BS detail ' + Date.now(), stage: 'brainstorming' });
+    const card = await seedCard(page, { title: 'BS detail ' + Date.now(), stage: 'idea' });
     await goToBoard(page);
 
-    // Click card to open detail panel
     await page.locator(`.board-card[data-id="${card.id}"]`).click();
     await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
 
-    // Brainstorm button must be visible for non-idea stage
-    await expect(page.locator('#board-detail-brainstorm')).toBeVisible({ timeout: 2_000 });
+    // Move into brainstorming via the stage dropdown → confirm dialog → spawn.
+    await page.selectOption('#board-detail-stage', 'brainstorming');
+    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
+    await page.locator('#cchub-confirm-ok').click();
 
-    // Click triggers the stubbed endpoint
-    await page.locator('#board-detail-brainstorm').click();
     await expect.poll(() => calledUrl, { timeout: 4_000 }).toContain(`/api/board/cards/${card.id}/brainstorm`);
   });
 
-  test('idea card detail does NOT show the brainstorm button', async ({ authedPage: page }) => {
-    const card = await seedCard(page, { title: 'BS idea ' + Date.now(), stage: 'idea' });
+  test('cancelling the confirm leaves the card in idea and calls nothing', async ({ authedPage: page, isMobile }) => {
+    test.skip(!isMobile, 'stage dropdown is mobile-only (≤899px); desktop uses drag → real-app verify');
+    let called = false;
+    await page.route('**/api/board/cards/*/brainstorm', async (route) => {
+      called = true;
+      await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ session: 'cc-stub' }) });
+    });
+
+    const card = await seedCard(page, { title: 'BS cancel ' + Date.now(), stage: 'idea' });
     await goToBoard(page);
 
-    // Click card to open detail panel
     await page.locator(`.board-card[data-id="${card.id}"]`).click();
     await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
 
-    // Detail is open (close button is present)
+    await page.selectOption('#board-detail-stage', 'brainstorming');
+    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
+    await page.locator('#cchub-confirm-cancel').click();
+
+    // No spawn, and the card is still in idea (server-side).
+    await page.waitForTimeout(300);
+    expect(called).toBeFalsy();
+    const cards = await listCards(page);
+    expect(cards.find(c => c.id === card.id)?.stage).toBe('idea');
+  });
+
+  test('detail panel shows no start button, and no attach button without a live session', async ({ authedPage: page }) => {
+    const card = await seedCard(page, { title: 'BS nobtn ' + Date.now(), stage: 'brainstorming' });
+    await goToBoard(page);
+
+    await page.locator(`.board-card[data-id="${card.id}"]`).click();
+    await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
     await expect(page.locator('#board-detail-close')).toBeVisible();
 
-    // No brainstorm button for idea stage
+    // Legacy start buttons are gone; attach button absent without a live session.
     await expect(page.locator('#board-detail-brainstorm')).toHaveCount(0);
+    await expect(page.locator('#board-detail-open')).toHaveCount(0);
   });
 });

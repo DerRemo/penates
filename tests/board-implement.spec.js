@@ -6,9 +6,11 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 // endpoint with page.route() and assert the UI contract only. The E2E server
 // runs with BOARD_PATH=/tmp/cchub-e2e-board.json (isolated board).
 //
-// NOTE: drag→spawn is intentionally NOT tested here (same flaky headless-DnD
-// reason as board-brainstorm.spec.js). Only the detail-panel button path +
-// the brainstormDoc gate are covered. Full agent run = manual real-app verify.
+// Moving a card INTO implement is what spawns the agent — via drag (desktop) OR
+// the stage dropdown (mobile/detail). Drag in headless Chromium is flaky, so we
+// drive the transition through the stage dropdown (same applyTransition path)
+// and confirm the dialog. The spec gate (no brainstormDoc → noSpec, no spawn)
+// and the absence of a start button are covered here.
 
 const NAV_BOARD = '[data-sidebar-nav="board"]';
 
@@ -64,7 +66,8 @@ test.describe('Board implement spawn (Phase 4)', () => {
     }
   });
 
-  test('detail button triggers the implement endpoint when a spec is linked', async ({ authedPage: page }) => {
+  test('moving brainstorming→implement via stage dropdown triggers the implement endpoint (after confirm)', async ({ authedPage: page, isMobile }) => {
+    test.skip(!isMobile, 'stage dropdown is mobile-only (≤899px); desktop uses drag → real-app verify');
     let calledUrl = '';
     await page.route('**/api/board/cards/*/implement', async (route) => {
       calledUrl = route.request().url();
@@ -77,18 +80,44 @@ test.describe('Board implement spawn (Phase 4)', () => {
     await page.locator(`.board-card[data-id="${card.id}"]`).click();
     await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
 
-    await expect(page.locator('#board-detail-implement')).toBeVisible({ timeout: 2_000 });
-    await page.locator('#board-detail-implement').click();
+    await page.selectOption('#board-detail-stage', 'implement');
+    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
+    await page.locator('#cchub-confirm-ok').click();
+
     await expect.poll(() => calledUrl, { timeout: 4_000 }).toContain(`/api/board/cards/${card.id}/implement`);
   });
 
-  test('a card without a spec shows no implement button', async ({ authedPage: page }) => {
+  test('moving to implement without a spec is blocked (noSpec, no spawn, stays put)', async ({ authedPage: page, isMobile }) => {
+    test.skip(!isMobile, 'stage dropdown is mobile-only (≤899px); desktop uses drag → real-app verify');
+    let called = false;
+    await page.route('**/api/board/cards/*/implement', async (route) => {
+      called = true;
+      await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ session: 'cc-impl-stub' }) });
+    });
+
     const card = await seedCard(page, { title: 'IMPL nospec ' + Date.now(), withSpec: false });
+    await goToBoard(page);
+
+    await page.locator(`.board-card[data-id="${card.id}"]`).click();
+    await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
+
+    await page.selectOption('#board-detail-stage', 'implement');
+    // No confirm dialog (guard fires first), no endpoint call, card stays in brainstorming.
+    await page.waitForTimeout(400);
+    await expect(page.locator('#cchub-confirm-modal.open')).toHaveCount(0);
+    expect(called).toBeFalsy();
+    const cards = await listCards(page);
+    expect(cards.find(c => c.id === card.id)?.stage).toBe('brainstorming');
+  });
+
+  test('detail panel has no start button (attach only when a session is alive)', async ({ authedPage: page }) => {
+    const card = await seedCard(page, { title: 'IMPL nobtn ' + Date.now(), withSpec: true });
     await goToBoard(page);
 
     await page.locator(`.board-card[data-id="${card.id}"]`).click();
     await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
     await expect(page.locator('#board-detail-close')).toBeVisible();
     await expect(page.locator('#board-detail-implement')).toHaveCount(0);
+    await expect(page.locator('#board-detail-open')).toHaveCount(0);
   });
 });

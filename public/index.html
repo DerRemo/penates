@@ -11262,38 +11262,48 @@
             if (!id) return;
             const card = cards.find(x => x.id === id);
             const stage = list.dataset.stage;
-            if (card && card.stage !== stage) {
-              if (card.stage === 'idea' && stage === 'brainstorming') {
-                // Confirm VOR dem Commit — Cancel lässt die Karte in Ideen.
-                const ok = await showConfirmDialog({
-                  title: t('board.brainstorm.confirmTitle'),
-                  body: t('board.brainstorm.confirmBody'),
-                  confirmLabel: t('board.brainstorm.confirmOk'),
-                  danger: false,
-                });
-                if (!ok) { dragId = null; return; }
-                await patchCard(id, { stage });
-                startBrainstorm(id);
-              } else if (stage === 'implement') {
-                // Drop-Guard: ohne Spec kein Implement (verhindert kaputten
-                // Zwischenzustand "implement ohne Agent"). KEIN Move bei Abbruch.
-                if (!card.brainstormDoc) { showToast(t('board.implement.noSpec'), 'info'); dragId = null; return; }
-                const ok = await showConfirmDialog({
-                  title: t('board.implement.confirmTitle'),
-                  body: t('board.implement.confirmBody'),
-                  confirmLabel: t('board.implement.confirmOk'),
-                  danger: true,
-                });
-                if (!ok) { dragId = null; return; }
-                await patchCard(id, { stage });
-                startImplement(id);
-              } else {
-                await patchCard(id, { stage });
-              }
-            }
+            await applyTransition(card, stage);
             dragId = null;
           });
         });
+      }
+
+      // Geteilte Stufen-Transition: EIN Ort für „Karte in Spalte bewegen + ggf.
+      // Session spawnen". Genutzt von Drag (Desktop) UND Stage-Dropdown (Mobile)
+      // — beide Gesten bedeuten dasselbe: Bewegen in brainstorming/implement
+      // startet die Session (mit Confirm + Spec-Guard). Der Detail-Button startet
+      // NICHTS mehr (nur noch Attach einer laufenden Session). Cancel/Guard-Fail
+      // → kein Move (Aufrufer resynct die UI). Gibt true zurück, wenn bewegt.
+      async function applyTransition(card, stage) {
+        if (!card || card.stage === stage) return false;
+        if (card.stage === 'idea' && stage === 'brainstorming') {
+          const ok = await showConfirmDialog({
+            title: t('board.brainstorm.confirmTitle'),
+            body: t('board.brainstorm.confirmBody'),
+            confirmLabel: t('board.brainstorm.confirmOk'),
+            danger: false,
+          });
+          if (!ok) return false;
+          await patchCard(card.id, { stage });
+          startBrainstorm(card.id);
+          return true;
+        }
+        if (stage === 'implement') {
+          // Guard: ohne Spec kein Implement (verhindert „implement ohne Agent").
+          if (!card.brainstormDoc) { showToast(t('board.implement.noSpec'), 'info'); return false; }
+          const ok = await showConfirmDialog({
+            title: t('board.implement.confirmTitle'),
+            body: t('board.implement.confirmBody'),
+            confirmLabel: t('board.implement.confirmOk'),
+            danger: true,
+          });
+          if (!ok) return false;
+          await patchCard(card.id, { stage });
+          startImplement(card.id);
+          return true;
+        }
+        await patchCard(card.id, { stage });
+        return true;
       }
 
       // ── API mutations ──
@@ -11359,8 +11369,7 @@
           <div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.detail.created'))}</span><span>${escapeHtml(created)}</span></div>
           <div class="board-detail__row board-detail__notes-row"><span class="board-detail__label">${escapeHtml(t('board.detail.notes'))}</span>
             <textarea class="form-input board-detail__notes" id="board-detail-notes" rows="3" maxlength="500" placeholder="${escapeHtml(t('board.card.notesPlaceholder'))}">${escapeHtml(c.notes || '')}</textarea></div>
-          ${c.stage !== 'idea' ? `<button class="btn btn-secondary btn-sm board-detail__brainstorm" id="board-detail-brainstorm" type="button">${escapeHtml(sessionAlive ? t('board.brainstorm.attach') : t('board.brainstorm.start'))}</button>` : ''}
-          ${(c.brainstormDoc && (c.stage === 'brainstorming' || c.stage === 'implement')) ? `<button class="btn btn-secondary btn-sm board-detail__implement" id="board-detail-implement" type="button">${escapeHtml(sessionAlive ? t('board.implement.attach') : t('board.implement.start'))}</button>` : ''}
+          ${sessionAlive ? `<button class="btn btn-secondary btn-sm board-detail__open" id="board-detail-open" type="button">${escapeHtml(c.stage === 'brainstorming' ? t('board.brainstorm.attach') : t('board.implement.attach'))}</button>` : ''}
           ${(c.stage === 'review' && c.branch) ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.implement.branch'))}</span><span class="board-detail__doc" title="${escapeHtml(c.branch)}">${escapeHtml(c.branch)}</span></div>` : ''}
           ${(c.stage === 'review' && c.implementSummary) ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.implement.summary'))}</span><span>${escapeHtml(c.implementSummary)}</span></div>` : ''}
           ${c.brainstormDoc ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.brainstorm.doc'))}</span><span class="board-detail__doc" title="${escapeHtml(c.brainstormDoc)}">${escapeHtml(c.brainstormDoc)}</span></div>` : ''}
@@ -11369,13 +11378,21 @@
         el('board-detail-close').addEventListener('click', closeDetail);
         el('board-detail-title').addEventListener('change', (e)=>{ const v=e.target.value.trim(); if (v) patchCard(id,{title:v}); });
         el('board-detail-project').addEventListener('change', (e)=>patchCard(id,{projectId:e.target.value}));
-        el('board-detail-stage').addEventListener('change', (e)=>patchCard(id,{stage:e.target.value}));
+        el('board-detail-stage').addEventListener('change', async (e)=>{
+          const target = e.target.value;
+          const c = cards.find(x=>x.id===id);
+          await applyTransition(c, target);
+          // Bei Abbruch/Guard-Fail blieb die Stufe stehen → Dropdown zurücksetzen.
+          if (cards.find(x=>x.id===id)?.stage !== target) openDetail(id);
+        });
         el('board-detail-del').addEventListener('click', (e)=>{
           if (!deleteArmed) { deleteArmed=true; e.target.textContent=t('board.detail.deleteConfirm'); return; }
           removeCard(id);
         });
-        el('board-detail-brainstorm')?.addEventListener('click', () => startBrainstorm(id));
-        el('board-detail-implement')?.addEventListener('click', () => startImplement(id));
+        el('board-detail-open')?.addEventListener('click', () => {
+          const ref = cards.find(x=>x.id===id)?.sessionRef;
+          if (ref) connectToSession(ref);
+        });
         el('board-detail-notes')?.addEventListener('change', (e)=>patchCard(id,{notes:e.target.value.trim()||null}));
         render(); // re-mark active card
       }
