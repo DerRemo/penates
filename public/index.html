@@ -582,7 +582,7 @@
       border-radius: var(--radius-sm);
       cursor: pointer;
       font-family: inherit;
-      transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+      transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
     }
     .sidebar__filter-btn:hover {
       color: var(--text-primary);
@@ -608,7 +608,7 @@
       width: 100%;
       min-height: 36px;
       font-family: inherit;
-      transition: background 0.12s ease, color 0.12s ease;
+      transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
     }
     .sidebar__item:hover {
       background: var(--bg-card-hover);
@@ -628,7 +628,7 @@
       border-radius: 50%;
       background: var(--status-offline);
       flex-shrink: 0;
-      transition: background 0.2s ease, box-shadow 0.2s ease;
+      transition: background var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
     }
     .sidebar__dot[data-activity="idle"]    { background: var(--status-idle); }
     .sidebar__dot[data-activity="working"] { background: var(--status-working); box-shadow: 0 0 6px var(--status-working); }
@@ -694,7 +694,7 @@
       text-align: left;
       min-height: 36px;
       position: relative;
-      transition: background 0.12s ease, color 0.12s ease;
+      transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
     }
     .sidebar__settings-entry:hover {
       background: var(--bg-card-hover);
@@ -776,7 +776,7 @@
         left: 0;
         width: min(280px, 80vw);
         transform: translateX(-100%);
-        transition: transform 0.22s ease;
+        transition: transform var(--dur) var(--ease-out);
         box-shadow: var(--shadow-lg);
       }
       body[data-sidebar-open="true"] .sidebar {
@@ -853,7 +853,7 @@
     .board-card {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
       padding: var(--space-3); cursor: grab; display: flex; flex-direction: column; gap: var(--space-2);
-      transition: border-color .12s ease, box-shadow .12s ease;
+      transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
     }
     .board-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.08)); }
     .board-card:active { cursor: grabbing; }
@@ -1172,7 +1172,7 @@
       padding: 8px 12px; border-radius: 6px;
       font-family: 'JetBrains Mono', monospace; font-size: 13px;
       cursor: pointer;
-      transition: background 120ms;
+      transition: background var(--dur-fast) var(--ease-out);
     }
     .roadmap-search-hit:hover { background: rgba(45,212,191,0.08); }
     .roadmap-search-hit + .roadmap-search-hit { margin-top: 2px; }
@@ -1219,7 +1219,7 @@
       border-radius: var(--radius);
       color: inherit; text-align: left; font: inherit;
       cursor: pointer; overflow: hidden; min-width: 0;
-      transition: border-color .2s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
+      transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
     }
     .project-card:hover {
       background: var(--bg-card-hover);
@@ -1281,12 +1281,12 @@
       display: flex; gap: var(--space-2); align-items: center;
       border-top: 1px solid var(--border-subtle);
       max-height: 0; opacity: 0; overflow: hidden; visibility: hidden; margin-top: 0;
-      transition: max-height .18s ease, opacity .18s ease, margin-top .18s ease, visibility 0s linear .18s;
+      transition: max-height var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out), margin-top var(--dur) var(--ease-out), visibility 0s linear .18s;
     }
     .project-card:hover .project-card-actions,
     .project-card:focus-within .project-card-actions {
       max-height: 52px; opacity: 1; margin-top: 0; padding-top: var(--space-3);
-      visibility: visible; transition: max-height .18s ease, opacity .18s ease, margin-top .18s ease, visibility 0s linear 0s;
+      visibility: visible; transition: max-height var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out), margin-top var(--dur) var(--ease-out), visibility 0s linear 0s;
     }
     @media (hover: none), (pointer: coarse) {
       .project-card-actions { max-height: none; opacity: 1; visibility: visible; padding-top: var(--space-3); transition: none; }
@@ -1318,7 +1318,7 @@
       border-bottom: 1px solid var(--border-subtle); margin-bottom: var(--space-2);
     }
     .roadmap-section-head:hover { color: var(--text-primary); }
-    .roadmap-chevron { color: var(--text-muted); font-size: var(--text-xs); width: 12px; flex-shrink: 0; transition: transform .12s ease; }
+    .roadmap-chevron { color: var(--text-muted); font-size: var(--text-xs); width: 12px; flex-shrink: 0; transition: transform var(--dur-fast) var(--ease-out); }
     .roadmap-section.collapsed .roadmap-chevron { transform: rotate(-90deg); }
     .roadmap-section-label {
       font-size: var(--text-sm); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
@@ -1335,7 +1335,7 @@
     .roadmap-item {
       display: flex; gap: var(--space-2); align-items: center;
       padding: var(--space-2) var(--space-3); font-size: var(--text-base);
-      border-radius: var(--radius-sm); transition: background .12s ease;
+      border-radius: var(--radius-sm); transition: background var(--dur-fast) var(--ease-out);
     }
     .roadmap-item:hover { background: var(--bg-card); }
     .roadmap-item.done { opacity: 0.5; }
@@ -1405,14 +1405,14 @@
       font-family: var(--font-mono); font-size: var(--text-sm);
       padding: 2px 4px; margin: -2px -4px;
       cursor: pointer; border-radius: 4px;
-      transition: background 120ms;
+      transition: background var(--dur-fast) var(--ease-out);
     }
     .roadmap-checkbox:hover { background: var(--accent-muted); }
     .roadmap-item-delete {
       background: none; border: none; color: inherit;
       font-size: var(--text-md); line-height: 1; padding: 2px var(--space-2);
       opacity: 0; cursor: pointer; border-radius: 4px;
-      transition: opacity 120ms, color 120ms, background 120ms;
+      transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
     }
     .roadmap-item:hover .roadmap-item-delete { opacity: 0.5; }
     .roadmap-item-delete:hover { opacity: 1; color: var(--red); background: var(--red-muted); }
@@ -1422,7 +1422,7 @@
     .roadmap-item-move, .roadmap-item-edit {
       background: none; border: none; color: var(--text-muted);
       font-size: var(--text-sm); line-height: 1; padding: 2px var(--space-2); cursor: pointer;
-      opacity: 0; border-radius: var(--radius-sm); transition: opacity 120ms, color 120ms, background 120ms;
+      opacity: 0; border-radius: var(--radius-sm); transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
     }
     .roadmap-item:hover .roadmap-item-move, .roadmap-item:hover .roadmap-item-edit { opacity: 0.6; }
     .roadmap-item-move:hover, .roadmap-item-edit:hover { opacity: 1; color: var(--accent); background: var(--accent-muted); }
@@ -1461,7 +1461,7 @@
       background: none; border: 1px dashed var(--accent-muted);
       color: var(--accent); font-family: var(--font-mono); font-size: var(--text-xs);
       padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm);
-      cursor: pointer; transition: background 120ms, border-color 120ms;
+      cursor: pointer; transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
     }
     .roadmap-add-btn:hover { background: var(--accent-muted); border-color: var(--accent); }
 
@@ -1496,7 +1496,7 @@
       padding: var(--space-1) var(--space-3); border-radius: 999px;
       background: var(--bg-surface); border: 1px solid var(--border-subtle);
       font-family: var(--font-mono); font-size: var(--text-sm); cursor: pointer;
-      transition: border-color .12s ease, background .12s ease;
+      transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
     }
     .project-session-item:hover { border-color: var(--accent); background: var(--bg-card); }
     .project-session-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
@@ -1584,7 +1584,7 @@
       padding: var(--space-2) var(--space-4); font-size: var(--text-sm);
       font-family: var(--font-ui);
       opacity: 0; pointer-events: none;
-      transition: opacity 200ms, transform 200ms;
+      transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
       z-index: 2500;
       box-shadow: var(--shadow-toast);
     }
@@ -1685,7 +1685,7 @@
       cursor: pointer;
       color: var(--text-muted);
       opacity: 0.55;
-      transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+      transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
     }
     .session-mute-btn:hover,
     .session-pin-btn:hover {
@@ -1727,7 +1727,7 @@
     .session-project-badge[data-project]:not([data-project=""]) {
       display: inline-flex;
       cursor: pointer;
-      transition: background 120ms, border-color 120ms, opacity 120ms;
+      transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
     }
     .session-project-badge[data-project]:not([data-project=""]):hover {
       opacity: 0.85;
@@ -1765,7 +1765,7 @@
       font-size: var(--text-base);
       font-weight: 600;
       line-height: 1.2;
-      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
       white-space: nowrap;
     }
     .btn:disabled,
@@ -1834,7 +1834,7 @@
       border-radius: var(--radius);
       padding: var(--space-4);
       cursor: pointer;
-      transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
       position: relative;
       display: flex;
       flex-direction: column;
@@ -1888,7 +1888,7 @@
          0px-Linie überlappen → Buttons gälten als sichtbar). Verzögert,
          damit der Opacity-Fade-Out beim Verlassen sichtbar bleibt. */
       visibility: hidden;
-      transition: max-height 0.18s ease, opacity 0.18s ease, margin-top 0.18s ease, visibility 0s linear 0.18s;
+      transition: max-height var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out), margin-top var(--dur) var(--ease-out), visibility 0s linear 0.18s;
       margin-top: 0;
     }
     .session-card:hover .session-actions,
@@ -1897,7 +1897,7 @@
       opacity: 1;
       margin-top: var(--space-3);
       visibility: visible;
-      transition: max-height 0.18s ease, opacity 0.18s ease, margin-top 0.18s ease, visibility 0s linear 0s;
+      transition: max-height var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out), margin-top var(--dur) var(--ease-out), visibility 0s linear 0s;
     }
     /* Pin/Mute als kompakte Icon-Buttons, an den rechten Rand der Leiste */
     .session-card .session-actions .session-card-tools {
@@ -2118,7 +2118,7 @@
       padding: max(var(--space-5), env(safe-area-inset-top)) max(var(--space-5), env(safe-area-inset-right)) max(var(--space-5), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left));
       opacity: 0;
       visibility: hidden;
-      transition: opacity 0.2s ease, visibility 0.2s ease;
+      transition: opacity var(--dur) var(--ease-out), visibility var(--dur) var(--ease-out);
     }
 
     .modal-overlay.open {
@@ -2134,7 +2134,7 @@
       width: 100%;
       max-width: 480px;
       transform: scale(0.95) translateY(10px);
-      transition: transform 0.25s ease;
+      transition: transform var(--dur-slow) var(--ease-out);
       box-shadow: var(--shadow-modal);
       max-height: 100%;
       overflow-y: auto;
@@ -2180,7 +2180,7 @@
       font-size: 14px;
       color: var(--text-primary);
       outline: none;
-      transition: border-color 0.2s ease;
+      transition: border-color var(--dur) var(--ease-out);
     }
 
     .form-input:focus {
@@ -2266,7 +2266,7 @@
       height: 44px; width: 44px; flex: 0 0 auto; border-radius: 10px; background: var(--bg-elevated);
       border: 1px solid var(--border); cursor: pointer; color: var(--text-secondary);
       font-size: 13px; font-weight: 600; padding: 0;
-      transition: width .18s ease, background .15s, border-color .15s; }
+      transition: width var(--dur) var(--ease-out), background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out); }
     .cli-pick-btn .cli-logo { width: 19px; height: 19px; flex-shrink: 0; display: grid; place-items: center; }
     .cli-pick-btn .cli-logo svg { width: 19px; height: 19px; display: block; }
     .cli-pick-btn .cli-name { display: none; white-space: nowrap; }
@@ -2325,7 +2325,7 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       overflow: hidden;
-      transition: border-color 0.2s ease;
+      transition: border-color var(--dur) var(--ease-out);
     }
 
     .tree-picker:focus-within,
@@ -2358,7 +2358,7 @@
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
-      transition: background 0.1s ease, color 0.1s ease;
+      transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
     }
 
     .tree-mkdir-btn:hover {
@@ -2451,7 +2451,7 @@
       color: var(--text-secondary);
       border-radius: 4px;
       user-select: none;
-      transition: background 0.1s ease, color 0.1s ease;
+      transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
     }
 
     .tree-row:hover {
@@ -2470,7 +2470,7 @@
       text-align: center;
       font-size: 10px;
       color: var(--text-muted);
-      transition: transform 0.15s ease;
+      transition: transform var(--dur) var(--ease-out);
       flex-shrink: 0;
     }
 
@@ -3117,7 +3117,7 @@
       font-size: 13px;
       color: var(--text-primary);
       outline: none;
-      transition: border-color 0.15s ease;
+      transition: border-color var(--dur) var(--ease-out);
     }
     .search-input::placeholder { color: var(--text-muted); }
     .search-input:focus { border-color: var(--teal); }
@@ -3155,7 +3155,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s ease, color 0.15s ease;
+      transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
     }
     .layout-toggle-btn svg { width: 14px; height: 14px; }
     .layout-toggle-btn:hover {
@@ -3406,7 +3406,7 @@
         linear-gradient(to left,   var(--teal) 14px, transparent 14px) bottom right / 14px 2px no-repeat,
         linear-gradient(to top,    var(--teal) 14px, transparent 14px) bottom right / 2px 14px no-repeat;
       opacity: 0.6;
-      transition: opacity 0.25s ease, inset 0.25s ease;
+      transition: opacity var(--dur-slow) var(--ease-out), inset var(--dur-slow) var(--ease-in-out);
     }
     .session-card[data-status="foreign"]:hover::after {
       opacity: 1;
@@ -3735,7 +3735,7 @@
       flex: 0 0 4px;
       background: transparent;
       cursor: col-resize;
-      transition: background 150ms;
+      transition: background var(--dur) var(--ease-out);
     }
     .files-resizer:hover, .files-resizer.dragging { background: var(--accent); }
     @media (pointer: coarse) {
@@ -3852,7 +3852,7 @@
     .preview-overlay .empty-state .preview-state-action { margin-top: var(--space-3); }
 
     .preview-resizer {
-      flex: 0 0 6px; background: transparent; cursor: col-resize; transition: background 150ms;
+      flex: 0 0 6px; background: transparent; cursor: col-resize; transition: background var(--dur) var(--ease-out);
     }
     .preview-resizer:hover, .preview-resizer.dragging { background: var(--accent); }
     @media (pointer: coarse) {
@@ -4115,7 +4115,7 @@
       display: none; flex-direction: column; overflow: hidden;
     }
     .diff-panel.open { display: flex; }
-    .diff-resizer { flex: 0 0 4px; background: transparent; cursor: col-resize; transition: background 150ms; }
+    .diff-resizer { flex: 0 0 4px; background: transparent; cursor: col-resize; transition: background var(--dur) var(--ease-out); }
     .diff-resizer:hover, .diff-resizer.dragging { background: var(--accent); }
     /* Im schmalen Panel: Filelist oben gestapelt statt 280px-Spalte. */
     .diff-panel .diff-body { flex-direction: column; }
@@ -4127,7 +4127,7 @@
     .diff-header { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); flex: 0 0 auto; }
     .diff-title { font-weight: 600; color: var(--text-primary); }
     .diff-branch { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.85em; }
-    .diff-live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); opacity: 0.3; transition: opacity 0.2s; }
+    .diff-live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); opacity: 0.3; transition: opacity var(--dur) var(--ease-out); }
     .diff-live.pulse { opacity: 1; }
     .diff-refresh { margin-left: auto; }
     .diff-body { display: flex; flex: 1; min-height: 0; }
@@ -4223,7 +4223,7 @@
     .upload-toast.error { border-color: var(--red); }
     .upload-toast .name { color: var(--accent); font-weight: 600; }
     .upload-toast .bar { height: 4px; background: var(--border-subtle); border-radius: 2px; overflow: hidden; margin-top: 4px; }
-    .upload-toast .bar-fill { height: 100%; background: var(--accent, #2dd4bf); width: 0%; transition: width .2s; }
+    .upload-toast .bar-fill { height: 100%; background: var(--accent, #2dd4bf); width: 0%; transition: width var(--dur) var(--ease-out); }
     .upload-toast .conflict { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
     .upload-toast button {
       background: transparent; color: var(--accent, #2dd4bf); border: 1px solid var(--accent, #2dd4bf);
@@ -4250,7 +4250,7 @@
       border: 1px solid var(--border);
       background: transparent; color: var(--text-secondary);
       font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap;
-      transition: background .12s ease, border-color .12s ease, color .12s ease;
+      transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
     }
     .settings-anchor:hover { background: var(--bg-card-hover); color: var(--text-primary); }
     .settings-anchor.is-active {
@@ -4316,7 +4316,7 @@
     .settings-row--link {
       cursor: pointer; background: transparent; border: 0; font: inherit;
       color: inherit; text-align: left; width: 100%;
-      border-radius: var(--radius-sm, 6px); transition: background .12s ease;
+      border-radius: var(--radius-sm, 6px); transition: background var(--dur-fast) var(--ease-out);
     }
     .settings-row--link:hover { background: var(--bg-card-hover); }
     .logs-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -4358,7 +4358,7 @@
       font-family: inherit;
       font-size: var(--text-sm, 13px);
       cursor: pointer;
-      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+      transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
     }
     .seg-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
     .seg-btn.is-active {
@@ -4368,11 +4368,11 @@
     }
     .toggle-btn {
       width: 40px; height: 22px; border-radius: 11px; border: 0; cursor: pointer;
-      background: var(--border); position: relative; transition: background .15s; flex-shrink: 0;
+      background: var(--border); position: relative; transition: background var(--dur) var(--ease-out); flex-shrink: 0;
     }
     .toggle-btn::after {
       content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
-      border-radius: 50%; background: #fff; transition: transform .15s;
+      border-radius: 50%; background: #fff; transition: transform var(--dur) var(--ease-in-out);
     }
     .toggle-btn[aria-pressed="true"] { background: var(--accent); }
     .toggle-btn[aria-pressed="true"]::after { transform: translateX(18px); }
@@ -4461,7 +4461,7 @@
     .sidebar__usage-name { font: 600 12px var(--font-ui); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .sidebar__usage-acct { font: 500 10.5px var(--font-ui); color: var(--text-muted); flex-shrink: 0; }
     .sidebar__usage-track { position: relative; height: 6px; border-radius: 3px; background: var(--border-subtle); overflow: hidden; }
-    .sidebar__usage-fill { position: absolute; inset: 0 auto 0 0; min-width: 2px; border-radius: 3px; transition: width .3s ease, background .2s ease; }
+    .sidebar__usage-fill { position: absolute; inset: 0 auto 0 0; min-width: 2px; border-radius: 3px; transition: width var(--dur-slow) var(--ease-out), background var(--dur) var(--ease-out); }
     .sidebar__usage-fill.usage-limit-green { background: var(--teal); }
     .sidebar__usage-fill.usage-limit-amber { background: var(--amber); }
     .sidebar__usage-fill.usage-limit-red   { background: var(--red); }

@@ -1023,8 +1023,15 @@ app.post('/api/board/cards/:id/implement', async (req, res) => {
     if (!validSessionName(namePart)) return res.status(400).json({ error: 'Cannot derive a valid session name from the idea title' });
     const sessionName = SESSION_PREFIX + namePart;
 
+    // Die Karte beim Spawn nach `implement` advancen — aber nur vom Brainstorming-
+    // Stand aus, damit ein bloßes Wieder-Öffnen der Session (Card schon in review)
+    // sie nicht zurückzieht. Gilt für Detail-Button UND Drag UND Reuse-Pfad.
+    const advanceToImplement = () =>
+      card.stage === 'brainstorming' ? board.moveCard(card.id, 'implement') : Promise.resolve();
+
     // Idempotenz: lebt die deterministische Session schon → attach statt neu spawnen.
     if (getTmuxSessions().some(s => s.name === sessionName)) {
+      await advanceToImplement();
       return res.status(200).json({ session: sessionName, reused: true });
     }
     try {
@@ -1032,6 +1039,7 @@ app.post('/api/board/cards/:id/implement', async (req, res) => {
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
+    await advanceToImplement();
     await board.updateCard(card.id, { sessionRef: sessionName });
 
     // Trust-Gate-Watchdog im Hintergrund (blockt die HTTP-Antwort nicht).
