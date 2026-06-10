@@ -31,6 +31,7 @@ Download in the Filebrowser.
 - [x] Terminal-Stack-Migration: xterm 5.3.0 (CDN, deprecated) auf @xterm/xterm 6.0 lokal vendored plus webgl-Renderer plus unicode-graphemes; Custom-Clipboard/Selection auf 6.0-Baseline gestrippt plus minimaler Cmd+C {priority: p1, theme: terminal}
 - [x] Terminal-View-Redesign: Calm-Card-Terminal plus Icon-only-Toolbar mit gruppierten Toggles und Hairline-Divider, themed CSS-Tooltips, Active-State fuer offene Panels, Git-Dirty-Dot am Diff-Toggle, Connecting-Overlay, Fokus-Ring, CLI-Logo plus cwd-Tooltip am Namen, Doppelklick-Inline-Rename; Kill-Button entfernt, Back-Button mobile-only, Conn-Status nur bei Problem {priority: p1, theme: terminal}
 - [x] Repo-Panel / Git-Browser: Files plus Diff zu einem getabbten Repo-Panel zusammengelegt (Files plus Changes plus History plus Branches), ein konsolidierter Repo-Toggle mit Git-Dot, List-Diff-Toggle in Changes plus Commit-Quelle, lineare Commit-Timeline mit Typ-Farben und Ref-Badges, Branches local/remote read-only; neues lib/git-history.js (getLog/getBranches/showCommit) plus drei git-Routen. Files-v2 Browse ist der editierbare Files-Tab (kein separates Browse). {priority: p1, theme: git}
+- [x] Animationen
 
 ## Archiv: v0.3.0
 
