@@ -19,7 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as board from './lib/board.js';
-import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming } from './lib/brainstorm-spawn.js';
+import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -557,19 +557,12 @@ function hubEnvArgs(sessionName) {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// Wartezeit nach Session-Start, bevor der Priming-Text via send-keys getippt
-// wird — gibt der claude-TUI Zeit, Eingaben anzunehmen. Real-App-getunt.
-const PRIME_DELAY_MS = Number(process.env.BRAINSTORM_PRIME_DELAY_MS) || 1500;
-// Gestaffelte Pausen für die Submit-Enters NACH dem Text. Die claude-TUI braucht
-// (inkl. MCP-Init) variabel mehrere Sekunden, bis ein Enter als Submit zählt —
-// daher mehrere Versuche; sobald der Prompt raus ist, sind weitere Enters auf dem
-// leeren Composer No-Ops. Enters fallen damit kumulativ bei ~3/5/7.5/10.5/13.5s.
-const PRIME_SUBMIT_SCHEDULE_MS = [1500, 2000, 2500, 3000, 3000];
-// Robustes Tippen: bis zu N Versuche, den Prompt-Text in den Composer zu bekommen
-// (Trust-Gate akzeptieren / variable Boot-Zeit abwarten), je mit kurzer Verify-Pause.
-const PRIME_TYPE_ATTEMPTS = Number(process.env.BRAINSTORM_PRIME_TYPE_ATTEMPTS) || 8;
-const PRIME_TYPE_WAIT_MS = Number(process.env.BRAINSTORM_PRIME_TYPE_WAIT_MS) || 1200;
-const PRIME_TRUST_WAIT_MS = Number(process.env.BRAINSTORM_PRIME_TRUST_WAIT_MS) || 1500;
+// Trust-Gate-Watchdog für Prompt-Spawns: Poll-Intervall + Fensterbreite. Der
+// Prompt selbst kommt als argv-Argument an die CLI (kein Tippen mehr) — der
+// Watchdog deckt nur noch claudes „Do you trust this folder?"-Gate ab, das in
+// noch-nicht-vertrauten Verzeichnissen VOR der Prompt-Verarbeitung blockiert.
+const TRUST_GATE_POLL_MS = Number(process.env.BRAINSTORM_TRUST_POLL_MS) || 1500;
+const TRUST_GATE_ATTEMPTS = Number(process.env.BRAINSTORM_TRUST_ATTEMPTS) || 8;
 
 // ── REST API ────────────────────────────────────────────────────────────────
 
@@ -995,15 +988,15 @@ app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
     // Spawn (gemeinsamer Helper) + sofort verlinken. spawnTmuxSession wirft bei
     // Fehler; den Rückgabewert (Session-Objekt) braucht diese Route nicht.
     try {
-      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', auditMeta: auditLog.extractRequestMeta(req) });
+      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', promptText: buildBrainstormPriming(card.title, card.id), auditMeta: auditLog.extractRequestMeta(req) });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
     await board.updateCard(card.id, { sessionRef: sessionName });
 
-    // Prime im Hintergrund (blockiert die HTTP-Antwort nicht). Der User wird
-    // sofort in die Session navigiert und sieht das Priming live.
-    primeSession(sessionName, buildBrainstormPriming(card.title, card.id));
+    // Trust-Gate-Watchdog im Hintergrund (blockiert die HTTP-Antwort nicht);
+    // der Prompt selbst ist schon als argv-Argument unterwegs.
+    watchTrustGate(sessionName);
 
     res.status(201).json({ session: sessionName, reused: false });
   } catch (e) {
@@ -1035,14 +1028,14 @@ app.post('/api/board/cards/:id/implement', async (req, res) => {
       return res.status(200).json({ session: sessionName, reused: true });
     }
     try {
-      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude --dangerously-skip-permissions', auditMeta: auditLog.extractRequestMeta(req) });
+      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude --dangerously-skip-permissions', promptText: buildImplementPriming(card), auditMeta: auditLog.extractRequestMeta(req) });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
     await board.updateCard(card.id, { sessionRef: sessionName });
 
-    // Prime im Hintergrund (blockt die HTTP-Antwort nicht).
-    primeSession(sessionName, buildImplementPriming(card));
+    // Trust-Gate-Watchdog im Hintergrund (blockt die HTTP-Antwort nicht).
+    watchTrustGate(sessionName);
 
     res.status(201).json({ session: sessionName, reused: false });
   } catch (e) {
@@ -1069,12 +1062,12 @@ app.post('/api/projects/:id/ideagen', async (req, res) => {
       return res.status(200).json({ session: sessionName, reused: true });
     }
     try {
-      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', auditMeta: auditLog.extractRequestMeta(req) });
+      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', promptText: buildIdeaGenPriming(project.id, project.displayName), auditMeta: auditLog.extractRequestMeta(req) });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
-    // Prime im Hintergrund (blockiert die HTTP-Antwort nicht).
-    primeSession(sessionName, buildIdeaGenPriming(project.id, project.displayName));
+    // Trust-Gate-Watchdog im Hintergrund (blockiert die HTTP-Antwort nicht).
+    watchTrustGate(sessionName);
     res.status(201).json({ session: sessionName, reused: false });
   } catch (e) {
     res.status(500).json({ error: 'Failed to start idea generation session', detail: e.message });
@@ -1347,11 +1340,23 @@ app.post('/api/browse/mkdir', (req, res) => {
   }
 });
 
-// Gemeinsamer tmux-Spawn (geteilt von POST /api/sessions und dem Brainstorm-
-// Spawn). Erwartet den FERTIGEN (geprefixten) sessionName; Caller validieren
-// Name + 409-Existenz. Wirft bei new-session-Fehler oder Sofort-Exit.
-async function spawnTmuxSession({ sessionName, dir, cmd, auditMeta = {} }) {
-  execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...hubEnvArgs(sessionName), '-c', dir, cmd], {
+// Gemeinsamer tmux-Spawn (geteilt von POST /api/sessions und den Board-Spawns).
+// Erwartet den FERTIGEN (geprefixten) sessionName; Caller validieren Name +
+// 409-Existenz. Wirft bei new-session-Fehler oder Sofort-Exit.
+//
+// promptText (optional): initialer Prompt für die CLI. Transport via tmux -e
+// CCH_PRIME_PROMPT=<text> (argv-Array → kein Shell-Parsing des Inhalts); das
+// Shell-Command hängt nur die Referenz "$CCH_PRIME_PROMPT" an, die die Shell
+// zu EINEM Argument expandiert. known-sessions + Audit-Log speichern bewusst
+// das nackte cmd — ein Dormant-Respawn läuft ohne den (dann stale) Prompt.
+async function spawnTmuxSession({ sessionName, dir, cmd, promptText, auditMeta = {} }) {
+  const envArgs = hubEnvArgs(sessionName);
+  let shellCmd = cmd;
+  if (promptText) {
+    envArgs.push('-e', `CCH_PRIME_PROMPT=${promptText}`);
+    shellCmd = promptedSpawnCommand(cmd);
+  }
+  execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...envArgs, '-c', dir, shellCmd], {
     encoding: 'utf-8', timeout: 5000,
   });
   for (let i = 0; i < 20; i++) {
@@ -1379,50 +1384,27 @@ function capturePane(sessionName) {
   } catch { return ''; }
 }
 
-// Robustes Priming einer frisch gespawnten Session (Brainstorming/Ideen-Gen):
-// den Prompt in die claude-TUI tippen + abschicken. Fire-and-forget (die HTTP-
-// Antwort wartet nicht). Frisch gespawnte Sessions zeigen in noch-nicht-vertrauten
-// Verzeichnissen claudes „Do you trust this folder?"-Gate und brauchen variabel
-// Boot-/MCP-Zeit, bevor der Composer Eingaben annimmt — daher NICHT einmal blind
-// tippen (Text ginge verloren), sondern:
-//   1) Trust-Gate erkennen → mit Enter akzeptieren (Default „Yes, I trust this folder"),
-//   2) Text via send-keys -l tippen und per capture-pane verifizieren, dass er
-//      wirklich im Composer gelandet ist (sonst erneut versuchen),
-//   3) erst dann via gestaffelter Enters submitten (No-Ops nach dem Submit).
-// Alles via execFileSync/argv (kein Shell-Interp). Bricht ab, wenn die Session weg ist.
-function primeSession(sessionName, promptText) {
+// Trust-Gate-Watchdog für Prompt-Spawns (Brainstorming/Implement/Ideen-Gen).
+// Der Prompt selbst kommt als argv-Argument an die CLI (siehe spawnTmuxSession)
+// — hier wird nur noch claudes „Do you trust this folder?"-Gate abgedeckt, das
+// in noch-nicht-vertrauten Verzeichnissen VOR der Prompt-Verarbeitung blockiert:
+// erkennen → Enter (Default „Yes, I trust this folder"), danach verarbeitet die
+// CLI den argv-Prompt normal. Fire-and-forget, bounded Fenster (~12 s); in
+// bereits vertrauten Projektordnern feuert kein einziges send-keys.
+function watchTrustGate(sessionName) {
   (async () => {
     try {
-      const marker = promptText.slice(0, 20);
-      await sleep(PRIME_DELAY_MS);
-      let landed = false;
-      for (let i = 0; i < PRIME_TYPE_ATTEMPTS && !landed; i++) {
+      for (let i = 0; i < TRUST_GATE_ATTEMPTS; i++) {
+        await sleep(TRUST_GATE_POLL_MS);
         const pane = capturePane(sessionName);
-        if (pane.includes(marker)) { landed = true; break; }   // schon getippt (Vor-Versuch) → nicht doppelt tippen
+        if (!pane) return;   // Session weg → nichts zu tun.
         if (looksLikeTrustPrompt(pane)) {
           execFileSync(TMUX, ['send-keys', '-t', sessionName, 'Enter'], { encoding: 'utf-8', timeout: 5000 });
-          await sleep(PRIME_TRUST_WAIT_MS);
-          continue;
         }
-        // Tippen + verifizieren. Bound: tippt die TUI unter extrem langsamem Boot
-        // die Keys in den pty-Buffer, ohne sie ≥2 Capture-Zyklen lang zu rendern,
-        // kann erneut getippt werden → doppelter Prompt (harmlos/recoverable). In
-        // der Praxis decken PRIME_DELAY/TRUST/TYPE-Waits das ab (real-app verifiziert).
-        execFileSync(TMUX, ['send-keys', '-t', sessionName, '-l', promptText], { encoding: 'utf-8', timeout: 5000 });
-        await sleep(PRIME_TYPE_WAIT_MS);
-        if (capturePane(sessionName).includes(marker)) landed = true;
-      }
-      if (!landed) {
-        console.error('[prime] priming text never landed in composer for', sessionName);
-        return;   // Session bleibt nutzbar — User kann manuell prompten.
-      }
-      for (const wait of PRIME_SUBMIT_SCHEDULE_MS) {
-        await sleep(wait);
-        execFileSync(TMUX, ['send-keys', '-t', sessionName, 'Enter'], { encoding: 'utf-8', timeout: 5000 });
       }
     } catch (e) {
-      // Session weg / send-keys-Fehler → Priming aufgeben (nicht fatal).
-      console.error('[prime] priming failed:', e.message);
+      // Session weg / send-keys-Fehler → aufgeben (nicht fatal, Session bleibt nutzbar).
+      console.error('[trust-gate] watchdog failed:', e.message);
     }
   })();
 }

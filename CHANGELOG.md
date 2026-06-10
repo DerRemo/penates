@@ -48,6 +48,7 @@ die Items sind hier reine Markdown-Dokumentation.
 - [x] Offene Frage: welche CLIs neben claude reinsollen — gemini/codex/aider/cursor
 - [x] Offene Frage: Hub single-user oder multi-user
 - [x] Offene Frage: Token-Auth — Bearer bleiben oder Passkey/WebAuthn
+- [x] Board-Spawn-Priming auf argv umgestellt: Prompt als initiales CLI-Argument via CCH_PRIME_PROMPT-Env-Var statt send-keys-Tippmaschinerie — primeSession durch schlanken Trust-Gate-Watchdog ersetzt {priority: p1, theme: board}
 ## Changelog
 
 ### v0.7.2 — 2026-06-08
