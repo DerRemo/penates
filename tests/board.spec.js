@@ -7,7 +7,7 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 // reset the store between tests via the API so each test is independent.
 
 const NAV_BOARD = '[data-sidebar-nav="board"]';
-const STAGES = ['idea', 'brainstorming', 'spec', 'implement', 'review', 'done'];
+const STAGES = ['idea', 'brainstorming', 'implement', 'review', 'done'];
 
 async function api(page, method, path, body) {
   const token = await getToken(page);
@@ -60,13 +60,13 @@ test.describe('Board (Idea Pipeline)', () => {
     }
   });
 
-  test('nav opens the board with six columns', async ({ authedPage: page }) => {
+  test('nav opens the board with five columns', async ({ authedPage: page }) => {
     await goToBoard(page);
     await expect(page.locator('body')).toHaveAttribute('data-current-view', 'board');
     for (const stage of STAGES) {
       await expect(page.locator(`.board-col[data-stage="${stage}"]`)).toBeVisible();
     }
-    await expect(page.locator('.board-col')).toHaveCount(6);
+    await expect(page.locator('.board-col')).toHaveCount(5);
   });
 
   test('+ idea creates a card via the input dialog', async ({ authedPage: page }) => {
@@ -89,17 +89,20 @@ test.describe('Board (Idea Pipeline)', () => {
     await goToBoard(page);
     await expect(page.locator('.board-col[data-stage="idea"] .board-card', { hasText: 'Movable card' })).toBeVisible();
 
+    // Target a non-guarded transition: idea→implement is blocked by the
+    // spec-guard (needs a brainstorm doc first), so we move to 'review' — a
+    // plain stage change — to exercise the drag/persist mechanic itself.
     if (isMobile) {
       // Mobile path: open detail panel and use the stage dropdown.
       await page.click('.board-card:has-text("Movable card")');
       await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
-      await page.selectOption('#board-detail-stage', 'implement');
+      await page.selectOption('#board-detail-stage', 'review');
       await page.waitForTimeout(400);
     } else {
       // Desktop path: HTML5 DnD via dispatched events (Playwright dragTo is
       // unreliable for native DnD, so we synthesise the dataTransfer flow).
       const source = page.locator('.board-card:has-text("Movable card")');
-      const target = page.locator('.board-col[data-stage="implement"] .board-col__list');
+      const target = page.locator('.board-col[data-stage="review"] .board-col__list');
       await source.hover();
       await page.mouse.down();
       await target.hover();
@@ -108,11 +111,11 @@ test.describe('Board (Idea Pipeline)', () => {
       // Native DnD via mouse can be flaky in headless Chromium; fall back to
       // dispatched DnD events if the mouse approach didn't move it.
       await page.waitForTimeout(300);
-      let moved = await page.locator('.board-col[data-stage="implement"] .board-card', { hasText: 'Movable card' }).count();
+      let moved = await page.locator('.board-col[data-stage="review"] .board-card', { hasText: 'Movable card' }).count();
       if (!moved) {
         await page.evaluate((id) => {
           const card = document.querySelector(`.board-card[data-id="${id}"]`);
-          const list = document.querySelector('.board-col[data-stage="implement"] .board-col__list');
+          const list = document.querySelector('.board-col[data-stage="review"] .board-col__list');
           const dt = new DataTransfer();
           card.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
           list.dispatchEvent(new DragEvent('dragover', { bubbles: true, dataTransfer: dt }));
@@ -122,16 +125,16 @@ test.describe('Board (Idea Pipeline)', () => {
       }
     }
 
-    // Server-side persistence: the card is now in 'implement'.
+    // Server-side persistence: the card is now in 'review'.
     await expect.poll(async () => {
       const cards = await listCards(page);
       return cards.find(c => c.id === seeded.id)?.stage;
-    }, { timeout: 4_000 }).toBe('implement');
+    }, { timeout: 4_000 }).toBe('review');
 
     // Survives a reload.
     await page.reload();
     await goToBoard(page);
-    await expect(page.locator('.board-col[data-stage="implement"] .board-card', { hasText: 'Movable card' })).toBeVisible({ timeout: 4_000 });
+    await expect(page.locator('.board-col[data-stage="review"] .board-card', { hasText: 'Movable card' })).toBeVisible({ timeout: 4_000 });
     await expect(page.locator('.board-col[data-stage="idea"] .board-card', { hasText: 'Movable card' })).toHaveCount(0);
   });
 
@@ -152,20 +155,20 @@ test.describe('Board (Idea Pipeline)', () => {
     await expect(page.locator('.board-card')).toHaveCount(2);
   });
 
-  test('detail panel opens, edits priority, and deletes (2-click)', async ({ authedPage: page }) => {
+  test('detail panel opens, edits title, and deletes (2-click)', async ({ authedPage: page }) => {
     const seeded = await seedCard(page, { title: 'Detail card' });
     await goToBoard(page);
     await page.click('.board-card:has-text("Detail card")');
     await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
 
-    // Edit priority → P1, persists.
-    await page.selectOption('#board-detail-prio', 'p1');
+    // Edit title, persists.
+    await page.fill('#board-detail-title', 'Detail card edited');
+    await page.locator('#board-detail-title').blur();
     await expect.poll(async () => {
       const cards = await listCards(page);
-      return cards.find(c => c.id === seeded.id)?.priority;
-    }, { timeout: 4_000 }).toBe('p1');
-    // Card front shows the P1 chip after re-render.
-    await expect(page.locator('.board-card:has-text("Detail card") .board-card__prio')).toHaveText('P1', { timeout: 3_000 });
+      return cards.find(c => c.id === seeded.id)?.title;
+    }, { timeout: 4_000 }).toBe('Detail card edited');
+    await expect(page.locator('.board-card:has-text("Detail card edited")')).toBeVisible({ timeout: 3_000 });
 
     // Delete: first click arms, second click deletes.
     await page.click('#board-detail-del');
