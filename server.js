@@ -10,7 +10,7 @@ import { spawn } from 'node-pty';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve, sep } from 'path';
-import { readdirSync, readFileSync } from 'fs';
+import { readdirSync, readFileSync, writeFileSync, accessSync } from 'fs';
 import { createChecker } from './lib/update-check.js';
 import { homedir } from 'os';
 import { getCurrentContext, getDailyUsageV2 } from './lib/usage.js';
@@ -25,7 +25,9 @@ import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
-import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync } from './lib/projects.js';
+import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
+import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
+import { preflightFinish, finishCard } from './lib/git-finish.js';
 import {
   listDir as filesListDir,
   readFile as filesReadFile,
@@ -53,7 +55,7 @@ import { loadVapid } from './lib/vapid.js';
 import * as pushSubs from './lib/push-subscriptions.js';
 import webpush from 'web-push';
 import { browseMkdir, BrowseMkdirError } from './lib/browse-mkdir.js';
-import { parseStatusV2, getDiff, gitStatusMap, getRecentCommits } from './lib/git-diff.js';
+import { parseStatusV2, getDiff, gitStatusMap, getRecentCommits, detectBaseBranch, getBranchDiff } from './lib/git-diff.js';
 import { getLog, getBranches, showCommit } from './lib/git-history.js';
 import { captureScrollback } from './lib/scrollback.js';
 import { saveSessionImage } from './lib/session-images.js';
@@ -1051,6 +1053,82 @@ app.post('/api/board/cards/:id/implement', async (req, res) => {
   }
 });
 
+// Branch-Diff einer review-Karte (Phase 5): git diff <base>...idea/<slug>.
+// Read-only. card.branch fehlt → 400; kein Repo → 200 {isRepo:false}.
+app.get('/api/board/cards/:id/branch-diff', async (req, res) => {
+  try {
+    const card = board.getCard(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    if (!card.branch) return res.status(400).json({ error: 'Card has no branch yet' });
+    const project = await getProject(card.projectId);
+    if (!project || !project.path) return res.status(404).json({ error: 'Project not found' });
+    const base = detectBaseBranch(project.path);
+    res.json(getBranchDiff(project.path, base, card.branch));
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to compute branch diff', detail: e.message });
+  }
+});
+
+// Review → Fertig (Phase 5): mergt idea/<slug> in base, schreibt das Changelog-
+// Done-Item, committet, pusht, beendet die Session, Karte → done. Hub-seitig,
+// deterministisch, kein Agent. Preflight blockt VOR jeder Mutation.
+app.post('/api/board/cards/:id/finish', async (req, res) => {
+  try {
+    const card = board.getCard(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    if (card.stage !== 'review' || !card.branch) {
+      return res.status(400).json({ error: 'Card must be in review with a branch' });
+    }
+    const project = await getProject(card.projectId);
+    if (!project || !project.path) return res.status(404).json({ error: 'Project not found' });
+    const repo = project.path;
+    const base = detectBaseBranch(repo);
+
+    // Preflight (read-only).
+    const pre = preflightFinish(repo, card.branch, base);
+    if (!pre.ok) return res.status(409).json({ error: 'preflight', reason: pre.reason });
+    // Changelog-Section muss existieren (sonst scheitert der Write nach dem Merge).
+    const docPath = await resolveProjectDoc(repo);
+    if (!docPath) return res.status(409).json({ error: 'preflight', reason: 'no-changelog-section' });
+    if (!sectionExists(readFileSync(docPath, 'utf8'), 'dev')) {
+      return res.status(409).json({ error: 'preflight', reason: 'no-changelog-section' });
+    }
+
+    // changelogWrite(workdir): addDoneItem in der dev-Section, schreibt im
+    // übergebenen Verzeichnis (repo ODER detached Worktree), gibt den Basenamen
+    // zum git add zurück. Synchron (named ESM-fs-Imports). CHANGELOG.md bevorzugt.
+    const theme = card.theme || undefined;
+    const changelogWrite = (workdir) => {
+      let file = 'CHANGELOG.md';
+      let abs = join(workdir, file);
+      try { accessSync(abs); } catch { file = 'ROADMAP.md'; abs = join(workdir, file); }
+      const { content } = addDoneItem(readFileSync(abs, 'utf8'), 'dev', card.title, theme ? { theme } : undefined);
+      writeFileSync(abs, content, 'utf8');
+      return file;
+    };
+
+    let result;
+    try {
+      result = finishCard(repo, card.branch, base, card.title, changelogWrite);
+    } catch (e) {
+      if (e.stage === 'push') {
+        return res.status(502).json({ error: 'push', reason: 'push-failed', merged: true });
+      }
+      return res.status(500).json({ error: e.stage || 'finish', detail: e.message });
+    }
+
+    // Erfolg → Session beenden (falls vorhanden), Karte → done.
+    if (card.sessionRef && getTmuxSessions().some(s => s.name === card.sessionRef)) {
+      try { destroySession(card.sessionRef, auditLog.extractRequestMeta(req)); } catch {}
+    }
+    await board.moveCard(card.id, 'done');
+    auditLog.record('card.finish', { ...auditLog.extractRequestMeta(req), card: card.id, branch: card.branch, base });
+    res.json({ done: true, base, pushed: result.pushed });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to finish card', detail: e.message });
+  }
+});
+
 // Ideen-Generierungs-Session zu einem Projekt spawnen (Phase 3-B): claude im
 // Projekt, auf divergente Ideen-Generierung geprimt. Idempotent über einen
 // deterministischen Session-Namen (cc-ideas-<projektslug>) — keine Karte/sessionRef.
@@ -1442,6 +1520,22 @@ app.post('/api/sessions', async (req, res) => {
   }
 });
 
+// Beendet eine Session (tmux kill + State-Cleanup). Geteilt von der DELETE-
+// Route und dem Phase-5-Finish. reqMeta = auditLog.extractRequestMeta(req).
+// Wirft, wenn kill-session scheitert (Caller mappt auf 500).
+function destroySession(name, reqMeta = {}) {
+  execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
+  attention.forget(name);
+  usageLimits.forget(name);
+  attachTracker.forget(name);
+  approvals.forget(name);
+  // Alias-Einträge aufräumen, die auf diese Session zeigten.
+  for (const [k, v] of hookAlias.entries()) {
+    if (v === name || k === name) hookAlias.delete(k);
+  }
+  auditLog.record('session.delete', { ...reqMeta, session: name });
+}
+
 // Kill session
 app.delete('/api/sessions/:name', (req, res) => {
   const { name } = req.params;
@@ -1449,19 +1543,7 @@ app.delete('/api/sessions/:name', (req, res) => {
     return res.status(400).json({ error: 'Invalid session name' });
   }
   try {
-    execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
-    attention.forget(name);
-    usageLimits.forget(name);
-    attachTracker.forget(name);
-    approvals.forget(name);
-    // Alias-Einträge aufräumen, die auf diese Session zeigten.
-    for (const [k, v] of hookAlias.entries()) {
-      if (v === name || k === name) hookAlias.delete(k);
-    }
-    auditLog.record('session.delete', {
-      ...auditLog.extractRequestMeta(req),
-      session: name,
-    });
+    destroySession(name, auditLog.extractRequestMeta(req));
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

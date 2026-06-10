@@ -51,6 +51,7 @@ die Items sind hier reine Markdown-Dokumentation.
 - [x] Offene Frage: Token-Auth — Bearer bleiben oder Passkey/WebAuthn
 - [x] Board-Spawn-Priming auf argv umgestellt: Prompt als initiales CLI-Argument via CCH_PRIME_PROMPT-Env-Var statt send-keys-Tippmaschinerie — primeSession durch schlanken Trust-Gate-Watchdog ersetzt {priority: p1, theme: board}
 - [x] Board-Spawn vereinheitlicht: Bewegen-in-Spalte startet die Session (Drag + Stage-Dropdown via geteilter applyTransition), Implement-Route advanced brainstorming→implement selbst, Detail-Buttons auf attach-only-when-alive reduziert {priority: p1, theme: board}
+- [x] Idea Pipeline Phase 5: Review→Fertig — In-Hub Branch-Diff (View-diff), Drag review→done mergt idea/<slug> in base + Changelog-Done-Item + Push + Session-Ende; lib/git-finish.js (worktree-isolierter Merge), addDoneItem/sectionExists, GET branch-diff + POST finish {priority: p0, theme: board}
 ## Changelog
 
 ### v0.7.2 — 2026-06-08
