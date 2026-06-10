@@ -1442,6 +1442,22 @@ app.post('/api/sessions', async (req, res) => {
   }
 });
 
+// Beendet eine Session (tmux kill + State-Cleanup). Geteilt von der DELETE-
+// Route und dem Phase-5-Finish. reqMeta = auditLog.extractRequestMeta(req).
+// Wirft, wenn kill-session scheitert (Caller mappt auf 500).
+function destroySession(name, reqMeta = {}) {
+  execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
+  attention.forget(name);
+  usageLimits.forget(name);
+  attachTracker.forget(name);
+  approvals.forget(name);
+  // Alias-Einträge aufräumen, die auf diese Session zeigten.
+  for (const [k, v] of hookAlias.entries()) {
+    if (v === name || k === name) hookAlias.delete(k);
+  }
+  auditLog.record('session.delete', { ...reqMeta, session: name });
+}
+
 // Kill session
 app.delete('/api/sessions/:name', (req, res) => {
   const { name } = req.params;
@@ -1449,19 +1465,7 @@ app.delete('/api/sessions/:name', (req, res) => {
     return res.status(400).json({ error: 'Invalid session name' });
   }
   try {
-    execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
-    attention.forget(name);
-    usageLimits.forget(name);
-    attachTracker.forget(name);
-    approvals.forget(name);
-    // Alias-Einträge aufräumen, die auf diese Session zeigten.
-    for (const [k, v] of hookAlias.entries()) {
-      if (v === name || k === name) hookAlias.delete(k);
-    }
-    auditLog.record('session.delete', {
-      ...auditLog.extractRequestMeta(req),
-      session: name,
-    });
+    destroySession(name, auditLog.extractRequestMeta(req));
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
