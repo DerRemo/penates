@@ -128,10 +128,17 @@
       --radius-lg: 16px;
       --radius-pill: 999px;
 
-      /* Motion */
+      /* Motion — gemeinsame Sprache. Beim Animieren IMMER zum Token greifen,
+         nie zum Literal. Entscheidungstabelle (Emil Kowalski):
+           Enter/Exit, Hover, Color  → var(--ease-out)   (der Default)
+           On-Screen-Bewegung/Morph  → var(--ease-in-out)
+           Drawer / Bottom-Sheet     → var(--ease-drawer)
+         Dauer nach Fläche: Press 100–160ms · Tooltip 125–200ms ·
+           Dropdown 150–250ms · Modal 200–300ms → Stufen --dur-fast/--dur/--dur-slow.
+         ease-in gibt es bewusst NICHT: nie ease-in für UI (träger Start). */
       --ease-out: cubic-bezier(.2,.7,.3,1);
-      --ease-in: cubic-bezier(.5,0,.9,.3);
       --ease-in-out: cubic-bezier(.5,.05,.2,1);
+      --ease-drawer: cubic-bezier(.32,.72,0,1);
       --dur-fast: .12s;
       --dur: .18s;
       --dur-slow: .28s;
@@ -608,12 +615,13 @@
       width: 100%;
       min-height: 36px;
       font-family: inherit;
-      transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+      transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
     }
     .sidebar__item:hover {
       background: var(--bg-card-hover);
       color: var(--text-primary);
     }
+    .sidebar__item:active { transform: scale(0.98); }
     .sidebar__item--active {
       background: var(--accent-muted);
       color: var(--accent);
@@ -853,10 +861,10 @@
     .board-card {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
       padding: var(--space-3); cursor: grab; display: flex; flex-direction: column; gap: var(--space-2);
-      transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+      transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
     }
     .board-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.08)); }
-    .board-card:active { cursor: grabbing; }
+    .board-card:active { cursor: grabbing; transform: scale(0.98); }
     .board-card.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
     .board-card.is-dragging { opacity: .45; }
     .board-card__title { font-size: var(--text-sm); color: var(--text-primary); line-height: 1.4; overflow-wrap: anywhere; }
@@ -1227,6 +1235,7 @@
       transform: translateY(-2px);
       box-shadow: var(--shadow-card);
     }
+    .project-card:active { transform: scale(0.97); }
     .project-card-accent {
       position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
       background: var(--text-muted);
@@ -1765,14 +1774,17 @@
       font-size: var(--text-base);
       font-weight: 600;
       line-height: 1.2;
-      transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+      transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out);
       white-space: nowrap;
     }
+    .btn:active { transform: scale(0.97); }
     .btn:disabled,
     .btn[aria-disabled="true"] {
       opacity: 0.5;
       cursor: not-allowed;
     }
+    .btn:disabled:active,
+    .btn[aria-disabled="true"]:active { transform: none; }
 
     /* Tier 1 — Primary: solider Akzent, flach. */
     .btn-primary {
@@ -1849,6 +1861,7 @@
       transform: translateY(-2px);
       box-shadow: var(--shadow-card);
     }
+    .session-card:active { transform: scale(0.97); }
 
     /* ── Redesign: Status-Streifen am linken Rand (Farbe = Pillen-Farbe) ── */
     .session-card .card-accent {
@@ -2528,13 +2541,20 @@
        `.hidden`-Klasse (dashboard) und `.active`-Klasse (terminal).
        Scale-out-ready für project-detail (Phase 0) und mehr. */
     .main-content [data-view] { display: none; }
-    body[data-current-view="dashboard"]      .main-content [data-view="dashboard"]      { display: block; }
-    body[data-current-view="projects"]       .main-content [data-view="projects"]       { display: block; }
-    body[data-current-view="usage"]          .main-content [data-view="usage"]          { display: block; }
-    body[data-current-view="board"]          .main-content [data-view="board"]          { display: flex; }
-    body[data-current-view="terminal"]       .main-content [data-view="terminal"]       { display: flex; }
-    body[data-current-view="project-detail"] .main-content [data-view="project-detail"] { display: flex; }
-    body[data-current-view="settings"]       .main-content [data-view="settings"]       { display: block; }
+    /* View-Enter-Animation: spielt automatisch beim display:none→shown-Flip
+       (CSS-`animation` feuert beim Sichtbarwerden) — kein JS-Hook nötig.
+       Leichte Content-Views faden + steigen 6px; schwere Views (Terminal mit
+       xterm, Project-Detail) faden NUR — ein Transform während xterms fit()
+       würde das Terminal jankig verschieben. Enter-only, kein Exit. */
+    @keyframes view-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes view-enter-fade { from { opacity: 0; } to { opacity: 1; } }
+    body[data-current-view="dashboard"]      .main-content [data-view="dashboard"]      { display: block; animation: view-enter var(--dur) var(--ease-out); }
+    body[data-current-view="projects"]       .main-content [data-view="projects"]       { display: block; animation: view-enter var(--dur) var(--ease-out); }
+    body[data-current-view="usage"]          .main-content [data-view="usage"]          { display: block; animation: view-enter var(--dur) var(--ease-out); }
+    body[data-current-view="board"]          .main-content [data-view="board"]          { display: flex;  animation: view-enter var(--dur) var(--ease-out); }
+    body[data-current-view="terminal"]       .main-content [data-view="terminal"]       { display: flex;  animation: view-enter-fade var(--dur) var(--ease-out); }
+    body[data-current-view="project-detail"] .main-content [data-view="project-detail"] { display: flex;  animation: view-enter-fade var(--dur) var(--ease-out); }
+    body[data-current-view="settings"]       .main-content [data-view="settings"]       { display: block; animation: view-enter var(--dur) var(--ease-out); }
 
     /* ── Terminal View ─────────────────────────────────────────────── */
     /* --kb-inset wird von JS gesetzt wenn die iOS-Tastatur auftaucht —
@@ -2997,7 +3017,7 @@
         border-bottom: none;
         padding: var(--space-5) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
         transform: translateY(100%);
-        transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+        transition: transform var(--dur-slow) var(--ease-drawer);
         max-height: 92dvh;
       }
       .modal-overlay.open .modal {
@@ -3067,6 +3087,7 @@
         transition-duration: 0.001ms !important;
       }
       .session-card.card-enter { animation: none !important; }
+      .main-content [data-view] { animation: none !important; }
     }
 
     /* Manual reduce-motion toggle (Settings → Appearance → Animations off) */
@@ -3078,6 +3099,7 @@
       transition-duration: 0.001ms !important;
     }
     html[data-reduce-motion="true"] .session-card.card-enter { animation: none !important; }
+    html[data-reduce-motion="true"] .main-content [data-view] { animation: none !important; }
 
     /* Compact density: tighten the global spacing scale (~0.82x). Conservative —
        only the --space-* tokens; components using these tokens shrink, hardcoded
@@ -4358,9 +4380,10 @@
       font-family: inherit;
       font-size: var(--text-sm, 13px);
       cursor: pointer;
-      transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+      transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
     }
     .seg-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .seg-btn:active { transform: scale(0.97); }
     .seg-btn.is-active {
       background: var(--accent-muted);
       border-color: var(--accent, #2dd4bf);
@@ -4368,8 +4391,9 @@
     }
     .toggle-btn {
       width: 40px; height: 22px; border-radius: 11px; border: 0; cursor: pointer;
-      background: var(--border); position: relative; transition: background var(--dur) var(--ease-out); flex-shrink: 0;
+      background: var(--border); position: relative; transition: background var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out); flex-shrink: 0;
     }
+    .toggle-btn:active { transform: scale(0.97); }
     .toggle-btn::after {
       content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
       border-radius: 50%; background: #fff; transition: transform var(--dur) var(--ease-in-out);
@@ -10000,7 +10024,7 @@
       setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(100%)';
-        toast.style.transition = 'all 0.3s ease';
+        toast.style.transition = 'transform var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out)';
         setTimeout(() => toast.remove(), 300);
       }, 3500);
     }
@@ -11336,6 +11360,11 @@
             showToast(msg, 'error'); return;
           }
           const data = await r.json();
+          // Der Server advanced brainstorming→implement beim Spawn. Lokal spiegeln,
+          // damit das Board stimmt, falls wir nicht ins Terminal wegnavigieren
+          // (activate() refetcht beim Zurückkommen ohnehin).
+          const c = cards.find(x => x.id === id);
+          if (c && c.stage === 'brainstorming') { c.stage = 'implement'; render(); if (detailId === id) openDetail(id); }
           if (data && data.session) connectToSession(data.session);
         } catch { showToast(t('board.implement.failed'), 'error'); }
       }
