@@ -2595,7 +2595,7 @@ const server = app.listen(PORT, async () => {
           const project = await getProject(card.projectId);
           if (project && project.path) removeWorktree(project.path, card.worktreePath);
           await board.updateCard(card.id, { worktreePath: null });
-        } catch { /* einzelne Karte überspringen */ }
+        } catch (e) { console.warn('[boot] worktree cleanup failed for card', card.id, e.message); }
       }
     } catch (e) {
       console.error('[boot] worktree reconciliation failed:', e.message);
