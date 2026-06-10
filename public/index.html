@@ -895,6 +895,9 @@
     }
     .board-detail__notes { font: inherit; font-size: var(--text-sm); resize: vertical; min-height: 3.5em; }
     .board-detail__del { margin-top: auto; }
+    .board-detail__diff { margin-top: var(--space-2); max-height: 50vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
+    .board-detail__diff-file { font-family: var(--font-mono); font-size: 0.78em; padding: var(--space-1) var(--space-2); background: var(--bg-elevated); position: sticky; top: 0; }
+    .board-detail__diff-stat { color: var(--text-muted); }
     @media (max-width: 899px) {
       .board-detail { width: 100vw; padding-top: calc(var(--space-4) + 56px); }
       /* Topbar wraps so the filter + "Add idea" stay reachable (no clip). */
@@ -11400,6 +11403,8 @@
             <textarea class="form-input board-detail__notes" id="board-detail-notes" rows="3" maxlength="500" placeholder="${escapeHtml(t('board.card.notesPlaceholder'))}">${escapeHtml(c.notes || '')}</textarea></div>
           ${sessionAlive ? `<button class="btn btn-secondary btn-sm board-detail__open" id="board-detail-open" type="button">${escapeHtml(c.stage === 'brainstorming' ? t('board.brainstorm.attach') : t('board.implement.attach'))}</button>` : ''}
           ${(c.stage === 'review' && c.branch) ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.implement.branch'))}</span><span class="board-detail__doc" title="${escapeHtml(c.branch)}">${escapeHtml(c.branch)}</span></div>` : ''}
+          ${(c.stage === 'review' && c.branch) ? `<button class="btn btn-secondary btn-sm board-detail__viewdiff" id="board-detail-viewdiff" type="button">${escapeHtml(t('board.finish.viewDiff'))}</button>` : ''}
+          ${(c.stage === 'review' && c.branch) ? `<div id="board-detail-diff" class="board-detail__diff" hidden></div>` : ''}
           ${(c.stage === 'review' && c.implementSummary) ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.implement.summary'))}</span><span>${escapeHtml(c.implementSummary)}</span></div>` : ''}
           ${c.brainstormDoc ? `<div class="board-detail__row"><span class="board-detail__label">${escapeHtml(t('board.brainstorm.doc'))}</span><span class="board-detail__doc" title="${escapeHtml(c.brainstormDoc)}">${escapeHtml(c.brainstormDoc)}</span></div>` : ''}
           <button class="btn btn-danger btn-sm board-detail__del" id="board-detail-del" type="button">${escapeHtml(t('board.detail.delete'))}</button>`;
@@ -11423,6 +11428,27 @@
           if (ref) connectToSession(ref);
         });
         el('board-detail-notes')?.addEventListener('change', (e)=>patchCard(id,{notes:e.target.value.trim()||null}));
+        el('board-detail-viewdiff')?.addEventListener('click', async () => {
+          const box = el('board-detail-diff');
+          if (!box) return;
+          box.hidden = false;
+          box.textContent = t('board.finish.diffLoading');
+          try {
+            const r = await fetch(`/api/board/cards/${id}/branch-diff`, { headers: authH() });
+            const data = await r.json();
+            if (!r.ok || data.isRepo === false || !data.files?.length) {
+              box.innerHTML = `<div class="empty-state">${escapeHtml(t('board.finish.diffEmpty'))}</div>`;
+              return;
+            }
+            box.innerHTML = data.files.map(f => {
+              const head = `<div class="board-detail__diff-file">${escapeHtml(f.path)} <span class="board-detail__diff-stat">+${f.additions} −${f.deletions}</span></div>`;
+              const body = f.binary ? `<div class="udiff">binary</div>`
+                : f.oversize ? `<div class="udiff">${escapeHtml(t('board.finish.diffOversize'))}</div>`
+                : (window.DiffView?.renderUnifiedDiff?.(f.diff) || '');
+              return head + body;
+            }).join('');
+          } catch { box.innerHTML = `<div class="empty-state">${escapeHtml(t('board.finish.diffEmpty'))}</div>`; }
+        });
         render(); // re-mark active card
       }
       function closeDetail() { detailId=null; deleteArmed=false; const d=el('board-detail'); if (d){ d.hidden = true; d.innerHTML=''; } render(); }
@@ -13565,7 +13591,7 @@
       el('changes-mode-diff')?.addEventListener('click', () => { setViewMode('diff'); if (selectedPath == null && currentFiles.length) selectFile(0); });
 
       return { activateForSession, onTabShown, showCommitSource, showWorktree,
-               toggle, close, setViewMode, _cleanup: disconnectWs };
+               toggle, close, setViewMode, _cleanup: disconnectWs, renderUnifiedDiff };
     })();
     window.DiffView = DiffView;
 
