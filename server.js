@@ -2583,6 +2583,23 @@ const server = app.listen(PORT, async () => {
         if (_n) console.log(`  ▸ board: migrated ${_n} backlog item(s) → cards; ROADMAP.md → CHANGELOG.md`);
       }
     } catch (e) { console.warn('[board] migration skipped:', e.message); }
+    // Boot-Reconciliation: Worktrees von Karten, deren Session nicht mehr lebt
+    // (Agent-Crash / tmux-Tod), entfernen. Branch bleibt (konservativ). Nur
+    // bekannte Karten — kein FS-Scan nach unbekannten Dirs.
+    try {
+      const alive = new Set(getTmuxSessions().map(s => s.name));
+      for (const card of board.listCards()) {
+        if (!card.worktreePath) continue;
+        if (card.sessionRef && alive.has(card.sessionRef)) continue;
+        try {
+          const project = await getProject(card.projectId);
+          if (project && project.path) removeWorktree(project.path, card.worktreePath);
+          await board.updateCard(card.id, { worktreePath: null });
+        } catch { /* einzelne Karte überspringen */ }
+      }
+    } catch (e) {
+      console.error('[boot] worktree reconciliation failed:', e.message);
+    }
     await settings.load({ tmuxMouse: TMUX_MOUSE_DEFAULT, remoteApproval: REMOTE_APPROVAL_DEFAULT });
     const _s = settings.get();
     tmuxMouseMode = _s.tmuxMouse;
