@@ -1135,6 +1135,14 @@ app.post('/api/board/cards/:id/finish', async (req, res) => {
       try { destroySession(card.sessionRef, auditLog.extractRequestMeta(req)); } catch {}
     }
     await board.moveCard(card.id, 'done');
+    // Worktree-Isolation: nach erfolgtem Merge den Worktree entfernen und den
+    // (jetzt gemergten) Branch löschen. removeWorktree VOR deleteBranch — Git
+    // verbietet das Löschen eines noch ausgecheckten Branches.
+    if (card.worktreePath) {
+      removeWorktree(repo, card.worktreePath);
+      try { await board.updateCard(card.id, { worktreePath: null }); } catch { /* ignore */ }
+    }
+    deleteBranch(repo, card.branch);
     auditLog.record('card.finish', { ...auditLog.extractRequestMeta(req), card: card.id, branch: card.branch, base });
     res.json({ done: true, base, pushed: result.pushed });
   } catch (e) {
@@ -1549,14 +1557,27 @@ function destroySession(name, reqMeta = {}) {
   auditLog.record('session.delete', { ...reqMeta, session: name });
 }
 
+// Entfernt den Implement-Worktree einer Session (Branch bleibt — konservativ).
+// Kein-op für Sessions ohne zugeordnete Worktree-Karte.
+async function cleanupWorktreeForSession(name) {
+  const card = board.findCardBySessionRef(name);
+  if (!card || !card.worktreePath) return;
+  try {
+    const project = await getProject(card.projectId);
+    if (project && project.path) removeWorktree(project.path, card.worktreePath);
+  } catch { /* Projekt weg → Worktree verbleibt, Boot-Reconciliation/prune räumt */ }
+  try { await board.updateCard(card.id, { worktreePath: null }); } catch { /* ignore */ }
+}
+
 // Kill session
-app.delete('/api/sessions/:name', (req, res) => {
+app.delete('/api/sessions/:name', async (req, res) => {
   const { name } = req.params;
   if (!SESSION_NAME_RE.test(name)) {
     return res.status(400).json({ error: 'Invalid session name' });
   }
   try {
     destroySession(name, auditLog.extractRequestMeta(req));
+    await cleanupWorktreeForSession(name);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
