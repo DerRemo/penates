@@ -10,7 +10,7 @@ import { spawn } from 'node-pty';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve, sep } from 'path';
-import { readdirSync, readFileSync } from 'fs';
+import { readdirSync, readFileSync, writeFileSync, accessSync } from 'fs';
 import { createChecker } from './lib/update-check.js';
 import { homedir } from 'os';
 import { getCurrentContext, getDailyUsageV2 } from './lib/usage.js';
@@ -25,7 +25,9 @@ import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
-import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync } from './lib/projects.js';
+import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
+import { addDoneItem } from './lib/roadmap-writer.js';
+import { preflightFinish, finishCard } from './lib/git-finish.js';
 import {
   listDir as filesListDir,
   readFile as filesReadFile,
@@ -1064,6 +1066,67 @@ app.get('/api/board/cards/:id/branch-diff', async (req, res) => {
     res.json(getBranchDiff(project.path, base, card.branch));
   } catch (e) {
     res.status(500).json({ error: 'Failed to compute branch diff', detail: e.message });
+  }
+});
+
+// Review → Fertig (Phase 5): mergt idea/<slug> in base, schreibt das Changelog-
+// Done-Item, committet, pusht, beendet die Session, Karte → done. Hub-seitig,
+// deterministisch, kein Agent. Preflight blockt VOR jeder Mutation.
+const RE_DEV_SECTION = /^##\s+In\s+Development\s*:/im;
+app.post('/api/board/cards/:id/finish', async (req, res) => {
+  try {
+    const card = board.getCard(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    if (card.stage !== 'review' || !card.branch) {
+      return res.status(400).json({ error: 'Card must be in review with a branch' });
+    }
+    const project = await getProject(card.projectId);
+    if (!project || !project.path) return res.status(404).json({ error: 'Project not found' });
+    const repo = project.path;
+    const base = detectBaseBranch(repo);
+
+    // Preflight (read-only).
+    const pre = preflightFinish(repo, card.branch, base);
+    if (!pre.ok) return res.status(409).json({ error: 'preflight', reason: pre.reason });
+    // Changelog-Section muss existieren (sonst scheitert der Write nach dem Merge).
+    const docPath = await resolveProjectDoc(repo);
+    if (!docPath) return res.status(409).json({ error: 'preflight', reason: 'no-changelog-section' });
+    if (!RE_DEV_SECTION.test(readFileSync(docPath, 'utf8'))) {
+      return res.status(409).json({ error: 'preflight', reason: 'no-changelog-section' });
+    }
+
+    // changelogWrite(workdir): addDoneItem in der dev-Section, schreibt im
+    // übergebenen Verzeichnis (repo ODER detached Worktree), gibt den Basenamen
+    // zum git add zurück. Synchron (named ESM-fs-Imports). CHANGELOG.md bevorzugt.
+    const theme = card.theme || undefined;
+    const changelogWrite = (workdir) => {
+      let file = 'CHANGELOG.md';
+      let abs = join(workdir, file);
+      try { accessSync(abs); } catch { file = 'ROADMAP.md'; abs = join(workdir, file); }
+      const { content } = addDoneItem(readFileSync(abs, 'utf8'), 'dev', card.title, theme ? { theme } : undefined);
+      writeFileSync(abs, content, 'utf8');
+      return file;
+    };
+
+    let result;
+    try {
+      result = finishCard(repo, card.branch, base, card.title, changelogWrite);
+    } catch (e) {
+      if (e.stage === 'push') {
+        return res.status(502).json({ error: 'push', reason: 'push-failed', merged: true });
+      }
+      return res.status(500).json({ error: e.stage || 'finish', detail: e.message });
+    }
+
+    // Erfolg → Session beenden (falls vorhanden), Karte → done.
+    if (card.sessionRef && getTmuxSessions().some(s => s.name === card.sessionRef)) {
+      try { destroySession(card.sessionRef, auditLog.extractRequestMeta(req)); } catch {}
+    }
+    await board.moveCard(card.id, 'done');
+    auditLog.record('card.finish', { ...auditLog.extractRequestMeta(req), card: card.id, branch: card.branch, base });
+    res.json({ done: true, base, pushed: result.pushed });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to finish card', detail: e.message });
   }
 });
 
