@@ -2541,13 +2541,20 @@
        `.hidden`-Klasse (dashboard) und `.active`-Klasse (terminal).
        Scale-out-ready für project-detail (Phase 0) und mehr. */
     .main-content [data-view] { display: none; }
-    body[data-current-view="dashboard"]      .main-content [data-view="dashboard"]      { display: block; }
-    body[data-current-view="projects"]       .main-content [data-view="projects"]       { display: block; }
-    body[data-current-view="usage"]          .main-content [data-view="usage"]          { display: block; }
-    body[data-current-view="board"]          .main-content [data-view="board"]          { display: flex; }
-    body[data-current-view="terminal"]       .main-content [data-view="terminal"]       { display: flex; }
-    body[data-current-view="project-detail"] .main-content [data-view="project-detail"] { display: flex; }
-    body[data-current-view="settings"]       .main-content [data-view="settings"]       { display: block; }
+    /* View-Enter-Animation: spielt automatisch beim display:none→shown-Flip
+       (CSS-`animation` feuert beim Sichtbarwerden) — kein JS-Hook nötig.
+       Leichte Content-Views faden + steigen 6px; schwere Views (Terminal mit
+       xterm, Project-Detail) faden NUR — ein Transform während xterms fit()
+       würde das Terminal jankig verschieben. Enter-only, kein Exit. */
+    @keyframes view-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes view-enter-fade { from { opacity: 0; } to { opacity: 1; } }
+    body[data-current-view="dashboard"]      .main-content [data-view="dashboard"]      { display: block; animation: view-enter var(--dur) var(--ease-out); }
+    body[data-current-view="projects"]       .main-content [data-view="projects"]       { display: block; animation: view-enter var(--dur) var(--ease-out); }
+    body[data-current-view="usage"]          .main-content [data-view="usage"]          { display: block; animation: view-enter var(--dur) var(--ease-out); }
+    body[data-current-view="board"]          .main-content [data-view="board"]          { display: flex;  animation: view-enter var(--dur) var(--ease-out); }
+    body[data-current-view="terminal"]       .main-content [data-view="terminal"]       { display: flex;  animation: view-enter-fade var(--dur) var(--ease-out); }
+    body[data-current-view="project-detail"] .main-content [data-view="project-detail"] { display: flex;  animation: view-enter-fade var(--dur) var(--ease-out); }
+    body[data-current-view="settings"]       .main-content [data-view="settings"]       { display: block; animation: view-enter var(--dur) var(--ease-out); }
 
     /* ── Terminal View ─────────────────────────────────────────────── */
     /* --kb-inset wird von JS gesetzt wenn die iOS-Tastatur auftaucht —
@@ -3080,6 +3087,7 @@
         transition-duration: 0.001ms !important;
       }
       .session-card.card-enter { animation: none !important; }
+      .main-content [data-view] { animation: none !important; }
     }
 
     /* Manual reduce-motion toggle (Settings → Appearance → Animations off) */
@@ -3091,6 +3099,7 @@
       transition-duration: 0.001ms !important;
     }
     html[data-reduce-motion="true"] .session-card.card-enter { animation: none !important; }
+    html[data-reduce-motion="true"] .main-content [data-view] { animation: none !important; }
 
     /* Compact density: tighten the global spacing scale (~0.82x). Conservative —
        only the --space-* tokens; components using these tokens shrink, hardcoded
