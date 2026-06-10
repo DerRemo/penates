@@ -10,6 +10,22 @@ const RUNNING = {
   projectId: 'p1', projectName: 'demo-project',
 };
 
+// Wie RUNNING, aber mit Registry-Match (`project`-Objekt) — der Pfad-Basename
+// ('tmp') ist absichtlich gleich dem project.name, um die frühere Dopplung
+// (Header-Badge + leise Meta-Zeile) zu reproduzieren.
+const RUNNING_REGISTERED = {
+  ...RUNNING, name: 'cc-dup-proj', path: '/tmp',
+  project: { id: 'p1', name: 'tmp' },
+};
+
+// Session nach ihrem Projekt benannt (Default cc-<projektname>), hier zusätzlich
+// mit abweichender Groß-/Kleinschreibung: das Badge wäre redundant zum Namen
+// und wird unterdrückt → der Projektname steht nur EINMAL auf der Card.
+const RUNNING_SAMEPROJ = {
+  ...RUNNING, name: 'cc-YouTube-pipeline', path: '/Users/x/youtube-pipeline',
+  project: { id: 'p2', name: 'youtube-pipeline' },
+};
+
 function mockSessions(page, sessions) {
   return page.route('**/api/sessions', route => {
     if (route.request().method() === 'GET') {
@@ -20,7 +36,7 @@ function mockSessions(page, sessions) {
 }
 
 test.describe('session card redesign', () => {
-  test('running card shows logo + name + status, hides project/context/git', async ({ authedPage: page }) => {
+  test('running card shows logo + name + status + quiet context meta, hides git/legacy badges', async ({ authedPage: page }) => {
     await mockSessions(page, [RUNNING]);
     await page.reload();
     await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
@@ -45,9 +61,53 @@ test.describe('session card redesign', () => {
     await expect(card.locator('.session-project-badge')).toHaveCount(0);
     await expect(card.locator('.git-badge')).toHaveCount(0);
     await expect(card.locator('.cli-badge')).toHaveCount(0); // Text-Badge ersetzt durch Logo
-    await expect(card).not.toContainText('71%');
+    // Kontext-% wird (als leise Meta-Zeile) bewusst gezeigt — siehe index.html
+    // Kommentar "leise zweite Zeile". Kein Registry-Match (`project`) hier, also
+    // kein Header-Badge; der Pfad-Basename steht als Fallback in der Meta-Zeile.
+    await expect(card.locator('.session-meta-ctx')).toContainText('71%');
+    await expect(card.locator('.session-card-project')).toHaveCount(0);
     // Kein eigener Verbinden-Button mehr
     await expect(card.locator('[data-action="connect"]')).toHaveCount(0);
+  });
+
+  // Regression: bei einem Registry-Match wurde der Projektname doppelt
+  // gezeigt — als Header-Badge (.session-card-project) UND als leise
+  // Meta-Zeile (.session-meta-proj, aus dem Pfad-Basename). Der Basename
+  // ist Fallback und darf nur erscheinen, wenn KEIN Badge da ist.
+  test('registered session shows the project name once (badge, no meta-proj dupe)', async ({ authedPage: page }) => {
+    await mockSessions(page, [RUNNING_REGISTERED]);
+    await page.reload();
+    await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
+
+    const card = page.locator('.session-card[data-name="cc-dup-proj"]');
+    await expect(card).toBeVisible({ timeout: 10_000 });
+
+    // Header-Badge mit dem Registry-Namen ist da …
+    await expect(card.locator('.session-card-project')).toHaveText('tmp');
+    // … und die leise Meta-Proj-Zeile NICHT (sonst stünde 'tmp' doppelt).
+    await expect(card.locator('.session-meta-proj')).toHaveCount(0);
+    // Kontext-% bleibt in der Meta-Zeile erhalten.
+    await expect(card.locator('.session-meta-ctx')).toContainText('71%');
+  });
+
+  // Regression: das neue Projekt-Badge wiederholte den Session-Namen, wenn die
+  // Session nach ihrem Projekt benannt ist (Default) → "kalvo  kalvo". Das Badge
+  // darf nur erscheinen, wenn es zusätzliche Info trägt (Name ≠ Projekt).
+  test('session named after its project shows the project name once (badge suppressed, case-insensitive)', async ({ authedPage: page }) => {
+    await mockSessions(page, [RUNNING_SAMEPROJ]);
+    await page.reload();
+    await page.waitForSelector('body[data-current-view="dashboard"]', { timeout: 10_000 });
+
+    const card = page.locator('.session-card[data-name="cc-YouTube-pipeline"]');
+    await expect(card).toBeVisible({ timeout: 10_000 });
+
+    await expect(card.locator('.session-name-text')).toHaveText('YouTube-pipeline');
+    // Redundantes Badge unterdrückt (== Name, case-insensitiv) + keine Meta-Proj.
+    await expect(card.locator('.session-card-project')).toHaveCount(0);
+    await expect(card.locator('.session-meta-proj')).toHaveCount(0);
+    // Der Projektname steht genau einmal im Card-Text.
+    const n = await card.evaluate(el => (el.textContent.match(/youtube-pipeline/gi) || []).length);
+    expect(n).toBe(1);
   });
 
   test('actions hidden until hover on desktop, always visible on touch', async ({ authedPage: page }, testInfo) => {

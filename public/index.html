@@ -8222,6 +8222,17 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </button>`;
 
+      // Projekt-Badge (Registry-Match) im Card-Header. Nur zeigen, wenn der
+      // Projektname dem Session-Namen nicht ohnehin entspricht — sonst stünde
+      // der Projektname doppelt nebeneinander (Session-Name + Badge), z. B.
+      // "kalvo  kalvo". Case-insensitiv, da Session-Namen oft anders
+      // kapitalisiert sind als der Registry-Name ("YouTube-pipeline").
+      const projectBadge = (s, displayName) => {
+        const pn = s.project && s.project.name;
+        if (!pn || pn.toLowerCase() === (displayName || '').toLowerCase()) return '';
+        return `<span class="session-card-project" title="${escapeHtml(pn)}">${escapeHtml(pn)}</span>`;
+      };
+
       const renderRunningCard = (s) => {
         const displayName = s.name.replace(/^cc-/, '');
         const safeName = escapeHtml(s.name);
@@ -8235,7 +8246,10 @@
         const projName = (s.path || '').split('/').filter(Boolean).pop() || '';
         const ctxPct = s.contextPct;
         const metaBits = [];
-        if (projName) metaBits.push(`<span class="session-meta-proj">${escapeHtml(projName)}</span>`);
+        // Den Pfad-Basename nur als Fallback zeigen, wenn KEIN Registry-Badge
+        // (`session-card-project` im Header) gerendert wird — sonst stünde der
+        // Projektname doppelt auf der Card (Header-Pill + leise Meta-Zeile).
+        if (projName && !s.project) metaBits.push(`<span class="session-meta-proj">${escapeHtml(projName)}</span>`);
         if (ctxPct !== null && ctxPct !== undefined) metaBits.push(`<span class="session-meta-ctx">${ctxPct}% Kontext</span>`);
         const metaRow = metaBits.length
           ? `<div class="session-meta">${metaBits.join('<span class="session-meta-sep" aria-hidden="true"></span>')}</div>`
@@ -8247,7 +8261,7 @@
               <div class="session-name">
                 ${cardCliLogo(s.command)}
                 <span class="session-name-text">${escapeHtml(displayName)}</span>
-                ${s.project ? `<span class="session-card-project" title="${escapeHtml(s.project.name)}">${escapeHtml(s.project.name)}</span>` : ''}
+                ${projectBadge(s, displayName)}
               </div>
               <div class="session-status ${act.cls}" title="${escapeHtml(act.title)}">${label}</div>
             </div>
@@ -8277,7 +8291,7 @@
               <div class="session-name">
                 ${cardCliLogo(s.command || 'claude')}
                 <span class="session-name-text">${escapeHtml(displayName)}</span>
-                ${s.project ? `<span class="session-card-project" title="${escapeHtml(s.project.name)}">${escapeHtml(s.project.name)}</span>` : ''}
+                ${projectBadge(s, displayName)}
               </div>
               <div class="session-status unknown" title="${t('sessionCard.dormantBadgeTitle')}">${t('sessionCard.status.dormant')} · ${escapeHtml(lastSeen)}</div>
             </div>
@@ -8311,7 +8325,7 @@
               <div class="session-name">
                 <span class="cli-logo cli-logo--fallback" aria-hidden="true">${TERMINAL_GLYPH}</span>
                 <span class="session-name-text">${escapeHtml(displayName)}</span>
-                ${s.project ? `<span class="session-card-project" title="${escapeHtml(s.project.name)}">${escapeHtml(s.project.name)}</span>` : ''}
+                ${projectBadge(s, displayName)}
               </div>
               <span class="foreign-badge">tmux</span>
             </div>
