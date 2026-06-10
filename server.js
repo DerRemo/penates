@@ -1560,7 +1560,8 @@ function destroySession(name, reqMeta = {}) {
 // Entfernt den Implement-Worktree einer Session (Branch bleibt — konservativ).
 // Kein-op für Sessions ohne zugeordnete Worktree-Karte.
 async function cleanupWorktreeForSession(name) {
-  const card = board.findCardBySessionRef(name);
+  let card;
+  try { card = board.findCardBySessionRef(name); } catch { return; }
   if (!card || !card.worktreePath) return;
   try {
     const project = await getProject(card.projectId);
