@@ -128,10 +128,17 @@
       --radius-lg: 16px;
       --radius-pill: 999px;
 
-      /* Motion */
+      /* Motion — gemeinsame Sprache. Beim Animieren IMMER zum Token greifen,
+         nie zum Literal. Entscheidungstabelle (Emil Kowalski):
+           Enter/Exit, Hover, Color  → var(--ease-out)   (der Default)
+           On-Screen-Bewegung/Morph  → var(--ease-in-out)
+           Drawer / Bottom-Sheet     → var(--ease-drawer)
+         Dauer nach Fläche: Press 100–160ms · Tooltip 125–200ms ·
+           Dropdown 150–250ms · Modal 200–300ms → Stufen --dur-fast/--dur/--dur-slow.
+         ease-in gibt es bewusst NICHT: nie ease-in für UI (träger Start). */
       --ease-out: cubic-bezier(.2,.7,.3,1);
-      --ease-in: cubic-bezier(.5,0,.9,.3);
       --ease-in-out: cubic-bezier(.5,.05,.2,1);
+      --ease-drawer: cubic-bezier(.32,.72,0,1);
       --dur-fast: .12s;
       --dur: .18s;
       --dur-slow: .28s;
@@ -11336,6 +11343,11 @@
             showToast(msg, 'error'); return;
           }
           const data = await r.json();
+          // Der Server advanced brainstorming→implement beim Spawn. Lokal spiegeln,
+          // damit das Board stimmt, falls wir nicht ins Terminal wegnavigieren
+          // (activate() refetcht beim Zurückkommen ohnehin).
+          const c = cards.find(x => x.id === id);
+          if (c && c.stage === 'brainstorming') { c.stage = 'implement'; render(); if (detailId === id) openDetail(id); }
           if (data && data.session) connectToSession(data.session);
         } catch { showToast(t('board.implement.failed'), 'error'); }
       }
