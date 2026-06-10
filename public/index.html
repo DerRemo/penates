@@ -3010,7 +3010,7 @@
         border-bottom: none;
         padding: var(--space-5) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
         transform: translateY(100%);
-        transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+        transition: transform var(--dur-slow) var(--ease-drawer);
         max-height: 92dvh;
       }
       .modal-overlay.open .modal {
@@ -10015,7 +10015,7 @@
       setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(100%)';
-        toast.style.transition = 'all 0.3s ease';
+        toast.style.transition = 'transform var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out)';
         setTimeout(() => toast.remove(), 300);
       }, 3500);
     }
