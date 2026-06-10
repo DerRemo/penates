@@ -26,7 +26,7 @@ import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
-import { addDoneItem } from './lib/roadmap-writer.js';
+import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
 import { preflightFinish, finishCard } from './lib/git-finish.js';
 import {
   listDir as filesListDir,
@@ -1072,7 +1072,6 @@ app.get('/api/board/cards/:id/branch-diff', async (req, res) => {
 // Review → Fertig (Phase 5): mergt idea/<slug> in base, schreibt das Changelog-
 // Done-Item, committet, pusht, beendet die Session, Karte → done. Hub-seitig,
 // deterministisch, kein Agent. Preflight blockt VOR jeder Mutation.
-const RE_DEV_SECTION = /^##\s+In\s+Development\s*:/im;
 app.post('/api/board/cards/:id/finish', async (req, res) => {
   try {
     const card = board.getCard(req.params.id);
@@ -1091,7 +1090,7 @@ app.post('/api/board/cards/:id/finish', async (req, res) => {
     // Changelog-Section muss existieren (sonst scheitert der Write nach dem Merge).
     const docPath = await resolveProjectDoc(repo);
     if (!docPath) return res.status(409).json({ error: 'preflight', reason: 'no-changelog-section' });
-    if (!RE_DEV_SECTION.test(readFileSync(docPath, 'utf8'))) {
+    if (!sectionExists(readFileSync(docPath, 'utf8'), 'dev')) {
       return res.status(409).json({ error: 'preflight', reason: 'no-changelog-section' });
     }
 
