@@ -19,7 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as board from './lib/board.js';
-import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand } from './lib/brainstorm-spawn.js';
+import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand, implementBranchName } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -28,6 +28,7 @@ import { createRateLimiter } from './lib/rate-limit.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
 import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
 import { preflightFinish, finishCard } from './lib/git-finish.js';
+import { canIsolate, worktreePathFor, ensureWorktree, removeWorktree, deleteBranch } from './lib/worktree.js';
 import {
   listDir as filesListDir,
   readFile as filesReadFile,
@@ -1025,24 +1026,36 @@ app.post('/api/board/cards/:id/implement', async (req, res) => {
     if (!validSessionName(namePart)) return res.status(400).json({ error: 'Cannot derive a valid session name from the idea title' });
     const sessionName = SESSION_PREFIX + namePart;
 
+    // Worktree-Isolation: gated auf Git-Repo, sonst heutiges Verhalten (dir=project.path).
+    const slug = slugifySessionName(card.title);
+    const branch = implementBranchName(card.title);
+    const base = detectBaseBranch(project.path);
+    let dir = project.path, wtPath = null;
+    if (canIsolate(project.path, base)) {
+      wtPath = worktreePathFor(project.path, slug);
+      try { ensureWorktree(project.path, branch, base, wtPath); }
+      catch (e) { return res.status(500).json({ error: `worktree setup failed: ${e.message}` }); }
+      dir = wtPath;
+    }
+
     // Die Karte beim Spawn nach `implement` advancen — aber nur vom Brainstorming-
-    // Stand aus, damit ein bloßes Wieder-Öffnen der Session (Card schon in review)
-    // sie nicht zurückzieht. Gilt für Detail-Button UND Drag UND Reuse-Pfad.
+    // Stand aus (Wieder-Öffnen einer review-Karte zieht sie nicht zurück).
     const advanceToImplement = () =>
       card.stage === 'brainstorming' ? board.moveCard(card.id, 'implement') : Promise.resolve();
 
     // Idempotenz: lebt die deterministische Session schon → attach statt neu spawnen.
     if (getTmuxSessions().some(s => s.name === sessionName)) {
       await advanceToImplement();
+      await board.updateCard(card.id, { sessionRef: sessionName, worktreePath: wtPath });
       return res.status(200).json({ session: sessionName, reused: true });
     }
     try {
-      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude --dangerously-skip-permissions', promptText: buildImplementPriming(card), auditMeta: auditLog.extractRequestMeta(req) });
+      await spawnTmuxSession({ sessionName, dir, cmd: 'claude --dangerously-skip-permissions', promptText: buildImplementPriming(card, { isolated: !!wtPath }), auditMeta: auditLog.extractRequestMeta(req) });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
     await advanceToImplement();
-    await board.updateCard(card.id, { sessionRef: sessionName });
+    await board.updateCard(card.id, { sessionRef: sessionName, worktreePath: wtPath });
 
     // Trust-Gate-Watchdog im Hintergrund (blockt die HTTP-Antwort nicht).
     watchTrustGate(sessionName);
@@ -1122,6 +1135,14 @@ app.post('/api/board/cards/:id/finish', async (req, res) => {
       try { destroySession(card.sessionRef, auditLog.extractRequestMeta(req)); } catch {}
     }
     await board.moveCard(card.id, 'done');
+    // Worktree-Isolation: nach erfolgtem Merge den Worktree entfernen und den
+    // (jetzt gemergten) Branch löschen. removeWorktree VOR deleteBranch — Git
+    // verbietet das Löschen eines noch ausgecheckten Branches.
+    if (card.worktreePath) {
+      removeWorktree(repo, card.worktreePath);
+      try { await board.updateCard(card.id, { worktreePath: null }); } catch { /* ignore */ }
+    }
+    deleteBranch(repo, card.branch);
     auditLog.record('card.finish', { ...auditLog.extractRequestMeta(req), card: card.id, branch: card.branch, base });
     res.json({ done: true, base, pushed: result.pushed });
   } catch (e) {
@@ -1536,14 +1557,28 @@ function destroySession(name, reqMeta = {}) {
   auditLog.record('session.delete', { ...reqMeta, session: name });
 }
 
+// Entfernt den Implement-Worktree einer Session (Branch bleibt — konservativ).
+// Kein-op für Sessions ohne zugeordnete Worktree-Karte.
+async function cleanupWorktreeForSession(name) {
+  let card;
+  try { card = board.findCardBySessionRef(name); } catch { return; }
+  if (!card || !card.worktreePath) return;
+  try {
+    const project = await getProject(card.projectId);
+    if (project && project.path) removeWorktree(project.path, card.worktreePath);
+  } catch { /* Projekt weg → Worktree verbleibt, Boot-Reconciliation/prune räumt */ }
+  try { await board.updateCard(card.id, { worktreePath: null }); } catch { /* ignore */ }
+}
+
 // Kill session
-app.delete('/api/sessions/:name', (req, res) => {
+app.delete('/api/sessions/:name', async (req, res) => {
   const { name } = req.params;
   if (!SESSION_NAME_RE.test(name)) {
     return res.status(400).json({ error: 'Invalid session name' });
   }
   try {
     destroySession(name, auditLog.extractRequestMeta(req));
+    await cleanupWorktreeForSession(name);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2548,6 +2583,23 @@ const server = app.listen(PORT, async () => {
         if (_n) console.log(`  ▸ board: migrated ${_n} backlog item(s) → cards; ROADMAP.md → CHANGELOG.md`);
       }
     } catch (e) { console.warn('[board] migration skipped:', e.message); }
+    // Boot-Reconciliation: Worktrees von Karten, deren Session nicht mehr lebt
+    // (Agent-Crash / tmux-Tod), entfernen. Branch bleibt (konservativ). Nur
+    // bekannte Karten — kein FS-Scan nach unbekannten Dirs.
+    try {
+      const alive = new Set(getTmuxSessions().map(s => s.name));
+      for (const card of board.listCards()) {
+        if (!card.worktreePath) continue;
+        if (card.sessionRef && alive.has(card.sessionRef)) continue;
+        try {
+          const project = await getProject(card.projectId);
+          if (project && project.path) removeWorktree(project.path, card.worktreePath);
+          await board.updateCard(card.id, { worktreePath: null });
+        } catch (e) { console.warn('[boot] worktree cleanup failed for card', card.id, e.message); }
+      }
+    } catch (e) {
+      console.error('[boot] worktree reconciliation failed:', e.message);
+    }
     await settings.load({ tmuxMouse: TMUX_MOUSE_DEFAULT, remoteApproval: REMOTE_APPROVAL_DEFAULT });
     const _s = settings.get();
     tmuxMouseMode = _s.tmuxMouse;
