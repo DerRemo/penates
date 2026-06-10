@@ -19,7 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as board from './lib/board.js';
-import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand } from './lib/brainstorm-spawn.js';
+import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand, implementBranchName } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -28,6 +28,7 @@ import { createRateLimiter } from './lib/rate-limit.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
 import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
 import { preflightFinish, finishCard } from './lib/git-finish.js';
+import { canIsolate, worktreePathFor, ensureWorktree, removeWorktree, deleteBranch } from './lib/worktree.js';
 import {
   listDir as filesListDir,
   readFile as filesReadFile,
@@ -1025,24 +1026,36 @@ app.post('/api/board/cards/:id/implement', async (req, res) => {
     if (!validSessionName(namePart)) return res.status(400).json({ error: 'Cannot derive a valid session name from the idea title' });
     const sessionName = SESSION_PREFIX + namePart;
 
+    // Worktree-Isolation: gated auf Git-Repo, sonst heutiges Verhalten (dir=project.path).
+    const slug = slugifySessionName(card.title);
+    const branch = implementBranchName(card.title);
+    const base = detectBaseBranch(project.path);
+    let dir = project.path, wtPath = null;
+    if (canIsolate(project.path, base)) {
+      wtPath = worktreePathFor(project.path, slug);
+      try { ensureWorktree(project.path, branch, base, wtPath); }
+      catch (e) { return res.status(500).json({ error: `worktree setup failed: ${e.message}` }); }
+      dir = wtPath;
+    }
+
     // Die Karte beim Spawn nach `implement` advancen — aber nur vom Brainstorming-
-    // Stand aus, damit ein bloßes Wieder-Öffnen der Session (Card schon in review)
-    // sie nicht zurückzieht. Gilt für Detail-Button UND Drag UND Reuse-Pfad.
+    // Stand aus (Wieder-Öffnen einer review-Karte zieht sie nicht zurück).
     const advanceToImplement = () =>
       card.stage === 'brainstorming' ? board.moveCard(card.id, 'implement') : Promise.resolve();
 
     // Idempotenz: lebt die deterministische Session schon → attach statt neu spawnen.
     if (getTmuxSessions().some(s => s.name === sessionName)) {
       await advanceToImplement();
+      await board.updateCard(card.id, { sessionRef: sessionName, worktreePath: wtPath });
       return res.status(200).json({ session: sessionName, reused: true });
     }
     try {
-      await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude --dangerously-skip-permissions', promptText: buildImplementPriming(card), auditMeta: auditLog.extractRequestMeta(req) });
+      await spawnTmuxSession({ sessionName, dir, cmd: 'claude --dangerously-skip-permissions', promptText: buildImplementPriming(card, { isolated: !!wtPath }), auditMeta: auditLog.extractRequestMeta(req) });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
     await advanceToImplement();
-    await board.updateCard(card.id, { sessionRef: sessionName });
+    await board.updateCard(card.id, { sessionRef: sessionName, worktreePath: wtPath });
 
     // Trust-Gate-Watchdog im Hintergrund (blockt die HTTP-Antwort nicht).
     watchTrustGate(sessionName);
