@@ -4716,7 +4716,7 @@
           <select id="projects-filter" data-i18n-attr="aria-label:projects.filter.label">
             <option value="all" data-i18n="projects.filter.all">All projects</option>
             <option value="sessions" data-i18n="projects.filter.sessions">With active sessions</option>
-            <option value="hideMissing" data-i18n="projects.filter.hideMissing">Hide missing ROADMAP</option>
+            <option value="hideMissing" data-i18n="projects.filter.hideMissing">Hide missing CHANGELOG</option>
           </select>
         </div>
         <div class="field field--select">
@@ -4812,7 +4812,7 @@
           <p>Phase 1 will render:</p>
           <ul class="cmd-bullets">
             <li>Released / Dev / Backlog / Changelog sub-tabs</li>
-            <li>clickable checkboxes that write back to <span class="cmd-path">ROADMAP.md</span> atomically</li>
+            <li>clickable checkboxes that write back to <span class="cmd-path">CHANGELOG.md</span> atomically</li>
             <li>"Finalize version" — moves Dev items → Changelog, generates release-notes markdown</li>
           </ul>
         </div>
@@ -5292,7 +5292,7 @@
   <div class="modal-overlay" id="release-modal" role="dialog" aria-modal="true" aria-labelledby="release-modal-title">
     <div class="modal">
       <h2 id="release-modal-title" data-i18n="projects.release.title">Finalize version</h2>
-      <p data-i18n-html="projects.release.description">All items from <strong>In Development</strong> will be moved to <strong>Released</strong>, both version headers bumped, and a new changelog entry inserted at the top. This is a destructive action — make a git commit of ROADMAP.md first if you version it.</p>
+      <p data-i18n-html="projects.release.description">All items from <strong>In Development</strong> will be moved to <strong>Released</strong>, both version headers bumped, and a new changelog entry inserted at the top. This is a destructive action — make a git commit of CHANGELOG.md first if you version it.</p>
       <div class="form-group">
         <label class="form-label" for="release-version-input" data-i18n-html="projects.release.versionLabel">Release Version (sets <code>## Released: vX</code>)</label>
         <input class="form-input" id="release-version-input" autocomplete="off" spellcheck="false" placeholder="e.g. 0.3.0" data-i18n-attr="placeholder:projects.release.versionPlaceholder">
@@ -7157,7 +7157,7 @@
 
         if (p.missing) {
           body.innerHTML = `
-            <div class="cmd-output-block" role="region" aria-label="Project — ROADMAP.md missing">
+            <div class="cmd-output-block" role="region" aria-label="Project — CHANGELOG.md missing">
               <div class="cmd-line cmd-line--prompt">
                 <span class="cmd-prompt">$</span>
                 <span class="cmd-command">hub project open ${escapeHtml(p.displayName)}</span>
