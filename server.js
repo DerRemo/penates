@@ -2576,15 +2576,13 @@ const server = app.listen(PORT, async () => {
     console.log(`  ▸ known-sessions: ${knownSessions.list().length} entries loaded`);
     await board.load();
     console.log(`  ▸ board: ${board.listCards().length} cards loaded`);
-    // Idea-Pipeline Phase-1 Cutover: NUR claude-code-hub migrieren (Dogfood).
-    // Idempotent (skip bei vorhandener CHANGELOG.md); Fehler dürfen den Start nicht killen.
+    // Idea-Pipeline Cutover: ALLE registrierten Projekte migrieren (Backlog →
+    // Karten, ROADMAP.md → CHANGELOG.md). Idempotent (skip bei vorhandener
+    // CHANGELOG.md); Fehler dürfen den Start nicht killen.
     try {
       const _projs = await listProjects();
-      const _hub = _projs.find(p => /(^|\/)claude-code-hub$/.test(p.path)) || _projs.find(p => p.path === process.cwd());
-      if (_hub) {
-        const _n = await board.migrateBacklog([{ id: _hub.id, path: _hub.path }]);
-        if (_n) console.log(`  ▸ board: migrated ${_n} backlog item(s) → cards; ROADMAP.md → CHANGELOG.md`);
-      }
+      const _n = await board.migrateBacklog(_projs.map(p => ({ id: p.id, path: p.path })));
+      if (_n) console.log(`  ▸ board: migrated ${_n} backlog item(s) → cards; ROADMAP.md → CHANGELOG.md`);
     } catch (e) { console.warn('[board] migration skipped:', e.message); }
     // Boot-Reconciliation: Worktrees von Karten, deren Session nicht mehr lebt
     // (Agent-Crash / tmux-Tod), entfernen. Branch bleibt (konservativ). Nur
