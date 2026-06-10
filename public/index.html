@@ -11329,6 +11329,17 @@
           startImplement(card.id);
           return true;
         }
+        if (stage === 'done' && card.stage === 'review') {
+          const ok = await showConfirmDialog({
+            title: t('board.finish.confirmTitle'),
+            body: t('board.finish.confirmBody'),
+            confirmLabel: t('board.finish.confirmOk'),
+            danger: true,
+          });
+          if (!ok) return false;
+          await startFinish(card.id);
+          return true;
+        }
         await patchCard(card.id, { stage });
         return true;
       }
@@ -11370,6 +11381,25 @@
           if (c && c.stage === 'brainstorming') { c.stage = 'implement'; render(); if (detailId === id) openDetail(id); }
           if (data && data.session) connectToSession(data.session);
         } catch { showToast(t('board.implement.failed'), 'error'); }
+      }
+      async function startFinish(id) {
+        try {
+          const r = await fetch(`/api/board/cards/${id}/finish`, { method: 'POST', headers: jsonH() });
+          const data = await r.json().catch(() => ({}));
+          if (r.ok && data.done) {
+            const c = cards.find(x => x.id === id);
+            if (c) { c.stage = 'done'; render(); if (detailId === id) openDetail(id); }
+            showToast(t('board.finish.success'), 'success');
+            return;
+          }
+          const reason = data.reason || '';
+          const key = reason === 'push-failed' ? 'board.finish.pushFailed'
+            : reason && ['dirty-tree','no-base','no-remote','no-branch','conflict','no-changelog-section'].includes(reason)
+              ? 'board.finish.reason.' + reason
+              : 'board.finish.failed';
+          showToast(t(key), 'error');
+          render();
+        } catch { showToast(t('board.finish.failed'), 'error'); }
       }
       async function removeCard(id) {
         try {
