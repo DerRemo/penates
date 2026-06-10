@@ -19,7 +19,7 @@ import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
 import * as board from './lib/board.js';
-import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand, implementBranchName } from './lib/brainstorm-spawn.js';
+import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand, implementBranchName, isValidImplementBranch } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
@@ -1029,6 +1029,7 @@ app.post('/api/board/cards/:id/implement', async (req, res) => {
     // Worktree-Isolation: gated auf Git-Repo, sonst heutiges Verhalten (dir=project.path).
     const slug = slugifySessionName(card.title);
     const branch = implementBranchName(card.title);
+    if (!isValidImplementBranch(branch)) return res.status(400).json({ error: 'Cannot derive a valid git branch from the idea title' });
     const base = detectBaseBranch(project.path);
     let dir = project.path, wtPath = null;
     if (canIsolate(project.path, base)) {
@@ -1603,6 +1604,8 @@ app.patch('/api/sessions/:name', async (req, res) => {
     attachTracker.rename(name, fullNewName);
     approvals.rename(name, fullNewName);
     aliasOnRename(name, fullNewName);
+    // Board-Karte mitziehen, damit Kill/Finish die Implement-Karte unter dem neuen Namen findet.
+    try { await board.renameSessionRef(name, fullNewName); } catch (e) { console.error('[board] sessionRef rename failed:', e); }
     // known-sessions mitziehen, damit Restore nach Rename den neuen Namen findet.
     try { await knownSessions.rename(name, fullNewName); } catch (e) { console.error('[known-sessions] rename failed:', e); }
     auditLog.record('session.rename', {
