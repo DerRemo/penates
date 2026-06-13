@@ -14163,6 +14163,39 @@
         }
       }
 
+      // Geteilt von DnD und dem "Move to…"/"Copy to…"-Dialog. PATCH; bei 409
+      // (exists) Choice-Dialog (Überschreiben/Umbenennen/Abbrechen) → Retry.
+      // `to` ist der Ziel*ordner* (DnD) oder ein getippter Pfad (Dialog) — die
+      // Backend-Keystone-Regel hängt den Basename an, wenn `to` ein Ordner ist.
+      async function submitMoveCopy(projectId, from, to, op) {
+        const send = (onConflict) => authedFetch(`/api/projects/${projectId}/files`, {
+          method: 'PATCH',
+          body: onConflict ? { op, from, to, onConflict } : { op, from, to },
+        });
+        let res = await send();
+        if (res.status === 409) {
+          const name = from.split('/').pop();
+          const choice = await window.showChoiceDialog({
+            title: t('filebrowser.conflict.title'),
+            body: t('filebrowser.conflict.body', { name }),
+            choices: [
+              { key: 'overwrite', label: t('filebrowser.conflict.overwrite'), danger: true },
+              { key: 'rename', label: t('filebrowser.conflict.rename') },
+              { key: 'cancel', label: t('filebrowser.conflict.cancel') },
+            ],
+          });
+          if (!choice || choice === 'cancel') return;
+          res = await send(choice);
+        }
+        if (!res.ok) {
+          notify(t(op === 'copy' ? 'filebrowser.toast.copyFailed' : 'filebrowser.toast.moveFailed'), 'error');
+          return;
+        }
+        const refreshBtn = document.getElementById('files-refresh');
+        if (refreshBtn) refreshBtn.click();
+        notify(t('filebrowser.toast.moved'), 'success');
+      }
+
       async function promptOp(projectId, relPath, op) {
         const title = op === 'copy' ? t('filebrowser.prompt.copy') : t('filebrowser.prompt.move');
         const to = await window.showInputDialog({
@@ -14173,16 +14206,7 @@
           validate: (v) => (!v ? t('filebrowser.prompt.required') : (v === relPath ? t('filebrowser.prompt.samePath') : null)),
         });
         if (to == null) return;
-        const res = await authedFetch(`/api/projects/${projectId}/files`, {
-          method: 'PATCH',
-          body: { op, from: relPath, to },
-        });
-        if (!res.ok) {
-          notify(t(op === 'copy' ? 'filebrowser.toast.copyFailed' : 'filebrowser.toast.moveFailed'), 'error');
-          return;
-        }
-        const refreshBtn = document.getElementById('files-refresh');
-        if (refreshBtn) refreshBtn.click();
+        await submitMoveCopy(projectId, relPath, to, op);
       }
 
       // Inline-Erzeugung (Ordner/Datei) — Input-Zeile am Zielort, Enter legt an.
@@ -14238,7 +14262,7 @@
       function mkdirPrompt(projectId, parentRel = '') { inlineCreate(projectId, parentRel, 'folder'); }
       function newFilePrompt(projectId, parentRel = '') { inlineCreate(projectId, parentRel, 'file'); }
 
-      return { openRowContextMenu, mkdirPrompt, newFilePrompt, deleteRows };
+      return { openRowContextMenu, mkdirPrompt, newFilePrompt, deleteRows, submitMoveCopy };
     })();
 
     window.FileActions = FileActions;
