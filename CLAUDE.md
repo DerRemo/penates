@@ -190,7 +190,7 @@ Routen: `POST /api/hooks/statusline`, `GET /api/usage/limits` (account-level via
 
 `public/clis.js` ist die einzige Registry der unterstützten Coding-CLIs: `CLIS` (id, label, binary, color, variants) + `cliFromCommand(cmd)`. Browser (`import('./clis.js')`) und `node:test` nutzen dieselbe Datei.
 
-- **New-Session-Modal:** CLI-Picker (Icon je CLI) + Varianten-`<select>` (id `new-session-cmd` → `createSession` unverändert). Varianten decken Approval-Stufen ab (z. B. codex `--full-auto`/`--yolo`, gemini `--approval-mode auto_edit`/`--yolo`).
+- **New-Session-Modal:** CLI-Picker (Icon je CLI) + Varianten-`<select>` (id `new-session-cmd` → `createSession` unverändert). Varianten decken Approval-Stufen ab (z. B. codex `--sandbox workspace-write --ask-for-approval on-request` / `--dangerously-bypass-approvals-and-sandbox` — `--full-auto`/`--yolo` sind ab codex 0.135 entfernt bzw. nur noch verstecktes Alias, gemini `--approval-mode auto_edit`/`--yolo`).
 - **Session-Card:** CLI-Badge via `cliFromCommand(s.command)` (auf running/dormant/foreign Cards; `GET /api/sessions` reicht `command` mit).
 - Auth out-of-scope: jede CLI nutzt ihren eigenen Login; fehlende CLI → Session stirbt mit „nicht im PATH"-Hinweis.
 
