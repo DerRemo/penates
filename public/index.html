@@ -919,7 +919,7 @@
     @media (pointer: coarse) {
       .board-card__qm { display: flex; gap: var(--space-2); margin-top: var(--space-1); }
       .board-card__qm-btn {
-        flex: 1; min-height: 40px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+        flex: 1; min-height: 44px; border: 1px solid var(--border); border-radius: var(--radius-sm);
         background: var(--bg-elevated); color: var(--text-secondary); font-size: var(--text-md);
         line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
         -webkit-tap-highlight-color: transparent; touch-action: manipulation;
@@ -928,7 +928,9 @@
       .board-card__qm-btn:active:not(:disabled) { background: var(--bg-card-hover); transform: scale(.96); }
     }
     /* Backdrop hinter dem Board-Detail-Sheet (nur Mobile sichtbar via Media-Query). */
-    .board-backdrop { display: none; position: fixed; inset: 0; z-index: 94; background: var(--modal-backdrop); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+    /* z-index 101 deckt den App-Header (z100) mit ab → Tap irgendwo außerhalb
+       des Sheets (auch über dem Header) schließt; das Sheet liegt mit 102 drüber. */
+    .board-backdrop { display: none; position: fixed; inset: 0; z-index: 101; background: var(--modal-backdrop); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
     /* Detail-Panel (rechtes Slide-in) */
     .board-detail {
       position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 90vw); z-index: 95;
@@ -957,7 +959,7 @@
          Interaktion im Off-Screen-Zustand. */
       .board-detail {
         width: 100vw; left: 0; right: 0; top: auto; bottom: 0;
-        height: auto; max-height: 88dvh;
+        height: auto; max-height: 88dvh; z-index: 102;
         border-left: none; border-top: 1px solid var(--border);
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
@@ -3124,11 +3126,13 @@
        Interaktive Klein-Controls auf Fingergröße. Gezielt, nicht global —
        ein pauschales min-height:44 auf alles würde dichte Listen sprengen. */
     @media (pointer: coarse) {
+      /* Selects: nur min-height — display:inline-flex bricht das native
+         Select-Rendering in WebKit (kollabiert auf Zeilenhöhe). */
       .board-filter,
       #board-detail-stage,
+      .board-detail__row select { min-height: 44px; }
       .seg-toggle__btn,
       .repo-tab { min-height: 44px; display: inline-flex; align-items: center; }
-      .board-detail__row select { min-height: 44px; }
       .files-toolbar button,
       .changes-refresh, .repo-icon-btn,
       .repo-header__close { width: 44px; height: 44px; }
@@ -4925,8 +4929,6 @@
     </div>
     <div class="board-columns" id="board-columns"></div>
   </div>
-  <div class="board-backdrop" id="board-backdrop" hidden></div>
-  <aside class="board-detail" id="board-detail" hidden></aside>
 
   <!-- ── Project-Detail View (Phase 0: Shell, Phase 1 fills it) ── -->
   <div class="detail-view" id="project-detail-view" data-view="project-detail">
@@ -5419,6 +5421,12 @@
     </main>
   </div>
   <!-- /.app-layout -->
+
+  <!-- Board-Detail-Sheet + Backdrop: am body-root (NICHT in .main-content),
+       sonst sitzt der Backdrop in dessen Stacking-Context unter dem sticky
+       Header (z100) und kann ihn nicht überdecken. -->
+  <div class="board-backdrop" id="board-backdrop" hidden></div>
+  <aside class="board-detail" id="board-detail" hidden></aside>
 
   <!-- ── Touch-Toolbar über der iOS-Tastatur ───────────────────── -->
   <div class="touch-bar" id="touch-bar" role="toolbar" aria-label="Virtual Keys" data-i18n-attr="aria-label:terminal.touchBar.aria">
