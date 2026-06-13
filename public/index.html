@@ -1518,13 +1518,16 @@
 
     /* Phase 4: Edit/Move-Cluster + Inline-Edit + Move-Menü + Versions-Edit */
     .roadmap-item-actions { display: inline-flex; gap: var(--space-1); margin-left: auto; align-items: center; }
-    .roadmap-item-move, .roadmap-item-edit {
+    .roadmap-item-move, .roadmap-item-edit, .roadmap-item-up, .roadmap-item-down {
       background: none; border: none; color: var(--text-muted);
       font-size: var(--text-sm); line-height: 1; padding: 2px var(--space-2); cursor: pointer;
       opacity: 0; border-radius: var(--radius-sm); transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
     }
-    .roadmap-item:hover .roadmap-item-move, .roadmap-item:hover .roadmap-item-edit { opacity: 0.6; }
-    .roadmap-item-move:hover, .roadmap-item-edit:hover { opacity: 1; color: var(--accent); background: var(--accent-muted); }
+    .roadmap-item-up, .roadmap-item-down { font-size: 11px; }
+    .roadmap-item:hover .roadmap-item-move, .roadmap-item:hover .roadmap-item-edit,
+    .roadmap-item:hover .roadmap-item-up, .roadmap-item:hover .roadmap-item-down { opacity: 0.6; }
+    .roadmap-item-move:hover, .roadmap-item-edit:hover,
+    .roadmap-item-up:hover, .roadmap-item-down:hover { opacity: 1; color: var(--accent); background: var(--accent-muted); }
 
     /* Phase 6: Drag-Reorder Greifer + Drop-Marker */
     .roadmap-grip { color: var(--text-muted); cursor: grab; opacity: 0; flex-shrink: 0; font-size: var(--text-sm); user-select: none; }
@@ -1533,7 +1536,21 @@
     .roadmap-item.dragging { opacity: 0.4; }
     .roadmap-item.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
     .roadmap-item.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
-    @media (hover: none), (pointer: coarse) { .roadmap-grip { opacity: 0.5; } }
+    /* Touch: HTML5-Drag funktioniert nicht zuverlässig → Grip raus, ▲▼ als
+       sichtbarer Reorder-Fallback mit ≥44px-Targets (Spec §8). */
+    @media (hover: none), (pointer: coarse) {
+      .roadmap-grip { display: none; }
+      /* Alle Item-Aktionen sind auf Touch sichtbar (kein Hover) — sonst sind
+         Reorder/Move/Edit/Delete am Phone unerreichbar. */
+      .roadmap-item-up, .roadmap-item-down,
+      .roadmap-item-move, .roadmap-item-edit, .roadmap-item-delete { opacity: 1; min-height: 44px; }
+      .roadmap-item-up, .roadmap-item-down { min-width: 40px; font-size: 14px; }
+      .roadmap-item-move, .roadmap-item-edit, .roadmap-item-delete { min-width: 34px; }
+      .roadmap-item-actions { gap: 0; flex-shrink: 0; }
+      /* Bei wenig Platz dürfen Text + Pills umbrechen statt die Buttons zu quetschen. */
+      .roadmap-item { flex-wrap: wrap; }
+      .roadmap-text { min-width: 40%; }
+    }
     .roadmap-text[role="button"] { cursor: text; border-radius: var(--radius-sm); }
     .roadmap-text[role="button"]:hover { background: var(--bg-card-hover); }
     .roadmap-edit-input {
@@ -2695,6 +2712,9 @@
       flex-shrink: 0;
       position: relative; /* Anker für Git-Dot + Tooltip */
     }
+    /* Copy-Output: nur Touch (Desktop hat native xterm-Selektion). Spec §9-Fallback. */
+    #btn-copy-output { display: none; }
+    @media (pointer: coarse) { body[data-current-view="terminal"] #btn-copy-output { display: inline-flex; } }
     .terminal-toolbar .btn:hover {
       background: var(--bg-elevated);
       color: var(--text-primary);
@@ -4996,6 +5016,9 @@
         </button>
         <button class="btn btn-ghost btn-sm" id="btn-toggle-search" type="button" data-tooltip="Search" aria-label="Search" title="Search" data-i18n-attr="aria-label:terminal.search.toggle;title:terminal.search.toggle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" id="btn-copy-output" type="button" data-tooltip="Copy output" aria-label="Copy terminal output" title="Copy terminal output" data-i18n-attr="data-tooltip:terminal.copyOutput.tooltip;aria-label:terminal.copyOutput.aria;title:terminal.copyOutput.aria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
         <button class="btn btn-ghost btn-sm" id="idea-capture-btn" type="button" hidden data-tooltip="Capture idea" aria-label="Capture idea" title="Capture idea as a board card" data-i18n-attr="aria-label:terminal.toolbar.captureIdeaAria;title:terminal.toolbar.captureIdeaTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>
@@ -7324,6 +7347,8 @@
             <span class="roadmap-text" tabindex="0" role="button" title="${t('projects.detail.editItem')}">${escapeHtml(it.text)}</span>
             ${renderMetaPills(it.meta)}
             <span class="roadmap-item-actions">
+              <button class="roadmap-item-up" type="button" aria-label="${t('projects.detail.moveUp')}" title="${t('projects.detail.moveUp')}">▲</button>
+              <button class="roadmap-item-down" type="button" aria-label="${t('projects.detail.moveDown')}" title="${t('projects.detail.moveDown')}">▼</button>
               <button class="roadmap-item-move" type="button" aria-label="${t('projects.detail.moveItem')}" title="${t('projects.detail.moveItem')}">⤴</button>
               <button class="roadmap-item-edit" type="button" aria-label="${t('projects.detail.editItem')}" title="${t('projects.detail.editItem')}">✎</button>
               <button class="roadmap-item-delete" type="button" aria-label="${t('projects.detail.deleteItem')}" title="${t('projects.detail.deleteTitle')}">×</button>
@@ -7833,6 +7858,28 @@
             }
           });
         });
+
+        // ── Touch-Fallback: ▲▼ Reorder (coarse-pointer; HTML5-DnD bleibt Desktop)
+        // Nutzt denselben reorder-Pfad wie der Drop. Server clampt toIndex am
+        // oberen Rand; toIndex<0 fangen wir hier ab (▲ am ersten Item = no-op).
+        const moveByButton = async (li, delta) => {
+          const section = li.dataset.section;
+          const line = parseInt(li.dataset.line, 10);
+          const index = parseInt(li.dataset.index, 10);
+          const toIndex = index + delta;
+          if (toIndex < 0) return;
+          try { await patchItem(p.id, { action: 'reorder', section, line, toIndex }); renderProjectDetail(p.id); }
+          catch (err) {
+            if (err.status === 409) { showProjectToast(t('projects.detail.conflict')); renderProjectDetail(p.id); }
+            else if (err.status !== 401) { showProjectToast(t('common.errorWithMessage', { message: err.message })); }
+          }
+        };
+        body.querySelectorAll('.roadmap-item-up').forEach(btn => btn.addEventListener('click', (e) => {
+          e.stopPropagation(); moveByButton(btn.closest('.roadmap-item'), -1);
+        }));
+        body.querySelectorAll('.roadmap-item-down').forEach(btn => btn.addEventListener('click', (e) => {
+          e.stopPropagation(); moveByButton(btn.closest('.roadmap-item'), +1);
+        }));
       } catch (e) {
         body.innerHTML = `<div class="usage-empty">${t('common.errorWithMessage', { message: escapeHtml(e.message) })}</div>`;
       }
@@ -10421,6 +10468,31 @@
     document.getElementById('disconnect-btn').addEventListener('click', () => setView('dashboard'));
     document.getElementById('terminal-session-name').addEventListener('dblclick', startTerminalRename);
     document.getElementById('btn-toggle-search').addEventListener('click', () => window.TerminalSearch && window.TerminalSearch.toggle());
+    // Mobile Copy-Output (coarse-pointer): den kompletten Buffer (inkl. Scrollback)
+    // selektieren + kopieren. Robuster Fallback statt fragiler Touch-Range-
+    // Selektion — tmux-Mouse ist server-global + .terminal-container hat
+    // touch-action:none/user-select:none (Spec §9, Spike verworfen). Self-
+    // contained: nutzt currentTerminal (top-level) + navigator.clipboard mit
+    // execCommand-Fallback, da copyToClipboard closure-scoped ist.
+    document.getElementById('btn-copy-output')?.addEventListener('click', async () => {
+      const term = currentTerminal;
+      if (!term) return;
+      let text = '';
+      try { term.selectAll(); text = term.getSelection(); term.clearSelection(); } catch {}
+      text = (text || '').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+      if (!text) { showToast(t('terminal.copyOutput.empty'), 'error'); return; }
+      let ok = false;
+      try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); ok = true; } } catch {}
+      if (!ok) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+          document.body.appendChild(ta); ta.select(); ok = document.execCommand('copy'); ta.remove();
+        } catch { ok = false; }
+      }
+      showToast(ok ? t('terminal.copyOutput.done') : t('toast.copyFailed'), ok ? 'success' : 'error');
+      try { term.focus(); } catch {}
+    });
     document.getElementById('project-back-btn').addEventListener('click', () => setView('dashboard'));
     document.getElementById('project-new-session-btn').addEventListener('click', (e) => {
       const path = e.currentTarget.dataset.projectPath;

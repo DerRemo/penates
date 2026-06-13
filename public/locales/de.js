@@ -116,6 +116,10 @@ window.__I18N_BUNDLES.de = {
   'terminal.search.nextAria': 'Nächster Treffer',
   'terminal.search.closeAria': 'Suche schließen',
   'terminal.clipboard.copied': 'In Zwischenablage kopiert',
+  'terminal.copyOutput.tooltip': 'Ausgabe kopieren',
+  'terminal.copyOutput.aria': 'Terminal-Ausgabe kopieren',
+  'terminal.copyOutput.done': 'Terminal-Ausgabe kopiert',
+  'terminal.copyOutput.empty': 'Nichts zu kopieren',
 
   // Terminal connection status labels
   'terminal.connStatus.connecting': 'Verbinde',
@@ -544,6 +548,8 @@ window.__I18N_BUNDLES.de = {
   'projects.detail.dragHandle': 'Ziehen zum Sortieren',
   'projects.detail.editSave': 'Speichern (Enter)',
   'projects.detail.moveItem': 'In Sektion verschieben',
+  'projects.detail.moveUp': 'Nach oben',
+  'projects.detail.moveDown': 'Nach unten',
   'projects.detail.moveTo': 'Verschieben nach',
   'projects.detail.moveCurrent': '(aktuell)',
   'projects.detail.editVersion': 'Version bearbeiten',
