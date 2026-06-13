@@ -49,15 +49,15 @@ test.describe('multi-CLI picker', () => {
     await expect(picker.locator('.cli-pick-btn')).toHaveCount(3, { timeout: 5_000 });
     await picker.locator('.cli-pick-btn[data-cli="codex"]').click();
 
-    // codex default = full-auto; hidden command reflects it
-    await expect(page.locator('#new-session-cmd')).toHaveValue('codex --full-auto', { timeout: 5_000 });
+    // codex default = full-auto (workspace-write + on-request); hidden command reflects it
+    await expect(page.locator('#new-session-cmd')).toHaveValue('codex --sandbox workspace-write --ask-for-approval on-request', { timeout: 5_000 });
 
-    // pick the danger tier → YOLO
+    // pick the danger tier → YOLO (explicit bypass flag)
     await page.locator('#modus-control .modus-btn[data-tier="danger"]').click();
-    await expect(page.locator('#new-session-cmd')).toHaveValue('codex --yolo');
+    await expect(page.locator('#new-session-cmd')).toHaveValue('codex --dangerously-bypass-approvals-and-sandbox');
 
     await page.locator('#new-session-modal .modal-actions .btn-primary').click();
-    await expect.poll(() => posted && posted.command, { timeout: 5_000 }).toBe('codex --yolo');
+    await expect.poll(() => posted && posted.command, { timeout: 5_000 }).toBe('codex --dangerously-bypass-approvals-and-sandbox');
   });
 
   // ── Test 3: session card shows .cli-badge derived from command ────────────
@@ -75,7 +75,7 @@ test.describe('multi-CLI picker', () => {
               attached: false,
               windows: 1,
               activity: 'idle',
-              command: 'codex --yolo',
+              command: 'codex --dangerously-bypass-approvals-and-sandbox',
               path: '/tmp',
               contextPct: null,
               git: null,

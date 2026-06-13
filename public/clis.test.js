@@ -5,13 +5,13 @@ import { CLIS, cliFromCommand } from './clis.js';
 test('cliFromCommand maps first token to cli id', () => {
   assert.equal(cliFromCommand('claude'), 'claude');
   assert.equal(cliFromCommand('claude --dangerously-skip-permissions'), 'claude');
-  assert.equal(cliFromCommand('codex --yolo'), 'codex');
+  assert.equal(cliFromCommand('codex --dangerously-bypass-approvals-and-sandbox'), 'codex');
   assert.equal(cliFromCommand('agy --dangerously-skip-permissions'), 'antigravity');
 });
 
 test('cliFromCommand strips a path prefix from the binary', () => {
   assert.equal(cliFromCommand('/opt/homebrew/bin/agy'), 'antigravity');
-  assert.equal(cliFromCommand('/usr/local/bin/codex --full-auto'), 'codex');
+  assert.equal(cliFromCommand('/usr/local/bin/codex --sandbox workspace-write'), 'codex');
 });
 
 test('cliFromCommand returns null for unknown or empty', () => {
@@ -72,8 +72,10 @@ test('claude has an Auto variant = "claude --permission-mode auto"', () => {
 
 test('codex auto tier is Full-Auto, danger is YOLO', () => {
   const codex = CLIS.find(c => c.id === 'codex');
-  assert.equal(codex.variants.find(v => v.tier === 'auto').command, 'codex --full-auto');
-  assert.equal(codex.variants.find(v => v.tier === 'danger').command, 'codex --yolo');
+  // codex 0.135+: --full-auto entfernt → workspace-write + on-request; --yolo nur
+  // noch verstecktes Alias → explizites --dangerously-bypass-approvals-and-sandbox.
+  assert.equal(codex.variants.find(v => v.tier === 'auto').command, 'codex --sandbox workspace-write --ask-for-approval on-request');
+  assert.equal(codex.variants.find(v => v.tier === 'danger').command, 'codex --dangerously-bypass-approvals-and-sandbox');
 });
 
 test('antigravity has no auto tier (safe + danger only)', () => {
@@ -87,7 +89,7 @@ import { defaultVariant, variantByTier } from './clis.js';
 
 test('defaultVariant prefers the auto tier, else the first variant', () => {
   assert.equal(defaultVariant('claude').command, 'claude --permission-mode auto');
-  assert.equal(defaultVariant('codex').command, 'codex --full-auto');
+  assert.equal(defaultVariant('codex').command, 'codex --sandbox workspace-write --ask-for-approval on-request');
   assert.equal(defaultVariant('antigravity').command, 'agy');      // no auto → first (safe)
   assert.equal(defaultVariant('nope'), null);
 });
