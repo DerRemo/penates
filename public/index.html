@@ -3828,6 +3828,10 @@
       background: var(--bg-elevated); color: var(--text-primary); border-color: transparent;
     }
     .preview-chrome .btn svg { width: 15px; height: 15px; }
+    /* Source-Switcher (Dev | Simulator) — kompakt, reuse .seg-toggle. */
+    .preview-source-switch { flex: 0 0 auto; }
+    .preview-source-switch[hidden] { display: none; }
+    .preview-source-switch .seg-toggle__btn { padding: 4px 8px; font-size: 11px; }
 
     /* Adressleiste: Pille mit :port-Feld, Prozess-Chip, Chevron. */
     .preview-address {
@@ -3838,6 +3842,8 @@
       border: 1px solid var(--border); border-radius: var(--radius-md);
     }
     .preview-address:focus-within { border-color: var(--accent); }
+    /* [hidden] muss display:flex schlagen (Mata-Quelle blendet die Port-Combobox aus). */
+    .preview-address[hidden] { display: none; }
     .preview-address__scheme {
       flex-shrink: 0; user-select: none;
       color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-sm);
@@ -4857,6 +4863,9 @@
         <button class="btn btn-ghost btn-sm" id="voice-btn" type="button" style="display:none" data-tooltip="Speak" aria-label="Speak" title="Speak" data-i18n-attr="aria-label:voice.btnTitle;title:voice.btnTitle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
         </button>
+        <button class="btn btn-ghost btn-sm" id="mata-capture-btn" type="button" style="display:none" data-tooltip="Simulator → Claude" aria-label="Capture simulator" title="Simulator → Claude" data-i18n-attr="aria-label:mata.capture.btnAria;title:mata.capture.btnTitle;data-tooltip:mata.capture.btnTitle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+        </button>
         <button class="btn btn-ghost btn-sm" id="btn-toggle-search" type="button" data-tooltip="Search" aria-label="Search" title="Search" data-i18n-attr="aria-label:terminal.search.toggle;title:terminal.search.toggle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
         </button>
@@ -4964,6 +4973,10 @@
       <div class="preview-resizer" id="preview-resizer" style="display:none"></div>
       <aside class="preview-panel" id="preview-panel">
         <div class="preview-chrome">
+          <div class="seg-toggle preview-source-switch" id="preview-source-switch" role="group" hidden data-i18n-attr="aria-label:preview.source.switchAria" aria-label="Preview source">
+            <button class="seg-toggle__btn active" id="preview-source-dev" type="button" data-src="dev" data-i18n="preview.source.dev">Dev</button>
+            <button class="seg-toggle__btn" id="preview-source-mata" type="button" data-src="mata" data-i18n="preview.source.mata">Simulator</button>
+          </div>
           <button id="preview-reload" class="btn btn-ghost btn-sm" type="button" data-tooltip="Reload" title="Reload" aria-label="Reload" data-i18n-attr="data-tooltip:preview.header.reload;title:preview.header.reload;aria-label:preview.header.reload">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
           </button>
@@ -8656,6 +8669,7 @@
       if (window.PreviewPanel) window.PreviewPanel.activateForSession(name);
       if (window.TerminalGitDot) window.TerminalGitDot.connect(name);
       if (window.VoiceInput) window.VoiceInput.refreshConfig();
+      if (window.MataCapture) window.MataCapture.refreshConfig();
       hideIdeaPrompt();
 
       // Setup terminal
@@ -12417,6 +12431,9 @@
       let sessionName = null;
       let open = false;
       let wired = false;
+      const srcKey = (s) => `cchub_preview_source:${s || ''}`;  // per-session source memory
+      let source = 'dev';                            // 'dev' | 'mata'
+      let mataStatus = null;                         // { installed, running, portOpen, ... }
 
       const el = (id) => document.getElementById(id);
 
@@ -12606,6 +12623,83 @@
         return ports;
       }
 
+      // ── Mata (iOS-Simulator) source ──
+      async function fetchMataStatus() {
+        try {
+          const r = await fetch('/api/mata/status', { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
+          mataStatus = await r.json();
+        } catch { mataStatus = { installed: false, running: false, portOpen: false }; }
+        return mataStatus;
+      }
+      // Mata-Viewer-Pfad ist /session (vs Dev-Server /). __cchub erzwingt iframe-Reload.
+      function mataIframeUrl() { return `https://${config.host}/session?__cchub=mata`; }
+
+      async function startMata() {
+        showState({ title: t('preview.mata.startingTitle'), body: t('preview.mata.startingBody') });
+        try {
+          await fetch('/api/mata/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            body: JSON.stringify({ action: 'start' }),
+          });
+        } catch {}
+        mataStatus = null;                           // erzwinge Re-Fetch
+        setTimeout(() => { if (source === 'mata') refreshMata(); }, 1500);
+      }
+
+      async function refreshMata() {
+        await fetchConfig();
+        if (!config.enabled) { stateNotConfigured(); el('preview-iframe').src = 'about:blank'; return; }
+        if (!mataStatus) await fetchMataStatus();
+        if (!mataStatus || !mataStatus.installed) { setSource('dev'); return; }
+        if (!mataStatus.running) {
+          el('preview-iframe').src = 'about:blank';
+          showState({ title: t('preview.mata.notRunningTitle'), body: t('preview.mata.notRunningBody'),
+            actionLabel: t('preview.mata.start'), onAction: startMata });
+          return;
+        }
+        if (!mataStatus.portOpen) {
+          el('preview-iframe').src = 'about:blank';
+          showState({ title: t('preview.mata.noSimTitle'), body: t('preview.mata.noSimBody'),
+            actionLabel: t('preview.action.rescan'), onAction: () => { mataStatus = null; refreshMata(); } });
+          return;
+        }
+        try {
+          const r = await fetch('/api/preview/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            body: JSON.stringify({ source: 'mata' }),
+          });
+          if (!r.ok) {
+            showState({ title: t('preview.mata.noSimTitle'), body: t('preview.mata.error'),
+              actionLabel: t('preview.action.rescan'), onAction: () => { mataStatus = null; refreshMata(); } });
+            return;
+          }
+        } catch {
+          showState({ title: t('preview.mata.error'), body: t('preview.mata.error') });
+          return;
+        }
+        clearOverlay();
+        el('preview-iframe').src = mataIframeUrl();
+      }
+
+      // Active-Klasse + Dev-Only-Controls je Quelle synchronisieren.
+      function syncSourceUI() {
+        const devBtn = el('preview-source-dev'), mataBtn = el('preview-source-mata');
+        if (devBtn) devBtn.classList.toggle('active', source === 'dev');
+        if (mataBtn) mataBtn.classList.toggle('active', source === 'mata');
+        const combo = el('preview-port-combo'); if (combo) combo.hidden = source === 'mata';
+      }
+
+      // Quelle wechseln: UI togglen, persistieren, passende Refresh-Route fahren.
+      function setSource(src) {
+        source = src === 'mata' ? 'mata' : 'dev';
+        try { localStorage.setItem(srcKey(sessionName), source); } catch {}
+        syncSourceUI();
+        if (source === 'mata') refreshMata();
+        else { el('preview-iframe').src = 'about:blank'; refresh(); }
+      }
+
       function showPanel(v) {
         // Files + Preview + Diff sind gegenseitig exklusiv — nie zwei offen.
         if (v) {
@@ -12624,6 +12718,18 @@
       async function refresh() {
         await fetchConfig();
         if (!config.enabled) { stateNotConfigured(); el('preview-iframe').src = 'about:blank'; return; }
+        // Mata-Status holen → Switcher nur bei installed:true zeigen.
+        if (!mataStatus) await fetchMataStatus();
+        const sw = el('preview-source-switch');
+        const installed = !!(mataStatus && mataStatus.installed);
+        if (sw) sw.hidden = !installed;
+        if (!installed && source === 'mata') source = 'dev';
+        // Letzte Quelle wiederherstellen (nur wenn Mata installiert ist).
+        const savedSrc = (() => { try { return localStorage.getItem(srcKey(sessionName)); } catch { return null; } })();
+        if (installed && savedSrc === 'mata') source = 'mata';
+        syncSourceUI();
+        if (source === 'mata') return refreshMata();
+        // ── Dev-Source (bestehender Pfad) ──
         await fetchPorts();
         renderPortList();
         const last = (() => { try { return localStorage.getItem(portKey(sessionName)); } catch { return null; } })();
@@ -12669,8 +12775,16 @@
         try { const w = localStorage.getItem(WIDTH_KEY); if (w) document.documentElement.style.setProperty('--preview-width', w); } catch {}
         el('btn-toggle-preview').addEventListener('click', toggle);
         el('preview-close').addEventListener('click', () => showPanel(false));
-        el('preview-reload').addEventListener('click', () => loadPort(selectedPort()));
+        const devBtn = el('preview-source-dev'); if (devBtn) devBtn.addEventListener('click', () => setSource('dev'));
+        const mataBtn = el('preview-source-mata'); if (mataBtn) mataBtn.addEventListener('click', () => setSource('mata'));
+        el('preview-reload').addEventListener('click', () => {
+          if (source === 'mata') { mataStatus = null; refreshMata(); } else loadPort(selectedPort());
+        });
         el('preview-open-tab').addEventListener('click', async () => {
+          if (source === 'mata') {
+            if (config && config.host && mataStatus && mataStatus.portOpen) window.open(mataIframeUrl(), '_blank', 'noopener');
+            return;
+          }
           const p = selectedPort();
           if (p && config && config.host) { await loadPort(p); window.open(iframeUrl(p), '_blank', 'noopener'); }
         });
@@ -13304,6 +13418,51 @@
     })();
     window.VoiceInput = VoiceInput;
     document.addEventListener('DOMContentLoaded', () => VoiceInput.wire());
+
+    // ── Mata-Capture: Simulator-Frame → /api/sessions/:name/mata-capture → @-Mention ──
+    // Button nur sichtbar wenn Mata installiert ist (refreshConfig bei Session-Aktivierung).
+    // @-Inject ist Claude-spezifisch (gleiche v1-Grenze wie Image-Paste/Voice).
+    const MataCapture = (() => {
+      let installed = false;
+      function authHdr() {
+        const tok = AUTH_TOKEN || localStorage.getItem('cchub_token') || '';
+        return tok ? { Authorization: `Bearer ${tok}` } : {};
+      }
+      function btn() { return document.getElementById('mata-capture-btn'); }
+
+      async function refreshConfig() {
+        try {
+          const r = await fetch('/api/mata/status', { headers: authHdr() });
+          const b = await r.json();
+          installed = !!(b && b.installed);
+        } catch { installed = false; }
+        const b = btn();
+        if (b) b.style.display = installed ? '' : 'none';
+      }
+
+      async function capture() {
+        const name = window.currentSessionName;
+        if (!name) { showToast(t('toast.noActiveSession'), 'error'); return; }
+        const b = btn();
+        if (b) b.classList.add('is-busy');
+        try {
+          const res = await fetch(`/api/sessions/${encodeURIComponent(name)}/mata-capture`, { method: 'POST', headers: authHdr() });
+          if (res.status === 409) { showToast(t('mata.capture.notRunning'), 'error'); return; }
+          if (!res.ok) { showToast(t('mata.capture.failed'), 'error'); return; }
+          const body = await res.json();
+          if (body && body.rel && window.ImagePaste) {
+            window.ImagePaste.injectMention(body.rel);
+            showToast(t('mata.capture.injected'), 'success');
+          } else { showToast(t('mata.capture.failed'), 'error'); }
+        } catch { showToast(t('mata.capture.failed'), 'error'); }
+        finally { if (b) b.classList.remove('is-busy'); }
+      }
+
+      function wire() { const b = btn(); if (b) b.addEventListener('click', capture); }
+      return { wire, refreshConfig };
+    })();
+    window.MataCapture = MataCapture;
+    document.addEventListener('DOMContentLoaded', () => MataCapture.wire());
 
     // ── RepoPanel ─────────────────────────────────────────────────
     // Besitzt das rechte "Repo"-Panel (Files · Changes · History · Branches).

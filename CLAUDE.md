@@ -88,6 +88,8 @@ Items in Released/In-Dev werden im Hub-Detail-View getoggelt (`PATCH /api/projec
 | `*` | `/api/projects/*` | Projekt-CRUD + Roadmap-Items (`PATCH …/items`) + Filebrowser (siehe unten) |
 | `*` | `/api/board/cards` | Board-Karten (Idea Pipeline): `GET ?projectId`, `POST`, `PATCH :id` (stage/order via `moveCard`, sonst `updateCard`), `DELETE :id` |
 | `*` | `/api/preview/*`, `/api/voice/*`, `/api/settings`, `/api/server/*` | Feature-Routen (siehe jeweilige Abschnitte) |
+| GET·POST | `/api/mata/status`, `/api/mata/control` | Mata iOS-Simulator: Status (`installed/running/portOpen`) + start/stop/restart (siehe „Mata-Integration") |
+| POST | `/api/sessions/:name/mata-capture` | Simulator-Frame → `.cch-images/` → `@`-Mention (reuse `saveSessionImage`) |
 
 ## WebSocket-Protokoll
 
@@ -223,6 +225,18 @@ In-App Live-Vorschau eines lokalen Dev-Servers (mit HMR) als Split-Panel rechts 
 `server.js`: Host-Dispatch-Middleware ganz oben (`isPreviewHost` → `previewPortReady()` SSRF-Guard → `proxyHttp`; sonst 503-Hinweis), `server.on('upgrade')` via `attachUpgrade`, Routen `GET /api/preview/config|ports` + `POST /api/preview/select`, dynamisches CSP `frame-src`. Frontend `PreviewPanel`-IIFE: Split-Panel mit Port-Combobox (aus `/api/preview/ports`), Port-Wahl → `/select` → iframe auf den fixen Host.
 
 **Grenzen:** eine Preview gleichzeitig; Apps mit hartkodierten Origin-URLs können fehlrouten (kein Body-Rewriting); ggf. `server.hmr.clientPort: 443` im Dev-Projekt setzen. CF-Setup: 1× DNS-CNAME `preview` + 1× Public Hostname + Host zur Access-App (`setup.sh` druckt die Checkliste).
+
+## Mata-Integration (iOS-Simulator im Hub)
+
+[Mata](https://getmata.app/) (Moshi-Team) ist ein Remote-iOS-Simulator-Viewer. Die Host-App fährt on-demand einen WebSocket-Video-Viewer auf **`localhost:3070`** hoch (Pfad `/session`, Capture unter `/session/capture`). Der Hub embeddet + steuert nur den **lokalen** Host (keine Mata-Cloud-Auth). **Strukturell dieselbe Form wie Browser-Preview** → Reuse der gesamten Proxy-Infra.
+
+`lib/mata.js` (Express-frei, fehlertolerant — Vorbild `moshi-hook.js`/`voice.js`, alle Aufrufe via `execFile`/`execFileSync` mit Argv-Array): `resolveBin()` (`MATA_BIN` autoritativ → sonst `/Applications/Mata.app/Contents/MacOS/mata`), `isInstalled()`, `parseStatus(raw)` (rein; tolerant gegen JSON / `key: value` / bare „Mata is running." — zieht sauberen Semver aus „Mata 1.1.10 (18)"), `getStatus()` (`{running, pid, version, startedAt}` / `null` bei fehlender App), `isViewerPortOpen()` (TCP-Probe `127.0.0.1:3070`), `captureFrame()` (GET `/session/capture` → `{buffer, contentType}` / `null` bei Non-Image/Port-zu), `start`/`stop`/`restart` (async), `previewPortForSource('mata')→3070`, const `MATA_PORT=3070`. **Kein Mata-State im Hub** (tmux = Sessions, Mata-App = Simulator-State).
+
+**Routen:** `GET /api/mata/status` (`{installed, running, pid, version, portOpen}`, 5 s In-Memory-Cache; bei `installed:false` trotzdem 200 → Frontend versteckt das Feature), `POST /api/mata/control {action:start|stop|restart}` (Whitelist → 400, global `writeLimiter`), `POST /api/preview/select {source:'mata'}` → mappt auf `activePreviewPort=3070` (gleicher SSRF-/Listening-Guard → 409 wenn kein aktiver Simulator), `POST /api/sessions/:name/mata-capture` → `mata.captureFrame()` → `saveSessionImage(cwd, buf)` → `{rel}`.
+
+**Frontend:** `PreviewPanel` bekommt einen **Source-Switcher** (`Dev | Simulator`, nur bei `installed:true` sichtbar) — Mata-Wahl lädt das iframe auf `https://preview.<domain>/session` (reuse `proxyHttp`/`proxyWs`/`attachUpgrade`); Zustände: nicht-laufend → Start-Button, laufend+Port-zu → „Simulator booten", laufend+Port-offen → Viewer. Terminal-Toolbar: `📱 mata-capture-btn` (`MataCapture`-IIFE) → `mata-capture` → `ImagePaste.injectMention` (`@<rel>`, kein Auto-Enter, Claude-spezifisch wie Image-Paste/Voice).
+
+**Grenzen (v1):** eine Preview gleichzeitig (Web-Preview ⊻ Simulator); **remote nur WS-Video-Pfad** (SRT/ENet/UDP queren den CF-Tunnel nicht → höhere Latenz); on-demand-Port 3070 (zu, solange kein Simulator streamt); Mata-Installation **nicht** über `setup.sh` (User-GUI-App, nur Runtime-Detection). **Phase-0-Real-App-Abnahme** (echter Stream durch den Proxy, Cross-Origin-Auth, Touch/Keyboard-Forwarding, Capture-Format) ist nur mit gebootetem Simulator am Gerät verifizierbar — `lib/mata.js` + `/api/mata/status` sind live gegen echtes Mata v1.1.10 verifiziert (Port 3070 war erwartungsgemäß zu).
 
 ## Voice-Input
 
