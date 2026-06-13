@@ -1225,6 +1225,8 @@ function handleFileError(res, err) {
       oversize: 413,
       unsupported: 415,
       exists: 409,
+      'into-self': 400,
+      'same-path': 400,
       'trash-failed': 500,
     }[err.code] || 500;
     return res.status(status).json({ error: err.code, message: err.message, meta: err.meta });
@@ -1281,11 +1283,11 @@ app.patch('/api/projects/:id/files', async (req, res) => {
   try {
     const project = await resolveFileSource(req.params.id);
     if (!project) return res.status(404).json({ error: 'not-found' });
-    const { op, from, to } = req.body || {};
+    const { op, from, to, onConflict } = req.body || {};
     if (!['rename', 'move', 'copy'].includes(op)) return res.status(400).json({ error: 'bad-op' });
     const result = op === 'copy'
-      ? await filesCopy(project.path, String(from), String(to))
-      : await filesRenameOrMove(project.path, String(from), String(to));
+      ? await filesCopy(project.path, String(from), String(to), { onConflict })
+      : await filesRenameOrMove(project.path, String(from), String(to), { onConflict });
     res.json(result);
   } catch (e) { handleFileError(res, e); }
 });
