@@ -206,6 +206,8 @@ window.__I18N_BUNDLES.de = {
   'preview.tooLarge': 'Zu groß für Preview. Im Terminal öffnen.',
   'preview.unknownBinary': 'Unbekannter Binärtyp.',
   'preview.oversize.download': 'Datei herunterladen',
+  'preview.forbidden': 'Außerhalb des erlaubten Bereichs (nur Session-Ordner oder Temp).',
+  'preview.notFound': 'Datei nicht gefunden.',
 
   // Upload toast stack
   'upload.status.queued': 'wartet',

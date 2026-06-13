@@ -8681,6 +8681,14 @@
         await document.fonts.ready;
       } catch { /* safe */ }
 
+      // Preload the previewable-path matcher so the custom link provider can run
+      // synchronously inside provideLinks() (no await in the hot path).
+      let _previewable = window._previewable;
+      if (!_previewable) {
+        try { _previewable = window._previewable = await import('./previewable.js'); }
+        catch { _previewable = null; }
+      }
+
       const term = new Terminal({
         // Bewusst KEINE System-Font-Namen wie Menlo/Consolas/Cascadia Mono mehr
         // — Firefox mit resistFingerprinting / font-visibility ≤ 2 blockt die
@@ -8705,6 +8713,59 @@
       const webLinksAddon = new WebLinksAddon.WebLinksAddon();
       term.loadAddon(fitAddon);
       term.loadAddon(webLinksAddon);
+
+      // ── Clickable previewable file paths (Terminal File-Preview) ───────────
+      // A custom ILinkProvider next to WebLinksAddon: WebLinks handles URLs,
+      // this handles bare/abs/relative file paths whose extension is previewable.
+      // Click → guarded session reader → existing FilePreview modal. Reines
+      // client-seitiges Buffer-Matching (umgeht CLI- + tmux-Wand, siehe Spec §1).
+      function handleTerminalFileClick(text) {
+        const name = window.currentSessionName;
+        if (!name || !window.FilePreview) return;
+        const url = `/api/sessions/${encodeURIComponent(name)}/file-content?path=${encodeURIComponent(text)}`;
+        window.FilePreview.openUrl(url, text.split('/').pop());
+      }
+      if (_previewable && typeof term.registerLinkProvider === 'function') {
+        const provider = {
+          provideLinks(y, callback) {
+            try {
+              const buf = term.buffer.active;
+              // Walk up to the logical line start (wrapped continuation rows).
+              let startIdx = y - 1;
+              while (startIdx > 0 && buf.getLine(startIdx) && buf.getLine(startIdx).isWrapped) startIdx--;
+              // Build the flat string + per-char cell coordinates across the
+              // wrapped group (ASCII paths: 1 char == 1 cell).
+              let flat = '';
+              const coords = [];
+              let idx = startIdx;
+              do {
+                const line = buf.getLine(idx);
+                if (!line) break;
+                const text = line.translateToString(false);
+                for (let c = 0; c < text.length; c++) {
+                  flat += text[c];
+                  coords.push({ x: c + 1, y: idx + 1 });
+                }
+                idx++;
+              } while (idx < buf.length && buf.getLine(idx) && buf.getLine(idx).isWrapped);
+
+              const hits = _previewable.findPreviewableTokens(flat);
+              if (!hits.length) { callback(undefined); return; }
+              const links = hits.map(h => ({
+                text: h.text,
+                range: { start: coords[h.start], end: coords[h.end - 1] },
+                activate(ev) { try { ev.preventDefault(); } catch {} handleTerminalFileClick(h.text); },
+              })).filter(l => l.range.start && l.range.end);
+              callback(links.length ? links : undefined);
+            } catch { callback(undefined); }
+          },
+        };
+        try {
+          term.registerLinkProvider(provider);
+          window._filePreviewLinkProvider = provider; // exposed for E2E
+        } catch {}
+      }
+
       const searchAddon = new SearchAddon.SearchAddon();
       term.loadAddon(searchAddon);
       if (window.TerminalSearch) window.TerminalSearch.attach(term, searchAddon);
@@ -12705,16 +12766,29 @@
       }
 
       async function open(projectId, relPath, entry) {
+        const url = `/api/projects/${projectId}/files/content?path=${encodeURIComponent(relPath)}`;
+        const name = (entry && entry.name) || relPath.split('/').pop();
+        return openUrl(url, name, entry && entry.size, {
+          onDownload: () => downloadFile(projectId, relPath, relPath.split('/').pop()),
+        });
+      }
+
+      // Generalized modal: fetch an arbitrary content URL (Bearer-auth) and render
+      // by Content-Type (image / pdf / text+hljs). Used by open() (filebrowser)
+      // and the terminal link provider. `size` optional → falls back to the
+      // X-File-Size response header. opts.onDownload (optional) wires the 413
+      // oversize download button; omitted (terminal) → message only.
+      async function openUrl(contentUrl, name, size, opts = {}) {
         syncHljsTheme();
         const modal = document.getElementById('file-preview-modal');
         const body = document.getElementById('file-preview-body');
-        document.getElementById('file-preview-name').textContent = entry.name || relPath.split('/').pop();
+        const displayName = name || (contentUrl.split('?')[0].split('/').pop());
+        const titleEl = document.getElementById('file-preview-name');
+        titleEl.textContent = displayName;
         // Datei-Icon im Preview-Header (app-weite Konsistenz). Inline-<svg> →
         // die --vscode-ctp-* Tokens lösen auf + retinten pro Flavor.
         if (window.fileIconSvg) {
-          const fname = entry.name || relPath.split('/').pop();
-          const svg = window.fileIconSvg(fname, false);
-          const titleEl = document.getElementById('file-preview-name');
+          const svg = window.fileIconSvg(displayName, false);
           const prev = titleEl.querySelector('.fp-title-icon');
           if (prev) prev.remove();
           const wrap = document.createElement('span');
@@ -12723,24 +12797,33 @@
           wrap.innerHTML = svg;
           titleEl.prepend(wrap);
         }
-        document.getElementById('file-preview-size').textContent = entry.size != null ? formatSize(entry.size) : '';
+        const sizeEl = document.getElementById('file-preview-size');
+        sizeEl.textContent = size != null ? formatSize(size) : '';
         body.innerHTML = `<div class="preview-oversize">${t('preview.loading')}</div>`;
         modal.classList.add('open');
         openedAt = Date.now();
         try {
-          const res = await fetch(`/api/projects/${projectId}/files/content?path=${encodeURIComponent(relPath)}`, {
+          const res = await fetch(contentUrl, {
             headers: { Authorization: `Bearer ${AUTH_TOKEN || ''}` },
           });
+          if (res.status === 403) {
+            body.innerHTML = `<div class="preview-oversize">${t('preview.forbidden')}</div>`;
+            return;
+          }
+          if (res.status === 404) {
+            body.innerHTML = `<div class="preview-oversize">${t('preview.notFound')}</div>`;
+            return;
+          }
           if (res.status === 413) {
             body.innerHTML = `<div class="preview-oversize">${t('preview.tooLarge')}</div>`;
-            const downloadBtn = document.createElement('button');
-            downloadBtn.type = 'button';
-            downloadBtn.className = 'btn';
-            downloadBtn.textContent = window.t('preview.oversize.download');
-            downloadBtn.addEventListener('click', () => {
-              downloadFile(projectId, relPath, relPath.split('/').pop());
-            });
-            body.appendChild(downloadBtn);
+            if (typeof opts.onDownload === 'function') {
+              const downloadBtn = document.createElement('button');
+              downloadBtn.type = 'button';
+              downloadBtn.className = 'btn';
+              downloadBtn.textContent = window.t('preview.oversize.download');
+              downloadBtn.addEventListener('click', opts.onDownload);
+              body.appendChild(downloadBtn);
+            }
             return;
           }
           if (res.status === 415) {
@@ -12748,6 +12831,10 @@
             return;
           }
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (size == null) {
+            const hsize = res.headers.get('X-File-Size');
+            if (hsize) sizeEl.textContent = formatSize(Number(hsize));
+          }
           const mime = res.headers.get('content-type') || '';
           if (mime.startsWith('image/')) {
             const blob = await res.blob();
@@ -12805,7 +12892,7 @@
         });
       }
 
-      return { open, close, wire };
+      return { open, openUrl, close, wire };
     })();
 
     window.FilePreview = FilePreview;
