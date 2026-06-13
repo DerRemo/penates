@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Claude Code Hub
 
-Web-Interface zum Verwalten und Fernsteuern von Coding-CLI-Sessions (claude/codex/gemini) auf macOS (Apple Silicon + Intel). Installierbare PWA, optional remote über einen Cloudflare-Tunnel.
+Web-Interface zum Verwalten und Fernsteuern von Coding-CLI-Sessions (claude/codex/antigravity) auf macOS (Apple Silicon + Intel). Installierbare PWA, optional remote über einen Cloudflare-Tunnel.
 
 ## Projektstruktur
 
@@ -14,7 +14,7 @@ claude-code-hub/
 ├── lib/                 # Backend-Module, je ein Bereich + danebenliegende *.test.js
 ├── public/
 │   ├── index.html       # Single-Page Frontend (Vanilla JS, xterm.js, inline CSS/JS)
-│   ├── clis.js          # CLI-Registry (claude/codex/gemini) — shared Browser + node:test
+│   ├── clis.js          # CLI-Registry (claude/codex/antigravity) — shared Browser + node:test
 │   ├── prefs.js         # Client-Prefs (Theme, Sprache, …)
 │   ├── usage-format.js  # geteilte Usage-Formatierung
 │   ├── sw.js            # Service Worker (PWA + Push)
@@ -188,11 +188,11 @@ Routen: `POST /api/hooks/statusline`, `GET /api/usage/limits` (account-level via
 
 `lib/antigravity-usage.js` (Google `agy`-CLI, Gemini-Free-Tier) läuft **nicht** über moshi-hook. Eine saubere %-Quota ist für ein Always-on-Dashboard nicht verfügbar (das Cloud-Code-Quota-Endpoint liefert für Free-Tier 403). Einziges persistentes Signal ist der 429-Log-Eintrag (`~/.gemini/antigravity-cli/log/cli-*.log`: `RESOURCE_EXHAUSTED … Resets in 129h55m4s`). `getAntigravityUsage()` scrapt die Logs, parst Reset-Dauer + Zeitstempel → absoluter Reset, und liefert **nur wenn aktuell limitiert** ein account-förmiges Objekt (sonst `null`); `server.js` hängt es an `accounts[]` in `/api/usage/limits`. Das Sidebar-Panel rendert limited-Accounts als vollen roten Balken + Reset-Text (kein %).
 
-## Multi-CLI Spawn (claude/codex/gemini)
+## Multi-CLI Spawn (claude/codex/antigravity)
 
 `public/clis.js` ist die einzige Registry der unterstützten Coding-CLIs: `CLIS` (id, label, binary, color, variants) + `cliFromCommand(cmd)`. Browser (`import('./clis.js')`) und `node:test` nutzen dieselbe Datei.
 
-- **New-Session-Modal:** CLI-Picker (Icon je CLI) + Varianten-`<select>` (id `new-session-cmd` → `createSession` unverändert). Varianten decken Approval-Stufen ab (z. B. codex `--sandbox workspace-write --ask-for-approval on-request` / `--dangerously-bypass-approvals-and-sandbox` — `--full-auto`/`--yolo` sind ab codex 0.135 entfernt bzw. nur noch verstecktes Alias, gemini `--approval-mode auto_edit`/`--yolo`).
+- **New-Session-Modal:** CLI-Picker (Icon je CLI) + Varianten-`<select>` (id `new-session-cmd` → `createSession` unverändert). Varianten decken Approval-Stufen ab (z. B. codex `--sandbox workspace-write --ask-for-approval on-request` / `--dangerously-bypass-approvals-and-sandbox` — `--full-auto`/`--yolo` sind ab codex 0.135 entfernt bzw. nur noch verstecktes Alias, antigravity `agy` / `agy --dangerously-skip-permissions`).
 - **Session-Card:** CLI-Badge via `cliFromCommand(s.command)` (auf running/dormant/foreign Cards; `GET /api/sessions` reicht `command` mit).
 - Auth out-of-scope: jede CLI nutzt ihren eigenen Login; fehlende CLI → Session stirbt mit „nicht im PATH"-Hinweis.
 
@@ -214,7 +214,7 @@ Bild in eine Claude-Session geben (Clipboard-Paste / Picker / Drag&Drop), option
 
 Frontend: `ImageAnnotator`-IIFE (Canvas + Overlay, Toolbar Pfeil/Box/Stift/Text/Undo, eine Farbe Rot, Oversize-Downscale ≤2000 px; `open(blob)` → `Promise<Blob|null>`) + `ImagePaste`-Glue (`injectMention(rel)` → `currentWs.send({type:'input', data:'@'+rel+' '})`, **kein** Auto-Enter).
 
-**v1-Grenze:** der `@`-Mention-Mechanismus ist Claude-spezifisch — für codex/gemini hängt `@` nichts an, die Datei liegt aber trotzdem in `.cch-images/`.
+**v1-Grenze:** der `@`-Mention-Mechanismus ist Claude-spezifisch — für codex/antigravity hängt `@` nichts an, die Datei liegt aber trotzdem in `.cch-images/`.
 
 ## Browser-Preview
 
@@ -261,7 +261,7 @@ Mosh-grade Härtung des Terminal-Pfads (Browser ↔ Hub über den CF-Tunnel ist 
 ## Bekannte Einschränkungen
 
 - tmux-Socket wird beim ersten `tmux new-session` automatisch erstellt; node-pty erfordert Xcode Command Line Tools zum Kompilieren.
-- `claude`/`codex`/`gemini` müssen im PATH sein. `server.js` ergänzt `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin` zur Laufzeit; der LaunchAgent-PATH selbst bleibt minimal.
+- `claude`/`codex`/`agy` (Antigravity) müssen im PATH sein. `server.js` ergänzt `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin` zur Laufzeit; der LaunchAgent-PATH selbst bleibt minimal.
 - LaunchAgent-plist **muss** Mode `644` haben — launchd verweigert world-writable Dateien stillschweigend (`Bootstrap failed: 5`). `setup.sh` setzt das; bei manuellem Edit dran denken.
 - tmux muss beim Attach mit `-u` laufen + `server.js` setzt `LANG`/`LC_CTYPE` im PTY-Env, sonst werden Multi-Byte-Zeichen (Umlaute, ⏺ ⎿ ✻) durch `_` ersetzt.
 - tmux Mouse-Mode wird beim Server-Start aktiviert (`set-option -g mouse on`), sonst forwardet tmux keine Wheel-Events ans xterm.
