@@ -298,6 +298,8 @@ window.__I18N_BUNDLES.de = {
   'board.detail.close': 'Schließen',
   'board.detail.delete': 'Karte löschen',
   'board.detail.deleteConfirm': 'Nochmal klicken zum Löschen',
+  'board.qm.back': 'Eine Stufe zurück',
+  'board.qm.forward': 'Eine Stufe vor',
   'board.brainstorm.confirmTitle': 'Brainstorming starten?',
   'board.brainstorm.confirmBody': 'Spawnt eine Claude-Session im Projekt, geprimt auf diese Idee, und öffnet sie.',
   'board.brainstorm.confirmOk': 'Session starten',
