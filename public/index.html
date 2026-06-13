@@ -3124,7 +3124,9 @@
         padding: var(--space-5) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
         transform: translateY(100%);
         transition: transform var(--dur-slow) var(--ease-drawer);
-        max-height: 92dvh;
+        /* Keyboard-aware: schrumpft um die iOS-Tastatur (--kb-inset), damit der
+           Sticky-Footer + das fokussierte Feld über der Tastatur bleiben. */
+        max-height: min(92dvh, calc(100dvh - var(--kb-inset, 0px)));
       }
       .modal-overlay.open .modal {
         transform: translateY(0);
@@ -3133,6 +3135,25 @@
       .form-input { font-size: var(--text-sm); padding: var(--space-2) var(--space-3); }
       .modal-actions { flex-wrap: wrap; }
       .modal-actions .btn { flex: 1 1 auto; min-height: 44px; }
+      /* Sticky-Footer für einfache Modals: Submit/Cancel bleiben sichtbar, der
+         Body scrollt darüber. Negative Margins ziehen die Leiste an die
+         Sheet-Kanten (kompensieren das Modal-Padding); bottom-Offset pinnt sie
+         flush an die Unterkante, Safe-area im Footer-Padding erhalten. */
+      .modal:not(.modal--wide) .modal-actions {
+        position: sticky;
+        bottom: calc((var(--space-5) + env(safe-area-inset-bottom)) * -1);
+        margin: var(--space-4) calc(var(--space-4) * -1) calc((var(--space-5) + env(safe-area-inset-bottom)) * -1);
+        padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+        background: var(--bg-surface); border-top: 1px solid var(--border-subtle);
+      }
+      /* New-Session (wide) klippt sonst (overflow:hidden) statt zu scrollen —
+         auf dem Sheet scrollbar machen; Actions in .ns-right sticky pinnen. */
+      .modal--wide { overflow-y: auto; }
+      .modal--wide .ns-right .modal-actions {
+        position: sticky; bottom: 0; margin-top: auto;
+        background: var(--bg-surface); padding-top: var(--space-3);
+        border-top: 1px solid var(--border-subtle);
+      }
     }
 
     /* ── Landscape-Kompression (Phone quer) ───────────────────────────
@@ -4197,6 +4218,21 @@
     .changes-row .cr-del { color: var(--red); font-family: var(--font-mono); }
     .changes-group-label { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
     .changes-empty { padding: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+    /* Vollbild-Diff Back-Leiste — nur Touch + Diff-Mode (Spec §5 file-list-first). */
+    .changes-diffback { display: none; }
+    @media (pointer: coarse) {
+      #repo-pane-changes.mode-diff .changes-diffback {
+        display: flex; align-items: center; gap: var(--space-2);
+        position: sticky; top: 0; z-index: 2; min-height: 44px;
+        padding: var(--space-1) var(--space-3); background: var(--bg-surface);
+        border-bottom: 1px solid var(--border); cursor: pointer;
+        color: var(--accent); font-size: var(--text-sm); font-family: var(--font-ui);
+      }
+      #repo-pane-changes.mode-diff .changes-diffback .cdb-name {
+        color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-xs);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+      }
+    }
 
     /* ── History-Tab: lineare Commit-Timeline ─────────────────────── */
     .history-list { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) 0; }
@@ -13799,10 +13835,17 @@
           r.classList.toggle('active', parseInt(r.getAttribute('data-idx'), 10) === idx));
         if (!f) { pane.innerHTML = `<div class="changes-empty">${t('diff.empty')}</div>`; return; }
         selectedPath = f.path;
-        if (f.binary) { pane.innerHTML = `<div class="changes-empty">${t('diff.binary')}</div>`; return; }
-        if (f.oversize) { pane.innerHTML = `<div class="changes-empty">${t('diff.oversize')}</div>`; return; }
-        if (!f.diff) { pane.innerHTML = `<div class="changes-empty">${t('diff.empty')}</div>`; return; }
-        pane.innerHTML = renderUnifiedDiff(f.diff);
+        // Mobile (coarse): prominente sticky Back-Leiste über dem Vollbild-Diff.
+        // Nur via CSS auf coarse + mode-diff sichtbar — Desktop nutzt weiter den
+        // Seg-Toggle. Klick führt zurück zur Datei-Liste (file-list-first, Spec §5).
+        const back = `<div class="changes-diffback" role="button" tabindex="0" title="${escapeHtml(t('repo.changes.list'))}">‹ <span class="cdb-label">${escapeHtml(t('repo.changes.list'))}</span> <span class="cdb-name">${escapeHtml(f.path)}</span></div>`;
+        let bodyHtml;
+        if (f.binary) bodyHtml = `<div class="changes-empty">${t('diff.binary')}</div>`;
+        else if (f.oversize) bodyHtml = `<div class="changes-empty">${t('diff.oversize')}</div>`;
+        else if (!f.diff) bodyHtml = `<div class="changes-empty">${t('diff.empty')}</div>`;
+        else bodyHtml = renderUnifiedDiff(f.diff);
+        pane.innerHTML = back + bodyHtml;
+        pane.querySelector('.changes-diffback')?.addEventListener('click', () => setViewMode('list'));
         pane.scrollTop = 0;
       }
 
