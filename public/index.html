@@ -5574,6 +5574,15 @@
     </div>
   </div>
 
+  <!-- Reusable Choice-Dialog (Promise<key|null>) — n Buttons, Esc/Backdrop = null. -->
+  <div class="modal-overlay" id="cchub-choice-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-choice-title">
+    <div class="modal">
+      <h2 id="cchub-choice-title"></h2>
+      <p id="cchub-choice-body"></p>
+      <div class="modal-actions" id="cchub-choice-actions"></div>
+    </div>
+  </div>
+
   <!-- Reusable Input-Dialog (Promise<string|null>) — themed Ersatz für prompt(). -->
   <div class="modal-overlay" id="cchub-input-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-input-title">
     <div class="modal">
@@ -10434,6 +10443,43 @@
     window.showConfirmDialog = showConfirmDialog;
     window.showInputDialog = showInputDialog;
 
+    // showChoiceDialog → Promise<key|null>; Esc/Backdrop = null. Muster wie
+    // showConfirmDialog, aber mit n Buttons. choices = [{ key, label, danger? }].
+    function showChoiceDialog({ title, body, choices = [] } = {}) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('cchub-choice-modal');
+        const actions = document.getElementById('cchub-choice-actions');
+        document.getElementById('cchub-choice-title').textContent = title || '';
+        document.getElementById('cchub-choice-body').textContent = body || '';
+        actions.innerHTML = '';
+        let settled = false;
+        const cleanup = () => {
+          overlay.classList.remove('open');
+          overlay.removeEventListener('click', onBackdrop);
+          document.removeEventListener('keydown', onKey);
+          actions.innerHTML = '';
+        };
+        const done = (val) => { if (settled) return; settled = true; cleanup(); resolve(val); };
+        const onBackdrop = (e) => { if (e.target === overlay) done(null); };
+        const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); done(null); } };
+        let focusBtn = null;
+        for (const c of choices) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = c.danger ? 'btn btn-danger' : (c.key === 'cancel' ? 'btn btn-ghost' : 'btn btn-primary');
+          btn.textContent = c.label;
+          btn.addEventListener('click', () => done(c.key));
+          actions.appendChild(btn);
+          if (c.key === 'cancel') focusBtn = btn;
+        }
+        overlay.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+        overlay.classList.add('open');
+        (focusBtn || actions.querySelector('button'))?.focus();
+      });
+    }
+    window.showChoiceDialog = showChoiceDialog;
+
     // Debounced Bestätigungs-Toast für Remote-Clipboard-Writes (OSC 52).
     // Der Toast lebt selbst 3.5 s; der Debounce begrenzt nur die Rate neuer
     // Toasts, damit schnelle Mehrfach-Yanks nicht spammen.
@@ -12157,7 +12203,9 @@
           const rel = btn.dataset.path + (entry.type === 'dir' ? '/' : '');
           e.dataTransfer.setData('application/x-cchub-path', rel);
           e.dataTransfer.setData('text/plain', '@' + rel + ' ');
-          e.dataTransfer.effectAllowed = 'copy';
+          // copyMove deckt beide Drop-Ziele ab: Terminal-@-Mention (dropEffect
+          // 'copy') und In-Tree-Move/Copy (move bzw. copy mit ⌥/Ctrl).
+          e.dataTransfer.effectAllowed = 'copyMove';
         });
 
         const check = document.createElement('span');
@@ -12616,12 +12664,22 @@
       function wireTreeDnD() {
         const tree = document.getElementById('files-tree');
         if (!tree) return;
-        tree.addEventListener('dragover', (e) => {
-          if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'copy';
-          const row = e.target.closest('.file-row[data-type="dir"]');
+        const PATH_TYPE = 'application/x-cchub-path';
+        const clearHighlights = () =>
           document.querySelectorAll('.file-row.drop-target').forEach(r => r.classList.remove('drop-target'));
+
+        tree.addEventListener('dragover', (e) => {
+          if (!e.dataTransfer) return;
+          const types = e.dataTransfer.types;
+          const isFiles = types.includes('Files');
+          const isInternal = types.includes(PATH_TYPE);
+          if (!isFiles && !isInternal) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = isFiles
+            ? 'copy'
+            : ((e.altKey || e.ctrlKey) ? 'copy' : 'move');
+          const row = e.target.closest('.file-row[data-type="dir"]');
+          clearHighlights();
           if (row) {
             row.classList.add('drop-target');
             if (springTarget !== row) {
@@ -12639,21 +12697,43 @@
         });
         tree.addEventListener('dragleave', (e) => {
           if (e.target === tree) {
-            document.querySelectorAll('.file-row.drop-target').forEach(r => r.classList.remove('drop-target'));
+            clearHighlights();
             clearSpring();
           }
         });
         tree.addEventListener('drop', (e) => {
-          if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+          if (!e.dataTransfer) return;
+          const types = e.dataTransfer.types;
+          const isInternal = types.includes(PATH_TYPE);
+          const isFiles = e.dataTransfer.files && e.dataTransfer.files.length > 0;
+          if (!isInternal && !isFiles) return;
           e.preventDefault();
           clearSpring();
+          clearHighlights();
           if (!currentProject) return;
           const row = e.target.closest('.file-row[data-type="dir"]');
-          const rel = row ? row.dataset.path : '';
-          for (const f of e.dataTransfer.files) {
-            Uploader.enqueue(f, { kind: 'project', projectId: currentProject.id, rel });
+          const destDir = row ? row.dataset.path : '';
+
+          if (isFiles) {
+            for (const f of e.dataTransfer.files) {
+              Uploader.enqueue(f, { kind: 'project', projectId: currentProject.id, rel: destDir });
+            }
+            return;
           }
-          document.querySelectorAll('.file-row.drop-target').forEach(r => r.classList.remove('drop-target'));
+
+          // Interner Drag → Move/Copy. getData ist erst im drop lesbar.
+          const rel = (e.dataTransfer.getData(PATH_TYPE) || '').replace(/\/$/, '');
+          if (!rel) return;
+          const copy = e.altKey || e.ctrlKey;
+          const parentOf = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '';
+          // Move in den aktuellen Parent → stiller No-op (Copy ist ein legit Duplikat).
+          if (!copy && destDir === parentOf) return;
+          // Ordner in sich/Nachfahren → Fehler-Toast, kein Request.
+          if (destDir === rel || destDir.startsWith(rel + '/')) {
+            if (typeof showToast === 'function') showToast(t('filebrowser.toast.moveSelfError'), 'error');
+            return;
+          }
+          window.FileActions?.submitMoveCopy(currentProject.id, rel, destDir, copy ? 'copy' : 'move');
         });
       }
 
@@ -14616,6 +14696,39 @@
         }
       }
 
+      // Geteilt von DnD und dem "Move to…"/"Copy to…"-Dialog. PATCH; bei 409
+      // (exists) Choice-Dialog (Überschreiben/Umbenennen/Abbrechen) → Retry.
+      // `to` ist der Ziel*ordner* (DnD) oder ein getippter Pfad (Dialog) — die
+      // Backend-Keystone-Regel hängt den Basename an, wenn `to` ein Ordner ist.
+      async function submitMoveCopy(projectId, from, to, op) {
+        const send = (onConflict) => authedFetch(`/api/projects/${projectId}/files`, {
+          method: 'PATCH',
+          body: onConflict ? { op, from, to, onConflict } : { op, from, to },
+        });
+        let res = await send();
+        if (res.status === 409) {
+          const name = from.split('/').pop();
+          const choice = await window.showChoiceDialog({
+            title: t('filebrowser.conflict.title'),
+            body: t('filebrowser.conflict.body', { name }),
+            choices: [
+              { key: 'overwrite', label: t('filebrowser.conflict.overwrite'), danger: true },
+              { key: 'rename', label: t('filebrowser.conflict.rename') },
+              { key: 'cancel', label: t('filebrowser.conflict.cancel') },
+            ],
+          });
+          if (!choice || choice === 'cancel') return;
+          res = await send(choice);
+        }
+        if (!res.ok) {
+          notify(t(op === 'copy' ? 'filebrowser.toast.copyFailed' : 'filebrowser.toast.moveFailed'), 'error');
+          return;
+        }
+        const refreshBtn = document.getElementById('files-refresh');
+        if (refreshBtn) refreshBtn.click();
+        notify(t('filebrowser.toast.moved'), 'success');
+      }
+
       async function promptOp(projectId, relPath, op) {
         const title = op === 'copy' ? t('filebrowser.prompt.copy') : t('filebrowser.prompt.move');
         const to = await window.showInputDialog({
@@ -14626,16 +14739,7 @@
           validate: (v) => (!v ? t('filebrowser.prompt.required') : (v === relPath ? t('filebrowser.prompt.samePath') : null)),
         });
         if (to == null) return;
-        const res = await authedFetch(`/api/projects/${projectId}/files`, {
-          method: 'PATCH',
-          body: { op, from: relPath, to },
-        });
-        if (!res.ok) {
-          notify(t(op === 'copy' ? 'filebrowser.toast.copyFailed' : 'filebrowser.toast.moveFailed'), 'error');
-          return;
-        }
-        const refreshBtn = document.getElementById('files-refresh');
-        if (refreshBtn) refreshBtn.click();
+        await submitMoveCopy(projectId, relPath, to, op);
       }
 
       // Inline-Erzeugung (Ordner/Datei) — Input-Zeile am Zielort, Enter legt an.
@@ -14691,7 +14795,7 @@
       function mkdirPrompt(projectId, parentRel = '') { inlineCreate(projectId, parentRel, 'folder'); }
       function newFilePrompt(projectId, parentRel = '') { inlineCreate(projectId, parentRel, 'file'); }
 
-      return { openRowContextMenu, mkdirPrompt, newFilePrompt, deleteRows };
+      return { openRowContextMenu, mkdirPrompt, newFilePrompt, deleteRows, submitMoveCopy };
     })();
 
     window.FileActions = FileActions;
