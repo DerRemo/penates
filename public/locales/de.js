@@ -766,6 +766,24 @@ window.__I18N_BUNDLES.de = {
   'settings.about.uptimeLabel': 'Server-Uptime',
   'settings.about.newAvailable': '(neue Version verfügbar)',
 
+  // Settings — Updates-Panel
+  'settings.updates.title': 'Updates',
+  'settings.updates.checkBtn': 'Prüfen',
+  'settings.updates.checking': 'Prüfe …',
+  'settings.updates.error': 'Updates konnten nicht geladen werden.',
+  'settings.updates.allCurrent': 'Alles ist aktuell.',
+  'settings.updates.group.hub': 'Hub',
+  'settings.updates.group.cli': 'CLIs',
+  'settings.updates.group.dependency': 'Abhängigkeiten',
+  'settings.updates.group.external': 'Externals',
+  'settings.updates.badge.outdated': 'Update verfügbar',
+  'settings.updates.badge.current': 'Aktuell',
+  'settings.updates.updateBtn': 'Aktualisieren',
+  'settings.updates.guard.upToDate': 'Bereits aktuell.',
+  'settings.updates.guard.dirtyTree': 'Lokale Änderungen vorhanden — erst committen oder stashen.',
+  'settings.updates.guard.localAhead': 'Lokale Commits vor origin (Dev-Checkout) — Self-Update deaktiviert.',
+  'settings.updates.depHint': 'Abhängigkeiten werden über ein Hub-Release aktualisiert (nur Anzeige).',
+
   // Time / relative
   'time.unknown': 'unbekannt',
   'time.justNow': 'Gerade eben',

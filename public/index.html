@@ -4560,6 +4560,31 @@
     }
     .settings-about-changelog a { color: var(--accent); text-decoration: underline; }
 
+    /* Updates panel rows */
+    .upd-group { margin-top: 6px; }
+    .upd-group__label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--text-muted); margin: 10px 0 2px;
+    }
+    .upd-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 0; border-top: 1px solid var(--border-subtle);
+    }
+    .upd-row__name { font-weight: 500; }
+    .upd-row__ver { color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; }
+    .upd-row__badge {
+      margin-left: auto; font-size: 11px; padding: 2px 8px;
+      border-radius: var(--radius-pill, 999px);
+      background: var(--bg-elevated); color: var(--text-secondary); white-space: nowrap;
+    }
+    .upd-row__badge--outdated {
+      background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--amber);
+    }
+    .upd-row__btn { margin-left: 8px; flex: none; }
+    .upd-row__btn:disabled { opacity: .5; cursor: not-allowed; }
+    .upd-empty { color: var(--text-secondary); font-size: 13px; padding: 8px 0; }
+    .upd-hint { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
+
     @media (max-width: 640px) {
       .settings-anchors { top: 0; }
     }
@@ -5424,6 +5449,16 @@
             <div class="settings-row__control"><code id="settings-uptime">—</code></div>
           </div>
           <div class="settings-about-changelog" id="settings-about-changelog"></div>
+        </div>
+        <div class="settings-card">
+          <div class="settings-row">
+            <label data-i18n="settings.updates.title">Updates</label>
+            <div class="settings-row__control">
+              <button type="button" class="btn btn-ghost btn-sm" id="settings-updates-check"
+                      data-i18n="settings.updates.checkBtn">Check</button>
+            </div>
+          </div>
+          <div id="settings-updates"></div>
         </div>
       </section>
 
@@ -11379,8 +11414,8 @@
           if (r.ok) {
             const info = await r.json();
             window.__versionInfo = info;
-            if (typeof renderUpdateDot === 'function') renderUpdateDot(info);
             if (typeof renderAboutPanel === 'function') renderAboutPanel(info);
+            if (typeof loadUpdates === 'function') loadUpdates();
             showToast(info.isNewer ? t('settings.server.updateAvailable', { v: info.latest }) : t('settings.server.upToDate'), 'success');
           }
         } catch { showToast(t('toast.genericError'), 'error'); }
@@ -11477,7 +11512,6 @@
         if (!res.ok) return;
         const info = await res.json();
         window.__versionInfo = info;
-        renderUpdateDot(info);
         renderAboutPanel(info);
       } catch (e) {
         console.warn('[Settings/UpdateCheck] /api/version fetch failed:', e);
@@ -11485,10 +11519,11 @@
       }
     }
 
-    function renderUpdateDot(info) {
+    // Sidebar-Punkt: generalisiert auf „irgendeine Komponente veraltet".
+    function setUpdateDot(hasUpdates) {
       const dot = document.getElementById('sidebar-settings-dot');
       if (!dot) return;
-      if (info && info.isNewer) dot.removeAttribute('hidden');
+      if (hasUpdates) dot.removeAttribute('hidden');
       else dot.setAttribute('hidden', '');
     }
 
@@ -11516,6 +11551,103 @@
       }
 
       changelogEl.innerHTML = window.renderMarkdownMini(info.changelogMd || '');
+    }
+
+    // ── Settings: Updates panel ───────────────────────────────────
+    // Fetches /api/updates, renders four groups, drives the sidebar dot,
+    // and wires per-row Update buttons (executable rows only) → detached
+    // tmux session → open its terminal.
+    const UPDATE_GROUPS = ['hub', 'cli', 'dependency', 'external'];
+    function updGuardKey(reason) {
+      return reason === 'dirty-tree' ? 'dirtyTree'
+           : reason === 'local-ahead' ? 'localAhead' : 'upToDate';
+    }
+    function updRowHtml(c, guard) {
+      const outdated = !!c.outdated;
+      const badgeKey = outdated ? 'settings.updates.badge.outdated' : 'settings.updates.badge.current';
+      const badgeCls = outdated ? ' upd-row__badge--outdated' : '';
+      const ver = (c.current || '—') + (c.latest && c.latest !== c.current ? ' → ' + c.latest : '');
+      let btn = '';
+      if (c.executable) {
+        const isHub = c.id === 'hub';
+        const disabled = isHub && guard && !guard.ok;
+        const title = disabled ? window.t('settings.updates.guard.' + updGuardKey(guard.reason)) : '';
+        btn = '<button type="button" class="btn btn-ghost btn-sm upd-row__btn" data-upd-id="' + escapeHtml(c.id) + '"'
+            + (disabled ? ' disabled' : '') + (title ? ' title="' + escapeHtml(title) + '"' : '')
+            + '>' + escapeHtml(window.t('settings.updates.updateBtn')) + '</button>';
+      }
+      return '<div class="upd-row"><span class="upd-row__name">' + escapeHtml(c.name) + '</span>'
+           + '<span class="upd-row__ver">' + escapeHtml(ver) + '</span>'
+           + '<span class="upd-row__badge' + badgeCls + '">' + escapeHtml(window.t(badgeKey)) + '</span>' + btn + '</div>';
+    }
+    function renderUpdatesPanel(data) {
+      const host = document.getElementById('settings-updates');
+      if (!host) return;
+      if (!data || data.error) {
+        host.innerHTML = '<div class="upd-empty">' + escapeHtml(window.t('settings.updates.error')) + '</div>';
+        return;
+      }
+      const byGroup = {
+        hub: data.hub ? [data.hub] : [],
+        cli: data.clis || [],
+        dependency: data.dependencies || [],
+        external: data.externals || [],
+      };
+      const guard = data.hub && data.hub.guard;
+      let html = '';
+      for (const g of UPDATE_GROUPS) {
+        const rows = byGroup[g];
+        if (!rows.length) continue;
+        html += '<div class="upd-group"><div class="upd-group__label">' + escapeHtml(window.t('settings.updates.group.' + g)) + '</div>';
+        html += rows.map(c => updRowHtml(c, guard)).join('');
+        if (g === 'dependency') html += '<div class="upd-hint">' + escapeHtml(window.t('settings.updates.depHint')) + '</div>';
+        html += '</div>';
+      }
+      if (!html) html = '<div class="upd-empty">' + escapeHtml(window.t('settings.updates.allCurrent')) + '</div>';
+      host.innerHTML = html;
+    }
+    async function loadUpdates(opts) {
+      const refresh = !!(opts && opts.refresh);
+      const host = document.getElementById('settings-updates');
+      try {
+        if (host && refresh) host.innerHTML = '<div class="upd-empty">' + escapeHtml(window.t('settings.updates.checking')) + '</div>';
+        const res = await fetch('/api/updates' + (refresh ? '?refresh=1' : ''), { headers: apiHeaders(), cache: 'no-store' });
+        if (!res.ok) throw new Error('updates ' + res.status);
+        const data = await res.json();
+        window.__updatesInfo = data;
+        setUpdateDot((data.outdatedCount || 0) > 0);
+        renderUpdatesPanel(data);
+      } catch (e) {
+        console.warn('[Settings/Updates] fetch failed:', e);
+        renderUpdatesPanel(null);
+      }
+    }
+    async function startUpdate(id) {
+      try {
+        const res = await fetch('/api/updates/' + encodeURIComponent(id), { method: 'POST', headers: apiHeaders() });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { showToast(data.reason || data.error || 'Update failed', 'error'); return; }
+        if (data.session && typeof connectToSession === 'function') connectToSession(data.session);
+      } catch (e) {
+        console.warn('[Settings/Updates] start failed:', e);
+        showToast('Update failed', 'error');
+      }
+    }
+    function initUpdates() {
+      const checkBtn = document.getElementById('settings-updates-check');
+      if (checkBtn && !checkBtn.dataset.wired) {
+        checkBtn.dataset.wired = '1';
+        checkBtn.addEventListener('click', () => loadUpdates({ refresh: true }));
+      }
+      const host = document.getElementById('settings-updates');
+      if (host && !host.dataset.wired) {
+        host.dataset.wired = '1';
+        host.addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-upd-id]');
+          if (btn && !btn.disabled) startUpdate(btn.getAttribute('data-upd-id'));
+        });
+      }
+      loadUpdates();
     }
 
     // ── Init ─────────────────────────────────────────────────────
@@ -11563,7 +11695,8 @@
     initDisplayPrefs();
     initBehaviorPrefs();
     initAccountData();
-    initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders dot + changelog
+    initUpdateCheck();   // async, fire-and-forget — fetches /api/version, renders About changelog
+    initUpdates();       // async, fire-and-forget — fetches /api/updates, renders panel + sidebar dot
 
     // ── Idea Pipeline: BoardView ─────────────────────────────────
     // 6-Spalten-Kanban (idea→done). Drag = Stufenwechsel (PATCH stage),

@@ -12,6 +12,9 @@ import { fileURLToPath } from 'url';
 import { dirname, join, resolve, sep } from 'path';
 import { readdirSync, readFileSync, writeFileSync, accessSync } from 'fs';
 import { createChecker } from './lib/update-check.js';
+import {
+  createUpdates, canSelfUpdate, isExecutable, updateCommandFor, updateSessionName,
+} from './lib/updates.js';
 import { homedir } from 'os';
 import { getCurrentContext, getDailyUsageV2 } from './lib/usage.js';
 import * as usageLimits from './lib/usage-limits.js';
@@ -72,6 +75,13 @@ const __dirname = dirname(__filename);
 
 const pkgJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const updateChecker = createChecker({ current: pkgJson.version });
+// Update-System: aggregiert Hub/CLIs/Deps/Externals. Reuse des Hub-Checker-State
+// für die Hub-Komponente; eigene Collectors für CLIs/Deps/Externals (lazy, 1h-Cache).
+const updates = createUpdates({
+  hubStateFn: () => updateChecker.getState(),
+  cwd: __dirname,
+  repoDir: __dirname,
+});
 
 const PORT = process.env.PORT || 3333;
 const AUTH_TOKEN = process.env.AUTH_TOKEN || '';
@@ -2323,6 +2333,68 @@ app.get('/api/server/logs', async (req, res) => {
 app.post('/api/version/check', async (_req, res) => {
   await updateChecker.check();
   res.json(updateChecker.getState());
+});
+
+// ── Update-System: Dashboard + ausführbare Updates ───────────────────────────
+// gitState der Hub-Install: clean? + ahead-of-origin? Detached HEAD / kein
+// Upstream → ahead=0 (eine getaggte Runner-Install ist nicht „vor origin").
+function readHubGitState() {
+  let clean = true, aheadOfOrigin = 0;
+  try {
+    clean = execFileSync('git', ['-C', __dirname, 'status', '--porcelain'],
+      { encoding: 'utf-8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }).trim() === '';
+  } catch { clean = true; }
+  try {
+    const n = execFileSync('git', ['-C', __dirname, 'rev-list', '--count', '@{u}..HEAD'],
+      { encoding: 'utf-8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    aheadOfOrigin = parseInt(n, 10) || 0;
+  } catch { aheadOfOrigin = 0; }
+  return { clean, aheadOfOrigin };
+}
+function hubGuard(isNewer) {
+  const { clean, aheadOfOrigin } = readHubGitState();
+  return canSelfUpdate({ isNewer, clean, aheadOfOrigin });
+}
+
+app.get('/api/updates', async (req, res) => {
+  const refresh = req.query.refresh === '1';
+  let payload;
+  try {
+    payload = await updates.getAll({ refresh });
+  } catch (e) {
+    return res.json({ hub: null, clis: [], dependencies: [], externals: [],
+      outdatedCount: 0, checkedAt: Date.now(), error: e.message });
+  }
+  // Guard frisch berechnen (git-Status ändert sich öfter als der 1h-Cache).
+  if (payload.hub) payload.hub.guard = hubGuard(payload.hub.outdated);
+  res.json(payload);
+});
+
+app.post('/api/updates/:id', (req, res) => {
+  const id = req.params.id;
+  if (!isExecutable(id)) return res.status(400).json({ error: 'not-executable', id });
+  if (id === 'hub') {
+    const guard = hubGuard(updateChecker.getState().isNewer);
+    if (!guard.ok) return res.status(409).json({ error: 'guard', reason: guard.reason });
+  }
+  const command = updateCommandFor(id, { repoDir: __dirname });
+  if (!command) return res.status(400).json({ error: 'no-command', id });
+  const session = updateSessionName(id);
+  if (!validSessionName(session)) return res.status(400).json({ error: 'bad-session-name', session });
+  // Idempotent: läuft die Session schon → zurückgeben, keine zweite starten.
+  if (getTmuxSessions().some(s => s.name === session)) {
+    return res.json({ session, existing: true });
+  }
+  try {
+    execFileSync(TMUX, ['new-session', '-d', '-s', session, 'bash', '-lc', command],
+      { encoding: 'utf-8', timeout: 5000 });
+  } catch (e) {
+    return res.status(500).json({ error: 'spawn-failed', message: e.message });
+  }
+  ensureMouseMode();
+  ensureClipboardMode();
+  auditLog.record('update.start', { ...auditLog.extractRequestMeta(req), id, session, command });
+  res.json({ session });
 });
 
 // Entscheidung vom Dashboard (Bearer) ODER vom Service-Worker (?token=<otp>).
