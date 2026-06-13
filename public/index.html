@@ -1090,9 +1090,13 @@
     .usage-errspark i { flex: 1; background: color-mix(in srgb, var(--red) 55%, transparent); border-radius: 1px; }
 
     @media (max-width: 760px) {
-      .usage-accts, .usage-two { grid-template-columns: 1fr; }
+      /* minmax(0,…) + min-width:0 verhindern den Grid-Blowout: sonst wächst die
+         Karte auf die min-content-Breite der 24-Spalten-Heatmap (→ Page-H-Scroll
+         auf 320px). Mit min-width:0 greift erst das overflow-x:auto der Heatmap. */
+      .usage-accts, .usage-two { grid-template-columns: minmax(0, 1fr); }
       .usage-stats { grid-template-columns: 1fr 1fr; }
       .usage-hm { overflow-x: auto; }
+      .usage-card, .usage-acct, .usage-prov, .usage-trend, .usage-stat { min-width: 0; }
     }
 
     /* ── Command-Output-Block ─────────────────────────────────────────
