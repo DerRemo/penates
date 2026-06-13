@@ -60,6 +60,7 @@ import { parseStatusV2, getDiff, gitStatusMap, getRecentCommits, detectBaseBranc
 import { getLog, getBranches, showCommit } from './lib/git-history.js';
 import { captureScrollback } from './lib/scrollback.js';
 import { saveSessionImage } from './lib/session-images.js';
+import { readSessionFile, SessionFileError } from './lib/session-files.js';
 import { isPreviewHost, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
 import * as voice from './lib/voice.js';
 import { listListeningPorts } from './lib/port-scan.js';
@@ -1233,6 +1234,14 @@ function handleFileError(res, err) {
   return res.status(500).json({ error: 'internal' });
 }
 
+function handleSessionFileError(res, err) {
+  if (err instanceof SessionFileError) {
+    const status = { EOUTSIDE: 403, ENOENT: 404, TOOLARGE: 413, UNKNOWN: 415 }[err.code] || 500;
+    return res.status(status).json({ error: err.code, message: err.message });
+  }
+  return handleFileError(res, err);
+}
+
 app.get('/api/projects/:id/files', async (req, res) => {
   try {
     const project = await resolveFileSource(req.params.id);
@@ -1689,6 +1698,24 @@ app.get('/api/sessions/:name/scrollback', (req, res) => {
   }
   const lines = Math.max(1, Math.min(parseInt(req.query.lines) || 2000, 10000));
   res.json({ data: captureScrollback(name, { lines, tmux: TMUX }) });
+});
+
+// GET /api/sessions/:name/file-content?path=<path> — guarded reader for
+// terminal-clicked file paths. cwd via resolveSessionCwd; reads only under
+// session-cwd or temp roots. Same response shape as /projects/:id/files/content
+// so FilePreview.openUrl renders it identically. Read-only → no writeLimiter.
+app.get('/api/sessions/:name/file-content', async (req, res) => {
+  try {
+    const name = req.params.name;
+    if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+    const cwd = resolveSessionCwd(name);
+    if (!cwd) return res.status(404).json({ error: 'not-found' });
+    const result = await readSessionFile(cwd, String(req.query.path || ''));
+    res.setHeader('Content-Type', result.mime);
+    if (result.kind === 'text') res.setHeader('X-File-Lang', result.detectedLang);
+    res.setHeader('X-File-Size', String(result.size));
+    res.send(result.buffer);
+  } catch (e) { handleSessionFileError(res, e); }
 });
 
 // Single-PNG body for the image-paste flow. 8 MB → express.raw answers 413
