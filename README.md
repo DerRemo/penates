@@ -102,8 +102,8 @@ Dann einmalig `claude` starten und den Anweisungen folgen (Anthropic-Account ver
 
 ```bash
 cd ~
-git clone https://github.com/DerRemo/claud-code-hub.git
-cd claud-code-hub
+git clone https://github.com/DerRemo/claude-code-hub.git
+cd claude-code-hub
 ```
 
 ### Setup ausführen
@@ -303,7 +303,7 @@ launchctl list | grep claude-code-hub
 launchctl kickstart -k gui/$(id -u)/com.claude-code-hub
 
 # Server stoppen
-launchctl bootout gui/$(id -u) claude-code-hub/com.claude-code-hub.plist
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.claude-code-hub.plist
 
 # Logs live verfolgen
 tail -f claude-code-hub/logs/stdout.log
@@ -342,8 +342,8 @@ kill -9 <PID aus der Ausgabe>
 LaunchAgent neu laden:
 
 ```bash
-launchctl bootout gui/$(id -u) claude-code-hub/com.claude-code-hub.plist
-launchctl bootstrap gui/$(id -u) claude-code-hub/com.claude-code-hub.plist
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.claude-code-hub.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.claude-code-hub.plist
 ```
 
 ### `claude`-Befehl nicht gefunden im Terminal
