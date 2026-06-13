@@ -11882,7 +11882,9 @@
           const rel = btn.dataset.path + (entry.type === 'dir' ? '/' : '');
           e.dataTransfer.setData('application/x-cchub-path', rel);
           e.dataTransfer.setData('text/plain', '@' + rel + ' ');
-          e.dataTransfer.effectAllowed = 'copy';
+          // copyMove deckt beide Drop-Ziele ab: Terminal-@-Mention (dropEffect
+          // 'copy') und In-Tree-Move/Copy (move bzw. copy mit ⌥/Ctrl).
+          e.dataTransfer.effectAllowed = 'copyMove';
         });
 
         const check = document.createElement('span');
@@ -12341,12 +12343,22 @@
       function wireTreeDnD() {
         const tree = document.getElementById('files-tree');
         if (!tree) return;
-        tree.addEventListener('dragover', (e) => {
-          if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'copy';
-          const row = e.target.closest('.file-row[data-type="dir"]');
+        const PATH_TYPE = 'application/x-cchub-path';
+        const clearHighlights = () =>
           document.querySelectorAll('.file-row.drop-target').forEach(r => r.classList.remove('drop-target'));
+
+        tree.addEventListener('dragover', (e) => {
+          if (!e.dataTransfer) return;
+          const types = e.dataTransfer.types;
+          const isFiles = types.includes('Files');
+          const isInternal = types.includes(PATH_TYPE);
+          if (!isFiles && !isInternal) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = isFiles
+            ? 'copy'
+            : ((e.altKey || e.ctrlKey) ? 'copy' : 'move');
+          const row = e.target.closest('.file-row[data-type="dir"]');
+          clearHighlights();
           if (row) {
             row.classList.add('drop-target');
             if (springTarget !== row) {
@@ -12364,21 +12376,43 @@
         });
         tree.addEventListener('dragleave', (e) => {
           if (e.target === tree) {
-            document.querySelectorAll('.file-row.drop-target').forEach(r => r.classList.remove('drop-target'));
+            clearHighlights();
             clearSpring();
           }
         });
         tree.addEventListener('drop', (e) => {
-          if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+          if (!e.dataTransfer) return;
+          const types = e.dataTransfer.types;
+          const isInternal = types.includes(PATH_TYPE);
+          const isFiles = e.dataTransfer.files && e.dataTransfer.files.length > 0;
+          if (!isInternal && !isFiles) return;
           e.preventDefault();
           clearSpring();
+          clearHighlights();
           if (!currentProject) return;
           const row = e.target.closest('.file-row[data-type="dir"]');
-          const rel = row ? row.dataset.path : '';
-          for (const f of e.dataTransfer.files) {
-            Uploader.enqueue(f, { kind: 'project', projectId: currentProject.id, rel });
+          const destDir = row ? row.dataset.path : '';
+
+          if (isFiles) {
+            for (const f of e.dataTransfer.files) {
+              Uploader.enqueue(f, { kind: 'project', projectId: currentProject.id, rel: destDir });
+            }
+            return;
           }
-          document.querySelectorAll('.file-row.drop-target').forEach(r => r.classList.remove('drop-target'));
+
+          // Interner Drag → Move/Copy. getData ist erst im drop lesbar.
+          const rel = (e.dataTransfer.getData(PATH_TYPE) || '').replace(/\/$/, '');
+          if (!rel) return;
+          const copy = e.altKey || e.ctrlKey;
+          const parentOf = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '';
+          // Move in den aktuellen Parent → stiller No-op (Copy ist ein legit Duplikat).
+          if (!copy && destDir === parentOf) return;
+          // Ordner in sich/Nachfahren → Fehler-Toast, kein Request.
+          if (destDir === rel || destDir.startsWith(rel + '/')) {
+            if (typeof showToast === 'function') showToast(t('filebrowser.toast.moveSelfError'), 'error');
+            return;
+          }
+          window.FileActions?.submitMoveCopy(currentProject.id, rel, destDir, copy ? 'copy' : 'move');
         });
       }
 
