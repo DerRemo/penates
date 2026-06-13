@@ -8681,6 +8681,14 @@
         await document.fonts.ready;
       } catch { /* safe */ }
 
+      // Preload the previewable-path matcher so the custom link provider can run
+      // synchronously inside provideLinks() (no await in the hot path).
+      let _previewable = window._previewable;
+      if (!_previewable) {
+        try { _previewable = window._previewable = await import('./previewable.js'); }
+        catch { _previewable = null; }
+      }
+
       const term = new Terminal({
         // Bewusst KEINE System-Font-Namen wie Menlo/Consolas/Cascadia Mono mehr
         // — Firefox mit resistFingerprinting / font-visibility ≤ 2 blockt die
@@ -8705,6 +8713,59 @@
       const webLinksAddon = new WebLinksAddon.WebLinksAddon();
       term.loadAddon(fitAddon);
       term.loadAddon(webLinksAddon);
+
+      // ── Clickable previewable file paths (Terminal File-Preview) ───────────
+      // A custom ILinkProvider next to WebLinksAddon: WebLinks handles URLs,
+      // this handles bare/abs/relative file paths whose extension is previewable.
+      // Click → guarded session reader → existing FilePreview modal. Reines
+      // client-seitiges Buffer-Matching (umgeht CLI- + tmux-Wand, siehe Spec §1).
+      function handleTerminalFileClick(text) {
+        const name = window.currentSessionName;
+        if (!name || !window.FilePreview) return;
+        const url = `/api/sessions/${encodeURIComponent(name)}/file-content?path=${encodeURIComponent(text)}`;
+        window.FilePreview.openUrl(url, text.split('/').pop());
+      }
+      if (_previewable && typeof term.registerLinkProvider === 'function') {
+        const provider = {
+          provideLinks(y, callback) {
+            try {
+              const buf = term.buffer.active;
+              // Walk up to the logical line start (wrapped continuation rows).
+              let startIdx = y - 1;
+              while (startIdx > 0 && buf.getLine(startIdx) && buf.getLine(startIdx).isWrapped) startIdx--;
+              // Build the flat string + per-char cell coordinates across the
+              // wrapped group (ASCII paths: 1 char == 1 cell).
+              let flat = '';
+              const coords = [];
+              let idx = startIdx;
+              do {
+                const line = buf.getLine(idx);
+                if (!line) break;
+                const text = line.translateToString(false);
+                for (let c = 0; c < text.length; c++) {
+                  flat += text[c];
+                  coords.push({ x: c + 1, y: idx + 1 });
+                }
+                idx++;
+              } while (idx < buf.length && buf.getLine(idx) && buf.getLine(idx).isWrapped);
+
+              const hits = _previewable.findPreviewableTokens(flat);
+              if (!hits.length) { callback(undefined); return; }
+              const links = hits.map(h => ({
+                text: h.text,
+                range: { start: coords[h.start], end: coords[h.end - 1] },
+                activate(ev) { try { ev.preventDefault(); } catch {} handleTerminalFileClick(h.text); },
+              })).filter(l => l.range.start && l.range.end);
+              callback(links.length ? links : undefined);
+            } catch { callback(undefined); }
+          },
+        };
+        try {
+          term.registerLinkProvider(provider);
+          window._filePreviewLinkProvider = provider; // exposed for E2E
+        } catch {}
+      }
+
       const searchAddon = new SearchAddon.SearchAddon();
       term.loadAddon(searchAddon);
       if (window.TerminalSearch) window.TerminalSearch.attach(term, searchAddon);
