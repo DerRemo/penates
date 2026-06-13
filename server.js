@@ -63,6 +63,7 @@ import { saveSessionImage } from './lib/session-images.js';
 import { isPreviewHost, proxyHttp, attachUpgrade } from './lib/preview-proxy.js';
 import * as voice from './lib/voice.js';
 import { listListeningPorts } from './lib/port-scan.js';
+import * as mata from './lib/mata.js';
 import { computePace, windowMinutes } from './lib/pace.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -398,6 +399,17 @@ app.get('/api/preview/ports', (_req, res) => {
 // { port: null } zum Leeren. SSRF-Guard: Port muss aktuell lauschen.
 app.post('/api/preview/select', (req, res) => {
   if (!PREVIEW_ENABLED) return res.status(409).json({ error: 'preview disabled' });
+  // Mata-Quelle: feste Abbildung auf den Viewer-Port 3070. Derselbe SSRF-Guard
+  // (Port muss lauschen) deckt den "kein aktiver Simulator"-Fall ab → 409.
+  const source = req.body && req.body.source;
+  if (source === 'mata') {
+    const mp = mata.previewPortForSource('mata');      // 3070
+    if (!isPreviewPortListening(mp)) {
+      return res.status(409).json({ error: 'mata viewer not running', port: mp });
+    }
+    activePreviewPort = mp;
+    return res.json({ ok: true, port: mp, source: 'mata' });
+  }
   const raw = req.body && req.body.port;
   if (raw === null || raw === undefined || raw === '') {
     activePreviewPort = null;
@@ -412,6 +424,45 @@ app.post('/api/preview/select', (req, res) => {
   }
   activePreviewPort = port;
   res.json({ ok: true, port });
+});
+
+// ── Mata (iOS-Simulator-Viewer) — Status + Quick-Control ──
+// Feature-Gate: installed:false → 200 mit installed:false (Frontend versteckt das Feature).
+// 5s In-Memory-Cache analog GET /api/usage/costs.
+let mataStatusCache = { ts: 0, val: null };
+const MATA_STATUS_TTL_MS = 5000;
+app.get('/api/mata/status', async (_req, res) => {
+  const now = Date.now();
+  if (mataStatusCache.val && now - mataStatusCache.ts < MATA_STATUS_TTL_MS) return res.json(mataStatusCache.val);
+  if (!mata.isInstalled()) {
+    const val = { installed: false, running: false, portOpen: false };
+    mataStatusCache = { ts: now, val };
+    return res.json(val);
+  }
+  const status = await mata.getStatus();
+  const portOpen = await mata.isViewerPortOpen();
+  const val = {
+    installed: true,
+    running: !!(status && status.running),
+    pid: status && status.pid != null ? status.pid : null,
+    version: status && status.version ? status.version : null,
+    startedAt: status && status.startedAt ? status.startedAt : null,
+    portOpen,
+  };
+  mataStatusCache = { ts: now, val };
+  res.json(val);
+});
+
+// Start/Stop/Restart der Mata-App. Action-Whitelist → 400. writeLimiter (global) deckt das ab.
+const MATA_ACTIONS = new Set(['start', 'stop', 'restart']);
+app.post('/api/mata/control', async (req, res) => {
+  const action = req.body && req.body.action;
+  if (!MATA_ACTIONS.has(action)) return res.status(400).json({ error: 'invalid action' });
+  if (!mata.isInstalled()) return res.status(409).json({ error: 'mata not installed' });
+  mataStatusCache = { ts: 0, val: null };          // State ändert sich → Cache invalidieren
+  const r = await mata[action]();
+  if (!r || !r.ok) return res.status(502).json({ error: 'mata control failed', message: r && r.error });
+  res.json({ ok: true });
 });
 
 // ── Validation ───────────────────────────────────────────────────────────────
@@ -1722,6 +1773,26 @@ app.use('/api/sessions/:name/image', (err, req, res, next) => {
     return res.status(413).json({ error: 'Image too large' });
   }
   next(err);
+});
+
+// POST /api/sessions/:name/mata-capture — Simulator-Frame → .cch-images/ → @-Mention.
+// Reuse session-images.saveSessionImage; identische @-Inject-Pipeline wie Image-Paste.
+app.post('/api/sessions/:name/mata-capture', async (req, res) => {
+  const name = req.params.name;
+  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  const cwd = resolveSessionCwd(name);
+  if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
+  if (!mata.isInstalled()) return res.status(409).json({ error: 'mata not installed' });
+  const frame = await mata.captureFrame();
+  if (!frame || !frame.buffer || !frame.buffer.length) return res.status(502).json({ error: 'mata capture failed' });
+  const ext = /jpeg|jpg/i.test(frame.contentType) ? 'jpg' : 'png';
+  try {
+    const { rel } = saveSessionImage(cwd, frame.buffer, { ext });
+    res.json({ rel });
+  } catch (e) {
+    if (e instanceof FileError && e.code === 'forbidden') return res.status(403).json({ error: 'forbidden' });
+    res.status(500).json({ error: 'capture save failed', message: String((e && e.message) || e) });
+  }
 });
 
 // ── Voice-Input: lokale whisper.cpp-Transkription ──
