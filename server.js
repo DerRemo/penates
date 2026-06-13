@@ -96,8 +96,21 @@ const PREVIEW_HOST = PREVIEW_ENABLED ? 'preview.' + PREVIEW_DOMAIN : '';
 // zur Zeit). Wird über POST /api/preview/select gesetzt.
 let activePreviewPort = null;
 // SSRF-Guard: nur Ports proxen, die der Detektor aktuell als lauschend meldet.
+// listListeningPorts() ist ein BLOCKIERENDES execFileSync('lsof', …) (bis 4s
+// Timeout) und liegt im Host-Dispatch-Hot-Path: jeder Preview-HTTP-Request +
+// WS-Upgrade ruft previewPortReady() → hier. Ein einzelner Dev-Server-Pageload
+// fächert in dutzende Asset-Requests auf — ohne Cache würde jeder den Event-Loop
+// (alle Sessions/Terminals/Hooks) blockieren. ~1s TTL hält es frisch genug.
+let _listeningPortsCache = { ts: 0, val: [] };
+const LISTENING_PORTS_TTL_MS = 1000;
+function cachedListeningPorts() {
+  const now = Date.now();
+  if (now - _listeningPortsCache.ts < LISTENING_PORTS_TTL_MS) return _listeningPortsCache.val;
+  _listeningPortsCache = { ts: now, val: listListeningPorts({ excludePort: PORT }) };
+  return _listeningPortsCache.val;
+}
 function isPreviewPortListening(port) {
-  return listListeningPorts({ excludePort: PORT }).some((p) => p.port === port);
+  return cachedListeningPorts().some((p) => p.port === port);
 }
 // Liefert den aktiven Port nur, wenn gesetzt UND noch lauschend — sonst null.
 function previewPortReady() {
@@ -414,6 +427,7 @@ app.post('/api/preview/select', (req, res) => {
   // (Port muss lauschen) deckt den "kein aktiver Simulator"-Fall ab → 409.
   const source = req.body && req.body.source;
   if (source === 'mata') {
+    if (!mata.isInstalled()) return res.status(409).json({ error: 'mata not installed' });  // konsistent mit /api/mata/control
     const mp = mata.previewPortForSource('mata');      // 3070
     if (!isPreviewPortListening(mp)) {
       return res.status(409).json({ error: 'mata viewer not running', port: mp });
@@ -517,13 +531,16 @@ function getTmuxSessions() {
     ], { encoding: 'utf-8', timeout: 5000 }).trim();
     if (!output) return [];
     return output.split('\n').map(line => {
-      const [name, created, windows, attached, path] = line.split('|');
+      // pane_current_path kann ein '|' enthalten (legaler macOS-Dateiname) und
+      // ist das LETZTE Feld → die ersten 4 Felder destructuren, Rest als Pfad
+      // rejoinen, sonst würde der cwd am ersten '|' abgeschnitten.
+      const [name, created, windows, attached, ...rest] = line.split('|');
       return {
         name,
         created: parseInt(created) * 1000,
         windows: parseInt(windows),
         attached: parseInt(attached) > 0,
-        path: path || '~',
+        path: rest.join('|') || '~',
       };
     });
   } catch {
@@ -1665,10 +1682,22 @@ app.patch('/api/sessions/:name', async (req, res) => {
   if (!SESSION_NAME_RE.test(name)) {
     return res.status(400).json({ error: 'Invalid source session name' });
   }
-  if (typeof newName !== 'string' || !SESSION_NAME_RE.test(newName.replace(/^cc-/, ''))) {
+  // Den Basis-Namen (ohne optionalen Prefix) gegen die Whitelist prüfen und den
+  // Prefix konsistent über SESSION_PREFIX behandeln (nicht hartkodiert /^cc-/).
+  if (typeof newName !== 'string') {
     return res.status(400).json({ error: 'Invalid new session name' });
   }
-  const fullNewName = newName.startsWith(SESSION_PREFIX) ? newName : SESSION_PREFIX + newName;
+  const baseNewName = newName.startsWith(SESSION_PREFIX) ? newName.slice(SESSION_PREFIX.length) : newName;
+  if (!SESSION_NAME_RE.test(baseNewName)) {
+    return res.status(400).json({ error: 'Invalid new session name' });
+  }
+  const fullNewName = SESSION_PREFIX + baseNewName;
+  // Kollidiert der Zielname mit einer laufenden tmux-Session ODER einem (ggf.
+  // dormanten) known-Eintrag, würde knownSessions.rename() unten still no-oppen
+  // und einen verwaisten Geist-Eintrag hinterlassen → vorab 409 (wie create).
+  if (fullNewName !== name && (getTmuxSessions().some(s => s.name === fullNewName) || knownSessions.find(fullNewName))) {
+    return res.status(409).json({ error: 'A session with this name already exists' });
+  }
   try {
     execFileSync(TMUX, ['rename-session', '-t', name, fullNewName], { encoding: 'utf-8', timeout: 5000 });
     attention.rename(name, fullNewName);
@@ -2435,7 +2464,11 @@ const hookBody = express.raw({ type: '*/*', limit: '1mb' });
 // Express nicht `:event = "statusline"` matcht.
 app.post('/api/hooks/statusline', hookBody, (req, res) => {
   const envName = req.get('X-CC-Hub-Session');
-  if (!envName) return res.status(400).json({ error: 'Missing X-CC-Hub-Session' });
+  // Wie die anderen Hook-Routen: Format validieren, sonst landet ein beliebiger
+  // (ggf. Control-Char-/Multi-KB-) String als Map-Key + JSONL-Feld.
+  if (!envName || !SESSION_NAME_RE.test(envName)) {
+    return res.status(400).json({ error: 'Missing or invalid X-CC-Hub-Session' });
+  }
   let data = {};
   if (Buffer.isBuffer(req.body) && req.body.length > 0) {
     try { data = JSON.parse(req.body.toString('utf8')); } catch { /* tolerant */ }

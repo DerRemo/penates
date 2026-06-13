@@ -5780,8 +5780,7 @@
     let refreshInterval = null;
     let sidebarUsageInterval = null;
     let reconnectTimer = null;
-    let reconnectAttempts = 0;
-    const MAX_RECONNECT = 3;
+    let reconnectAttempts = 0;  // 1-basiert für die Anzeige; Reconnect ist bewusst unbegrenzt (Backoff-Cap 20s)
     let pingTimer = null;       // Client→Server app-level ping interval
     let pongTimer = null;       // erwartet {type:'pong'} innerhalb der Frist
     let reconnectNow = null;    // gesetzt in openTerminalWebSocket → von Resume-Triggern genutzt
@@ -9444,7 +9443,9 @@
         if (currentWs !== ws) return;
 
         reconnectAttempts++;
-        const delay = nextBackoffMs(reconnectAttempts);
+        // nextBackoffMs ist 0-basiert (attempt 0 → ~1s Base). reconnectAttempts
+        // bleibt 1-basiert für die Anzeige, daher -1: erster Reconnect ~1s, nicht ~2s.
+        const delay = nextBackoffMs(reconnectAttempts - 1);
         setConnStatus('connecting', t('terminal.connStatus.reconnecting', { n: reconnectAttempts }));
         // "Verbindung verloren"-Hinweis nur EINMAL (erster Versuch), nicht bei jedem Backoff
         if (reconnectAttempts === 1) {
@@ -10553,8 +10554,12 @@
         return parts.map(p => {
           if (p.type === 'code') return `<code>${mdEscapeHtml(p.value)}</code>`;
           let s = mdEscapeHtml(p.value);
-          s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, url) =>
-            `<a href="${mdEscapeHtml(url)}" target="_blank" rel="noopener">${label}</a>`);
+          // Nur sichere Schemes verlinken — javascript:/data:/vbscript: würden im
+          // Hub-Origin (Token im localStorage) Skript ausführen. Unsicher → Roh-Text.
+          s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (whole, label, url) =>
+            /^(?:https?:\/\/|mailto:|\/|\.{1,2}\/|#)/i.test(url)
+              ? `<a href="${mdEscapeHtml(url)}" target="_blank" rel="noopener">${label}</a>`
+              : whole);
           s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
           s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
           s = s.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>');
