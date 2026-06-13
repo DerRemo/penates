@@ -1,6 +1,6 @@
 # Claude Code Hub
 
-Web-Interface zum Verwalten und Fernsteuern von Claude Code Sessions auf deinem Mac mini —
+Web-Interface zum Verwalten und Fernsteuern von Coding-CLI-Sessions (Claude Code, Codex, Antigravity) auf deinem Mac mini —
 erreichbar per Browser, auch vom iPhone aus.
 
 ![Claude Code Hub Screenshot](screenshot.png)
@@ -9,12 +9,13 @@ erreichbar per Browser, auch vom iPhone aus.
 
 ## Was macht das?
 
-Claude Code Hub ist ein kleiner Server, der auf deinem Mac mini läuft. Er zeigt dir alle laufenden Claude Code Sessions in einem Dashboard und lässt dich per Browser ins Terminal einsteigen — von deinem Mac, iPad oder iPhone aus, auch über das Internet.
+Claude Code Hub ist ein kleiner Server, der auf deinem Mac mini läuft. Er zeigt dir alle laufenden Coding-CLI-Sessions in einem Dashboard und lässt dich per Browser ins Terminal einsteigen — von deinem Mac, iPad oder iPhone aus, auch über das Internet. Über einen CLI-Picker startest du Sessions mit **Claude Code** (Anthropic), **Codex** (OpenAI) oder **Antigravity** (Google `agy`) — jeweils mit gestuften Approval-/Sandbox-Varianten. Claude Code ist die am tiefsten integrierte CLI (Hook-basierte Notifications, Usage-Tracking, Image-Paste); die anderen laufen als vollwertige Terminal-Sessions, jede mit ihrem eigenen Login.
 
 **Features:**
 - Dashboard mit allen Sessions und Live-Status (Aktivität, Context-Tokens, 5h-Limit)
 - Terminal im Browser (vollständig, mit Farben, Shift/Alt+Drag zum Kopieren)
 - Sessions starten, verbinden, beenden, umbenennen
+- **Multi-CLI**: Claude Code, Codex und Antigravity per CLI-Picker (mit Approval-/Sandbox-Varianten), CLI-Badge auf jeder Session-Card
 - **Bulk-Aktion**: alle idle/unattached Sessions auf einen Klick beenden
 - **Pinning** für wichtige Sessions (sortiert oben auf dem Dashboard)
 - **Git-Status** pro Session-Card (Branch, dirty-Dot, ↑n/↓n Ahead/Behind)
@@ -75,9 +76,9 @@ node --version
 # sollte ausgeben: v20.x.x oder neuer
 ```
 
-### 4. Claude Code CLI
+### 4. Coding-CLIs (mindestens Claude Code)
 
-Das ist die eigentliche Claude-Kommandozeile, die der Hub verwaltet:
+Das ist die eigentliche Kommandozeile, die der Hub verwaltet. Claude Code ist die am tiefsten integrierte und das einzige Pflicht-CLI:
 
 ```bash
 npm install -g @anthropic-ai/claude-code
@@ -93,6 +94,14 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
 ```
 
 Dann einmalig `claude` starten und den Anweisungen folgen (Anthropic-Account verbinden).
+
+**Optional: Codex und Antigravity.** Der Hub spawnt auch OpenAI Codex und Google Antigravity (`agy`). Installiere nur die, die du nutzen willst — jede CLI hat ihren eigenen Login, und eine fehlende CLI lässt nur die jeweilige Session mit „nicht im PATH"-Hinweis sterben, ohne die anderen zu stören:
+
+```bash
+npm install -g @openai/codex   # OpenAI Codex → Binary `codex`
+```
+
+Antigravity (`agy`) installierst du nach [Googles offizieller Anleitung](https://antigravity.google/). Beide müssen wie `claude` im PATH liegen (siehe Fehlerbehebung unten).
 
 ---
 
@@ -387,6 +396,7 @@ tmux new-session -d -s init
 
 - **Backend:** Node.js + Express + express-ws + node-pty
 - **Frontend:** Vanilla JS + xterm.js (kein Build-Step)
+- **CLIs:** Claude Code (`claude`) / Codex (`codex`) / Antigravity (`agy`) — je eigener Login
 - **Sessions:** tmux
 - **Remote:** Cloudflare Tunnel, optional Cloudflare Access (Zero Trust) davor
 - **Security:** Bearer-Token + optional JWT-Validation (via `jose`) + Fixed-Window Rate-Limiting + JSONL Audit-Log
