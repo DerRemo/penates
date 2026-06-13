@@ -5,20 +5,21 @@ im Hub selbst. Struktur folgt dem `lib/roadmap.js`-Parser:
 H2-Sections Released / In Development / Backlog / Changelog,
 Top-Level-Checkboxen mit optionalem `{key: value}`-Meta-Suffix.
 
-## Released: v0.7.1
+## Released: v1.0.0
 
-Housekeeping release. i18n foundation with EN/DE toggle, dedicated
-Settings-Page in the sidebar (replaces 4 header-right toggle buttons),
-update-check against GitHub Releases with inline changelog, and File-
-Download in the Filebrowser.
+Erstes stabiles Release. Der Hub ist aus der 0.x-Reihe heraus:
+Multi-CLI-Spawn (claude/codex/gemini), ein konsolidiertes Repo-Panel
+(Files · Changes · History · Branches), das Idea-Pipeline-Board mit
+autonomem Implement→Review→Done-Flow inklusive Worktree-Isolation,
+Browser-Preview und Mata-iOS-Simulator als Split-Panels, Voice-Input,
+Image-Paste, klickbare Datei-Pfade im Terminal, In-Tree-Drag-and-Drop
+im Filebrowser, ein Update-Center in den Settings und eine durchgängige
+Mobile-Optimierung — alles auf der Catppuccin-Calm-Card-Designsprache.
 
 - [x] i18n: Strings extrahieren in Plain-JS-Modul plus DE-Bundle plus Toggle EN/Deutsch {priority: p1, theme: i18n}
 - [x] Settings-Page als eigener Sidebar-Tab ganz unten mit Appearance Language Notifications Help About — ersetzt alle 4 Header-Buttons Push Sound Theme Kbd-Help {priority: p1, theme: ux}
 - [x] Update-Check GitHub Releases API beim Boot plus 12h Intervall plus Teal-Dot am Settings-Sidebar-Eintrag plus Changelog-Rendering inline in About-Sektion {priority: p1, theme: dev-x}
 - [x] File-Download im Filebrowser — Streaming-Route ohne Size-Limit plus Download-Eintrag im Context-Menu plus Download-Button auf Oversize-Preview {priority: p1, theme: filebrowser}
-
-## In Development: v0.7.2
-
 - [x] Codex-Spawn: codex und codex --yolo im New-Session-Dropdown (minimale Multi-CLI-Scheibe; Hooks/Usage in Paket A) {priority: p0, theme: multi-cli}
 - [x] Multi-CLI Spawn Kern-Drei — CLI-Picker mit Varianten plus CLI-Icon auf Session-Cards {priority: p0, theme: multi-cli}
 - [x] Sidebar-Session-Filter: Toggle Aktiv/Alle versteckt dormant-Sessions, localStorage-persistiert, Default Aktiv plus Attached-Exception {priority: p1, theme: ux}
@@ -33,6 +34,13 @@ Download in the Filebrowser.
 - [x] Repo-Panel / Git-Browser: Files plus Diff zu einem getabbten Repo-Panel zusammengelegt (Files plus Changes plus History plus Branches), ein konsolidierter Repo-Toggle mit Git-Dot, List-Diff-Toggle in Changes plus Commit-Quelle, lineare Commit-Timeline mit Typ-Farben und Ref-Badges, Branches local/remote read-only; neues lib/git-history.js (getLog/getBranches/showCommit) plus drei git-Routen. Files-v2 Browse ist der editierbare Files-Tab (kein separates Browse). {priority: p1, theme: git}
 - [x] Animationen
 - [x] Worktree-Isolation für P4-Implement-Agenten — jeder Board-Implement-Spawn läuft in einem eigenen git-Worktree (idea/<slug>) statt im geteilten Haupt-Checkout; neues lib/worktree.js, Cleanup auf Kill/Finish/Boot, Branch bleibt bei Kill, Nicht-Git-Projekte fallen zurück {priority: p1, theme: board}
+- [x] Terminal File-Preview — klickbare Datei-Pfade in der Terminal-Ausgabe öffnen das FilePreview-Modal via custom xterm-LinkProvider plus session-files-Reader plus file-content-Route {priority: p1, theme: terminal}
+- [x] Mata iOS-Simulator als zweite Quelle des Browser-Preview-Panels — Source-Switcher Dev/Simulator plus lib/mata.js plus status/control/capture-Routen plus Frame-Capture als at-Mention {priority: p1, theme: interop}
+- [x] In-Tree-Drag-and-Drop-Move im Filebrowser plus konfliktsicheres move und copy — resolveMoveTarget plus nextFreeName plus 409-Conflict-Dialog {priority: p1, theme: filebrowser}
+- [x] Update-Center in den Settings — vier Kategorien Hub plus CLIs plus Externals plus Deps, ausführbare Update-Buttons über detachte cc-update-tmux-Session, hub-guarded, lib/updates.js plus scripts/update.sh {priority: p1, theme: dev-x}
+- [x] Komplette Mobile-Optimierung — Board Quick-Move plus Bottom-Sheet, DiffView-Back, sticky Modal-Footer, Roadmap-Reorder, Terminal Copy-Output, 44px-Tap-Targets plus Safe-Area plus Landscape, Usage-Overflow-Fix {priority: p1, theme: mobile}
+
+## In Development: v1.0.1
 
 ## Archiv: v0.3.0
 
@@ -54,6 +62,22 @@ die Items sind hier reine Markdown-Dokumentation.
 - [x] Board-Spawn vereinheitlicht: Bewegen-in-Spalte startet die Session (Drag + Stage-Dropdown via geteilter applyTransition), Implement-Route advanced brainstorming→implement selbst, Detail-Buttons auf attach-only-when-alive reduziert {priority: p1, theme: board}
 - [x] Idea Pipeline Phase 5: Review→Fertig — In-Hub Branch-Diff (View-diff), Drag review→done mergt idea/<slug> in base + Changelog-Done-Item + Push + Session-Ende; lib/git-finish.js (worktree-isolierter Merge), addDoneItem/sectionExists, GET branch-diff + POST finish {priority: p0, theme: board}
 ## Changelog
+
+### v1.0.0 — 2026-06-13
+
+**Erstes stabiles Release.** Mit 1.0 ist der Hub aus der 0.x-Reihe heraus: Multi-CLI-Spawn (claude/codex/gemini), ein konsolidiertes Repo-Panel (Files · Changes · History · Branches), das Idea-Pipeline-Board mit autonomem Implement→Review→Done-Flow inklusive Worktree-Isolation, Browser-Preview, Voice-Input und Image-Paste stehen auf einer durchgängigen Catppuccin-Calm-Card-Designsprache. Die fünf Wellen seit v0.7.2:
+
+**Terminal File-Preview (klickbare Datei-Pfade).** Datei-Pfad-Tokens in der Terminal-Ausgabe sind jetzt klickbar und öffnen das FilePreview-Modal — clientseitiger Buffer-Match über einen custom xterm-`ILinkProvider`, der damit beide Terminal-Stack-Wände umgeht (Coding-CLIs schlucken Child-Output; tmux→Client-Wall). Neues `previewable.js` (Pfad-Matcher) + `session-files.js` (guarded Reader) + Route `GET /api/sessions/:name/file-content` + `FilePreview.openUrl` (403/404-i18n). Sidesteppt sauber die geparkten Terminal-Stack-D/E-Ansätze.
+
+**Mata iOS-Simulator als zweite Preview-Quelle.** Das Browser-Preview-Panel bekommt einen Source-Switcher (Dev · Simulator) — der lokale Mata-Host (getmata.app) wird über dieselbe Reverse-Proxy-Infra wie die Browser-Preview eingebettet (`proxyHttp`/`proxyWs`/`attachUpgrade`, WS-Video-Pfad auf `localhost:3070`). Neues Express-freies `lib/mata.js` (Status/Control/Port-Probe/Capture, alle Aufrufe `execFile`-argv) + Routen `GET /api/mata/status` · `POST /api/mata/control` · `POST /api/sessions/:name/mata-capture` (Frame → `.cch-images/` → `@`-Mention). Status live gegen echtes Mata v1.1.10 verifiziert.
+
+**Filebrowser In-Tree-Drag-and-Drop.** Dateien/Ordner per Drag auf einen Zielordner verschieben (⌥/Ctrl = kopieren) mit konfliktsicherem Backend (`resolveMoveTarget` + `nextFreeName`; Keystone „Ziel ist existierender Ordner → Basename anhängen") und 409-Conflict-Dialog (Überschreiben/Überspringen/Umbenennen).
+
+**Update-Center (Settings).** Neues Updates-Panel in den Settings mit vier Kategorien (Hub · CLIs · Externals · Deps display-only). Ausführbare Update-Buttons starten eine detachte `cc-update-*`-tmux-Session, die den `setup.sh`-Restart überlebt; das Hub-Self-Update ist geguarded. Neues `lib/updates.js` (Collectors + TTL-Aggregator) + `scripts/update.sh`.
+
+**Komplette Mobile-Optimierung.** Board Quick-Move ‹›, Bottom-Sheet-Detail mit Backdrop, DiffView-Back-Affordance, sticky Modal-Footer, Roadmap ▲▼-Reorder, Terminal Copy-Output, durchgängige 44px-Tap-Targets, Safe-Area-Insets und Landscape-Layout; Usage-Grid-Overflow auf 320px gefixt.
+
+Verifikation: 493 Backend-/Frontend-Unit-Tests grün, gezielte Playwright-E2E pro Welle, Real-App-Abnahme der sichtbaren Flows.
 
 ### v0.7.2 — 2026-06-10
 

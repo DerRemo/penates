@@ -29,6 +29,7 @@ docs/
 
 # Superpowers brainstorming artefacts
 .superpowers/
+skills-lock.json
 
 # Git worktrees
 .worktrees/
