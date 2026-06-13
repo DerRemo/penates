@@ -5389,6 +5389,15 @@
     </div>
   </div>
 
+  <!-- Reusable Choice-Dialog (Promise<key|null>) — n Buttons, Esc/Backdrop = null. -->
+  <div class="modal-overlay" id="cchub-choice-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-choice-title">
+    <div class="modal">
+      <h2 id="cchub-choice-title"></h2>
+      <p id="cchub-choice-body"></p>
+      <div class="modal-actions" id="cchub-choice-actions"></div>
+    </div>
+  </div>
+
   <!-- Reusable Input-Dialog (Promise<string|null>) — themed Ersatz für prompt(). -->
   <div class="modal-overlay" id="cchub-input-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-input-title">
     <div class="modal">
@@ -10162,6 +10171,43 @@
     }
     window.showConfirmDialog = showConfirmDialog;
     window.showInputDialog = showInputDialog;
+
+    // showChoiceDialog → Promise<key|null>; Esc/Backdrop = null. Muster wie
+    // showConfirmDialog, aber mit n Buttons. choices = [{ key, label, danger? }].
+    function showChoiceDialog({ title, body, choices = [] } = {}) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('cchub-choice-modal');
+        const actions = document.getElementById('cchub-choice-actions');
+        document.getElementById('cchub-choice-title').textContent = title || '';
+        document.getElementById('cchub-choice-body').textContent = body || '';
+        actions.innerHTML = '';
+        let settled = false;
+        const cleanup = () => {
+          overlay.classList.remove('open');
+          overlay.removeEventListener('click', onBackdrop);
+          document.removeEventListener('keydown', onKey);
+          actions.innerHTML = '';
+        };
+        const done = (val) => { if (settled) return; settled = true; cleanup(); resolve(val); };
+        const onBackdrop = (e) => { if (e.target === overlay) done(null); };
+        const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); done(null); } };
+        let focusBtn = null;
+        for (const c of choices) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = c.danger ? 'btn btn-danger' : (c.key === 'cancel' ? 'btn btn-ghost' : 'btn btn-primary');
+          btn.textContent = c.label;
+          btn.addEventListener('click', () => done(c.key));
+          actions.appendChild(btn);
+          if (c.key === 'cancel') focusBtn = btn;
+        }
+        overlay.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+        overlay.classList.add('open');
+        (focusBtn || actions.querySelector('button'))?.focus();
+      });
+    }
+    window.showChoiceDialog = showChoiceDialog;
 
     // Debounced Bestätigungs-Toast für Remote-Clipboard-Writes (OSC 52).
     // Der Toast lebt selbst 3.5 s; der Debounce begrenzt nur die Rate neuer
