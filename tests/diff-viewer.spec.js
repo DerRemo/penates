@@ -111,7 +111,9 @@ test.describe('Repo panel — Changes (P-A)', () => {
     // Klick auf Zeile → Diff-Modus + diff2html (.d2h-wrapper ODER <pre>-Fallback).
     await authedPage.locator('#changes-list .changes-row', { hasText: 'a.txt' }).click();
     await expect(authedPage.locator('#repo-pane-changes')).toHaveClass(/mode-diff/);
-    await expect(authedPage.locator('#diff-pane .d2h-wrapper, #diff-pane pre')).toBeVisible({ timeout: 15000 });
+    // Diff rendert über den internen .udiff-Renderer (repo-panel-Redesign;
+    // diff2html .d2h-wrapper / <pre> sind Alt-Fallbacks).
+    await expect(authedPage.locator('#diff-pane .udiff, #diff-pane .d2h-wrapper, #diff-pane pre')).toBeVisible({ timeout: 15000 });
 
     // Zurück zu List.
     await authedPage.locator('#changes-mode-list').click();

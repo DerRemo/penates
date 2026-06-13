@@ -116,6 +116,10 @@ window.__I18N_BUNDLES.en = {
   'terminal.search.nextAria': 'Next match',
   'terminal.search.closeAria': 'Close search',
   'terminal.clipboard.copied': 'Copied to clipboard',
+  'terminal.copyOutput.tooltip': 'Copy output',
+  'terminal.copyOutput.aria': 'Copy terminal output',
+  'terminal.copyOutput.done': 'Terminal output copied',
+  'terminal.copyOutput.empty': 'Nothing to copy',
 
   // Terminal connection status labels
   'terminal.connStatus.connecting': 'Connecting',
@@ -300,6 +304,8 @@ window.__I18N_BUNDLES.en = {
   'board.detail.close': 'Close',
   'board.detail.delete': 'Delete card',
   'board.detail.deleteConfirm': 'Click again to delete',
+  'board.qm.back': 'Move one stage back',
+  'board.qm.forward': 'Move one stage forward',
   'board.brainstorm.confirmTitle': 'Start brainstorming?',
   'board.brainstorm.confirmBody': 'This spawns a Claude session in the project, primed on this idea, and opens it.',
   'board.brainstorm.confirmOk': 'Start session',
@@ -544,6 +550,8 @@ window.__I18N_BUNDLES.en = {
   'projects.detail.dragHandle': 'Drag to reorder',
   'projects.detail.editSave': 'Save (Enter)',
   'projects.detail.moveItem': 'Move to section',
+  'projects.detail.moveUp': 'Move up',
+  'projects.detail.moveDown': 'Move down',
   'projects.detail.moveTo': 'Move to',
   'projects.detail.moveCurrent': '(current)',
   'projects.detail.editVersion': 'Edit version',
