@@ -148,6 +148,20 @@
       --bp-sm: 640px;
       --bp-md: 900px;
       --bp-lg: 1200px;
+      /* ── Breakpoint-Leiter (dokumentiert) ──────────────────────────────
+         Mobile-Härtung 2026-06-13. Eine bewusste, dünne Leiter — nicht jede
+         historische Schwelle ist „falsch", aber NEUE Regeln greifen zu diesen:
+           ≤480px  klein-Phone (iPhone SE 320 fällt hierauf) — engste Stufe.
+           ≤640px  Phone-Sheet-Grenze (Modals→Bottom-Sheet, --bp-sm).
+           ≤768px  Phone/Tablet-Grenze (1-Spalten-Grids).
+           ≤899px  Sidebar→Drawer (Hamburger), Board-Detail→Bottom-Sheet.
+           ≥900px  Desktop-Board-Grid + Side-Panels (--bp-md).
+         Capability statt Breite, wo es um Eingabe geht:
+           (pointer:coarse)/(hover:none) → Touch-Targets, persistente Actions.
+           (orientation:landscape) and (max-height:480px) → Querformat-Kompression.
+         Verwaiste Einzelschwellen (560/600/620/680) sind altgewachsen und an
+         laufende Layouts gekoppelt — bewusst NICHT verschoben (kein Churn).
+         Das frühere New-Session-Split-580px wurde auf die 640er-Stufe gezogen. */
     }
 
     /* Dark-Theme. Alle Farben gehen durch CSS-Variablen, damit
@@ -2325,7 +2339,9 @@
     .modus-btn[data-tier="danger"][aria-pressed="true"] { border-color: var(--red);   background: var(--red-dim);  color: var(--red); }
     .modus-btn[aria-pressed="true"] .modus-sub { color: inherit; opacity: .8; }
 
-    @media (max-width: 580px) {
+    /* New-Session-Split stackt auf der 640er-Sheet-Stufe (vorher 580 — auf die
+       Standard-Leiter gezogen; rein mobil, kein Desktop-Layout berührt). */
+    @media (max-width: 640px) {
       .ns-split { grid-template-columns: 1fr; height: auto; }
       .ns-left { border-right: none; border-bottom: 1px solid var(--border-subtle); }
       .ns-left .tree-list { max-height: 200px; }
@@ -3028,6 +3044,20 @@
       .logo-text { display: none; }
     }
 
+    /* ── Mobile-Härtung: Touch-Targets ≥44px (coarse-pointer) ──────────
+       Interaktive Klein-Controls auf Fingergröße. Gezielt, nicht global —
+       ein pauschales min-height:44 auf alles würde dichte Listen sprengen. */
+    @media (pointer: coarse) {
+      .board-filter,
+      #board-detail-stage,
+      .seg-toggle__btn,
+      .repo-tab { min-height: 44px; display: inline-flex; align-items: center; }
+      .board-detail__row select { min-height: 44px; }
+      .files-toolbar button,
+      .changes-refresh, .repo-icon-btn,
+      .repo-header__close { width: 44px; height: 44px; }
+    }
+
     /* Mobile: Modals werden zu Bottom-Sheets. Slide-up von unten, volle
        Breite, oben abgerundet, bottom-safe-area respektiert. */
     @media (max-width: 640px) {
@@ -3051,6 +3081,18 @@
       .form-input { font-size: var(--text-sm); padding: var(--space-2) var(--space-3); }
       .modal-actions { flex-wrap: wrap; }
       .modal-actions .btn { flex: 1 1 auto; min-height: 44px; }
+    }
+
+    /* ── Landscape-Kompression (Phone quer) ───────────────────────────
+       Wenig vertikaler Platz → Header/Padding schrumpfen, Modal-Sheets voll
+       scrollbar mit sichtbarem Footer. Muss nicht hübsch sein, nur nutzbar
+       (Spec §3 Landscape). Greift nur auf flachen Touch-Viewports. */
+    @media (orientation: landscape) and (max-height: 480px) {
+      .container { padding-top: var(--space-3); padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom)); }
+      .board-view { padding: var(--space-3); }
+      /* Modal füllt die kurze Höhe; Footer bleibt durch internen Scroll sichtbar. */
+      .modal-overlay { align-items: stretch; padding: 0; }
+      .modal { max-width: 100%; max-height: 100dvh; border-radius: 0; }
     }
 
     @media (min-width: 641px) and (max-width: 767px) {
@@ -4046,6 +4088,12 @@
     .repo-resizer:hover, .repo-resizer.dragging { background: var(--accent); }
     @media (pointer: coarse) {
       .repo-panel.open { position: fixed; inset: 0; z-index: 92; flex: 1; border-radius: 0; }
+      /* Full-Screen-Overlay → Safe-area selbst reservieren (kein App-Header dahinter). */
+      .repo-panel.open .repo-header { padding-top: calc(var(--space-2) + env(safe-area-inset-top)); }
+      .repo-panel.open .changes-list, .repo-panel.open .changes-diff,
+      .repo-panel.open .files-tree, .repo-panel.open .history-list, .repo-panel.open .branches-list {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
       .repo-resizer { display: none; }
     }
     /* Changes-Tab: Quelle/Back · Branch · List⇄Diff · Refresh. */
