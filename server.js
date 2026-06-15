@@ -21,6 +21,7 @@ import * as usageLimits from './lib/usage-limits.js';
 import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
+import { planAutoRestore } from './lib/session-restore.js';
 import * as board from './lib/board.js';
 import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand, implementBranchName, isValidImplementBranch } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
@@ -1708,6 +1709,11 @@ function destroySession(name, reqMeta = {}) {
     if (v === name || k === name) hookAlias.delete(k);
   }
   auditLog.record('session.delete', { ...reqMeta, session: name });
+  // Bewusster Stop (Kill via DELETE bzw. Phase-5-Finish) → vom Boot-Auto-Restore
+  // ausschließen (die Session bleibt dormant fürs MANUELLE Restore). Best-effort;
+  // ein Fehler darf den Kill nicht scheitern lassen. add() (Neustart/Restore)
+  // löscht das Flag wieder.
+  knownSessions.setManuallyStopped(name, true).catch(e => console.error('[known-sessions] markStopped failed:', e));
 }
 
 // Entfernt den Implement-Worktree einer Session (Branch bleibt — konservativ).
@@ -2362,6 +2368,9 @@ app.patch('/api/settings', express.json(), async (req, res) => {
   const patch = {};
   if (body.tmuxMouse === 'on' || body.tmuxMouse === 'off') patch.tmuxMouse = body.tmuxMouse;
   if (typeof body.remoteApproval === 'boolean') patch.remoteApproval = body.remoteApproval;
+  // Auto-Restore-Settings (wirken erst beim nächsten Boot — kein Live-Reload).
+  if (typeof body.autoRestore === 'boolean') patch.autoRestore = body.autoRestore;
+  if (typeof body.autoRestoreContinue === 'boolean') patch.autoRestoreContinue = body.autoRestoreContinue;
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'no valid settings in body' });
   let merged;
   try { merged = await settings.patch(patch); } catch { return res.status(500).json({ error: 'persist failed' }); }
@@ -2878,6 +2887,38 @@ const server = app.listen(PORT, async () => {
       if (s.name.startsWith(SESSION_PREFIX) && !knownNames.has(s.name)) {
         await knownSessions.add({ name: s.name, directory: s.path, command: 'claude' });
       }
+    }
+
+    // ── Auto-Restore (tmux-continuum nativ) ──────────────────────────────
+    // Nach einem tmux-Tod (Reboot / kill-server / Crash) die zuletzt laufenden
+    // Sessions wieder hochfahren — je im Originalverzeichnis, mit fortgesetzter
+    // CLI-Konversation (claude --continue / codex resume --last / agy --continue).
+    // Wirkt NUR auf dormant Einträge: bei einem normalen Hub-Neustart lebt tmux
+    // weiter → alle known live → leerer Plan → No-Op. Fehler killen den Boot nie.
+    try {
+      const { autoRestore, autoRestoreContinue } = settings.get();
+      if (autoRestore) {
+        const liveNames = getTmuxSessions().map(s => s.name);
+        const plan = planAutoRestore({ known: knownSessions.list(), liveNames, continueEnabled: autoRestoreContinue });
+        let restored = 0;
+        for (const item of plan) {
+          let result = await spawnDormantSession(item.name, { directory: item.directory, command: item.command });
+          // Continue-Fallback: schlug ein continue-Command fehl (z.B. keine
+          // Konversation im cwd → Sofort-Exit), einmal frisch mit dem Plain-
+          // Command nachsetzen.
+          if (!result.ok) {
+            const original = knownSessions.find(item.name);
+            if (original && item.command !== original.command) {
+              result = await spawnDormantSession(item.name, { directory: item.directory, command: original.command });
+            }
+          }
+          if (result.ok) restored++;
+          else console.error(`[auto-restore] ${item.name} failed: ${result.error}`);
+        }
+        if (plan.length) console.log(`  ▸ auto-restore: ${restored}/${plan.length} session(s) restored (continue=${autoRestoreContinue ? 'on' : 'off'})`);
+      }
+    } catch (e) {
+      console.error('[auto-restore] failed:', e.message);
     }
   } catch (err) {
     console.error('[known-sessions] load failed:', err);
