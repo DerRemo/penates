@@ -27,3 +27,13 @@ test('--check runs doctor and stops without mutating (exit 0 or 3)', () => {
   const { code } = run(['--check'], { CCHUB_TEST_MISSING: 'tmux' });
   assert.equal(code, 3); // tmux forced missing → not ready
 });
+
+// Regression: --check must ALWAYS exit right after the preflight, even when
+// doctor succeeds (exit 0). The original bug only exited on doctor FAILURE, so
+// a fully-provisioned machine fell through and ran the entire (mutating) installer.
+test('--check never falls through to install/mutation phases', () => {
+  const { out, code } = run(['--check']); // no forced-missing → doctor may return 0 (the buggy case)
+  assert.ok(code === 0 || code === 3, `unexpected exit ${code}`);
+  // These phase headers only print AFTER the --check early-exit; their presence = fall-through.
+  assert.doesNotMatch(out, /▸ Prereqs|▸ Coding-CLIs|▸ App|▸ Setup/);
+});
