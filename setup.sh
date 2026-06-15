@@ -351,11 +351,10 @@ echo "  (whisper.cpp Source-Build mit -DWHISPER_COREML=1 + CoreML-Modell). Metal
 echo ""
 echo -e "${BOLD}[9/9]${RESET} Starte Claude Code Hub..."
 
-# Vorherige Version (auch unter altem com.derremo-Namen) entladen
+# Vorherige Version entladen (idempotenter Re-Run)
 launchctl bootout gui/$(id -u) "$PLIST_FILE" 2>/dev/null || true
-if [ "$LAUNCHAGENT_ID" != "com.derremo.claude-code-hub" ]; then
-  launchctl bootout gui/$(id -u) "$PLIST_DIR/com.derremo.claude-code-hub.plist" 2>/dev/null || true
-fi
+# Falls das Label zuvor disabled wurde, wieder freigeben — sonst scheitert bootstrap mit EIO.
+launchctl enable "gui/$(id -u)/${LAUNCHAGENT_ID}" 2>/dev/null || true
 launchctl bootstrap gui/$(id -u) "$PLIST_FILE"
 
 echo ""
