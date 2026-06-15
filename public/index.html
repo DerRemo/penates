@@ -11945,15 +11945,42 @@
           await startFinish(card.id);
           return true;
         }
+        // Destruktiv-Gate: ein manueller Move nach `done` einer Karte mit
+        // Artefakten (Branch/Worktree/Session) räumt diese serverseitig auf →
+        // erst bestätigen (greift für Drag UND Stage-Dropdown). Reine Ideen-
+        // Karten ziehen lautlos. Der review→done-Pfad oben läuft über startFinish.
+        if (stage === 'done' && (card.branch || card.worktreePath || card.sessionRef)) {
+          const ok = await showConfirmDialog({
+            title: t('board.done.confirmTitle'),
+            body: t('board.done.confirmBody'),
+            confirmLabel: t('board.done.confirmOk'),
+            danger: true,
+          });
+          if (!ok) return false;
+        }
         await patchCard(card.id, { stage });
         return true;
       }
 
       // ── API mutations ──
+      // Toast aus der Cleanup-Summary eines Move→Done. Leere Summary → kein Toast.
+      function showCleanupToast(cleanup) {
+        if (!cleanup) return;
+        const parts = [];
+        if (cleanup.sessionKilled)   parts.push(t('board.cleanup.sessionKilled'));
+        if (cleanup.worktreeRemoved) parts.push(t('board.cleanup.worktreeRemoved'));
+        if (cleanup.branchDeleted)   parts.push(t('board.cleanup.branchDeleted'));
+        if (cleanup.branchKept)      parts.push(t('board.cleanup.branchKept'));
+        if (parts.length) showToast(parts.join(' · '), 'success');
+      }
       async function patchCard(id, body) {
         try {
           const r = await fetch(`/api/board/cards/${id}`, { method:'PATCH', headers: jsonH(), body: JSON.stringify(body) });
-          if (r.ok) { const c = await r.json(); const i = cards.findIndex(x=>x.id===id); if (i>=0) cards[i]=c; render(); if (detailId===id) openDetail(id); }
+          if (r.ok) {
+            const c = await r.json();
+            const i = cards.findIndex(x=>x.id===id); if (i>=0) cards[i]=c; render(); if (detailId===id) openDetail(id);
+            showCleanupToast(c.cleanup);
+          }
         } catch {}
       }
       async function addIdea(projectId, title) {
