@@ -532,16 +532,11 @@
       width: 36px;
       height: 36px;
       border-radius: var(--radius-sm);
-      background: linear-gradient(135deg, var(--accent) 0%, var(--blue) 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: var(--font-mono);
-      font-weight: 700;
-      font-size: var(--text-md);
-      color: var(--accent-contrast);
+      overflow: hidden;
+      flex: none;
       box-shadow: 0 0 20px var(--teal-glow-strong);
     }
+    .logo-mark img { width: 100%; height: 100%; display: block; }
 
     .logo-text {
       font-weight: 700;
@@ -4700,7 +4695,8 @@
     .field--select select option { background: var(--bg-card); color: var(--text-primary); }
 
     .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px var(--space-2); }
-    .sidebar__brand-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); color: var(--accent-contrast); display: grid; place-items: center; font: 700 13px var(--font-mono); }
+    .sidebar__brand-mark { width: 30px; height: 30px; border-radius: 9px; overflow: hidden; flex: none; }
+    .sidebar__brand-mark img { width: 100%; height: 100%; display: block; }
     .sidebar__brand-name { font: 700 15px var(--font-display); letter-spacing: -.01em; }
     .sidebar__brand-name small { display: block; font: 500 11px var(--font-ui); color: var(--text-muted); }
     .sidebar__count { margin-left: auto; font: 600 11px var(--font-mono); color: var(--text-muted); }
@@ -4798,7 +4794,7 @@
       <button class="sidebar-toggle" id="sidebar-toggle" type="button" data-i18n-attr="aria-label:header.sidebarToggleAria" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
         <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
-      <div class="logo-mark">&gt;_</div>
+      <div class="logo-mark"><img src="/icons/icon.svg" alt="" width="36" height="36"></div>
       <div class="logo-text"><span data-i18n="header.logoProduct">Penates</span></div>
     </div>
   </header>
@@ -4808,7 +4804,7 @@
 
     <aside class="sidebar" id="sidebar" aria-label="Navigation">
       <div class="sidebar__brand">
-        <div class="sidebar__brand-mark">&gt;_</div>
+        <div class="sidebar__brand-mark"><img src="/icons/icon.svg" alt="" width="30" height="30"></div>
         <div class="sidebar__brand-name">
           <span data-i18n="header.logoProduct">Penates</span>
           <small id="sidebar-brand-subtitle"></small>
