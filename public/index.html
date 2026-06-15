@@ -11983,15 +11983,20 @@
           if (!card.brainstormDoc) { showToast(t('board.implement.noSpec'), 'info'); return false; }
           const ok = await showConfirmDialog({
             title: t('board.implement.confirmTitle'),
-            body: t('board.implement.confirmBody'),
+            // Lebt noch eine Brainstorming-Session, beenden wir sie als Teil dieses
+            // Confirms — KEIN zweiter Dialog.
+            body: card.sessionLive
+              ? `${t('board.implement.confirmBody')} ${t('board.implement.confirmBodyKill')}`
+              : t('board.implement.confirmBody'),
             confirmLabel: t('board.implement.confirmOk'),
             danger: true,
           });
           if (!ok) return false;
-          // Erst spawnen, dann bewegen (s.o.) — ein Spawn-Fehler darf die Karte
-          // nicht nach 'implement' ziehen.
-          if (!await startImplement(card.id)) return false;
-          await patchCard(card.id, { stage });
+          // patchCard killt+nullt die alte Brainstorm-Session und bewegt nach
+          // 'implement'; danach setzt der implement-Endpoint die NEUE sessionRef
+          // (sein board.moveCard wird zum No-op, Karte ist schon in 'implement').
+          await patchCard(card.id, { stage, endSession: true });
+          await startImplement(card.id);
           return true;
         }
         if (stage === 'done' && card.stage === 'review') {
@@ -12003,6 +12008,22 @@
           });
           if (!ok) return false;
           await startFinish(card.id);
+          return true;
+        }
+        // Generischer Move: hat die Karte eine lebende Session, beim Stufenwechsel
+        // beenden (immer mit Confirm, gegated durch confirmKill). sessionLive kommt
+        // vom enrichCard-Backend; fehlt es (alt-gecachte Karte), kein Kill.
+        if (card.sessionLive) {
+          if (!window.Prefs || window.Prefs.get.confirmKill()) {
+            const ok = await showConfirmDialog({
+              title: t('board.move.endSessionTitle'),
+              body:  t('board.move.endSessionBody', { name: (card.sessionRef || '').replace(/^cc-/, '') }),
+              confirmLabel: t('board.move.endSessionOk'),
+              danger: true,
+            });
+            if (!ok) return false;   // kein Move; Aufrufer resynct die UI
+          }
+          await patchCard(card.id, { stage, endSession: true });
           return true;
         }
         await patchCard(card.id, { stage });
