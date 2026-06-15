@@ -69,6 +69,8 @@ if [ "$DO_CHECK" = 1 ]; then
   bash "$DOCTOR" >/dev/null || exit $?   # --check: nur Report + Exit-Code (|| prevents set -e early exit)
 fi
 [ "$(os_detect)" = macos ] || { err "Nur macOS wird unterstützt (Linux=Phase 2, Windows→WSL2)."; exit 1; }
+macos_major="$(sw_vers -productVersion 2>/dev/null | cut -d. -f1 || true)"
+[ "${macos_major:-0}" -ge 15 ] 2>/dev/null || warn "macOS < 15 (Sequoia) erkannt — jq/trash sind erst ab 15 Apple-mitgeliefert; best-effort via Homebrew."
 confirm "  Fortfahren und fehlende Prereqs installieren?" || { warn "abgebrochen"; exit 0; }
 
 # ---- Phase 1+2: detect-then-install ----
@@ -77,7 +79,7 @@ if ! { have xcode-select && xcode-select -p >/dev/null 2>&1; }; then
   guide_step "Xcode Command Line Tools" \
     bash -c 'xcode-select -p >/dev/null 2>&1' -- \
     "Es öffnet sich ein Apple-Dialog → klicke *Installieren* und warte, bis er fertig ist." \
-    "(Starte ihn ggf. mit:  xcode-select --install )"
+    "(Starte ihn ggf. mit:  xcode-select --install )" || true
 fi
 have brew || { warn "Homebrew wird installiert (fragt nach deinem Passwort)…"; \
   run /bin/bash -c "$(curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; }
@@ -87,14 +89,14 @@ have tmux  || run brew install tmux
 have git   || run brew install git
 have jq    || run brew install jq
 { have trash || [ -x /usr/bin/trash ]; } || run brew install trash
-have moshi-hook || { run brew tap rjyo/moshi && run brew install moshi-hook; }
+have moshi-hook || { run brew tap rjyo/moshi && run brew install moshi-hook; } || warn "moshi-hook nicht installiert (übersprungen — optional)"
 
 # ---- Phase 3: Coding-CLIs (graceful) ----
 if [ "$NO_CLI" != 1 ]; then
   step "Coding-CLIs"
-  have claude || run bash -c 'curl -fsSL https://claude.ai/install.sh | bash' || warn "claude-Install fehlgeschlagen (übersprungen)"
-  have codex  || CODEX_NON_INTERACTIVE=1 run bash -c 'curl -fsSL https://chatgpt.com/codex/install.sh | sh' || warn "codex-Install fehlgeschlagen (übersprungen)"
-  have agy    || run bash -c 'curl -fsSL https://antigravity.google/cli/install.sh | bash' || warn "agy-Install fehlgeschlagen (übersprungen)"
+  have claude || run bash -c 'curl -fsSL --proto =https --tlsv1.2 https://claude.ai/install.sh | bash' || warn "claude-Install fehlgeschlagen (übersprungen)"
+  have codex  || CODEX_NON_INTERACTIVE=1 run bash -c 'curl -fsSL --proto =https --tlsv1.2 https://chatgpt.com/codex/install.sh | sh' || warn "codex-Install fehlgeschlagen (übersprungen)"
+  have agy    || run bash -c 'curl -fsSL --proto =https --tlsv1.2 https://antigravity.google/cli/install.sh | bash' || warn "agy-Install fehlgeschlagen (übersprungen)"
 fi
 
 # ---- Phase 4: App holen ----

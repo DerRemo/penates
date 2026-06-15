@@ -55,10 +55,10 @@ setup_tailscale() {
     "  https://login.tailscale.com/admin/dns  (Enable HTTPS)" \
     || REMOTE_TODO+=("Tailscale-Admin: HTTPS-Certs aktivieren, dann: tailscale serve --bg ${HUB_PORT}")
   run tailscale serve --bg "${HUB_PORT}" || run tailscale serve --bg https / "http://localhost:${HUB_PORT}"
-  url="https://${host}"
-  [ -n "$host" ] && env_set VAPID_SUBJECT "$url"
+  url=""
+  [ -n "$host" ] && { url="https://${host}"; env_set VAPID_SUBJECT "$url"; }
   ok "Tailscale-Serve aktiv → ${url:-https://<dein-host>.ts.net}"
-  REMOTE_URL="$url"
+  [ -n "$url" ] && REMOTE_URL="$url"
 }
 
 setup_cloudflare() {
