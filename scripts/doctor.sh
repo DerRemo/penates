@@ -4,6 +4,7 @@ set -uo pipefail
 # Usage: doctor.sh [--json]   Exit: 0=alle Required da, 3=fehlt was, 1=unsupported OS.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib.sh
+# shellcheck disable=SC1091  # lib.sh path is dynamic ($HERE); file always present at runtime
 source "$HERE/lib.sh"
 
 JSON=0; [ "${1:-}" = "--json" ] && JSON=1
@@ -38,10 +39,11 @@ o_tailscale=false;   have tailscale && o_tailscale=true
 o_cloudflared=false; have cloudflared && o_cloudflared=true
 o_moshi=false;       have moshi-hook && o_moshi=true
 
-# Hub läuft? (Port 3333 offen)
+# Hub läuft? curl /healthz — zuverlässiger als lsof (das den Loopback-Listener
+# auf manchen Macs nicht sieht) und bestätigt sogar einen gesunden Hub.
 hub_port="${PORT:-3333}"
 hub_running=false
-if have lsof && lsof -nP -iTCP:"$hub_port" -sTCP:LISTEN >/dev/null 2>&1; then hub_running=true; fi
+if curl -fsS -m1 "http://127.0.0.1:${hub_port}/healthz" >/dev/null 2>&1; then hub_running=true; fi
 
 READY=true
 for v in "$b_xcode" "$b_brew" "$node_ok" "$b_tmux" "$b_git" "$b_jq" "$b_trash"; do
