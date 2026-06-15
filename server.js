@@ -761,6 +761,12 @@ app.get('/api/sessions', (req, res) => {
     base.pinned = knownSessions.isPinned(s.name);
     base.git = getGitStatus(s.path);
     base.project = projectOf(s.path);
+    // Board-Karte (Idea Pipeline) die diese Session spawnte — Minimal-Subset für
+    // die separate Overview-Sektion. findCardBySessionRef ist synchron; defensiv
+    // gewrappt (board ist beim Boot geladen, aber enrich läuft pro Session).
+    let bc = null;
+    try { bc = board.findCardBySessionRef(s.name); } catch { bc = null; }
+    base.boardCard = bc ? { id: bc.id, title: bc.title, stage: bc.stage } : null;
     // command für Running-Sessions aus known-sessions nachreichen (tmux
     // liefert es nicht). Dormant tragen es schon; foreign ggf. nicht → null.
     if (base.command == null) {
@@ -1016,30 +1022,63 @@ app.patch('/api/projects/:id/items', async (req, res) => {
 
 // ── Idea Pipeline: Board cards ──────────────────────────────────────────
 // Mutationen sind durch den globalen writeLimiter (s.o.) abgedeckt.
+// Board-Card-Response-Enrichment (Route-Schicht): lib/board.js ist tmux-agnostisch,
+// das Live-Flag kommt daher hier rein. getTmuxSessions() ist gecacht/günstig (gleiche
+// Quelle wie /api/sessions). Für die GET-Liste die Live-Namen-Menge EINMAL bilden
+// (siehe GET-Handler); pro Einzel-Response reicht ein Scan.
+function enrichCard(card) {
+  if (!card) return card;
+  const live = !!card.sessionRef && getTmuxSessions().some(s => s.name === card.sessionRef);
+  return { ...card, sessionLive: live };
+}
+
 app.get('/api/board/cards', (req, res) => {
   const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
-  res.json({ cards: board.listCards({ projectId }) });
+  const liveNames = new Set(getTmuxSessions().map(s => s.name));
+  res.json({ cards: board.listCards({ projectId }).map(c => ({
+    ...c, sessionLive: !!c.sessionRef && liveNames.has(c.sessionRef),
+  })) });
 });
 
 app.post('/api/board/cards', async (req, res) => {
   const { projectId, title, priority = null, origin = 'solo', stage = 'idea', theme = null, notes = null } = req.body || {};
   try {
     const card = await board.addCard({ projectId, title, priority, origin, stage, theme, notes });
-    res.status(201).json(card);
+    res.status(201).json(enrichCard(card));
   } catch (e) {
     res.status(400).json({ error: 'Bad request', detail: e.message });
   }
 });
 
 app.patch('/api/board/cards/:id', async (req, res) => {
-  const { stage, order, ...rest } = req.body || {};
+  const { stage, order, endSession, ...rest } = req.body || {};
   try {
+    const before = board.getCard(req.params.id);   // oldStage + sessionRef VOR dem Move
+    if (!before) return res.status(404).json({ error: 'Card not found' });
+
+    const live = !!before.sessionRef && getTmuxSessions().some(s => s.name === before.sessionRef);
+    const kill = typeof stage === 'string'
+      && board.shouldEndSession({ endSession, oldStage: before.stage, newStage: stage, sessionLive: live });
+
     let card;
     if (typeof stage === 'string') card = await board.moveCard(req.params.id, stage, order);
     if (Object.keys(rest).length) card = await board.updateCard(req.params.id, rest);
+
+    if (kill) {
+      // Best-effort wie bei finish — eine bereits weg-gerennte Session ist kein Fehler.
+      try { destroySession(before.sessionRef, auditLog.extractRequestMeta(req)); } catch {}
+      // sessionRef IMMER nullen wenn gekillt → Karte zeigt danach sessionLive:false.
+      // Worktree wird NICHT angefasst (Out-of-Scope; finish/Boot-Reconciliation räumt).
+      card = await board.updateCard(req.params.id, { sessionRef: null });
+      auditLog.record('card.move.endSession', {
+        ...auditLog.extractRequestMeta(req), card: req.params.id,
+        session: before.sessionRef, from: before.stage, to: stage,
+      });
+    }
+
     if (!card) card = board.getCard(req.params.id);
     if (!card) return res.status(404).json({ error: 'Card not found' });
-    res.json(card);
+    res.json(enrichCard(card));
   } catch (e) {
     if (e.message === 'unknown-id') return res.status(404).json({ error: 'Card not found' });
     res.status(400).json({ error: 'Bad request', detail: e.message });
