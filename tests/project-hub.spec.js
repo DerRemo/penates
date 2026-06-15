@@ -2,7 +2,7 @@ import { test, expect } from './fixtures.js';
 import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 
 // Projekt-Hub E2E (Idea Pipeline Phase 2).
-// The E2E server runs with BOARD_PATH=/tmp/penates-e2e-board.json so creating/
+// The E2E server runs with PENATES_HOME=/tmp/penates-e2e-home so creating/
 // deleting board cards never touches the real ~/.penates/board.json.
 // The projects registry and CHANGELOG.md files are real — tests MUST NOT
 // mutate them (no checkbox clicks, no item edits, no releases).

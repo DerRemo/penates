@@ -4,7 +4,7 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 // Implement-spawn UI spec (Idea Pipeline Phase 4). The real endpoint spawns a
 // claude --dangerously-skip-permissions session — too heavy for CI. We stub the
 // endpoint with page.route() and assert the UI contract only. The E2E server
-// runs with BOARD_PATH=/tmp/penates-e2e-board.json (isolated board).
+// runs with PENATES_HOME=/tmp/penates-e2e-home (isolated state dir).
 //
 // Moving a card INTO implement is what spawns the agent — via drag (desktop) OR
 // the stage dropdown (mobile/detail). Drag in headless Chromium is flaky, so we
