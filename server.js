@@ -2360,22 +2360,40 @@ app.patch('/api/settings', express.json(), async (req, res) => {
 
 // ── Server control (restart / logs / force update-check) ──────────────────────
 const LAUNCHD_LABEL = process.env.LAUNCHAGENT_ID || 'com.penates';
+const SYSTEMD_UNIT = serverControl.buildSystemdUnit(process.env.SYSTEMD_UNIT || 'penates');
 
 app.post('/api/server/restart', (req, res) => {
-  const target = serverControl.buildLaunchdTarget(process.getuid(), LAUNCHD_LABEL);
-  const managed = serverControl.isLaunchdManaged(target, (args) =>
-    execFileSync('launchctl', args, { encoding: 'utf-8', timeout: 3000, stdio: 'pipe' }));
-  if (!managed) {
-    return res.status(409).json({ error: 'not-managed', target,
-      hint: 'Server is not managed by launchd — restart it manually.' });
+  if (platform() === 'macos') {
+    // macOS: launchd. kickstart -k kills + relaunches us.
+    const target = serverControl.buildLaunchdTarget(process.getuid(), LAUNCHD_LABEL);
+    const managed = serverControl.isLaunchdManaged(target, (args) =>
+      execFileSync('launchctl', args, { encoding: 'utf-8', timeout: 3000, stdio: 'pipe' }));
+    if (!managed) {
+      return res.status(409).json({ error: 'not-managed', target,
+        hint: 'Server is not managed by launchd — restart it manually.' });
+    }
+    auditLog.record('server.restart', { ...auditLog.extractRequestMeta(req), target });
+    res.json({ ok: true, restarting: true, target });
+    setTimeout(() => {
+      try { execFileSync('launchctl', ['kickstart', '-k', target], { timeout: 3000, stdio: 'pipe' }); }
+      catch (e) { console.error('[server.restart] kickstart failed:', e.message); }
+    }, 300);
+  } else {
+    // Linux: systemd --user. restart kills + relaunches us via the unit.
+    const systemctl = (args) =>
+      execFileSync('systemctl', args, { encoding: 'utf-8', timeout: 3000, stdio: 'pipe' });
+    const managed = serverControl.isSystemdManaged(SYSTEMD_UNIT, systemctl);
+    if (!managed) {
+      return res.status(409).json({ error: 'not-managed', target: SYSTEMD_UNIT,
+        hint: 'Server is not managed by systemd --user — restart it manually.' });
+    }
+    auditLog.record('server.restart', { ...auditLog.extractRequestMeta(req), target: SYSTEMD_UNIT });
+    res.json({ ok: true, restarting: true, target: SYSTEMD_UNIT });
+    setTimeout(() => {
+      try { systemctl(['--user', 'restart', SYSTEMD_UNIT]); }
+      catch (e) { console.error('[server.restart] systemctl restart failed:', e.message); }
+    }, 300);
   }
-  auditLog.record('server.restart', { ...auditLog.extractRequestMeta(req), target });
-  res.json({ ok: true, restarting: true, target });
-  // Restart AFTER the response flushes. kickstart -k kills + relaunches us.
-  setTimeout(() => {
-    try { execFileSync('launchctl', ['kickstart', '-k', target], { timeout: 3000, stdio: 'pipe' }); }
-    catch (e) { console.error('[server.restart] kickstart failed:', e.message); }
-  }, 300);
 });
 
 app.get('/api/server/logs', async (req, res) => {
