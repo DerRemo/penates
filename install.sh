@@ -66,28 +66,54 @@ log ""; log "${C_TEAL}${C_BOLD}  ⚡ Penates — Installer${C_RESET}"
 step "Preflight"
 doctor_rc=0; bash "$DOCTOR" || doctor_rc=$?   # ✓/✕-Report; Exit-Code fangen (|| umgeht set -e)
 if [ "$DO_CHECK" = 1 ]; then exit "$doctor_rc"; fi   # --check: Report + Exit-Code, IMMER beenden — keine Mutation
-[ "$(os_detect)" = macos ] || { err "Nur macOS wird unterstützt (Linux=Phase 2, Windows→WSL2)."; exit 1; }
-macos_major="$(sw_vers -productVersion 2>/dev/null | cut -d. -f1 || true)"
-[ "${macos_major:-0}" -ge 15 ] 2>/dev/null || warn "macOS < 15 (Sequoia) erkannt — jq/trash sind erst ab 15 Apple-mitgeliefert; best-effort via Homebrew."
+OS="$(os_detect)"
+case "$OS" in
+  macos) : ;;  # unterstützt
+  linux) : ;;  # unterstützt (Phase 2) — inkl. WSL2 (= Linux-Kernel)
+  *) err "OS nicht unterstützt: $OS (macOS oder Linux/WSL2 nötig)."; exit 1 ;;
+esac
+if [ "$OS" = macos ]; then
+  macos_major="$(sw_vers -productVersion 2>/dev/null | cut -d. -f1 || true)"
+  [ "${macos_major:-0}" -ge 15 ] 2>/dev/null || warn "macOS < 15 (Sequoia) erkannt — jq/trash sind erst ab 15 Apple-mitgeliefert; best-effort via Homebrew."
+fi
 confirm "  Fortfahren und fehlende Prereqs installieren?" || { warn "abgebrochen"; exit 0; }
 
 # ---- Phase 1+2: detect-then-install ----
 step "Prereqs"
-if ! { have xcode-select && xcode-select -p >/dev/null 2>&1; }; then
-  guide_step "Xcode Command Line Tools" \
-    bash -c 'xcode-select -p >/dev/null 2>&1' -- \
-    "Es öffnet sich ein Apple-Dialog → klicke *Installieren* und warte, bis er fertig ist." \
-    "(Starte ihn ggf. mit:  xcode-select --install )" || true
+if [ "$OS" = macos ]; then
+  if ! { have xcode-select && xcode-select -p >/dev/null 2>&1; }; then
+    guide_step "Xcode Command Line Tools" \
+      bash -c 'xcode-select -p >/dev/null 2>&1' -- \
+      "Es öffnet sich ein Apple-Dialog → klicke *Installieren* und warte, bis er fertig ist." \
+      "(Starte ihn ggf. mit:  xcode-select --install )" || true
+  fi
+  have brew || { warn "Homebrew wird installiert (fragt nach deinem Passwort)…"; \
+    run /bin/bash -c "$(curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; }
+  eval "$("$(arch_brew_prefix)/bin/brew" shellenv 2>/dev/null)" || true
+  have node  || run brew install node
+  have tmux  || run brew install tmux
+  have git   || run brew install git
+  have jq    || run brew install jq
+  { have trash || [ -x /usr/bin/trash ]; } || run brew install trash
+  have moshi-hook || { run brew tap rjyo/moshi && run brew install moshi-hook; } || warn "moshi-hook nicht installiert (übersprungen — optional)"
+else
+  # Linux: System-Paketmanager. Build-Toolchain VOR node ziehen — node-pty
+  # kompiliert beim npm install aus den Quellen (Reihenfolge ist wichtig).
+  pm="$(pkg_manager)"
+  if [ -z "$pm" ]; then
+    warn "Kein apt/dnf/pacman erkannt — bitte manuell installieren: node(>=20) tmux git jq build-tools gio/trash-cli"
+  else
+    [ "$pm" = apt ] && run sudo apt-get update || true
+    { have cc || have gcc; } && have make || install_pkg build-tools
+    have node || install_pkg node
+    have tmux || install_pkg tmux
+    have git  || install_pkg git
+    have jq   || install_pkg jq
+    { have gio || have trash-put; } || install_pkg trash
+  fi
+  # moshi-hook ist macOS-only (brew tap rjyo/moshi) → auf Linux ausgelassen
+  # (Usage-Limits + Recent-Dirs degradieren graceful zu null).
 fi
-have brew || { warn "Homebrew wird installiert (fragt nach deinem Passwort)…"; \
-  run /bin/bash -c "$(curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; }
-eval "$("$(arch_brew_prefix)/bin/brew" shellenv 2>/dev/null)" || true
-have node  || run brew install node
-have tmux  || run brew install tmux
-have git   || run brew install git
-have jq    || run brew install jq
-{ have trash || [ -x /usr/bin/trash ]; } || run brew install trash
-have moshi-hook || { run brew tap rjyo/moshi && run brew install moshi-hook; } || warn "moshi-hook nicht installiert (übersprungen — optional)"
 
 # ---- Phase 3: Coding-CLIs (graceful) ----
 if [ "$NO_CLI" != 1 ]; then

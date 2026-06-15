@@ -26,6 +26,7 @@ import * as board from './lib/board.js';
 import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand, implementBranchName, isValidImplementBranch } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
+import { platform, resolveBin, extraPaths } from './lib/platform.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
@@ -134,21 +135,18 @@ function previewPortReady() {
   return activePreviewPort != null && isPreviewPortListening(activePreviewPort) ? activePreviewPort : null;
 }
 const SESSION_PREFIX = process.env.SESSION_PREFIX || 'cc-';
-const TMUX = process.env.TMUX_PATH || (() => {
-  // Auto-detect tmux in PATH instead of hardcoding Homebrew Apple Silicon path.
-  // Covers Intel Macs (/usr/local/bin), Linux, nix, MacPorts, etc.
-  try {
-    return execFileSync('/usr/bin/which', ['tmux'], { encoding: 'utf8' }).trim();
-  } catch {
-    return '/opt/homebrew/bin/tmux'; // last-resort fallback
-  }
-})();
 
-// LaunchAgent startet uns mit minimalem PATH (/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin).
-// `claude` liegt in ~/.local/bin und wäre sonst für tmux-Child-Prozesse unauffindbar →
-// neu erstellte Sessions würden sofort mit Exit 127 sterben.
-const EXTRA_PATHS = [join(homedir(), '.local/bin'), '/opt/homebrew/bin', '/usr/local/bin'];
+// Autostart (launchd/systemd) startet uns mit minimalem PATH. `claude` liegt in
+// ~/.local/bin und wäre sonst für tmux-Child-Prozesse unauffindbar → neu erstellte
+// Sessions würden mit Exit 127 sterben. Per-OS-Extra-Pfade zuerst voranstellen,
+// damit auch der tmux-Lookup darunter davon profitiert.
+const EXTRA_PATHS = extraPaths();
 process.env.PATH = [...new Set([...EXTRA_PATHS, ...(process.env.PATH || '').split(':')])].filter(Boolean).join(':');
+
+// tmux per OS-agnostischem PATH-Scan auflösen (kein /usr/bin/which-Hardcode mehr).
+// Last-Resort-Fallback per OS, falls tmux (noch) nicht im PATH liegt.
+const TMUX = process.env.TMUX_PATH || resolveBin('tmux') ||
+  (platform() === 'macos' ? '/opt/homebrew/bin/tmux' : '/usr/bin/tmux');
 
 // Mouse-Mode in tmux steuern. Default `on`, sodass Wheel-Events im xterm.js-
 // Client als Scroll-Back funktionieren. Ohne das sieht der attached Client keine
@@ -2456,22 +2454,40 @@ app.patch('/api/settings', express.json(), async (req, res) => {
 
 // ── Server control (restart / logs / force update-check) ──────────────────────
 const LAUNCHD_LABEL = process.env.LAUNCHAGENT_ID || 'com.penates';
+const SYSTEMD_UNIT = serverControl.buildSystemdUnit(process.env.SYSTEMD_UNIT || 'penates');
 
 app.post('/api/server/restart', (req, res) => {
-  const target = serverControl.buildLaunchdTarget(process.getuid(), LAUNCHD_LABEL);
-  const managed = serverControl.isLaunchdManaged(target, (args) =>
-    execFileSync('launchctl', args, { encoding: 'utf-8', timeout: 3000, stdio: 'pipe' }));
-  if (!managed) {
-    return res.status(409).json({ error: 'not-managed', target,
-      hint: 'Server is not managed by launchd — restart it manually.' });
+  if (platform() === 'macos') {
+    // macOS: launchd. kickstart -k kills + relaunches us.
+    const target = serverControl.buildLaunchdTarget(process.getuid(), LAUNCHD_LABEL);
+    const managed = serverControl.isLaunchdManaged(target, (args) =>
+      execFileSync('launchctl', args, { encoding: 'utf-8', timeout: 3000, stdio: 'pipe' }));
+    if (!managed) {
+      return res.status(409).json({ error: 'not-managed', target,
+        hint: 'Server is not managed by launchd — restart it manually.' });
+    }
+    auditLog.record('server.restart', { ...auditLog.extractRequestMeta(req), target });
+    res.json({ ok: true, restarting: true, target });
+    setTimeout(() => {
+      try { execFileSync('launchctl', ['kickstart', '-k', target], { timeout: 3000, stdio: 'pipe' }); }
+      catch (e) { console.error('[server.restart] kickstart failed:', e.message); }
+    }, 300);
+  } else {
+    // Linux: systemd --user. restart kills + relaunches us via the unit.
+    const systemctl = (args) =>
+      execFileSync('systemctl', args, { encoding: 'utf-8', timeout: 3000, stdio: 'pipe' });
+    const managed = serverControl.isSystemdManaged(SYSTEMD_UNIT, systemctl);
+    if (!managed) {
+      return res.status(409).json({ error: 'not-managed', target: SYSTEMD_UNIT,
+        hint: 'Server is not managed by systemd --user — restart it manually.' });
+    }
+    auditLog.record('server.restart', { ...auditLog.extractRequestMeta(req), target: SYSTEMD_UNIT });
+    res.json({ ok: true, restarting: true, target: SYSTEMD_UNIT });
+    setTimeout(() => {
+      try { systemctl(['--user', 'restart', SYSTEMD_UNIT]); }
+      catch (e) { console.error('[server.restart] systemctl restart failed:', e.message); }
+    }, 300);
   }
-  auditLog.record('server.restart', { ...auditLog.extractRequestMeta(req), target });
-  res.json({ ok: true, restarting: true, target });
-  // Restart AFTER the response flushes. kickstart -k kills + relaunches us.
-  setTimeout(() => {
-    try { execFileSync('launchctl', ['kickstart', '-k', target], { timeout: 3000, stdio: 'pipe' }); }
-    catch (e) { console.error('[server.restart] kickstart failed:', e.message); }
-  }, 300);
 });
 
 app.get('/api/server/logs', async (req, res) => {
