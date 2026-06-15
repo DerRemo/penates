@@ -4,7 +4,7 @@
 import { test, expect } from './fixtures.js';
 
 const MOCK = {
-  hub: { id: 'hub', category: 'hub', name: 'Claude Code Hub', current: '0.7.1', latest: '0.8.0',
+  hub: { id: 'hub', category: 'hub', name: 'Penates', current: '0.7.1', latest: '0.8.0',
          outdated: true, source: 'github', executable: true, url: 'https://x', guard: { ok: true } },
   clis: [
     { id: 'cli:codex', category: 'cli', name: 'Codex', current: '0.135.0', latest: '0.140.0', outdated: true, source: 'cli', executable: true, url: null },
@@ -75,7 +75,7 @@ test.describe('Updates panel', () => {
   });
 
   test('no updates → all-current message, dot off', async ({ authedPage: page }) => {
-    const clean = { hub: { id: 'hub', category: 'hub', name: 'Claude Code Hub', current: '0.8.0', latest: '0.8.0',
+    const clean = { hub: { id: 'hub', category: 'hub', name: 'Penates', current: '0.8.0', latest: '0.8.0',
         outdated: false, source: 'github', executable: true, url: null, guard: { ok: false, reason: 'up-to-date' } },
       clis: [], dependencies: [], externals: [], outdatedCount: 0, checkedAt: 1, error: null };
     await mockUpdates(page, clean);

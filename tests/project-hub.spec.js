@@ -2,8 +2,8 @@ import { test, expect } from './fixtures.js';
 import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 
 // Projekt-Hub E2E (Idea Pipeline Phase 2).
-// The E2E server runs with BOARD_PATH=/tmp/cchub-e2e-board.json so creating/
-// deleting board cards never touches the real ~/.claude-code-hub/board.json.
+// The E2E server runs with BOARD_PATH=/tmp/penates-e2e-board.json so creating/
+// deleting board cards never touches the real ~/.penates/board.json.
 // The projects registry and CHANGELOG.md files are real — tests MUST NOT
 // mutate them (no checkbox clicks, no item edits, no releases).
 
@@ -31,7 +31,7 @@ async function clearBoard(page) {
   }
 }
 
-async function goToProjectHub(page, projectId = 'claude-code-hub') {
+async function goToProjectHub(page, projectId = 'penates') {
   await ensureSidebarOpen(page);
   await page.click(NAV_PROJECTS);
   await page.waitForSelector('body[data-current-view="projects"]', { timeout: 5_000 });
@@ -70,11 +70,11 @@ test.describe('Projekt-Hub (Phase 2)', () => {
   test('+ Idee adds a card that appears in Pipeline-Slice', async ({ authedPage: page }) => {
     await goToProjectHub(page);
     await page.click('#project-add-idea-btn');
-    await page.waitForSelector('#cchub-input-modal.open', { timeout: 3_000 });
+    await page.waitForSelector('#penates-input-modal.open', { timeout: 3_000 });
     const title = `E2E hub idea ${Date.now()}`;
-    await page.fill('#cchub-input-field', title);
-    await page.click('#cchub-input-ok');
-    await page.waitForSelector('#cchub-input-modal:not(.open)', { timeout: 3_000 });
+    await page.fill('#penates-input-field', title);
+    await page.click('#penates-input-ok');
+    await page.waitForSelector('#penates-input-modal:not(.open)', { timeout: 3_000 });
     const card = page.locator('#hub-pipeline .hub-pl-card', { hasText: title });
     await expect(card).toBeVisible({ timeout: 5_000 });
   });

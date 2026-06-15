@@ -2,7 +2,7 @@ import { test, expect } from './fixtures.js';
 import { navigateToSession, waitForTerminal, getToken, openFileSidebar } from './helpers.js';
 import { readFileSync } from 'fs';
 
-// Filebrowser tests use the always-running cc-claude-code-hub session
+// Filebrowser tests use the always-running cc-penates session
 // because the file API requires a registered project (projectId).
 test.describe('Filebrowser', () => {
   let sessionName;
@@ -129,7 +129,7 @@ test.describe('Filebrowser', () => {
     let newName;
     try {
       await row.click({ button: 'right' });
-      const menu = page.locator('.cchub-contextmenu');
+      const menu = page.locator('.penates-contextmenu');
       await menu.waitFor({ timeout: 3_000 });
       await menu.locator('button', { hasText: /Rename|Umbenennen/i }).click();
 
@@ -173,9 +173,9 @@ test.describe('Filebrowser', () => {
     await row.click({ button: 'right' });
     await page.getByText(/Move to Trash|In den Papierkorb/).first().click();
     // Themed Dialog erscheint (kein ✓?-Label am Row).
-    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible();
+    await expect(page.locator('#penates-confirm-modal.open')).toBeVisible();
     await expect(row).not.toContainText('✓?');
-    await page.locator('#cchub-confirm-ok').click();
+    await page.locator('#penates-confirm-ok').click();
     await expect(page.locator(`#files-tree .file-row[data-path="${fname}"]`)).toHaveCount(0, { timeout: 5000 });
   });
 
@@ -190,7 +190,7 @@ test.describe('Filebrowser', () => {
     await openFileSidebar(page);
     const firstRow = page.locator('#files-tree .file-row').first();
     await firstRow.click({ button: 'right' });
-    const menu = page.locator('.cchub-contextmenu');
+    const menu = page.locator('.penates-contextmenu');
     await menu.waitFor({ timeout: 3_000 });
     const copyPathBtn = menu.locator('button', { hasText: /Copy Path|Pfad/i });
     if (await copyPathBtn.count() > 0) {
@@ -276,7 +276,7 @@ test.describe('Filebrowser', () => {
     const { join } = await import('path');
     const { tmpdir } = await import('os');
     const { execFileSync } = await import('child_process');
-    const dir = mkdtempSync(join(tmpdir(), 'cchub-fbgit-'));
+    const dir = mkdtempSync(join(tmpdir(), 'penates-fbgit-'));
     execFileSync('git', ['init', '-q'], { cwd: dir });
     execFileSync('git', ['config', 'user.email', 't@t'], { cwd: dir });
     execFileSync('git', ['config', 'user.name', 't'], { cwd: dir });
@@ -319,12 +319,12 @@ test.describe('Filebrowser', () => {
     // Dotfiles erscheinen → mehr oder gleich viele Zeilen (mind. nicht weniger).
     await expect.poll(async () => page.locator('#files-tree .file-row').count()).toBeGreaterThanOrEqual(before);
     // Pref persisted to localStorage.
-    const pref = await page.evaluate(() => localStorage.getItem('cchub_files_show_hidden'));
+    const pref = await page.evaluate(() => localStorage.getItem('penates_files_show_hidden'));
     expect(pref).toBe('1');
     // Toggle back off to restore the default for other tests.
     await page.click('#files-filter');
     await page.getByText(/Show hidden|Versteckte anzeigen/).click();
-    await expect.poll(async () => page.evaluate(() => localStorage.getItem('cchub_files_show_hidden'))).toBe('0');
+    await expect.poll(async () => page.evaluate(() => localStorage.getItem('penates_files_show_hidden'))).toBe('0');
   });
 
   test('breadcrumb shows the panel root name', async ({ authedPage: page }) => {
@@ -441,7 +441,7 @@ test.describe('Filebrowser', () => {
         page.waitForEvent('download'),
         (async () => {
           await fileRow.click({ button: 'right' });
-          const menu = page.locator('.cchub-contextmenu');
+          const menu = page.locator('.penates-contextmenu');
           await menu.waitFor({ timeout: 3_000 });
           await menu.locator('button', { hasText: /download/i }).click();
         })(),

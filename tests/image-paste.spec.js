@@ -45,7 +45,7 @@ test.describe('Image-Paste & Annotation', () => {
     let hit = false;
     await page.route('**/api/sessions/*/image', (route) => {
       hit = true;
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ rel: '.cch-images/test.png' }) });
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ rel: '.penates-images/test.png' }) });
     });
     await page.evaluate(() => { window.currentSessionName = 'cc-img-e2e'; });
     await page.locator('#image-picker-input').setInputFiles(FILE);

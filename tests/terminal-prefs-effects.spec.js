@@ -35,7 +35,7 @@ test.describe('Terminal pref effects', () => {
     // Select DISTINCT markers in the OFF vs ON phase so the selection model truly
     // changes each time (xterm coalesces onSelectionChange to the net final state).
     const selectMark = (mark) => page.evaluate((m) => {
-      const term = window.__cchubTerm;
+      const term = window.__penatesTerm;
       const buf = term.buffer.active;
       for (let i = 0; i < buf.length; i++) {
         const s = buf.getLine(i)?.translateToString(true) || '';
@@ -80,7 +80,7 @@ test.describe('Terminal pref effects', () => {
     // With the pref OFF, a BEL must not flash; with it ON (no reconnect), it must.
     const result = await page.evaluate(async () => {
       await window.Prefs.load();
-      const term = window.__cchubTerm;
+      const term = window.__penatesTerm;
       const el = term.element;
       const flashesWhile = (setup) => new Promise((resolve) => {
         let seen = false;

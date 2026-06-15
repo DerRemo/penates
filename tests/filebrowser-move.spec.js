@@ -12,7 +12,7 @@ async function makeTempSession(page, seed = {}) {
   const { mkdtempSync, writeFileSync, mkdirSync } = await import('fs');
   const { join, dirname } = await import('path');
   const { tmpdir } = await import('os');
-  const dir = mkdtempSync(join(tmpdir(), 'cchub-mv-'));
+  const dir = mkdtempSync(join(tmpdir(), 'penates-mv-'));
   // Base fixture every test relies on: a root foo.txt and an empty src/ folder.
   mkdirSync(join(dir, 'src'));
   writeFileSync(join(dir, 'foo.txt'), 'CONTENT\n');
@@ -60,10 +60,10 @@ async function openMoveDialog(page) {
   const fileRow = page.locator('#files-tree .file-row[data-path="foo.txt"]');
   await fileRow.waitFor({ timeout: 8_000 });
   await fileRow.click({ button: 'right' });
-  await page.locator('.cchub-contextmenu').waitFor({ timeout: 3_000 });
+  await page.locator('.penates-contextmenu').waitFor({ timeout: 3_000 });
   // "Move to…" (ellipsis) — NOT "Move to Trash".
-  await page.locator('.cchub-contextmenu button', { hasText: /Move to…|Verschieben nach…/ }).click();
-  const input = page.locator('#cchub-input-field');
+  await page.locator('.penates-contextmenu button', { hasText: /Move to…|Verschieben nach…/ }).click();
+  const input = page.locator('#penates-input-field');
   await input.waitFor({ timeout: 3_000 });
   return input;
 }
@@ -104,7 +104,7 @@ test.describe('Filebrowser move (keystone + conflict)', () => {
 
       const input = await openMoveDialog(page);
       await input.fill('src');                 // <-- only the folder name (the old bug)
-      await page.locator('#cchub-input-ok').click();
+      await page.locator('#penates-input-ok').click();
 
       // foo.txt is now inside src/ (keystone: basename appended to the folder).
       await expect.poll(() => listFolder(page, token, projId, 'src'), { timeout: 8_000 }).toContain('foo.txt');
@@ -125,10 +125,10 @@ test.describe('Filebrowser move (keystone + conflict)', () => {
 
       const input = await openMoveDialog(page);
       await input.fill('src');
-      await page.locator('#cchub-input-ok').click();
+      await page.locator('#penates-input-ok').click();
 
       // Conflict → choice dialog appears.
-      const choice = page.locator('#cchub-choice-modal.open');
+      const choice = page.locator('#penates-choice-modal.open');
       await expect(choice).toBeVisible({ timeout: 5_000 });
       await choice.locator('button', { hasText: /Rename|Umbenennen/ }).click();
 
@@ -154,7 +154,7 @@ test.describe('Filebrowser move (keystone + conflict)', () => {
       await expect.poll(() => listFolder(page, token, projId, '')).not.toContain('foo.txt');
 
       // Capture the real UI after the move (toast + refreshed tree) for review.
-      await page.screenshot({ path: '/tmp/cchub-move-verify/dnd-after-move.png' });
+      await page.screenshot({ path: '/tmp/penates-move-verify/dnd-after-move.png' });
     } finally {
       await page.request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -187,9 +187,9 @@ test.describe('Filebrowser move (keystone + conflict)', () => {
       await openSessionWithSidebar(page, name);
 
       await dndRowToDir(page, 'foo.txt', 'src');
-      const choice = page.locator('#cchub-choice-modal.open');
+      const choice = page.locator('#penates-choice-modal.open');
       await expect(choice).toBeVisible({ timeout: 5_000 });
-      await page.screenshot({ path: '/tmp/cchub-move-verify/dnd-conflict-dialog.png' });
+      await page.screenshot({ path: '/tmp/penates-move-verify/dnd-conflict-dialog.png' });
       // Three options present.
       await expect(choice.locator('button', { hasText: /Overwrite|Überschreiben/ })).toBeVisible();
       await expect(choice.locator('button', { hasText: /Rename|Umbenennen/ })).toBeVisible();

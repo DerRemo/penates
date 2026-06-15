@@ -1,9 +1,9 @@
-// Service Worker für Claude Code Hub — Web Push
+// Service Worker für Penates — Web Push
 //
 // Zeigt native Push-Notifications, auch wenn der Browser-Tab geschlossen ist.
 // Registriert vom Frontend beim App-Start; Scope ist '/' (ganzer Hub).
 
-const APP_NAME = 'Claude Code Hub';
+const APP_NAME = 'Penates';
 
 self.addEventListener('push', (event) => {
   if (!event.data) return;
@@ -39,7 +39,7 @@ self.addEventListener('push', (event) => {
       body,
       icon: '/icons/icon-192.png',
       badge: '/icons/favicon-32.png',
-      tag: name || 'cchub',
+      tag: name || 'penates',
       renotify: true,
       data: { name, activity },
     })

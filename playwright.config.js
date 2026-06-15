@@ -21,8 +21,8 @@ export default defineConfig({
 
   webServer: {
     // BOARD_PATH points the test server at an isolated board store so E2E
-    // card create/delete never touches the real ~/.claude-code-hub/board.json.
-    command: 'PORT=3334 BOARD_PATH=/tmp/cchub-e2e-board.json node server.js',
+    // card create/delete never touches the real ~/.penates/board.json.
+    command: 'PORT=3334 BOARD_PATH=/tmp/penates-e2e-board.json node server.js',
     url: 'http://localhost:3334/healthz',
     reuseExistingServer: false,
     timeout: 60_000,

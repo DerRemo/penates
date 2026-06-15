@@ -2,7 +2,7 @@
 set -e
 
 # ─────────────────────────────────────────────────────────────
-# Claude Code Hub — Setup Script für Mac mini
+# Penates — Setup Script für Mac mini
 # ─────────────────────────────────────────────────────────────
 
 BOLD="\033[1m"
@@ -11,7 +11,7 @@ DIM="\033[2m"
 RESET="\033[0m"
 
 echo ""
-echo -e "${TEAL}${BOLD}  ⚡ Claude Code Hub — Setup${RESET}"
+echo -e "${TEAL}${BOLD}  ⚡ Penates — Setup${RESET}"
 echo -e "${DIM}  ─────────────────────────────────────${RESET}"
 echo ""
 
@@ -108,7 +108,7 @@ echo ""
 echo -e "${BOLD}[5/9]${RESET} LaunchAgent einrichten..."
 
 PLIST_DIR="$HOME/Library/LaunchAgents"
-LAUNCHAGENT_ID="${LAUNCHAGENT_ID:-com.claude-code-hub}"
+LAUNCHAGENT_ID="${LAUNCHAGENT_ID:-com.penates}"
 PLIST_FILE="$PLIST_DIR/${LAUNCHAGENT_ID}.plist"
 APP_DIR="$(pwd)"
 
@@ -192,14 +192,20 @@ else
   # unabhängig).
   HUB_PORT=$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2); HUB_PORT="${HUB_PORT:-3333}"
   HUB_TOKEN=$(grep '^AUTH_TOKEN=' .env 2>/dev/null | cut -d= -f2-)
-  mkdir -p "$HOME/.claude-code-hub"
+  # Rebrand-Migration: alten Datendir übernehmen, BEVOR wir den neuen anlegen
+  # (sonst verhindert der frische mkdir die Migration und der State verwaist).
+  if [ -d "$HOME/.claude-code-hub" ] && [ ! -d "$HOME/.penates" ]; then
+    mv "$HOME/.claude-code-hub" "$HOME/.penates"
+    echo "  ✓ Datendir migriert (~/.claude-code-hub → ~/.penates)"
+  fi
+  mkdir -p "$HOME/.penates"
   # umask 077 im Subshell: Datei wird nie group/other-lesbar (Token drinsteht).
   ( umask 077; {
-    echo "CC_HUB_URL=http://127.0.0.1:${HUB_PORT}"
-    echo "CC_HUB_TOKEN=${HUB_TOKEN}"
-  } > "$HOME/.claude-code-hub/hook.env" )
-  chmod 600 "$HOME/.claude-code-hub/hook.env"
-  echo "  ✓ hook.env geschrieben (~/.claude-code-hub/hook.env, chmod 600)"
+    echo "PENATES_URL=http://127.0.0.1:${HUB_PORT}"
+    echo "PENATES_TOKEN=${HUB_TOKEN}"
+  } > "$HOME/.penates/hook.env" )
+  chmod 600 "$HOME/.penates/hook.env"
+  echo "  ✓ hook.env geschrieben (~/.penates/hook.env, chmod 600)"
 
   # Events die der Hub konsumiert. Jeder Event bekommt denselben curl-
   # Payload: POST an /api/hooks/:event mit Auth + Session-Header.
@@ -207,7 +213,7 @@ else
 
   # Sentinel-Marker pro Entry, damit Re-Runs nur Hub-Einträge ersetzen
   # und niemals User-eigene Hooks löschen.
-  HOOK_CMD='{ [ -r "$HOME/.claude-code-hub/hook.env" ] && . "$HOME/.claude-code-hub/hook.env"; S="$(tmux display-message -p "#S" 2>/dev/null)"; S="${S:-$CC_HUB_SESSION}"; curl -fsS -m 2 -X POST "$CC_HUB_URL/api/hooks/EVENT_NAME" -H "Authorization: Bearer $CC_HUB_TOKEN" -H "X-CC-Hub-Session: $S" -H "Content-Type: application/json" --data-binary @-; } >/dev/null 2>&1 || true'
+  HOOK_CMD='{ [ -r "$HOME/.penates/hook.env" ] && . "$HOME/.penates/hook.env"; S="$(tmux display-message -p "#S" 2>/dev/null)"; S="${S:-$PENATES_SESSION}"; curl -fsS -m 2 -X POST "$PENATES_URL/api/hooks/EVENT_NAME" -H "Authorization: Bearer $PENATES_TOKEN" -H "X-Penates-Session: $S" -H "Content-Type: application/json" --data-binary @-; } >/dev/null 2>&1 || true'
 
   TMP=$(mktemp)
   cp "$SETTINGS_FILE" "$TMP"
@@ -223,14 +229,14 @@ else
       # moshi-hook & User-Hooks (kein /api/hooks/) bleiben unangetastet.
       | .hooks[$evt] |= map(select(
           (.hooks // [] | any(
-            (._owner // "") == "claude-code-hub"
+            (._owner // "") == "penates"
             or ((.command // "") | contains("/api/hooks/"))
           )) | not
         ))
       # Neuen Eintrag anhängen
       | .hooks[$evt] += [{
           matcher: "",
-          hooks: [{ type: "command", command: $cmd, _owner: "claude-code-hub" }]
+          hooks: [{ type: "command", command: $cmd, _owner: "penates" }]
         }]
     ' "$TMP" > "$TMP.new" && mv "$TMP.new" "$TMP"
   done
@@ -238,20 +244,20 @@ else
   # PreToolUse — blockierender curl, schreibt den Decision-Body nach stdout
   # (KEIN >/dev/null auf stdout!). Bei Fehler/leer → defer. Matcher auf das
   # impactful-Set, timeout > curl -m.
-  PRETOOL_CMD='{ [ -r "$HOME/.claude-code-hub/hook.env" ] && . "$HOME/.claude-code-hub/hook.env"; S="$(tmux display-message -p "#S" 2>/dev/null)"; S="${S:-$CC_HUB_SESSION}"; curl -fsS -m 120 -X POST "$CC_HUB_URL/api/hooks/pre-tool-use" -H "Authorization: Bearer $CC_HUB_TOKEN" -H "X-CC-Hub-Session: $S" -H "Content-Type: application/json" --data-binary @- 2>/dev/null; } || true'
+  PRETOOL_CMD='{ [ -r "$HOME/.penates/hook.env" ] && . "$HOME/.penates/hook.env"; S="$(tmux display-message -p "#S" 2>/dev/null)"; S="${S:-$PENATES_SESSION}"; curl -fsS -m 120 -X POST "$PENATES_URL/api/hooks/pre-tool-use" -H "Authorization: Bearer $PENATES_TOKEN" -H "X-Penates-Session: $S" -H "Content-Type: application/json" --data-binary @- 2>/dev/null; } || true'
 
   jq --arg cmd "$PRETOOL_CMD" '
     .hooks //= {}
     | .hooks["PreToolUse"] //= []
     | .hooks["PreToolUse"] |= map(select(
         (.hooks // [] | any(
-          (._owner // "") == "claude-code-hub"
+          (._owner // "") == "penates"
           or ((.command // "") | contains("/api/hooks/"))
         )) | not
       ))
     | .hooks["PreToolUse"] += [{
         matcher: "Bash|Edit|Write|WebFetch|WebSearch|Task",
-        hooks: [{ type: "command", command: $cmd, timeout: 125, _owner: "claude-code-hub" }]
+        hooks: [{ type: "command", command: $cmd, timeout: 125, _owner: "penates" }]
       }]
   ' "$TMP" > "$TMP.new" && mv "$TMP.new" "$TMP"
 
@@ -269,15 +275,15 @@ SL_SENTINEL_START="#CCH-SL-START#"
 SL_SENTINEL_END="#CCH-SL-END#"
 
 SL_BLOCK='
-# ── Claude Code Hub StatusLine Reporting ── #CCH-SL-START#
+# ── Penates StatusLine Reporting ── #CCH-SL-START#
 # Sends rate-limit + cost data to the Hub. Throttled: only on value change or every 60s.
 # Self-bootstrapping: sourct hook.env (URL+Token) und leitet den Session-Namen
 # live aus tmux ab — meldet daher auch für nicht-Hub-gestartete Sessions (Moshi).
-[ -r "$HOME/.claude-code-hub/hook.env" ] && . "$HOME/.claude-code-hub/hook.env"
-_sl_session="$(tmux display-message -p "#S" 2>/dev/null)"; _sl_session="${_sl_session:-$CC_HUB_SESSION}"
-if [ -n "$CC_HUB_URL" ] && [ -n "$_sl_session" ]; then
+[ -r "$HOME/.penates/hook.env" ] && . "$HOME/.penates/hook.env"
+_sl_session="$(tmux display-message -p "#S" 2>/dev/null)"; _sl_session="${_sl_session:-$PENATES_SESSION}"
+if [ -n "$PENATES_URL" ] && [ -n "$_sl_session" ]; then
   _sl_session_id=$(echo "$input" | jq -r '"'"'.session_id // empty'"'"')
-  _sl_state_file="/tmp/cc-hub-sl-${_sl_session_id:-unknown}.state"
+  _sl_state_file="/tmp/penates-sl-${_sl_session_id:-unknown}.state"
   _sl_cost=$(echo "$input" | jq -r '"'"'.cost.total_cost_usd // empty'"'"')
   _sl_current="${five_hour}:${seven_day}:${_sl_cost}"
   _sl_last=""
@@ -291,15 +297,15 @@ if [ -n "$CC_HUB_URL" ] && [ -n "$_sl_session" ]; then
 
   if [ "$_sl_current" != "$_sl_last" ] || [ "$_sl_elapsed" -ge 60 ]; then
     _sl_payload=$(echo "$input" | jq -c '"'"'{rate_limits, cost, context_window, model}'"'"')
-    curl -fsS -m 2 -X POST "$CC_HUB_URL/api/hooks/statusline" \
-      -H "Authorization: Bearer $CC_HUB_TOKEN" \
-      -H "X-CC-Hub-Session: $_sl_session" \
+    curl -fsS -m 2 -X POST "$PENATES_URL/api/hooks/statusline" \
+      -H "Authorization: Bearer $PENATES_TOKEN" \
+      -H "X-Penates-Session: $_sl_session" \
       -H "Content-Type: application/json" \
       -d "$_sl_payload" >/dev/null 2>&1 &
     printf '"'"'%s|%s\n'"'"' "$_sl_current" "$_sl_now" > "$_sl_state_file"
   fi
 fi
-# ── End Claude Code Hub StatusLine Reporting ── #CCH-SL-END#'
+# ── End Penates StatusLine Reporting ── #CCH-SL-END#'
 
 if [ -f "$SL_SCRIPT" ]; then
   if grep -q "$SL_SENTINEL_START" "$SL_SCRIPT"; then
@@ -330,7 +336,7 @@ if ! command -v whisper-cli >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/whisper-
 fi
 
 # 2) Multilinguales Turbo-Modell (quantisiert ~574 MB), idempotent
-MODEL_DIR="$HOME/.claude-code-hub/models"
+MODEL_DIR="$HOME/.penates/models"
 MODEL_FILE="$MODEL_DIR/ggml-large-v3-turbo-q5_0.bin"
 mkdir -p "$MODEL_DIR"
 if [ ! -f "$MODEL_FILE" ]; then
@@ -349,7 +355,16 @@ echo "  (whisper.cpp Source-Build mit -DWHISPER_COREML=1 + CoreML-Modell). Metal
 
 # 9. Load and start
 echo ""
-echo -e "${BOLD}[9/9]${RESET} Starte Claude Code Hub..."
+echo -e "${BOLD}[9/9]${RESET} Starte Penates..."
+
+# Rebrand-Migration: vor-Penates-Labels entladen + alte Plists entfernen,
+# sonst liefe nach dem Rename ein zweiter Hub unter dem alten Label weiter.
+for _old_label in com.claude-code-hub com.derremo.claude-code-hub; do
+  if [ "$_old_label" != "$LAUNCHAGENT_ID" ]; then
+    launchctl bootout "gui/$(id -u)/${_old_label}" 2>/dev/null || true
+    rm -f "$PLIST_DIR/${_old_label}.plist"
+  fi
+done
 
 # Vorherige Version entladen (idempotenter Re-Run)
 launchctl bootout gui/$(id -u) "$PLIST_FILE" 2>/dev/null || true
@@ -358,15 +373,15 @@ launchctl enable "gui/$(id -u)/${LAUNCHAGENT_ID}" 2>/dev/null || true
 launchctl bootstrap gui/$(id -u) "$PLIST_FILE"
 
 echo ""
-echo -e "${TEAL}${BOLD}  ✓ Claude Code Hub läuft!${RESET}"
+echo -e "${TEAL}${BOLD}  ✓ Penates läuft!${RESET}"
 echo ""
 PORT="${PORT:-$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2)}"
 PORT="${PORT:-3333}"
 echo -e "  Lokal:   ${BOLD}http://localhost:${PORT}${RESET}"
 echo ""
 # Remote-Zugriff: nur anbieten, wenn setup.sh DIREKT (nicht aus install.sh) läuft.
-# install.sh ruft remote-setup.sh selbst auf (Env-Marker CCHUB_FROM_INSTALL).
-if [ -z "${CCHUB_FROM_INSTALL:-}" ] && [ -x "${APP_DIR}/scripts/remote-setup.sh" ]; then
+# install.sh ruft remote-setup.sh selbst auf (Env-Marker PENATES_FROM_INSTALL).
+if [ -z "${PENATES_FROM_INSTALL:-}" ] && [ -x "${APP_DIR}/scripts/remote-setup.sh" ]; then
   bash "${APP_DIR}/scripts/remote-setup.sh" || true
 else
   echo -e "${DIM}  Remote-Zugriff: ./scripts/remote-setup.sh (Tailscale empfohlen)${RESET}"

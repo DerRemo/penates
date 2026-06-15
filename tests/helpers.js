@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 
 export function getToken(page) {
-  return page.evaluate(() => localStorage.getItem('cchub_token'));
+  return page.evaluate(() => localStorage.getItem('penates_token'));
 }
 
 export async function createSessionViaUI(page, { name, dir, command = 'bash --noprofile --norc' }) {
@@ -141,7 +141,7 @@ export async function navigateToBoard(page) {
 
 // Create a board card via API (uses the isolated BOARD_PATH the test server
 // runs with). Returns the created card; delete it with deleteBoardCard.
-export async function createBoardCard(page, { projectId = 'claude-code-hub', title, stage = 'idea' }) {
+export async function createBoardCard(page, { projectId = 'penates', title, stage = 'idea' }) {
   const token = await getToken(page);
   const res = await page.request.post('/api/board/cards', {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

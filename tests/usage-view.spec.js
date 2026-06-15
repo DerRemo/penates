@@ -10,7 +10,7 @@ const HISTORY = {
   monthTotal: 48_200_000, monthSessions: 142,
   cacheRate: { read: 9, total: 10, pct: 92 }, workStyle: { toolUse: 86, endTurn: 14, total: 100 },
   days: Array.from({ length: 30 }, (_, i) => ({ date: `2026-05-${String(i+1).padStart(2,'0')}`, input: 1_000_000, output: 500_000, cost: 1 })),
-  byProject: [{ project: 'claude-code-hub', path: '/p/hub', tokens: 19_400_000 }],
+  byProject: [{ project: 'penates', path: '/p/hub', tokens: 19_400_000 }],
   heatmap: [{ dow: 1, hour: 10, tokens: 5000 }],
   toolUsage: [{ name: 'Bash', count: 4172 }],
   dailySessions: {}, monthByModel: {},

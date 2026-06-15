@@ -28,7 +28,7 @@ async function clearBoard(page) {
 }
 
 async function seedReviewCard(page, title) {
-  const r = await api(page, 'POST', '/api/board/cards', { projectId: 'claude-code-hub', title, stage: 'review', origin: 'solo' });
+  const r = await api(page, 'POST', '/api/board/cards', { projectId: 'penates', title, stage: 'review', origin: 'solo' });
   const card = await r.json();
   await api(page, 'PATCH', `/api/board/cards/${card.id}`, { branch: 'idea/x', brainstormDoc: 'docs/spec.md' });
   return card;
@@ -65,8 +65,8 @@ test.describe('Board finish (Phase 5)', () => {
     await page.locator(`.board-card[data-id="${card.id}"]`).click();
     await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
     await page.selectOption('#board-detail-stage', 'done');
-    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
-    await page.locator('#cchub-confirm-ok').click();
+    await expect(page.locator('#penates-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
+    await page.locator('#penates-confirm-ok').click();
     await expect.poll(() => calledUrl, { timeout: 4_000 }).toContain(`/api/board/cards/${card.id}/finish`);
   });
 

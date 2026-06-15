@@ -13,7 +13,7 @@ test.describe('Terminal clipboard OSC 52', () => {
     // Simuliere eine App, die OSC 52 emittiert: ESC ] 52 ; c ; <base64> BEL.
     await page.evaluate(() => {
       const payload = btoa('hello-osc52');
-      window.__cchubTerm.write('\x1b]52;c;' + payload + '\x07');
+      window.__penatesTerm.write('\x1b]52;c;' + payload + '\x07');
     });
     // Deterministisch auf den Clipboard-Write warten (statt fixem Timeout).
     await expect
@@ -32,7 +32,7 @@ test.describe('Terminal clipboard OSC 52', () => {
     await waitForTerminal(page);
 
     await page.evaluate(() => navigator.clipboard.writeText('PRESET-CLIP'));
-    await page.evaluate(() => window.__cchubTerm.write('\x1b]52;c;?\x07'));
+    await page.evaluate(() => window.__penatesTerm.write('\x1b]52;c;?\x07'));
     // Kurzes Settle: der Read-Query wird verarbeitet; bei write-only darf sich nichts ändern.
     await page.waitForTimeout(300);
 

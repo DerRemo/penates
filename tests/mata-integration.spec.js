@@ -28,7 +28,7 @@ function mockMata(page, status) {
 test.describe('Mata integration (preview source-switcher)', () => {
   test.beforeEach(async ({ authedPage }) => {
     // Keine fremde gespeicherte Quelle aus anderen Tests übernehmen.
-    await authedPage.evaluate(() => localStorage.removeItem('cchub_preview_source:cc-mata-e2e'));
+    await authedPage.evaluate(() => localStorage.removeItem('penates_preview_source:cc-mata-e2e'));
   });
 
   test('switcher hidden when Mata not installed', async ({ authedPage }) => {
@@ -71,7 +71,7 @@ test.describe('Mata integration (preview source-switcher)', () => {
     await page.evaluate(() => window.PreviewPanel.toggle());
     await page.click('#preview-source-mata');
     await expect.poll(() => sentSource).toBe('mata');
-    await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/session?__cchub=mata');
+    await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/session?__penates=mata');
   });
 
   test('not-running state offers a Start action that POSTs control', async ({ authedPage }) => {

@@ -16,7 +16,7 @@ test.describe('Terminal clipboard', () => {
     await page.waitForTimeout(600);
 
     const selected = await page.evaluate(() => {
-      const term = window.__cchubTerm;
+      const term = window.__penatesTerm;
       const buf = term.buffer.active;
       for (let i = 0; i < buf.length; i++) {
         const s = buf.getLine(i)?.translateToString(true) || '';
@@ -52,7 +52,7 @@ test.describe('Terminal clipboard', () => {
 
     await page.evaluate(() => {
       window.__ptyOut = [];
-      window.__cchubTerm.onData(d => window.__ptyOut.push(d));
+      window.__penatesTerm.onData(d => window.__ptyOut.push(d));
     });
 
     await page.keyboard.press('a');           // sanity: a normal key reaches the PTY

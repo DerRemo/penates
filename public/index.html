@@ -7,20 +7,33 @@
   <meta name="theme-color" content="#0a0e14" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="CC Hub">
+  <meta name="apple-mobile-web-app-title" content="Penates">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <title>Claude Code Hub</title>
+  <title>Penates</title>
   <!-- No-Flash: Theme-Attribut VOR Body-Paint setzen, sonst blitzt kurz
        das falsche Theme auf. Muss als allererstes im <head> stehen. -->
   <script>
     (function(){
+      // One-time rebrand migration: cchub_* localStorage keys → penates_*.
+      // Keeps the auth token + prefs (theme/layout/lang) across the Penates
+      // rename instead of forcing a re-auth + reset. Runs before any read.
+      try {
+        for (var _i = localStorage.length - 1; _i >= 0; _i--) {
+          var _k = localStorage.key(_i);
+          if (_k && _k.indexOf('cchub_') === 0) {
+            var _nk = 'penates_' + _k.slice(6);
+            if (localStorage.getItem(_nk) === null) localStorage.setItem(_nk, localStorage.getItem(_k));
+            localStorage.removeItem(_k);
+          }
+        }
+      } catch (e) {}
       var THEMES = ['latte','frappe','macchiato','mocha'];
       var LEGACY = {light:'latte', dark:'mocha'};
       try {
-        var stored = localStorage.getItem('cchub_theme');
+        var stored = localStorage.getItem('penates_theme');
         var t = LEGACY[stored] || stored;
         var preferred = THEMES.indexOf(t) !== -1 ? t : 'latte';
         document.documentElement.setAttribute('data-theme', preferred);
@@ -4384,20 +4397,20 @@
     }
 
     /* ── v0.6.0 Task 11: Context Menu + Inline Rename + Delete Confirm ── */
-    .cchub-contextmenu {
+    .penates-contextmenu {
       position: fixed; z-index: 300;
       background: var(--bg-card, #0f0f0f); border: 1px solid var(--border, #2a2a2a); border-radius: 6px;
       padding: 4px 0; min-width: 180px;
       box-shadow: 0 10px 30px rgba(0,0,0,.6);
       font-size: 13px;
     }
-    .cchub-contextmenu button {
+    .penates-contextmenu button {
       display: block; width: 100%; padding: 6px 14px;
       background: transparent; border: none; color: var(--text-primary, #ddd);
       cursor: pointer; text-align: left; font: inherit;
     }
-    .cchub-contextmenu button:hover { background: var(--accent-muted, rgba(45,212,191,.12)); color: var(--accent, #2dd4bf); }
-    .cchub-contextmenu hr { border: 0; border-top: 1px solid var(--border-subtle, #222); margin: 4px 0; }
+    .penates-contextmenu button:hover { background: var(--accent-muted, rgba(45,212,191,.12)); color: var(--accent, #2dd4bf); }
+    .penates-contextmenu hr { border: 0; border-top: 1px solid var(--border-subtle, #222); margin: 4px 0; }
     .file-row .rename-input {
       flex: 1; background: var(--bg-elevated); border: 1px solid var(--accent); color: var(--text-primary);
       padding: 1px 4px; font: inherit; border-radius: 3px;
@@ -4750,7 +4763,7 @@
       const bundles = window.__I18N_BUNDLES || { en: {}, de: {} };
       const DEFAULT_LANG = 'en';
       let currentLang = DEFAULT_LANG;
-      try { currentLang = localStorage.getItem('cchub_lang') || DEFAULT_LANG; } catch (_) {}
+      try { currentLang = localStorage.getItem('penates_lang') || DEFAULT_LANG; } catch (_) {}
       if (currentLang !== 'en' && currentLang !== 'de') currentLang = DEFAULT_LANG;
 
       function t(key, vars) {
@@ -4766,7 +4779,7 @@
         getLang() { return currentLang; },
         setLang(lang) {
           if (lang !== 'en' && lang !== 'de') return;
-          try { localStorage.setItem('cchub_lang', lang); } catch (_) {}
+          try { localStorage.setItem('penates_lang', lang); } catch (_) {}
           currentLang = lang;
           document.documentElement.lang = lang;
           // Task 8 callers should either reload the page (intended switch flow) or
@@ -5598,42 +5611,42 @@
   </div>
 
   <!-- Reusable Confirm-Dialog (Promise<boolean>) — themed Ersatz für confirm(). -->
-  <div class="modal-overlay" id="cchub-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-confirm-title">
+  <div class="modal-overlay" id="penates-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="penates-confirm-title">
     <div class="modal">
-      <h2 id="cchub-confirm-title"></h2>
-      <p id="cchub-confirm-body"></p>
+      <h2 id="penates-confirm-title"></h2>
+      <p id="penates-confirm-body"></p>
       <div class="modal-actions">
-        <button class="btn btn-ghost" type="button" id="cchub-confirm-cancel"></button>
-        <button class="btn btn-danger" type="button" id="cchub-confirm-ok"></button>
+        <button class="btn btn-ghost" type="button" id="penates-confirm-cancel"></button>
+        <button class="btn btn-danger" type="button" id="penates-confirm-ok"></button>
       </div>
     </div>
   </div>
 
   <!-- Reusable Choice-Dialog (Promise<key|null>) — n Buttons, Esc/Backdrop = null. -->
-  <div class="modal-overlay" id="cchub-choice-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-choice-title">
+  <div class="modal-overlay" id="penates-choice-modal" role="dialog" aria-modal="true" aria-labelledby="penates-choice-title">
     <div class="modal">
-      <h2 id="cchub-choice-title"></h2>
-      <p id="cchub-choice-body"></p>
-      <div class="modal-actions" id="cchub-choice-actions"></div>
+      <h2 id="penates-choice-title"></h2>
+      <p id="penates-choice-body"></p>
+      <div class="modal-actions" id="penates-choice-actions"></div>
     </div>
   </div>
 
   <!-- Reusable Input-Dialog (Promise<string|null>) — themed Ersatz für prompt(). -->
-  <div class="modal-overlay" id="cchub-input-modal" role="dialog" aria-modal="true" aria-labelledby="cchub-input-title">
+  <div class="modal-overlay" id="penates-input-modal" role="dialog" aria-modal="true" aria-labelledby="penates-input-title">
     <div class="modal">
-      <h2 id="cchub-input-title"></h2>
+      <h2 id="penates-input-title"></h2>
       <div class="form-group">
-        <label class="form-label" id="cchub-input-label" for="cchub-input-field"></label>
-        <input class="form-input" id="cchub-input-field" type="text" autocomplete="off" spellcheck="false">
-        <div id="cchub-input-error" style="color:var(--red);font-size:var(--text-xs);margin-top:var(--space-1);min-height:1em;"></div>
+        <label class="form-label" id="penates-input-label" for="penates-input-field"></label>
+        <input class="form-input" id="penates-input-field" type="text" autocomplete="off" spellcheck="false">
+        <div id="penates-input-error" style="color:var(--red);font-size:var(--text-xs);margin-top:var(--space-1);min-height:1em;"></div>
       </div>
-      <div class="form-group" id="cchub-input-select-group" hidden>
-        <label class="form-label" id="cchub-input-select-label" for="cchub-input-select"></label>
-        <select class="form-input" id="cchub-input-select"></select>
+      <div class="form-group" id="penates-input-select-group" hidden>
+        <label class="form-label" id="penates-input-select-label" for="penates-input-select"></label>
+        <select class="form-input" id="penates-input-select"></select>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" type="button" id="cchub-input-cancel"></button>
-        <button class="btn btn-primary" type="button" id="cchub-input-ok"></button>
+        <button class="btn btn-ghost" type="button" id="penates-input-cancel"></button>
+        <button class="btn btn-primary" type="button" id="penates-input-ok"></button>
       </div>
     </div>
   </div>
@@ -5841,7 +5854,7 @@
       var t = normalizeTheme(theme);
       document.documentElement.setAttribute('data-theme', t);
       document.documentElement.style.colorScheme = t;
-      if (persist) localStorage.setItem('cchub_theme', t);
+      if (persist) localStorage.setItem('penates_theme', t);
       if (currentTerminal) applyTerminalTheme(currentTerminal);
       if (typeof window._settingsAppearanceSync === 'function') window._settingsAppearanceSync();
     }
@@ -5850,9 +5863,9 @@
       setTheme(THEMES[(idx + 1) % THEMES.length]);
     }
     // Folge System-Theme, wenn User keine eigene Präferenz gesetzt hat.
-    if (!localStorage.getItem('cchub_theme')) {
+    if (!localStorage.getItem('penates_theme')) {
       matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
-        if (!localStorage.getItem('cchub_theme')) setTheme(e.matches ? 'latte' : 'mocha', false);
+        if (!localStorage.getItem('penates_theme')) setTheme(e.matches ? 'latte' : 'mocha', false);
       });
     }
 
@@ -5894,10 +5907,10 @@
 
     // ── Layout (D7) ────────────────────────────────────────────────
     function getLayout() {
-      return localStorage.getItem('cchub_layout') || 'grid';
+      return localStorage.getItem('penates_layout') || 'grid';
     }
     function setLayout(layout) {
-      localStorage.setItem('cchub_layout', layout);
+      localStorage.setItem('penates_layout', layout);
       const grid = document.getElementById('sessions-grid');
       grid.classList.toggle('layout-list', layout === 'list');
       document.getElementById('layout-grid-btn').classList.toggle('active', layout === 'grid');
@@ -5905,9 +5918,9 @@
     }
 
     // Projects-View: eigener Layout-/Sort-/Filter-State (getrennt vom Sessions-Grid).
-    function getProjectsLayout() { return localStorage.getItem('cchub_projects_layout') || 'grid'; }
+    function getProjectsLayout() { return localStorage.getItem('penates_projects_layout') || 'grid'; }
     function setProjectsLayout(layout) {
-      localStorage.setItem('cchub_projects_layout', layout);
+      localStorage.setItem('penates_projects_layout', layout);
       const grid = document.querySelector('#projects-view .project-list');
       if (grid) grid.classList.toggle('layout-list', layout === 'list');
       const g = document.getElementById('projects-layout-grid');
@@ -5915,8 +5928,8 @@
       if (g) g.classList.toggle('active', layout === 'grid');
       if (l) l.classList.toggle('active', layout === 'list');
     }
-    function getProjectsSort() { return localStorage.getItem('cchub_projects_sort') || 'name'; }
-    function getProjectsFilter() { return localStorage.getItem('cchub_projects_filter') || 'all'; }
+    function getProjectsSort() { return localStorage.getItem('penates_projects_sort') || 'name'; }
+    function getProjectsFilter() { return localStorage.getItem('penates_projects_filter') || 'all'; }
     function projectActiveSessions(p) {
       // running/foreign Sessions im cwd (dormant zählt nicht als „aktiv").
       return sessionsInProject(p.path).filter(s => s.status !== 'dormant').length;
@@ -6046,7 +6059,7 @@
     }
 
     // ── Top-Level-Nav (Sessions / Projekte / Usage) als eigene Views ───
-    const NAV_VIEW_KEY = 'cchub_nav_view';
+    const NAV_VIEW_KEY = 'penates_nav_view';
     function initialNavView() {
       try {
         const lv = window.Prefs && window.Prefs.get.landingView();
@@ -6059,12 +6072,12 @@
 
     // ── Client Preferences (Phase 2) ──────────────────────────────
     // Thin DOM/localStorage glue over the pure public/prefs.js module.
-    // Keys are namespaced cchub_pref_*. Getters coerce raw strings to valid
+    // Keys are namespaced penates_pref_*. Getters coerce raw strings to valid
     // typed values (clamped/validated) so a corrupt localStorage can't break
     // the app. apply*() hooks push a pref into its live consumer.
     const Prefs = (() => {
       let M = null;                       // the loaded prefs.js module
-      const K = (name) => 'cchub_pref_' + name;
+      const K = (name) => 'penates_pref_' + name;
       function raw(name) { try { return localStorage.getItem(K(name)); } catch { return null; } }
       function setRaw(name, v) { try { localStorage.setItem(K(name), String(v)); } catch {} }
 
@@ -6636,7 +6649,7 @@
     // Default AN (per User-Entscheidung). Browser-Autoplay blockiert
     // audio ohne vorherige User-Interaktion; wir unlocken den AudioContext
     // beim ersten Pointer/Keyboard-Event auf der Seite.
-    const SOUND_KEY = 'cchub_sound';
+    const SOUND_KEY = 'penates_sound';
     function soundEnabled() {
       const v = localStorage.getItem(SOUND_KEY);
       return v === null ? true : v === '1';
@@ -6734,7 +6747,7 @@
     // ── Sidebar-Filter ─────────────────────────────────────────────
     // Default 'active' = nur working+waiting (plus attached-Ausnahme).
     // 'all' = ungefiltert. Persistiert in localStorage.
-    const SIDEBAR_FILTER_KEY = 'cchub_sidebar_filter';
+    const SIDEBAR_FILTER_KEY = 'penates_sidebar_filter';
     function getSidebarFilter() {
       try {
         const v = localStorage.getItem(SIDEBAR_FILTER_KEY);
@@ -6855,7 +6868,7 @@
     // Natives Push über den Browser — Notification erscheint auch wenn
     // der Tab geschlossen ist. Setzt Service Worker + Push API voraus.
     // Settings push toggle wird via initSettingsPush() initialisiert.
-    const PUSH_KEY = 'cchub_push';
+    const PUSH_KEY = 'penates_push';
     let vapidPublicKey = null;
 
     // Helper: URL-safe Base64 → Uint8Array (VAPID applicationServerKey).
@@ -6876,7 +6889,7 @@
     // Persistente Device-ID pro Browser-Installation. Wird beim ersten Laden
     // generiert, dann unverändert in localStorage gehalten. Server nutzt sie,
     // um Push-Subscriptions einer Browser-Instanz zuzuordnen und Presence zu filtern.
-    const DEVICE_ID_KEY = 'cchub_device_id';
+    const DEVICE_ID_KEY = 'penates_device_id';
     function getDeviceId() {
       let id = localStorage.getItem(DEVICE_ID_KEY);
       if (!id) {
@@ -7205,7 +7218,7 @@
 
     // ── Project-Detail-View ────────────────────────────────────────
     // Collapse-Zustand pro Projekt+Sektion, render-getrieben (überlebt Re-Render).
-    const COLLAPSE_KEY = 'cchub_proj_collapsed';
+    const COLLAPSE_KEY = 'penates_proj_collapsed';
     function loadCollapsedMap() { try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '{}'); } catch { return {}; } }
     function isSectionCollapsed(id, section) { return !!loadCollapsedMap()[`${id}::${section}`]; }
     function setSectionCollapsed(id, section, val) {
@@ -8185,7 +8198,7 @@
     // Auth-Token: NICHT mehr hardcoded in den Page-Quellen, sondern aus
     // localStorage / prompt. Der Server liefert public/ ohne Auth-Check,
     // ein hardcoded Token wäre damit frei lesbar.
-    const TOKEN_KEY = 'cchub_token';
+    const TOKEN_KEY = 'penates_token';
     let AUTH_TOKEN = localStorage.getItem(TOKEN_KEY) || '';
     function ensureToken() {
       if (AUTH_TOKEN) return AUTH_TOKEN;
@@ -8226,7 +8239,7 @@
     // (Server-seitiger Attention-Event), landet im Unread-Set. Bleibt
     // drin bis der User die Session öffnet (connectToSession). Persistiert
     // in localStorage damit Page-Reloads den Zustand nicht verlieren.
-    const UNREAD_KEY = 'cchub_unread';
+    const UNREAD_KEY = 'penates_unread';
     const unreadSessions = new Set();
     (function loadUnread() {
       try {
@@ -8258,9 +8271,9 @@
 
     // ── Tab-Titel-Badge ──────────────────────────────────────────
     // Zeigt die Anzahl der unread Sessions im Browser-Tab-Titel als
-    // "(N) Claude Code Hub". Unread = working-State verlassen ohne
+    // "(N) Penates". Unread = working-State verlassen ohne
     // dass der User die Session seitdem geöffnet hat.
-    const BASE_TITLE = 'Claude Code Hub';
+    const BASE_TITLE = 'Penates';
     function updateTabBadge() {
       const n = unreadSessions.size;
       document.title = n > 0 ? `(${n}) ${BASE_TITLE}` : BASE_TITLE;
@@ -8322,20 +8335,20 @@
     }
 
     // ── Fetch sessions ───────────────────────────────────────────
-    // Server-Boot-Zeit, die wir zuletzt im X-CCH-Boot-Header gesehen haben.
+    // Server-Boot-Zeit, die wir zuletzt im X-Penates-Boot-Header gesehen haben.
     // Wird in refreshSessions() verglichen — Mismatch = Server wurde neu
     // gestartet, wir reloaden uns selbst damit kein stale Client-JS weiterläuft.
     let lastServerBoot = null;
     function checkServerBoot(res) {
-      const boot = res.headers.get('X-CCH-Boot');
+      const boot = res.headers.get('X-Penates-Boot');
       if (!boot) return;
       if (lastServerBoot === null) { lastServerBoot = boot; return; }
       if (boot !== lastServerBoot) {
         // Cooldown via sessionStorage damit wir nicht in eine Reload-Schleife
         // kommen falls der Server flappt.
-        const lastReload = sessionStorage.getItem('cchub_reload_at');
+        const lastReload = sessionStorage.getItem('penates_reload_at');
         if (lastReload && Date.now() - Number(lastReload) < 3000) return;
-        sessionStorage.setItem('cchub_reload_at', String(Date.now()));
+        sessionStorage.setItem('penates_reload_at', String(Date.now()));
         location.reload();
       }
     }
@@ -8776,8 +8789,8 @@
     // morph alle Listeners neu binden).
     (function bindGridDelegation() {
       const grid = document.getElementById('sessions-grid');
-      if (!grid || grid._cchubDelegated) return;
-      grid._cchubDelegated = true;
+      if (!grid || grid._penatesDelegated) return;
+      grid._penatesDelegated = true;
       grid.addEventListener('click', async (e) => {
         const card = e.target.closest('.session-card');
         if (!card) return;
@@ -9171,7 +9184,7 @@
       // Test-Hook für Playwright (tests/terminal.spec.js + tests/terminal-clipboard.spec.js). Single-User-App,
       // kein Security-Risiko — ein Angreifer mit JS-Kontext hat ohnehin
       // schon alles was er braucht.
-      window.__cchubTerm = term;
+      window.__penatesTerm = term;
 
       // Paste-Handling: Nur Bild-Pastes fangen wir ab und routen sie in den
       // ImageAnnotator. Text-Paste lassen wir durchfallen zu xterms nativem
@@ -9310,9 +9323,9 @@
         term.focus();
 
         // Once-per-user hint for the 6.0 baseline copy UX.
-        if (!localStorage.getItem('cchub_hint_copy_seen')) {
+        if (!localStorage.getItem('penates_hint_copy_seen')) {
           showToast(t('toast.copyHint'), 'info');
-          localStorage.setItem('cchub_hint_copy_seen', '1');
+          localStorage.setItem('penates_hint_copy_seen', '1');
         }
       });
     }
@@ -10090,7 +10103,7 @@
     // Official Gemini "spark" mark with the brand blue→purple→pink gradient.
     // Not in clis.js (that registry is spawnable CLIs only); used as the icon
     // for a 'gemini' usage provider via usageAgentMeta().
-    const GEMINI_LOGO = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="cchGeminiMark" x1="2" y1="4" x2="22" y2="20" gradientUnits="userSpaceOnUse"><stop stop-color="#4285F4"/><stop offset=".5" stop-color="#9B72CB"/><stop offset="1" stop-color="#D96570"/></linearGradient></defs><path fill="url(#cchGeminiMark)" d="M12 24A14.304 14.304 0 0 0 0 12 14.304 14.304 0 0 0 12 0a14.305 14.305 0 0 0 12 12 14.305 14.305 0 0 0-12 12Z"/></svg>';
+    const GEMINI_LOGO = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="penatesGeminiMark" x1="2" y1="4" x2="22" y2="20" gradientUnits="userSpaceOnUse"><stop stop-color="#4285F4"/><stop offset=".5" stop-color="#9B72CB"/><stop offset="1" stop-color="#D96570"/></linearGradient></defs><path fill="url(#penatesGeminiMark)" d="M12 24A14.304 14.304 0 0 0 0 12 14.304 14.304 0 0 0 12 0a14.305 14.305 0 0 0 12 12 14.305 14.305 0 0 0-12 12Z"/></svg>';
     function cardCliLogo(command) {
       let svg = TERMINAL_GLYPH;
       let cls = 'cli-logo cli-logo--fallback';
@@ -10387,11 +10400,11 @@
     // showConfirmDialog → Promise<boolean>; Esc/Backdrop = false, Enter = true.
     function showConfirmDialog({ title, body, confirmLabel, cancelLabel, danger = true } = {}) {
       return new Promise((resolve) => {
-        const overlay = document.getElementById('cchub-confirm-modal');
-        const okBtn = document.getElementById('cchub-confirm-ok');
-        const cancelBtn = document.getElementById('cchub-confirm-cancel');
-        document.getElementById('cchub-confirm-title').textContent = title || '';
-        document.getElementById('cchub-confirm-body').textContent = body || '';
+        const overlay = document.getElementById('penates-confirm-modal');
+        const okBtn = document.getElementById('penates-confirm-ok');
+        const cancelBtn = document.getElementById('penates-confirm-cancel');
+        document.getElementById('penates-confirm-title').textContent = title || '';
+        document.getElementById('penates-confirm-body').textContent = body || '';
         okBtn.textContent = confirmLabel || t('dialog.confirm');
         cancelBtn.textContent = cancelLabel || t('dialog.cancel');
         okBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
@@ -10424,16 +10437,16 @@
     // Esc/Backdrop = null. validate(value) → null|string (Fehlertext).
     function showInputDialog({ title, label, value = '', placeholder = '', confirmLabel, cancelLabel, validate, select = null } = {}) {
       return new Promise((resolve) => {
-        const overlay = document.getElementById('cchub-input-modal');
-        const field = document.getElementById('cchub-input-field');
-        const errEl = document.getElementById('cchub-input-error');
-        const okBtn = document.getElementById('cchub-input-ok');
-        const cancelBtn = document.getElementById('cchub-input-cancel');
-        const selGroup = document.getElementById('cchub-input-select-group');
-        const selEl = document.getElementById('cchub-input-select');
-        const selLabel = document.getElementById('cchub-input-select-label');
-        document.getElementById('cchub-input-title').textContent = title || '';
-        document.getElementById('cchub-input-label').textContent = label || '';
+        const overlay = document.getElementById('penates-input-modal');
+        const field = document.getElementById('penates-input-field');
+        const errEl = document.getElementById('penates-input-error');
+        const okBtn = document.getElementById('penates-input-ok');
+        const cancelBtn = document.getElementById('penates-input-cancel');
+        const selGroup = document.getElementById('penates-input-select-group');
+        const selEl = document.getElementById('penates-input-select');
+        const selLabel = document.getElementById('penates-input-select-label');
+        document.getElementById('penates-input-title').textContent = title || '';
+        document.getElementById('penates-input-label').textContent = label || '';
         okBtn.textContent = confirmLabel || t('dialog.ok');
         cancelBtn.textContent = cancelLabel || t('dialog.cancel');
         field.value = value;
@@ -10483,10 +10496,10 @@
     // showConfirmDialog, aber mit n Buttons. choices = [{ key, label, danger? }].
     function showChoiceDialog({ title, body, choices = [] } = {}) {
       return new Promise((resolve) => {
-        const overlay = document.getElementById('cchub-choice-modal');
-        const actions = document.getElementById('cchub-choice-actions');
-        document.getElementById('cchub-choice-title').textContent = title || '';
-        document.getElementById('cchub-choice-body').textContent = body || '';
+        const overlay = document.getElementById('penates-choice-modal');
+        const actions = document.getElementById('penates-choice-actions');
+        document.getElementById('penates-choice-title').textContent = title || '';
+        document.getElementById('penates-choice-body').textContent = body || '';
         actions.innerHTML = '';
         let settled = false;
         const cleanup = () => {
@@ -10863,11 +10876,11 @@
     document.getElementById('projects-layout-grid')?.addEventListener('click', () => { setProjectsLayout('grid'); });
     document.getElementById('projects-layout-list')?.addEventListener('click', () => { setProjectsLayout('list'); });
     document.getElementById('projects-sort')?.addEventListener('change', (e) => {
-      localStorage.setItem('cchub_projects_sort', e.target.value);
+      localStorage.setItem('penates_projects_sort', e.target.value);
       renderProjects();
     });
     document.getElementById('projects-filter')?.addEventListener('change', (e) => {
-      localStorage.setItem('cchub_projects_filter', e.target.value);
+      localStorage.setItem('penates_projects_filter', e.target.value);
       renderProjects();
     });
     updateSoundToggleUi();
@@ -11347,11 +11360,11 @@
           }
           clearTimeout(timer);
           try {
-            const keep = 'cchub_token';
+            const keep = 'penates_token';
             const doomed = [];
             for (let i = 0; i < localStorage.length; i++) {
               const k = localStorage.key(i);
-              if (k && k.startsWith('cchub_') && k !== keep) doomed.push(k);
+              if (k && k.startsWith('penates_') && k !== keep) doomed.push(k);
             }
             doomed.forEach(k => localStorage.removeItem(k));
           } catch {}
@@ -11657,11 +11670,11 @@
 
     // ── Init ─────────────────────────────────────────────────────
     // Einmaliger Cleanup: die früheren globalen Open-State-Keys sind durch
-    // per-Session-Keys (cchub_files_sidebar_open:<s> / cchub_preview_open:<s>)
+    // per-Session-Keys (penates_files_sidebar_open:<s> / penates_preview_open:<s>)
     // ersetzt — die alten Globals als Leichen entfernen (idempotent).
     try {
-      localStorage.removeItem('cchub_files_sidebar_open');
-      localStorage.removeItem('cchub_preview_open');
+      localStorage.removeItem('penates_files_sidebar_open');
+      localStorage.removeItem('penates_preview_open');
     } catch {}
     setLayout(getLayout());
     renderSkeleton();
@@ -12135,9 +12148,9 @@
       let sidebarOpen = false;
       let stateSession = null; // active session for the per-session open/closed memory
       const openFolders = new Set();
-      const storageKey = (id) => `cchub_files_open_${id}`;
-      const openKey = (s) => `cchub_files_sidebar_open:${s || ''}`; // per-session open/closed memory
-      const WIDTH_KEY = 'cchub_files_width';
+      const storageKey = (id) => `penates_files_open_${id}`;
+      const openKey = (s) => `penates_files_sidebar_open:${s || ''}`; // per-session open/closed memory
+      const WIDTH_KEY = 'penates_files_width';
 
       // WS live-sync state
       let ws = null;
@@ -12279,12 +12292,12 @@
       }
 
       function authHdr() {
-        const t = AUTH_TOKEN || localStorage.getItem('cchub_token') || '';
+        const t = AUTH_TOKEN || localStorage.getItem('penates_token') || '';
         return { Authorization: `Bearer ${t}` };
       }
 
       // ── Filter-Prefs (localStorage, global) ──────────────────────
-      const FILTER_KEYS = { hideIgnored: 'cchub_files_hide_ignored', showHidden: 'cchub_files_show_hidden' };
+      const FILTER_KEYS = { hideIgnored: 'penates_files_hide_ignored', showHidden: 'penates_files_show_hidden' };
       function getFilterPref(key, dflt) {
         try { const v = localStorage.getItem(FILTER_KEYS[key]); return v == null ? dflt : v === '1'; }
         catch { return dflt; }
@@ -12339,7 +12352,7 @@
         btn.draggable = true;
         btn.addEventListener('dragstart', (e) => {
           const rel = btn.dataset.path + (entry.type === 'dir' ? '/' : '');
-          e.dataTransfer.setData('application/x-cchub-path', rel);
+          e.dataTransfer.setData('application/x-penates-path', rel);
           e.dataTransfer.setData('text/plain', '@' + rel + ' ');
           // copyMove deckt beide Drop-Ziele ab: Terminal-@-Mention (dropEffect
           // 'copy') und In-Tree-Move/Copy (move bzw. copy mit ⌥/Ctrl).
@@ -12618,7 +12631,7 @@
       function openFilterMenu(anchor) {
         document.querySelector('.files-filter-menu')?.remove();
         const menu = document.createElement('div');
-        menu.className = 'cchub-contextmenu files-filter-menu';
+        menu.className = 'penates-contextmenu files-filter-menu';
         const rect = anchor.getBoundingClientRect();
         menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
         menu.style.top = rect.bottom + 4 + 'px';
@@ -12802,7 +12815,7 @@
       function wireTreeDnD() {
         const tree = document.getElementById('files-tree');
         if (!tree) return;
-        const PATH_TYPE = 'application/x-cchub-path';
+        const PATH_TYPE = 'application/x-penates-path';
         const clearHighlights = () =>
           document.querySelectorAll('.file-row.drop-target').forEach(r => r.classList.remove('drop-target'));
 
@@ -12887,15 +12900,15 @@
 
     // ── Browser-Preview: Split-Panel rechts vom Terminal (Reverse-Proxy-iframe) ──
     const PreviewPanel = (() => {
-      const WIDTH_KEY = 'cchub_preview_width';
-      const openKey = (s) => `cchub_preview_open:${s || ''}`;  // per-session open/closed memory
-      const portKey = (s) => `cchub_preview_port:${s || ''}`;
+      const WIDTH_KEY = 'penates_preview_width';
+      const openKey = (s) => `penates_preview_open:${s || ''}`;  // per-session open/closed memory
+      const portKey = (s) => `penates_preview_port:${s || ''}`;
       let config = null;                            // { enabled, host, activePort }
       let ports = [];                               // [{port, process}]
       let sessionName = null;
       let open = false;
       let wired = false;
-      const srcKey = (s) => `cchub_preview_source:${s || ''}`;  // per-session source memory
+      const srcKey = (s) => `penates_preview_source:${s || ''}`;  // per-session source memory
       let source = 'dev';                            // 'dev' | 'mata'
       let mataStatus = null;                         // { installed, running, portOpen, ... }
 
@@ -12981,7 +12994,7 @@
       // Fixer Host; der Port-Query erzwingt nur ein Reload des iframes beim Wechsel
       // (der Dev-Server ignoriert unbekannte Query-Params).
       function iframeUrl(port) {
-        return `https://${config.host}/?__cchub=${port}`;
+        return `https://${config.host}/?__penates=${port}`;
       }
 
       // Single-Host-Modell: erst dem Hub sagen, welcher Port hinter dem fixen
@@ -13095,8 +13108,8 @@
         } catch { mataStatus = { installed: false, running: false, portOpen: false }; }
         return mataStatus;
       }
-      // Mata-Viewer-Pfad ist /session (vs Dev-Server /). __cchub erzwingt iframe-Reload.
-      function mataIframeUrl() { return `https://${config.host}/session?__cchub=mata`; }
+      // Mata-Viewer-Pfad ist /session (vs Dev-Server /). __penates erzwingt iframe-Reload.
+      function mataIframeUrl() { return `https://${config.host}/session?__penates=mata`; }
 
       async function startMata() {
         showState({ title: t('preview.mata.startingTitle'), body: t('preview.mata.startingBody') });
@@ -13711,7 +13724,7 @@
       const MAX_SEC = 60;
 
       function authHdr() {
-        const tok = AUTH_TOKEN || localStorage.getItem('cchub_token') || '';
+        const tok = AUTH_TOKEN || localStorage.getItem('penates_token') || '';
         return tok ? { Authorization: `Bearer ${tok}` } : {};
       }
       function btn() { return document.getElementById('voice-btn'); }
@@ -13889,7 +13902,7 @@
     const MataCapture = (() => {
       let installed = false;
       function authHdr() {
-        const tok = AUTH_TOKEN || localStorage.getItem('cchub_token') || '';
+        const tok = AUTH_TOKEN || localStorage.getItem('penates_token') || '';
         return tok ? { Authorization: `Bearer ${tok}` } : {};
       }
       function btn() { return document.getElementById('mata-capture-btn'); }
@@ -13935,8 +13948,8 @@
     // exclusive mit der Browser-Preview (eigener Slot), intern nur Tabs.
     const RepoPanel = (() => {
       const el = (id) => document.getElementById(id);
-      const TAB_KEY = 'cchub_repo_tab';
-      const WIDTH_KEY = 'cchub_repo_width';
+      const TAB_KEY = 'penates_repo_tab';
+      const WIDTH_KEY = 'penates_repo_width';
       const TABS = ['files', 'changes', 'history', 'branches'];
       let sessionName = null;
       let activeTab = (() => { try { return localStorage.getItem(TAB_KEY) || 'files'; } catch { return 'files'; } })();
@@ -13947,7 +13960,7 @@
         if (v) { try { window.PreviewPanel?.close?.(); } catch {} } // Repo vs Preview exklusiv
         el('repo-panel').classList.toggle('open', v);
         const rz = el('repo-resizer'); if (rz) rz.style.display = v ? '' : 'none';
-        try { localStorage.setItem(`cchub_repo_open:${sessionName || ''}`, v ? '1' : '0'); } catch {}
+        try { localStorage.setItem(`penates_repo_open:${sessionName || ''}`, v ? '1' : '0'); } catch {}
       }
 
       function setHeader({ cwd, branch, sha, stats } = {}) {
@@ -14002,7 +14015,7 @@
         sessionName = name;
         const btn = el('btn-toggle-repo');
         if (btn) btn.style.display = '';
-        const wasOpen = (() => { try { return localStorage.getItem(`cchub_repo_open:${name}`) === '1'; } catch { return false; } })();
+        const wasOpen = (() => { try { return localStorage.getItem(`penates_repo_open:${name}`) === '1'; } catch { return false; } })();
         if (wasOpen) open(name, activeTab);
         else showPanel(false);
       }
@@ -14221,7 +14234,7 @@
       let currentSession = null, currentFiles = [], selectedPath = null;
       let ws = null, refetchTimer = null;
       let stateSession = null;
-      let viewMode = (() => { try { return localStorage.getItem('cchub_changes_mode') || 'list'; } catch { return 'list'; } })(); // 'list' | 'diff'
+      let viewMode = (() => { try { return localStorage.getItem('penates_changes_mode') || 'list'; } catch { return 'list'; } })(); // 'list' | 'diff'
       let source = { kind: 'worktree', sha: null, subject: null };   // 'worktree' | 'commit'
       const el = (id) => document.getElementById(id);
 
@@ -14265,7 +14278,7 @@
       }
       function setViewMode(m) {
         viewMode = (m === 'diff') ? 'diff' : 'list';
-        try { localStorage.setItem('cchub_changes_mode', viewMode); } catch {}
+        try { localStorage.setItem('penates_changes_mode', viewMode); } catch {}
         applyViewMode();
       }
 
@@ -14695,7 +14708,7 @@
       function showMenu(x, y, items) {
         closeMenu();
         menuEl = document.createElement('div');
-        menuEl.className = 'cchub-contextmenu';
+        menuEl.className = 'penates-contextmenu';
         menuEl.style.left = Math.min(x, window.innerWidth - 200) + 'px';
         menuEl.style.top = Math.min(y, window.innerHeight - 300) + 'px';
         for (const it of items) {
@@ -15130,7 +15143,7 @@
 
       // Zwei Drop-Quellen: OS-Dateien ('Files' → Upload) und interner Tree-Drag
       // (PATH_TYPE → @-Mention). dtKind unterscheidet beide; null = ignorieren.
-      const PATH_TYPE = 'application/x-cchub-path';
+      const PATH_TYPE = 'application/x-penates-path';
       const dtKind = (e) => {
         const ty = e.dataTransfer && e.dataTransfer.types;
         if (!ty) return null;

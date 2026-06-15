@@ -10,7 +10,7 @@ import { spawn } from 'node-pty';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve, sep } from 'path';
-import { readdirSync, readFileSync, writeFileSync, accessSync } from 'fs';
+import { readdirSync, readFileSync, writeFileSync, accessSync, existsSync, renameSync } from 'fs';
 import { createChecker } from './lib/update-check.js';
 import {
   createUpdates, canSelfUpdate, isExecutable, updateCommandFor, updateSessionName,
@@ -69,6 +69,21 @@ import * as voice from './lib/voice.js';
 import { listListeningPorts } from './lib/port-scan.js';
 import * as mata from './lib/mata.js';
 import { computePace, windowMinutes } from './lib/pace.js';
+
+// ── One-time rebrand migration: ~/.claude-code-hub → ~/.penates ──────────────
+// Preserves live state (board, usage history, push subscriptions, known
+// sessions, audit log, hook.env, models) when upgrading from the pre-Penates
+// data layout. Runs before any module touches the data dir at boot.
+try {
+  const _legacyDir = join(homedir(), '.claude-code-hub');
+  const _penatesDir = join(homedir(), '.penates');
+  if (existsSync(_legacyDir) && !existsSync(_penatesDir)) {
+    renameSync(_legacyDir, _penatesDir);
+    console.log('[penates] migrated ~/.claude-code-hub → ~/.penates');
+  }
+} catch (err) {
+  console.error('[penates] data-dir migration skipped:', err.message);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -216,7 +231,7 @@ app.use((req, res, next) => {
 // (externe Script-Injection, Daten-Exfil) gedeckelt sind. `connect-src`
 // erlaubt ws/wss zum eigenen Host für den Terminal-WebSocket.
 // START_TIME dient doppelt: Uptime-Rechnung in /healthz und Client-Reload-
-// Detektion via X-CCH-Boot-Header (siehe Security-Middleware).
+// Detektion via X-Penates-Boot-Header (siehe Security-Middleware).
 const START_TIME = Date.now();
 
 const CSP = [
@@ -240,7 +255,7 @@ app.use((_req, res, next) => {
   // bei jedem Poll gegen den zuletzt gesehenen Wert und reloaded sich
   // selbst wenn er einen neuen Server-Start erkennt. Billiger als ein
   // eigener Handshake und natural-resilient gegen Netzwerk-Aussetzer.
-  res.setHeader('X-CCH-Boot', String(START_TIME));
+  res.setHeader('X-Penates-Boot', String(START_TIME));
   next();
 });
 
@@ -292,7 +307,7 @@ app.use(express.static(join(__dirname, 'public')));
 //
 // Beide Fehlermodi schreiben auth.fail-Events ins audit-log. Erster JWT
 // einer neuen Access-Session schreibt auth.login einmalig.
-// req.cchContext bekommt {user, ip, cfRay, userAgent} für Downstream.
+// req.penatesContext bekommt {user, ip, cfRay, userAgent} für Downstream.
 //
 // Akzeptiert drei Bearer-Token-Quellen:
 //   1. `Authorization: Bearer <token>` (Standard-REST)
@@ -313,7 +328,7 @@ function extractToken(req) {
 }
 
 async function secureMiddleware(req, res, next) {
-  // Meta früh extrahieren — req.cchContext existiert noch nicht, also
+  // Meta früh extrahieren — req.penatesContext existiert noch nicht, also
   // ziehen wir die Rohwerte. Wird nach erfolgreicher Auth durch context
   // mit user angereichert.
   const rawMeta = {
@@ -355,7 +370,7 @@ async function secureMiddleware(req, res, next) {
       if (req.method === 'POST' &&
           /^\/approvals\/[0-9a-f-]{36}$/.test(req.path) &&
           req.query.token) {
-        req.cchContext = { ...rawMeta, user: jwtUser };
+        req.penatesContext = { ...rawMeta, user: jwtUser };
         return next();
       }
       await auditLog.record('auth.fail', {
@@ -368,7 +383,7 @@ async function secureMiddleware(req, res, next) {
   }
 
   // Auth OK → Kontext setzen für Downstream-Handler
-  req.cchContext = { ...rawMeta, user: jwtUser };
+  req.penatesContext = { ...rawMeta, user: jwtUser };
   next();
 }
 // VAPID-Public-Key ist öffentlich — kein Auth. Browser brauchen ihn vor dem
@@ -611,7 +626,7 @@ async function resolveFileSource(id) {
 // Injiziert beim tmux new-session Variablen, damit der Claude-Hook (in
 // ~/.claude/settings.json) per curl an /api/hooks/:event POSTen kann.
 // Fehlende Werte werden weggelassen — der Hook-curl fällt dann auf `|| true`.
-// CC_HUB_SESSION wird im Claude-Child-Prozess beim tmux new-session gesetzt
+// PENATES_SESSION wird im Claude-Child-Prozess beim tmux new-session gesetzt
 // und bleibt auch nach einem späteren tmux rename-session auf dem Original-
 // namen. Diese Map mappt die vom Hook gemeldete Env-ID auf den aktuell in
 // tmux sichtbaren Namen — sonst würden Hook-Events ins Leere laufen.
@@ -630,10 +645,10 @@ function aliasOnRename(oldName, newName) {
 
 function hubEnvArgs(sessionName) {
   const args = [
-    '-e', `CC_HUB_SESSION=${sessionName}`,
-    '-e', `CC_HUB_URL=http://127.0.0.1:${PORT}`,
+    '-e', `PENATES_SESSION=${sessionName}`,
+    '-e', `PENATES_URL=http://127.0.0.1:${PORT}`,
   ];
-  if (AUTH_TOKEN) args.push('-e', `CC_HUB_TOKEN=${AUTH_TOKEN}`);
+  if (AUTH_TOKEN) args.push('-e', `PENATES_TOKEN=${AUTH_TOKEN}`);
   return args;
 }
 
@@ -842,7 +857,7 @@ app.get('/api/recent-dirs', (req, res) => {
 });
 
 // ── Projekt-Verwaltung (Phase 1 Step 2b) ──────────────────────────────
-// Quelle: ~/.claude-code-hub/projects.json + ROADMAP.md pro Projekt.
+// Quelle: ~/.penates/projects.json + ROADMAP.md pro Projekt.
 // Registry ist ein Long-Lived-Singleton in lib/projects.js. Writes gehen
 // durch mutateRegistry (withFileLock + Clone+Swap), Mutationen an einzelnen
 // ROADMAP.md-Dateien durch mutateRoadmap (withFileLock, fresh inside-lock).
@@ -1542,15 +1557,15 @@ app.post('/api/browse/mkdir', (req, res) => {
 // 409-Existenz. Wirft bei new-session-Fehler oder Sofort-Exit.
 //
 // promptText (optional): initialer Prompt für die CLI. Transport via tmux -e
-// CCH_PRIME_PROMPT=<text> (argv-Array → kein Shell-Parsing des Inhalts); das
-// Shell-Command hängt nur die Referenz "$CCH_PRIME_PROMPT" an, die die Shell
+// PENATES_PRIME_PROMPT=<text> (argv-Array → kein Shell-Parsing des Inhalts); das
+// Shell-Command hängt nur die Referenz "$PENATES_PRIME_PROMPT" an, die die Shell
 // zu EINEM Argument expandiert. known-sessions + Audit-Log speichern bewusst
 // das nackte cmd — ein Dormant-Respawn läuft ohne den (dann stale) Prompt.
 async function spawnTmuxSession({ sessionName, dir, cmd, promptText, auditMeta = {} }) {
   const envArgs = hubEnvArgs(sessionName);
   let shellCmd = cmd;
   if (promptText) {
-    envArgs.push('-e', `CCH_PRIME_PROMPT=${promptText}`);
+    envArgs.push('-e', `PENATES_PRIME_PROMPT=${promptText}`);
     shellCmd = promptedSpawnCommand(cmd);
   }
   execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...envArgs, '-c', dir, shellCmd], {
@@ -1815,7 +1830,7 @@ app.get('/api/sessions/:name/file-content', async (req, res) => {
 const imageBody = express.raw({ type: 'image/png', limit: '8mb' });
 
 // POST /api/sessions/:name/image — speichert ein einzelnes PNG in
-// <cwd>/.cch-images/ und liefert den cwd-relativen Pfad für die @-Mention.
+// <cwd>/.penates-images/ und liefert den cwd-relativen Pfad für die @-Mention.
 // Body = rohes image/png (≤8 MB). writeLimiter (global) deckt das Rate-Limit ab.
 app.post('/api/sessions/:name/image', imageBody, (req, res) => {
   const name = req.params.name;
@@ -1843,7 +1858,7 @@ app.use('/api/sessions/:name/image', (err, req, res, next) => {
   next(err);
 });
 
-// POST /api/sessions/:name/mata-capture — Simulator-Frame → .cch-images/ → @-Mention.
+// POST /api/sessions/:name/mata-capture — Simulator-Frame → .penates-images/ → @-Mention.
 // Reuse session-images.saveSessionImage; identische @-Inject-Pipeline wie Image-Paste.
 app.post('/api/sessions/:name/mata-capture', async (req, res) => {
   const name = req.params.name;
@@ -2327,7 +2342,7 @@ app.patch('/api/settings', express.json(), async (req, res) => {
 });
 
 // ── Server control (restart / logs / force update-check) ──────────────────────
-const LAUNCHD_LABEL = process.env.LAUNCHAGENT_ID || 'com.claude-code-hub';
+const LAUNCHD_LABEL = process.env.LAUNCHAGENT_ID || 'com.penates';
 
 app.post('/api/server/restart', (req, res) => {
   const target = serverControl.buildLaunchdTarget(process.getuid(), LAUNCHD_LABEL);
@@ -2441,7 +2456,7 @@ app.post('/api/approvals/:id', express.json(), (req, res) => {
 // ── Claude-Code Hooks ────────────────────────────────────────────────────────
 // Claude feuert in ~/.claude/settings.json konfigurierte Hooks für Events
 // wie Stop/Notification/UserPromptSubmit. Jedes Hook-Script POSTet hier
-// hin mit X-CC-Hub-Session (aus tmux-env CC_HUB_SESSION). Ergebnis: <100ms
+// hin mit X-Penates-Session (aus tmux-env PENATES_SESSION). Ergebnis: <100ms
 // State-Update ohne Regex-Parsing. Auth läuft über die /api-Middleware.
 const HOOK_EVENTS = new Set([
   'UserPromptSubmit', 'Stop', 'SubagentStop', 'Notification',
@@ -2463,11 +2478,11 @@ const hookBody = express.raw({ type: '*/*', limit: '1mb' });
 // von Claude Code. Muss VOR dem generischen :event-Handler stehen, damit
 // Express nicht `:event = "statusline"` matcht.
 app.post('/api/hooks/statusline', hookBody, (req, res) => {
-  const envName = req.get('X-CC-Hub-Session');
+  const envName = req.get('X-Penates-Session') || req.get('X-CC-Hub-Session');
   // Wie die anderen Hook-Routen: Format validieren, sonst landet ein beliebiger
   // (ggf. Control-Char-/Multi-KB-) String als Map-Key + JSONL-Feld.
   if (!envName || !SESSION_NAME_RE.test(envName)) {
-    return res.status(400).json({ error: 'Missing or invalid X-CC-Hub-Session' });
+    return res.status(400).json({ error: 'Missing or invalid X-Penates-Session' });
   }
   let data = {};
   if (Buffer.isBuffer(req.body) && req.body.length > 0) {
@@ -2495,9 +2510,9 @@ app.post('/api/hooks/statusline', hookBody, (req, res) => {
 // routen (Long-Poll). Antwort = hookSpecificOutput-JSON (allow/deny) oder leer
 // (defer → normaler Permission-Flow).
 app.post('/api/hooks/pre-tool-use', hookBody, (req, res) => {
-  const envName = req.get('X-CC-Hub-Session');
+  const envName = req.get('X-Penates-Session') || req.get('X-CC-Hub-Session');
   if (!envName || !SESSION_NAME_RE.test(envName)) {
-    return res.status(400).json({ error: 'Missing or invalid X-CC-Hub-Session' });
+    return res.status(400).json({ error: 'Missing or invalid X-Penates-Session' });
   }
   const name = resolveHookSession(envName);
 
@@ -2529,7 +2544,7 @@ app.post('/api/hooks/pre-tool-use', hookBody, (req, res) => {
         hookEventName: 'PreToolUse',
         permissionDecision: decision,
         permissionDecisionReason: decision === 'allow'
-          ? 'Approved via Claude Code Hub' : 'Denied via Claude Code Hub',
+          ? 'Approved via Penates' : 'Denied via Penates',
       }});
     } else {
       res.status(200).end(); // defer
@@ -2563,9 +2578,9 @@ function approvalPreview(tool, input) {
 
 app.post('/api/hooks/:event', hookBody, (req, res) => {
   const { event } = req.params;
-  const envName = req.get('X-CC-Hub-Session');
+  const envName = req.get('X-Penates-Session') || req.get('X-CC-Hub-Session');
   if (!envName || !SESSION_NAME_RE.test(envName)) {
-    return res.status(400).json({ error: 'Missing or invalid X-CC-Hub-Session' });
+    return res.status(400).json({ error: 'Missing or invalid X-Penates-Session' });
   }
   if (event === 'PostToolUse') {
     if (envName && SESSION_NAME_RE.test(envName)) {
@@ -2775,7 +2790,7 @@ setInterval(() => updateChecker.check(), 12 * 60 * 60 * 1000).unref();
 
 // ── Start + Graceful Shutdown ───────────────────────────────────────────────
 const server = app.listen(PORT, async () => {
-  console.log(`\n  ⚡ Claude Code Hub running at http://localhost:${PORT}\n`);
+  console.log(`\n  ⚡ Penates running at http://localhost:${PORT}\n`);
   try {
     await knownSessions.load();
     console.log(`  ▸ known-sessions: ${knownSessions.list().length} entries loaded`);

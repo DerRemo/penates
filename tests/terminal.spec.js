@@ -19,7 +19,7 @@ test.describe('Terminal', () => {
 
     await page.waitForTimeout(1_000);
     const terminalText = await page.evaluate(() => {
-      const term = window.__cchubTerm;
+      const term = window.__penatesTerm;
       if (!term) return '';
       const buf = term.buffer.active;
       let text = '';
@@ -36,10 +36,10 @@ test.describe('Terminal', () => {
     await navigateToSession(page, hubSession.name);
     await waitForTerminal(page);
 
-    const colsBefore = await page.evaluate(() => window.__cchubTerm?.cols);
+    const colsBefore = await page.evaluate(() => window.__penatesTerm?.cols);
     await page.setViewportSize({ width: 800, height: 600 });
     await page.waitForTimeout(1_000);
-    const colsAfter = await page.evaluate(() => window.__cchubTerm?.cols);
+    const colsAfter = await page.evaluate(() => window.__penatesTerm?.cols);
 
     if (colsBefore && colsAfter) {
       expect(colsAfter).not.toBe(colsBefore);

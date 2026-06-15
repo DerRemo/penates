@@ -6,7 +6,7 @@ import { join } from 'path';
 const HOME = homedir();
 // Use a unique parent so test runs don't collide.
 function tmpName(label) {
-  return `cchub-e2e-mkdir-${label}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  return `penates-e2e-mkdir-${label}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 }
 
 test.describe('New-session mkdir', () => {
@@ -59,7 +59,7 @@ test.describe('New-session mkdir', () => {
     await page.click('#tree-mkdir-btn');
 
     const input = page.locator('.tree-row-new input');
-    await input.fill('cchub-e2e-should-not-exist-' + Date.now());
+    await input.fill('penates-e2e-should-not-exist-' + Date.now());
     await input.press('Escape');
 
     await expect(page.locator('.tree-row-new')).toHaveCount(0);

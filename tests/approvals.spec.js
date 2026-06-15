@@ -43,7 +43,7 @@ test.describe('Approvals + Activity', () => {
     await notifyWs.waitForEvent('framereceived', { timeout: 8_000 }).catch(() => {});
 
     const poll = request.post('/api/hooks/pre-tool-use', {
-      headers: { Authorization: `Bearer ${TOKEN}`, 'X-CC-Hub-Session': SESSION, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${TOKEN}`, 'X-Penates-Session': SESSION, 'Content-Type': 'application/json' },
       data: { tool_name: 'Bash', permission_mode: 'default', tool_input: { command: 'rm -rf build' } },
       timeout: 30_000,
     });
@@ -61,7 +61,7 @@ test.describe('Approvals + Activity', () => {
 
   test('yolo-Modus wird sofort gedefert (kein Prompt, leerer Body)', async ({ request }) => {
     const resp = await request.post('/api/hooks/pre-tool-use', {
-      headers: { Authorization: `Bearer ${TOKEN}`, 'X-CC-Hub-Session': SESSION, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${TOKEN}`, 'X-Penates-Session': SESSION, 'Content-Type': 'application/json' },
       data: { tool_name: 'Bash', permission_mode: 'bypassPermissions', tool_input: { command: 'ls' } },
     });
     expect(resp.status()).toBe(200);
@@ -101,7 +101,7 @@ test.describe('Approvals + Activity', () => {
       // aber reportToolStart wird aufgerufen → session-activity-Broadcast
       // → patchActivityBadge → Badge zeigt "läuft: Bash" / "running: Bash"
       await request.post('/api/hooks/pre-tool-use', {
-        headers: { Authorization: `Bearer ${TOKEN}`, 'X-CC-Hub-Session': hubName, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${TOKEN}`, 'X-Penates-Session': hubName, 'Content-Type': 'application/json' },
         data: { tool_name: 'Bash', permission_mode: 'acceptEdits', tool_input: { command: 'ls' } },
       });
 

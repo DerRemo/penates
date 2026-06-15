@@ -4,7 +4,7 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 // Implement-spawn UI spec (Idea Pipeline Phase 4). The real endpoint spawns a
 // claude --dangerously-skip-permissions session — too heavy for CI. We stub the
 // endpoint with page.route() and assert the UI contract only. The E2E server
-// runs with BOARD_PATH=/tmp/cchub-e2e-board.json (isolated board).
+// runs with BOARD_PATH=/tmp/penates-e2e-board.json (isolated board).
 //
 // Moving a card INTO implement is what spawns the agent — via drag (desktop) OR
 // the stage dropdown (mobile/detail). Drag in headless Chromium is flaky, so we
@@ -36,7 +36,7 @@ async function clearBoard(page) {
 // Seed a brainstorming card, optionally with a spec linked (brainstormDoc set
 // via PATCH — addCard does not accept brainstormDoc).
 async function seedCard(page, { title, withSpec }) {
-  const r = await api(page, 'POST', '/api/board/cards', { projectId: 'claude-code-hub', title, stage: 'brainstorming', origin: 'solo' });
+  const r = await api(page, 'POST', '/api/board/cards', { projectId: 'penates', title, stage: 'brainstorming', origin: 'solo' });
   expect(r.ok(), `seed failed: ${r.status()}`).toBeTruthy();
   const card = await r.json();
   if (withSpec) {
@@ -81,8 +81,8 @@ test.describe('Board implement spawn (Phase 4)', () => {
     await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
 
     await page.selectOption('#board-detail-stage', 'implement');
-    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
-    await page.locator('#cchub-confirm-ok').click();
+    await expect(page.locator('#penates-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
+    await page.locator('#penates-confirm-ok').click();
 
     await expect.poll(() => calledUrl, { timeout: 4_000 }).toContain(`/api/board/cards/${card.id}/implement`);
   });
@@ -104,7 +104,7 @@ test.describe('Board implement spawn (Phase 4)', () => {
     await page.selectOption('#board-detail-stage', 'implement');
     // No confirm dialog (guard fires first), no endpoint call, card stays in brainstorming.
     await page.waitForTimeout(400);
-    await expect(page.locator('#cchub-confirm-modal.open')).toHaveCount(0);
+    await expect(page.locator('#penates-confirm-modal.open')).toHaveCount(0);
     expect(called).toBeFalsy();
     const cards = await listCards(page);
     expect(cards.find(c => c.id === card.id)?.stage).toBe('brainstorming');

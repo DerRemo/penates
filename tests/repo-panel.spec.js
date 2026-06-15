@@ -9,7 +9,7 @@ import { tmpdir } from 'os';
 import { execFileSync } from 'child_process';
 
 async function repoSession(page) {
-  const dir = mkdtempSync(join(tmpdir(), 'cchub-repo-'));
+  const dir = mkdtempSync(join(tmpdir(), 'penates-repo-'));
   const g = (...a) => execFileSync('git', ['-C', dir, ...a]);
   g('init', '-q'); g('config', 'user.email', 't@t'); g('config', 'user.name', 't');
   writeFileSync(join(dir, 'a.txt'), '1\n'); g('add', '.'); g('commit', '-qm', 'feat: a');
@@ -17,7 +17,7 @@ async function repoSession(page) {
   writeFileSync(join(dir, 'a.txt'), '1\n2\n'); g('add', '.'); g('commit', '-qm', 'docs: edit a');
   g('branch', 'feature/x');
   const name = `e2e-repo-${Date.now()}`;
-  const token = await page.evaluate(() => localStorage.getItem('cchub_token'));
+  const token = await page.evaluate(() => localStorage.getItem('penates_token'));
   await page.request.post('/api/sessions', {
     headers: { Authorization: `Bearer ${token}` },
     data: { name, directory: dir, command: 'bash --noprofile --norc' },

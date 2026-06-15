@@ -68,7 +68,7 @@ test.describe('Connection-Robustness', () => {
       // zeichnet auf <canvas> ohne .xterm-rows-DOM; der Seed landet via term.write
       // im Buffer-Scrollback, also deckt buffer.active beide Renderer ab).
       await expect.poll(async () => authedPage.evaluate(() => {
-        const t = window.__cchubTerm;
+        const t = window.__penatesTerm;
         if (!t) return '';
         const b = t.buffer.active;
         let s = '';

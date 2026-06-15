@@ -24,7 +24,7 @@ test('invalid flag exits 2', () => {
 });
 
 test('--check runs doctor and stops without mutating (exit 0 or 3)', () => {
-  const { code } = run(['--check'], { CCHUB_TEST_MISSING: 'tmux' });
+  const { code } = run(['--check'], { PENATES_TEST_MISSING: 'tmux' });
   assert.equal(code, 3); // tmux forced missing → not ready
 });
 

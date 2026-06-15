@@ -25,7 +25,7 @@ test('--json emits a structured report with required/clis/optional blocks', () =
 });
 
 test('a missing required tool flips ready=false and exit 3', () => {
-  const { json, code } = runJson({ CCHUB_TEST_MISSING: 'tmux' });
+  const { json, code } = runJson({ PENATES_TEST_MISSING: 'tmux' });
   assert.equal(json.required.tmux, false);
   assert.equal(json.ready, false);
   assert.equal(code, 3);

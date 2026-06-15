@@ -2,8 +2,8 @@ import { test, expect } from './fixtures.js';
 import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 
 // The board view (Idea Pipeline Phase 1). The E2E server runs with an isolated
-// BOARD_PATH=/tmp/cchub-e2e-board.json (see playwright.config.js) so creating/
-// deleting cards never touches the real ~/.claude-code-hub/board.json. We still
+// BOARD_PATH=/tmp/penates-e2e-board.json (see playwright.config.js) so creating/
+// deleting cards never touches the real ~/.penates/board.json. We still
 // reset the store between tests via the API so each test is independent.
 
 const NAV_BOARD = '[data-sidebar-nav="board"]';
@@ -31,7 +31,7 @@ async function clearBoard(page) {
   }
 }
 
-async function seedCard(page, { projectId = 'claude-code-hub', title, stage = 'idea', priority = null }) {
+async function seedCard(page, { projectId = 'penates', title, stage = 'idea', priority = null }) {
   const r = await api(page, 'POST', '/api/board/cards', { projectId, title, stage, priority, origin: 'solo' });
   expect(r.ok(), `seed card failed: ${r.status()}`).toBeTruthy();
   return await r.json();
@@ -72,11 +72,11 @@ test.describe('Board (Idea Pipeline)', () => {
   test('+ idea creates a card via the input dialog', async ({ authedPage: page }) => {
     await goToBoard(page);
     await page.click('#board-add-idea');
-    await page.waitForSelector('#cchub-input-modal.open', { timeout: 3_000 });
+    await page.waitForSelector('#penates-input-modal.open', { timeout: 3_000 });
     const title = `E2E idea ${Date.now()}`;
-    await page.fill('#cchub-input-field', title);
-    await page.click('#cchub-input-ok');
-    await page.waitForSelector('#cchub-input-modal:not(.open)', { timeout: 3_000 });
+    await page.fill('#penates-input-field', title);
+    await page.click('#penates-input-ok');
+    await page.waitForSelector('#penates-input-modal:not(.open)', { timeout: 3_000 });
     const card = page.locator('.board-col[data-stage="idea"] .board-card', { hasText: title });
     await expect(card).toBeVisible({ timeout: 4_000 });
     // persisted server-side
@@ -139,12 +139,12 @@ test.describe('Board (Idea Pipeline)', () => {
   });
 
   test('project filter narrows visible cards', async ({ authedPage: page }) => {
-    await seedCard(page, { projectId: 'claude-code-hub', title: 'Hub card' });
+    await seedCard(page, { projectId: 'penates', title: 'Hub card' });
     await seedCard(page, { projectId: 'some-other-project', title: 'Other card' });
     await goToBoard(page);
     await expect(page.locator('.board-card')).toHaveCount(2);
 
-    await page.selectOption('#board-filter', 'claude-code-hub');
+    await page.selectOption('#board-filter', 'penates');
     await page.waitForTimeout(300);
     await expect(page.locator('.board-card', { hasText: 'Hub card' })).toBeVisible();
     await expect(page.locator('.board-card', { hasText: 'Other card' })).toHaveCount(0);

@@ -63,7 +63,7 @@ else
   C_RED="${C_ERR_RED:-}"; [ -t 1 ] && C_RED=$'\033[31m'
   mark() { [ "$1" = true ] && printf '%s✓%s' "$C_GREEN" "$C_RESET" || printf '%s✕%s' "$C_RED" "$C_RESET"; }
   log ""
-  log "${C_TEAL}${C_BOLD}  Claude Code Hub — Doctor${C_RESET}"
+  log "${C_TEAL}${C_BOLD}  Penates — Doctor${C_RESET}"
   log "  OS: $OS $MACOS_VER ($ARCH)"
   printf '  Required:  %s xcode-clt  %s brew  %s node(%s)  %s tmux  %s git  %s jq  %s trash\n' \
     "$(mark "$b_xcode")" "$(mark "$b_brew")" "$(mark "$node_ok")" "${node_ver:-—}" \

@@ -217,7 +217,7 @@ test.describe('Update check', () => {
           latest: '0.7.1',
           isNewer: true,
           publishedAt: '2026-04-20T10:00:00Z',
-          url: 'https://github.com/DerRemo/claude-code-hub/releases/tag/v0.7.1',
+          url: 'https://github.com/DerRemo/penates/releases/tag/v0.7.1',
           changelogMd: '## Notes\n- i18n\n- settings page',
           checkedAt: Date.now(),
           error: null,

@@ -37,7 +37,7 @@ test.describe('Moshi-Interop', () => {
     await request.post('/api/hooks/SessionEnd', {
       headers: {
         Authorization: `Bearer ${process.env.AUTH_TOKEN || ''}`,
-        'X-CC-Hub-Session': FOREIGN,
+        'X-Penates-Session': FOREIGN,
         'Content-Type': 'application/json',
       },
       data: {},
@@ -60,7 +60,7 @@ test.describe('Moshi-Interop', () => {
 
     // Hook simulieren — wie der self-bootstrapping Hook unter dem tmux-Rohnamen.
     const hook = await authedPage.request.post('/api/hooks/Notification', {
-      headers: { ...auth, 'X-CC-Hub-Session': FOREIGN, 'Content-Type': 'application/json' },
+      headers: { ...auth, 'X-Penates-Session': FOREIGN, 'Content-Type': 'application/json' },
       data: {},
     });
     expect(hook.ok()).toBeTruthy();

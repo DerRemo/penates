@@ -41,7 +41,7 @@ export default async function globalSetup() {
 
   await page.goto('/');
   await page.evaluate((t) => {
-    localStorage.setItem('cchub_token', t);
+    localStorage.setItem('penates_token', t);
   }, token);
 
   await context.storageState({ path: 'tests/.auth-state.json' });

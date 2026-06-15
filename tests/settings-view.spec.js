@@ -104,7 +104,7 @@ test.describe('Settings-View (Redesign Phase 1)', () => {
   test('sign out clears the token', async ({ authedPage: page }) => {
     await openSettings(page);
     await page.click('#pref-logout-btn');
-    const cleared = await page.evaluate(() => localStorage.getItem('cchub_token'));
+    const cleared = await page.evaluate(() => localStorage.getItem('penates_token'));
     expect(cleared).toBeNull();
   });
 

@@ -4,7 +4,7 @@
 // gefahren und das WS-Input-Payload geprüft. window.currentWs wird gestubbt.
 import { test, expect } from './fixtures.js';
 
-const PATH_TYPE = 'application/x-cchub-path';
+const PATH_TYPE = 'application/x-penates-path';
 
 test.describe('FileBrowser → Terminal @-Mention (DnD)', () => {
   test('interner Pfad-Drop schickt @<pfad> an die Terminal-Eingabe (kein Enter)', async ({ authedPage }) => {

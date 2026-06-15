@@ -1,4 +1,4 @@
-// DE bundle for Claude Code Hub — populated in Task 6 from pre-v0.7.0 history plus v0.7.1 additions.
+// DE bundle for Penates — populated in Task 6 from pre-v0.7.0 history plus v0.7.1 additions.
 window.__I18N_BUNDLES = window.__I18N_BUNDLES || {};
 window.__I18N_BUNDLES.de = {
   // Header

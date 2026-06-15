@@ -33,7 +33,10 @@ skills-lock.json
 
 # Git worktrees
 .worktrees/
+# Local preview HTML + pasted images (both legacy and post-rebrand names)
+penates-preview.html
 claude-code-hub-preview.html
+.penates-images/
 .cch-images/
 
 # Idea-Pipeline migration backups (ROADMAP.md → CHANGELOG.md cutover)

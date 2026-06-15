@@ -4,7 +4,7 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 // Brainstorm-spawn UI spec (Idea Pipeline Phase 3).
 // The real endpoint spawns a claude session — too heavy for CI. We stub the
 // endpoint with page.route() and assert the UI contract only. The E2E server
-// runs with BOARD_PATH=/tmp/cchub-e2e-board.json (isolated board).
+// runs with BOARD_PATH=/tmp/penates-e2e-board.json (isolated board).
 //
 // Moving a card INTO a stage is what spawns the session — via drag (desktop) OR
 // the stage dropdown (mobile/detail). Drag in headless Chromium is flaky, so we
@@ -36,7 +36,7 @@ async function clearBoard(page) {
   }
 }
 
-async function seedCard(page, { projectId = 'claude-code-hub', title, stage = 'idea', priority = null }) {
+async function seedCard(page, { projectId = 'penates', title, stage = 'idea', priority = null }) {
   const r = await api(page, 'POST', '/api/board/cards', { projectId, title, stage, priority, origin: 'solo' });
   expect(r.ok(), `seed card failed: ${r.status()}`).toBeTruthy();
   return await r.json();
@@ -84,8 +84,8 @@ test.describe('Board brainstorm spawn (Phase 3)', () => {
 
     // Move into brainstorming via the stage dropdown → confirm dialog → spawn.
     await page.selectOption('#board-detail-stage', 'brainstorming');
-    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
-    await page.locator('#cchub-confirm-ok').click();
+    await expect(page.locator('#penates-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
+    await page.locator('#penates-confirm-ok').click();
 
     await expect.poll(() => calledUrl, { timeout: 4_000 }).toContain(`/api/board/cards/${card.id}/brainstorm`);
   });
@@ -105,8 +105,8 @@ test.describe('Board brainstorm spawn (Phase 3)', () => {
     await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
 
     await page.selectOption('#board-detail-stage', 'brainstorming');
-    await expect(page.locator('#cchub-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
-    await page.locator('#cchub-confirm-cancel').click();
+    await expect(page.locator('#penates-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
+    await page.locator('#penates-confirm-cancel').click();
 
     // No spawn, and the card is still in idea (server-side).
     await page.waitForTimeout(300);

@@ -1,6 +1,6 @@
 {
-  "name": "Claude Code Hub",
-  "short_name": "CC Hub",
+  "name": "Penates",
+  "short_name": "Penates",
   "description": "Verwaltung und Fernsteuerung von Claude Code Sessions",
   "start_url": "/",
   "scope": "/",

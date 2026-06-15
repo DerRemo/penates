@@ -1,15 +1,15 @@
-# Claude Code Hub
+# Penates
 
 Web-Interface zum Verwalten und Fernsteuern von Coding-CLI-Sessions (Claude Code, Codex, Antigravity) auf deinem Mac mini —
 erreichbar per Browser, auch vom iPhone aus.
 
-![Claude Code Hub Screenshot](screenshot.png)
+![Penates Screenshot](screenshot.png)
 
 ---
 
 ## Was macht das?
 
-Claude Code Hub ist ein kleiner Server, der auf deinem Mac mini läuft. Er zeigt dir alle laufenden Coding-CLI-Sessions in einem Dashboard und lässt dich per Browser ins Terminal einsteigen — von deinem Mac, iPad oder iPhone aus, auch über das Internet. Über einen CLI-Picker startest du Sessions mit **Claude Code** (Anthropic), **Codex** (OpenAI) oder **Antigravity** (Google `agy`) — jeweils mit gestuften Approval-/Sandbox-Varianten. Claude Code ist die am tiefsten integrierte CLI (Hook-basierte Notifications, Usage-Tracking, Image-Paste); die anderen laufen als vollwertige Terminal-Sessions, jede mit ihrem eigenen Login.
+Penates ist ein kleiner Server, der auf deinem Mac mini läuft. Er zeigt dir alle laufenden Coding-CLI-Sessions in einem Dashboard und lässt dich per Browser ins Terminal einsteigen — von deinem Mac, iPad oder iPhone aus, auch über das Internet. Über einen CLI-Picker startest du Sessions mit **Claude Code** (Anthropic), **Codex** (OpenAI) oder **Antigravity** (Google `agy`) — jeweils mit gestuften Approval-/Sandbox-Varianten. Claude Code ist die am tiefsten integrierte CLI (Hook-basierte Notifications, Usage-Tracking, Image-Paste); die anderen laufen als vollwertige Terminal-Sessions, jede mit ihrem eigenen Login.
 
 **Features:**
 - Dashboard mit allen Sessions und Live-Status (Aktivität, Context-Tokens, 5h-Limit)
@@ -24,7 +24,7 @@ Claude Code Hub ist ein kleiner Server, der auf deinem Mac mini läuft. Er zeigt
 - Notifications über Sound, Visual, Web-Push und Per-Session-Mute
 - PWA — als App auf dem iPhone-Homescreen installierbar, nativer iOS-Feel
 - Auto-Start nach Reboot via macOS LaunchAgent
-- **Security**: Bearer-Token-Auth, optional Cloudflare Access (Zero Trust) davor, Rate-Limiting auf REST-Endpoints, Append-only Audit-Log (`~/.claude-code-hub/audit.log`)
+- **Security**: Bearer-Token-Auth, optional Cloudflare Access (Zero Trust) davor, Rate-Limiting auf REST-Endpoints, Append-only Audit-Log (`~/.penates/audit.log`)
 
 ---
 
@@ -110,7 +110,7 @@ Antigravity (`agy`) installierst du nach [Googles offizieller Anleitung](https:/
 ### Schnellstart (ein Befehl)
 
 ```bash
-curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/DerRemo/claude-code-hub/main/install.sh | bash
+curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/DerRemo/penates/main/install.sh | bash
 ```
 
 Der Installer führt dich durch alles: prüft was schon da ist, installiert Fehlendes
@@ -125,8 +125,8 @@ Schon ein Checkout oder lieber Schritt für Schritt:
 
 ```bash
 cd ~
-git clone https://github.com/DerRemo/claude-code-hub.git
-cd claude-code-hub
+git clone https://github.com/DerRemo/penates.git
+cd penates
 ```
 
 ### Setup ausführen
@@ -147,14 +147,14 @@ Das Script macht alles automatisch:
 Am Ende siehst du so etwas:
 
 ```
-  ✓ Claude Code Hub läuft!
+  ✓ Penates läuft!
 
   Lokal:   http://localhost:3333
 ```
 
 > **Wichtig:** Das Setup zeigt dir einmalig dein Auth-Token. Notiere es — du brauchst es für den Browser-Zugriff. Du kannst es jederzeit wieder nachschauen mit:
 > ```bash
-> grep AUTH_TOKEN claude-code-hub/.env
+> grep AUTH_TOKEN penates/.env
 > ```
 
 ---
@@ -266,7 +266,7 @@ Der Cloudflare Tunnel macht deinen Hub öffentlich erreichbar. Die einzige Auth-
 ### Access-Application anlegen
 
 1. **Zero Trust Dashboard** öffnen → **Access → Applications → Add an application → Self-hosted**.
-2. **Application name:** `Claude Code Hub` (frei wählbar).
+2. **Application name:** `Penates` (frei wählbar).
 3. **Session Duration:** `24 hours` (oder länger, je nach Geschmack).
 4. **Application domain:** deine Tunnel-Domain (z.B. `code.DEINE-DOMAIN.xyz`).
 5. Als **Identity Provider** mindestens einen aktivieren (in den Team-Settings vorher einrichten):
@@ -280,7 +280,7 @@ Der Cloudflare Tunnel macht deinen Hub öffentlich erreichbar. Die einzige Auth-
 
 ### Hub konfigurieren
 
-`claude-code-hub/.env` editieren und beide Variablen setzen:
+`penates/.env` editieren und beide Variablen setzen:
 
 ```bash
 CF_ACCESS_TEAM_DOMAIN=deinteam.cloudflareaccess.com
@@ -292,7 +292,7 @@ Die `TEAM_DOMAIN` findest du im Zero-Trust-Dashboard oben links (ohne `https://`
 Dann Hub neu starten:
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.claude-code-hub
+launchctl kickstart -k gui/$(id -u)/com.penates
 ```
 
 ### Testen
@@ -300,7 +300,7 @@ launchctl kickstart -k gui/$(id -u)/com.claude-code-hub
 1. Im Browser auf `https://code.DEINE-DOMAIN.xyz` → du wirst auf eine Cloudflare-Login-Seite umgeleitet, wählst GitHub oder Email-PIN, authentifizierst dich, und landest dann im Hub-Dashboard.
 2. Prüfe das Audit-Log:
    ```bash
-   tail -1 ~/.claude-code-hub/audit.log
+   tail -1 ~/.penates/audit.log
    ```
    Du solltest einen `auth.login`-Eintrag mit deiner Email-Adresse sehen.
 
@@ -312,7 +312,7 @@ Einfach `.env` wieder leeren (`CF_ACCESS_TEAM_DOMAIN=` und `CF_ACCESS_AUD=`) und
 
 ## Konfiguration
 
-Alle Einstellungen stehen in `claude-code-hub/.env`:
+Alle Einstellungen stehen in `penates/.env`:
 
 | Variable | Standard | Beschreibung |
 |---|---|---|
@@ -331,7 +331,7 @@ Alle Einstellungen stehen in `claude-code-hub/.env`:
 Nach Änderungen an `.env` muss der Server neu gestartet werden:
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.claude-code-hub
+launchctl kickstart -k gui/$(id -u)/com.penates
 ```
 
 ---
@@ -340,20 +340,20 @@ launchctl kickstart -k gui/$(id -u)/com.claude-code-hub
 
 ```bash
 # Status prüfen
-launchctl list | grep claude-code-hub
+launchctl list | grep penates
 
 # Server neu starten (z.B. nach Code-Änderungen)
-launchctl kickstart -k gui/$(id -u)/com.claude-code-hub
+launchctl kickstart -k gui/$(id -u)/com.penates
 
 # Server stoppen
-launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.claude-code-hub.plist
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
 
 # Logs live verfolgen
-tail -f claude-code-hub/logs/stdout.log
-tail -f claude-code-hub/logs/stderr.log
+tail -f penates/logs/stdout.log
+tail -f penates/logs/stderr.log
 
 # Audit-Log (Auth-Events, Session-Lifecycle, Rate-Limits)
-tail -f ~/.claude-code-hub/audit.log | jq -c
+tail -f ~/.penates/audit.log | jq -c
 ```
 
 ---
@@ -361,10 +361,10 @@ tail -f ~/.claude-code-hub/audit.log | jq -c
 ## Updates
 
 ```bash
-cd claude-code-hub
+cd penates
 git pull
 npm install
-launchctl kickstart -k gui/$(id -u)/com.claude-code-hub
+launchctl kickstart -k gui/$(id -u)/com.penates
 ```
 
 ---
@@ -385,8 +385,8 @@ kill -9 <PID aus der Ausgabe>
 LaunchAgent neu laden:
 
 ```bash
-launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.claude-code-hub.plist
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.claude-code-hub.plist
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
 ```
 
 ### `claude`-Befehl nicht gefunden im Terminal
@@ -399,7 +399,7 @@ source ~/.zprofile
 ### Token vergessen
 
 ```bash
-grep AUTH_TOKEN claude-code-hub/.env
+grep AUTH_TOKEN penates/.env
 ```
 
 ### 401 seit Cloudflare Access aktiviert ist
@@ -407,14 +407,14 @@ grep AUTH_TOKEN claude-code-hub/.env
 Im Audit-Log schauen welcher Grund:
 
 ```bash
-tail -20 ~/.claude-code-hub/audit.log | grep auth.fail | jq -c
+tail -20 ~/.penates/audit.log | grep auth.fail | jq -c
 ```
 
 - `reason: "bad-jwt:no-jwt"` → Browser ist nicht durch Cloudflare Access gegangen. Lösche die Cookies für `code.DEINE-DOMAIN.xyz` und lade neu, dann solltest du wieder den GitHub/PIN-Flow sehen.
 - `reason: "bad-jwt:bad-aud"` → `CF_ACCESS_AUD` in `.env` stimmt nicht mit dem Audience-Tag der Access-Application überein. Nochmal im Cloudflare-Dashboard nachschauen.
 - `reason: "bad-jwt:bad-iss"` → `CF_ACCESS_TEAM_DOMAIN` stimmt nicht. Muss exakt die Team-URL ohne `https://` sein.
 - `reason: "bad-jwt:expired"` → JWT ist abgelaufen. Session-Duration im Access-Application-Setup hochdrehen.
-- `reason: "bad-bearer"` → Bearer-Token im Browser stimmt nicht mit `AUTH_TOKEN` in `.env` überein. Alten Token vergessen lassen (`localStorage.removeItem('cchub_token')` in der DevTools-Console), dann lädt der Browser beim nächsten Request das Login-Prompt neu.
+- `reason: "bad-bearer"` → Bearer-Token im Browser stimmt nicht mit `AUTH_TOKEN` in `.env` überein. Alten Token vergessen lassen (`localStorage.removeItem('penates_token')` in der DevTools-Console), dann lädt der Browser beim nächsten Request das Login-Prompt neu.
 
 ### Tmux-Socket fehlt
 

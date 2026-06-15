@@ -11,8 +11,8 @@ MODE=""
 for a in "$@"; do
   case "$a" in
     tailscale|cloudflare|skip) MODE="$a" ;;
-    --dry-run) CCHUB_DRY_RUN=1 ;;
-    --yes) CCHUB_YES=1 ;;
+    --dry-run) PENATES_DRY_RUN=1 ;;
+    --yes) PENATES_YES=1 ;;
     *) err "unbekanntes Argument: $a"; exit 2 ;;
   esac
 done
@@ -22,14 +22,14 @@ env_set() { # env_set KEY VALUE
   if grep -q "^$1=" "$APP_DIR/.env" 2>/dev/null; then
     run sed -i '' "s#^$1=.*#$1=$2#" "$APP_DIR/.env"
   else
-    # shellcheck disable=SC2034  # CCHUB_DRY_RUN read by run(); value surfaced in [dry-run] output
-    [ "$CCHUB_DRY_RUN" = 1 ] && printf '  [dry-run] echo %s=%s >> .env\n' "$1" "$2" || printf '%s=%s\n' "$1" "$2" >> "$APP_DIR/.env"
+    # shellcheck disable=SC2034  # PENATES_DRY_RUN read by run(); value surfaced in [dry-run] output
+    [ "$PENATES_DRY_RUN" = 1 ] && printf '  [dry-run] echo %s=%s >> .env\n' "$1" "$2" || printf '%s=%s\n' "$1" "$2" >> "$APP_DIR/.env"
   fi
 }
 HUB_PORT="$(env_get PORT)"; HUB_PORT="${HUB_PORT:-3333}"
 
 if [ -z "$MODE" ]; then
-  if [ "$CCHUB_YES" = 1 ] || ! is_tty; then MODE="skip"; else
+  if [ "$PENATES_YES" = 1 ] || ! is_tty; then MODE="skip"; else
     log ""; log "  Remote-Zugriff:"
     log "    1) Tailscale  — empfohlen, keine Domain, echtes HTTPS (PWA/Push)"
     log "    2) Cloudflare — eigene Domain / öffentlich"
@@ -66,7 +66,7 @@ setup_cloudflare() {
   have brew || { err "Homebrew fehlt."; return 1; }
   have cloudflared || run brew install cloudflared
   local domain=''
-  if [ "$CCHUB_YES" = 1 ] || ! is_tty; then
+  if [ "$PENATES_YES" = 1 ] || ! is_tty; then
     REMOTE_TODO+=("cloudflared tunnel login && cloudflared tunnel create claude-hub")
     REMOTE_TODO+=("README → 'Remote über Cloudflare' für config.yml + service install")
     warn "Cloudflare braucht interaktiven Login/Domain → in den TODO-Report verschoben"; return 1
@@ -80,7 +80,7 @@ setup_cloudflare() {
   local tid
   tid="$(cloudflared tunnel list 2>/dev/null | awk '/claude-hub/{print $1; exit}')"
   run cloudflared tunnel route dns claude-hub "$domain" || true
-  if [ "$CCHUB_DRY_RUN" = 1 ]; then
+  if [ "$PENATES_DRY_RUN" = 1 ]; then
     printf '  [dry-run] write ~/.cloudflared/config.yml (tunnel %s → localhost:%s)\n' "${tid:-<id>}" "$HUB_PORT"
   else
     mkdir -p "$HOME/.cloudflared"
@@ -100,7 +100,7 @@ YAML
   REMOTE_URL="https://${domain}"
 }
 
-# shellcheck disable=SC2034  # REMOTE_TODO/REMOTE_URL consumed via CCHUB_TODO_FILE/CCHUB_REMOTE_OUT below
+# shellcheck disable=SC2034  # REMOTE_TODO/REMOTE_URL consumed via PENATES_TODO_FILE/PENATES_REMOTE_OUT below
 REMOTE_TODO=(); REMOTE_URL=""
 case "$MODE" in
   tailscale)  setup_tailscale  || true ;;
@@ -109,7 +109,7 @@ case "$MODE" in
 esac
 
 # TODO-Report exportieren (install.sh liest diese Datei für den Abschluss-Report)
-: > "${CCHUB_TODO_FILE:-/dev/null}"
-for t in "${REMOTE_TODO[@]+"${REMOTE_TODO[@]}"}"; do [ -n "$t" ] && printf '%s\n' "$t" >> "${CCHUB_TODO_FILE:-/dev/null}"; done
-[ -n "$REMOTE_URL" ] && printf 'URL=%s\n' "$REMOTE_URL" >> "${CCHUB_REMOTE_OUT:-/dev/null}"
+: > "${PENATES_TODO_FILE:-/dev/null}"
+for t in "${REMOTE_TODO[@]+"${REMOTE_TODO[@]}"}"; do [ -n "$t" ] && printf '%s\n' "$t" >> "${PENATES_TODO_FILE:-/dev/null}"; done
+[ -n "$REMOTE_URL" ] && printf 'URL=%s\n' "$REMOTE_URL" >> "${PENATES_REMOTE_OUT:-/dev/null}"
 exit 0

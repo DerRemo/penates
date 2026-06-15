@@ -4,11 +4,11 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 // Idea-generation UI spec (Idea Pipeline Phase 3-B). The real endpoint spawns a
 // claude session — too heavy for CI. We stub POST /api/projects/:id/ideagen with
 // page.route() and assert the UI contract only. Notes editing hits the real
-// (isolated) board via BOARD_PATH=/tmp/cchub-e2e-board.json.
+// (isolated) board via BOARD_PATH=/tmp/penates-e2e-board.json.
 
 const NAV_PROJECTS = '[data-sidebar-nav="projects"]';
 const NAV_BOARD = '[data-sidebar-nav="board"]';
-const PROJECT_ID = 'claude-code-hub';
+const PROJECT_ID = 'penates';
 
 async function api(page, method, path, body) {
   const token = await getToken(page);
@@ -63,7 +63,7 @@ test.describe('Idea-gen spawn + notes (Phase 3-B)', () => {
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({ session: 'cc-ideas-claude-code-hub', reused: false }),
+        body: JSON.stringify({ session: 'cc-ideas-penates', reused: false }),
       });
     });
     await goToProjectHub(page);

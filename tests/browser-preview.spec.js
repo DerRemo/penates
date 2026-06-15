@@ -61,7 +61,7 @@ test.describe('Browser-Preview (single host)', () => {
     await expect(page.locator('#preview-port-input')).toHaveValue('5173');
     await expect.poll(() => selectedPort).toBe(5173);
     // … und das iframe zeigt auf den FIXEN Host, Port nur als Cache-Bust-Query.
-    await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/?__cchub=5173');
+    await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/?__penates=5173');
   });
 
   test('Freitext-Port + Enter lädt ebenfalls', async ({ authedPage }) => {
@@ -79,7 +79,7 @@ test.describe('Browser-Preview (single host)', () => {
     await page.fill('#preview-port-input', '8080');
     await page.press('#preview-port-input', 'Enter');
     await expect.poll(() => selectedPort).toBe(8080);
-    await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/?__cchub=8080');
+    await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/?__penates=8080');
   });
 
   test('"nicht konfiguriert"-State bei config.enabled:false', async ({ authedPage }) => {
@@ -100,7 +100,7 @@ test.describe('Browser-Preview (single host)', () => {
     await page.route('**/api/preview/select', (r) =>
       r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, port: 5173 }) }));
     // Letzten Port vorbelegen → Feld ist beim Öffnen befüllt (das war der Bug-Auslöser).
-    await page.evaluate(() => localStorage.setItem('cchub_preview_port:cc-preview-e2e', '5173'));
+    await page.evaluate(() => localStorage.setItem('penates_preview_port:cc-preview-e2e', '5173'));
 
     await activate(page);
     await page.evaluate(() => window.PreviewPanel.toggle());
@@ -140,7 +140,7 @@ test.describe('Browser-Preview (single host)', () => {
     await mockConfig(page, { enabled: true, host: 'preview.example.com', activePort: null });
     await mockPorts(page, [{ port: 5173, process: 'node' }]);
     // Kein Port gespeichert → choose-port empty-state mit Aktion.
-    await page.evaluate(() => localStorage.removeItem('cchub_preview_port:cc-preview-e2e'));
+    await page.evaluate(() => localStorage.removeItem('penates_preview_port:cc-preview-e2e'));
 
     await activate(page);
     await page.evaluate(() => window.PreviewPanel.toggle());

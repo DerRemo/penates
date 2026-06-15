@@ -23,36 +23,36 @@ test('arch_brew_prefix maps arch to a brew prefix', () => {
   assert.match(sh('arch_brew_prefix'), /^\/(opt\/homebrew|usr\/local)$/);
 });
 
-test('have respects CCHUB_TEST_MISSING seam', () => {
+test('have respects PENATES_TEST_MISSING seam', () => {
   // `sh` is always present; force it "missing" via the seam → exit 1
   assert.equal(sh('if have sh; then echo yes; else echo no; fi'), 'yes');
-  assert.equal(sh('if have sh; then echo yes; else echo no; fi', { CCHUB_TEST_MISSING: 'sh' }), 'no');
+  assert.equal(sh('if have sh; then echo yes; else echo no; fi', { PENATES_TEST_MISSING: 'sh' }), 'no');
 });
 
 test('run honours dry-run (prints, does not execute)', () => {
-  const out = sh('CCHUB_DRY_RUN=1 run touch /tmp/cchub-should-not-exist-xyz');
+  const out = sh('PENATES_DRY_RUN=1 run touch /tmp/penates-should-not-exist-xyz');
   assert.match(out, /\[dry-run\] touch/);
-  assert.equal(sh('test -e /tmp/cchub-should-not-exist-xyz && echo EXISTS || echo absent'), 'absent');
+  assert.equal(sh('test -e /tmp/penates-should-not-exist-xyz && echo EXISTS || echo absent'), 'absent');
 });
 
-test('run with CCHUB_DRY_RUN=0 actually executes', () => {
-  const tmp = '/tmp/cchub-run-test-' + Date.now();
-  sh(`CCHUB_DRY_RUN=0 run touch ${tmp}`);
+test('run with PENATES_DRY_RUN=0 actually executes', () => {
+  const tmp = '/tmp/penates-run-test-' + Date.now();
+  sh(`PENATES_DRY_RUN=0 run touch ${tmp}`);
   assert.equal(sh(`test -e ${tmp} && echo EXISTS || echo absent`), 'EXISTS');
   sh(`rm -f ${tmp}`);
 });
 
-test('confirm returns 0 (auto-yes) when CCHUB_YES=1', () => {
-  const out = sh('if confirm "x"; then echo Y; else echo N; fi', { CCHUB_YES: '1' });
+test('confirm returns 0 (auto-yes) when PENATES_YES=1', () => {
+  const out = sh('if confirm "x"; then echo Y; else echo N; fi', { PENATES_YES: '1' });
   assert.equal(out, 'Y');
 });
 
 test('guide_step returns success when verify command passes', () => {
-  const out = sh('guide_step "x" true -- "i" && echo OK', { CCHUB_YES: '1' });
+  const out = sh('guide_step "x" true -- "i" && echo OK', { PENATES_YES: '1' });
   assert.match(out, /OK/);
 });
 
 test('guide_step with empty verify returns failure', () => {
-  const out = sh('guide_step "x" -- "i" || echo FAILED', { CCHUB_YES: '1' });
+  const out = sh('guide_step "x" -- "i" || echo FAILED', { PENATES_YES: '1' });
   assert.match(out, /FAILED/);
 });

@@ -59,7 +59,7 @@ test.describe('Terminal-View redesign', () => {
 
   test('git-dot reflects a dirty session cwd', async ({ authedPage: page, isTouch }) => {
     test.skip(isTouch, 'repo toggle is hidden behind overlays on touch');
-    const dir = mkdtempSync(join(tmpdir(), 'cchub-gitdot-'));
+    const dir = mkdtempSync(join(tmpdir(), 'penates-gitdot-'));
     execFileSync('git', ['init', '-q'], { cwd: dir });
     execFileSync('git', ['config', 'user.email', 't@t'], { cwd: dir });
     execFileSync('git', ['config', 'user.name', 't'], { cwd: dir });
@@ -70,7 +70,7 @@ test.describe('Terminal-View redesign', () => {
     writeFileSync(join(dir, 'a.txt'), 'changed\n');
 
     const name = `e2e-gitdot-${Date.now()}`;
-    const token = await page.evaluate(() => localStorage.getItem('cchub_token'));
+    const token = await page.evaluate(() => localStorage.getItem('penates_token'));
     await page.request.post('/api/sessions', {
       headers: { Authorization: `Bearer ${token}` },
       data: { name, directory: dir, command: 'bash --noprofile --norc' },
@@ -125,7 +125,7 @@ test.describe('Terminal-View redesign', () => {
   test('double-click renames the session inline', async ({ authedPage: page }) => {
     const name = `e2e-tname-${Date.now()}`;
     const newName = `e2e-tname2-${Date.now()}`;
-    const token = await page.evaluate(() => localStorage.getItem('cchub_token'));
+    const token = await page.evaluate(() => localStorage.getItem('penates_token'));
     await page.request.post('/api/sessions', {
       headers: { Authorization: `Bearer ${token}` },
       data: { name, directory: '/tmp', command: 'bash --noprofile --norc' },

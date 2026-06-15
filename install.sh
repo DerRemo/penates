@@ -1,48 +1,48 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Claude Code Hub — One-Line Bootstrap (geführt).
-#   curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/DerRemo/claude-code-hub/main/install.sh | bash
-RAW_BASE="${CCHUB_RAW_BASE:-https://raw.githubusercontent.com/DerRemo/claude-code-hub/main}"
-REPO_URL="${CCHUB_REPO_URL:-https://github.com/DerRemo/claude-code-hub.git}"
-GIT_DIR="${CCHUB_GIT_DIR:-$HOME/claude-code-hub}"
-REMOTE="${CCHUB_REMOTE:-}"
-NO_CLI="${CCHUB_NO_CLI:-0}"
+# Penates — One-Line Bootstrap (geführt).
+#   curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/DerRemo/penates/main/install.sh | bash
+RAW_BASE="${PENATES_RAW_BASE:-https://raw.githubusercontent.com/DerRemo/penates/main}"
+REPO_URL="${PENATES_REPO_URL:-https://github.com/DerRemo/penates.git}"
+GIT_DIR="${PENATES_GIT_DIR:-$HOME/penates}"
+REMOTE="${PENATES_REMOTE:-}"
+NO_CLI="${PENATES_NO_CLI:-0}"
 DO_CHECK=0
 
 usage() {
   cat <<EOF
-Claude Code Hub — Installer
+Penates — Installer
 Usage: install.sh [flags]
   --check                 nur Preflight-Report, nichts ändern (Exit 3 wenn Prereqs fehlen)
   --dry-run               jede Aktion drucken, nichts ausführen
   --yes | --no-prompt     keine Prompts (headless/CI)
   --remote=tailscale|cloudflare|skip
   --no-cli                CLI-Installation überspringen
-  --git-dir=<path>        Clone-Ziel (default ~/claude-code-hub)
+  --git-dir=<path>        Clone-Ziel (default ~/penates)
   --verbose               Debug-Ausgabe
   --help                  diese Hilfe
-Env-Twins: CCHUB_CHECK, CCHUB_DRY_RUN, CCHUB_YES, CCHUB_REMOTE, CCHUB_NO_CLI, CCHUB_GIT_DIR, CCHUB_VERBOSE
+Env-Twins: PENATES_CHECK, PENATES_DRY_RUN, PENATES_YES, PENATES_REMOTE, PENATES_NO_CLI, PENATES_GIT_DIR, PENATES_VERBOSE
 EOF
 }
 
 # ---- arg parsing (Env als Default, Flag überschreibt) ----
 # NOTE: arg parsing runs BEFORE sourcing lib.sh so --help/invalid-flag work standalone.
-: "${CCHUB_DRY_RUN:=0}"; : "${CCHUB_YES:=0}"; : "${CCHUB_VERBOSE:=0}"; : "${CCHUB_CHECK:=0}"
-DO_CHECK="$CCHUB_CHECK"
+: "${PENATES_DRY_RUN:=0}"; : "${PENATES_YES:=0}"; : "${PENATES_VERBOSE:=0}"; : "${PENATES_CHECK:=0}"
+DO_CHECK="$PENATES_CHECK"
 for a in "$@"; do
   case "$a" in
     --check) DO_CHECK=1 ;;
-    --dry-run) CCHUB_DRY_RUN=1 ;;
-    --yes|--no-prompt) CCHUB_YES=1 ;;
+    --dry-run) PENATES_DRY_RUN=1 ;;
+    --yes|--no-prompt) PENATES_YES=1 ;;
     --no-cli) NO_CLI=1 ;;
-    --verbose) CCHUB_VERBOSE=1 ;;
+    --verbose) PENATES_VERBOSE=1 ;;
     --remote=*) REMOTE="${a#*=}" ;;
     --git-dir=*) GIT_DIR="${a#*=}" ;;
     --help|-h) usage; exit 0 ;;
     *) printf 'Unbekanntes Argument: %s\n' "$a" >&2; usage >&2; exit 2 ;;
   esac
 done
-export CCHUB_DRY_RUN CCHUB_YES CCHUB_VERBOSE
+export PENATES_DRY_RUN PENATES_YES PENATES_VERBOSE
 
 # ---- lib.sh + doctor.sh beschaffen (Checkout ODER Boot-Download → eine Detection-Quelle) ----
 BOOT_TMP=""
@@ -60,7 +60,7 @@ fi
 # shellcheck disable=SC1091  # lib.sh path is dynamic ($LIB); file always present at runtime
 source "$LIB"
 
-log ""; log "${C_TEAL}${C_BOLD}  ⚡ Claude Code Hub — Installer${C_RESET}"
+log ""; log "${C_TEAL}${C_BOLD}  ⚡ Penates — Installer${C_RESET}"
 
 # ---- Phase 0: Preflight-Report ----
 step "Preflight"
@@ -110,13 +110,13 @@ cd "$APP_DIR"
 
 # ---- Phase 5: setup.sh ----
 step "Setup"
-CCHUB_FROM_INSTALL=1 run bash ./setup.sh
+PENATES_FROM_INSTALL=1 run bash ./setup.sh
 
 # ---- Phase 6: Remote ----
 step "Remote-Zugriff"
 TODO_FILE="$(mktemp)"; REMOTE_OUT="$(mktemp)"
 # shellcheck disable=SC2086  # ${REMOTE:+"$REMOTE"} intentional: pass arg only when non-empty (word-split safe via quoting)
-CCHUB_TODO_FILE="$TODO_FILE" CCHUB_REMOTE_OUT="$REMOTE_OUT" \
+PENATES_TODO_FILE="$TODO_FILE" PENATES_REMOTE_OUT="$REMOTE_OUT" \
   run bash ./scripts/remote-setup.sh ${REMOTE:+"$REMOTE"} || true
 
 # ---- Phase 7: Abschluss-Report ----

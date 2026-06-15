@@ -15,7 +15,7 @@ export const test = base.extend({
   },
 
   tempProject: async ({}, use) => {
-    const dir = mkdtempSync(join(tmpdir(), 'cchub-test-'));
+    const dir = mkdtempSync(join(tmpdir(), 'penates-test-'));
     mkdirSync(join(dir, 'subdir'));
     writeFileSync(join(dir, 'hello.txt'), 'Hello E2E Test\nLine 2\nLine 3\n');
     writeFileSync(join(dir, 'code.js'), 'function add(a, b) {\n  return a + b;\n}\n');
@@ -63,7 +63,7 @@ export const test = base.extend({
   },
 
   projectSession: async ({}, use) => {
-    await use({ name: 'cc-claude-code-hub', projectId: 'claude-code-hub' });
+    await use({ name: 'cc-penates', projectId: 'penates' });
   },
 });
 
