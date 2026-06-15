@@ -259,6 +259,19 @@ Mosh-grade Härtung des Terminal-Pfads (Browser ↔ Hub über den CF-Tunnel ist 
 
 **Grenze:** Predictive Echo (Mosh-Signature) ist bewusst nicht drin; echte Mobile-Sleep/Wake-Matrix nur am Gerät verifizierbar.
 
+## Session-Auto-Restore (tmux-continuum nativ)
+
+Nach einem tmux-Tod (Mac-Reboot / `tmux kill-server` / Server-Crash) fährt der Hub beim Boot die zuletzt laufenden `cc-`-Sessions automatisch wieder hoch — je im Originalverzeichnis, mit fortgesetzter CLI-Konversation. **Nativ, kein tmux-resurrect/continuum-Plugin** (das würde `hubEnvArgs()` umgehen, fremde Sessions anfassen und mit dem Hub-Restore um dieselben Sessions konkurrieren). Basis ist die bestehende `known-sessions.json` + der `/restore`-Pfad, nur mit Auto-Trigger.
+
+- **`planAutoRestore({known, liveNames, continueEnabled})`** (`lib/session-restore.js`, **rein**): filtert dormant (`!liveNames.includes(name)`) + nicht `manuallyStopped` Einträge und resolved pro Eintrag das Spawn-Command. Bei lebendem tmux (normaler Hub-Neustart) sind alle known live → leerer Plan → **No-Op** (kein Duplikat-Risiko im Dev-Alltag).
+- **`continueCommand(command)`** (`public/clis.js`, CLI-Registry = SoT): fügt die „letzte Konversation fortsetzen"-Sequenz ein — `claude --continue …` / `agy --continue …` (Flag nach dem Binary), `codex resume --last …` (erstes Token). **Idempotent** (re-applizierbar, weil der Auto-Restore die Continue-Form persistiert), Pfad-Binaries via Basename, unbekannte CLI → `null` (Caller fällt auf den Plain-Command zurück).
+- **`spawnDormantSession(name, {directory, command})`** (`server.js`): geteilter Spawn (tmux `new-session` + `hubEnvArgs` + Liveness-Poll + `knownSessions.add`), genutzt von `POST /api/sessions/:name/restore` **und** dem Boot-Block. Wirft nie → `{ok, session|error}`.
+- **Boot-Orchestrierung** (`app.listen`-Callback, nach known-Load + Best-effort-Adoption): iteriert den Plan sequenziell; **Continue-Fallback** — exitet ein `--continue`-Spawn sofort (keine Konversation im cwd), wird einmal frisch mit dem Plain-Command nachgesetzt. Jeder Fehler nur geloggt, killt den Boot nie. Log: `▸ auto-restore: N/M session(s) restored (continue=on|off)`.
+- **Opt-out via `manuallyStopped`** (`lib/known-sessions.js`): ein bewusstes Kill (`DELETE /api/sessions/:name` **und** Phase-5-Finish, via shared `destroySession`) markiert die Session → vom Auto-Restore ausgeschlossen (bleibt aber dormant fürs **manuelle** Restore). `add()` (Neustart/Restore/Adopt) löscht das Flag wieder.
+- **Settings** (`lib/settings.js`, beide default `true`): `autoRestore` (Master-Switch) + `autoRestoreContinue` (`--continue` vs. Frischstart). `GET/PATCH /api/settings`; Sektion „Session-Wiederherstellung" in der Settings-View (zwei Toggles, Continue als Unter-Option). Wirkt **erst beim nächsten Boot** (kein Live-Reload — Auto-Restore läuft nur beim Start).
+
+**Grenze:** Reboot-only by design; nur die CLI-Konversation kommt zurück, kein abgebrochener Task, kein sichtbarer tmux-Scrollback (lebte im RAM des toten Servers). Spec: `docs/superpowers/specs/2026-06-13-tmux-continuum-design.md`.
+
 ## Bekannte Einschränkungen
 
 - tmux-Socket wird beim ersten `tmux new-session` automatisch erstellt; node-pty erfordert Xcode Command Line Tools zum Kompilieren.
