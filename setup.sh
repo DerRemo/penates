@@ -170,6 +170,12 @@ echo "  ✓ LaunchAgent erstellt: $PLIST_FILE"
 echo ""
 echo -e "${BOLD}[6/9]${RESET} Claude-Code Hooks installieren..."
 
+# jq ist Pflicht für Hook-Install UND das StatusLine-Reporting (runtime).
+if ! command -v jq &> /dev/null; then
+  echo "  ⚙ jq wird installiert…"
+  brew install jq || echo -e "  ${DIM}⚠ jq-Install fehlgeschlagen — Hooks/StatusLine eingeschränkt.${RESET}"
+fi
+
 SETTINGS_FILE="$HOME/.claude/settings.json"
 if ! command -v jq &> /dev/null; then
   echo -e "  ${DIM}⚠ jq nicht gefunden — überspringe Hook-Install.${RESET}"
@@ -359,6 +365,11 @@ PORT="${PORT:-$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2)}"
 PORT="${PORT:-3333}"
 echo -e "  Lokal:   ${BOLD}http://localhost:${PORT}${RESET}"
 echo ""
-echo -e "${DIM}  Nächster Schritt: Cloudflare Tunnel einrichten${RESET}"
-echo -e "${DIM}  für Remote-Zugriff (optional)${RESET}"
+# Remote-Zugriff: nur anbieten, wenn setup.sh DIREKT (nicht aus install.sh) läuft.
+# install.sh ruft remote-setup.sh selbst auf (Env-Marker CCHUB_FROM_INSTALL).
+if [ -z "${CCHUB_FROM_INSTALL:-}" ] && [ -x "${APP_DIR}/scripts/remote-setup.sh" ]; then
+  bash "${APP_DIR}/scripts/remote-setup.sh" || true
+else
+  echo -e "${DIM}  Remote-Zugriff: ./scripts/remote-setup.sh (Tailscale empfohlen)${RESET}"
+fi
 echo ""
