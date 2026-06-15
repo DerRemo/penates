@@ -54,12 +54,13 @@ test.describe('Settings-View (Redesign Phase 1)', () => {
     await expect(topbar).toBeVisible();
   });
 
-  test('renders 7 anchor chips incl. Server', async ({ authedPage: page }) => {
+  test('renders 8 anchor chips incl. Server + Session restore', async ({ authedPage: page }) => {
     await openSettings(page);
-    await expect(page.locator('#settings-view .settings-anchor')).toHaveCount(7);
+    await expect(page.locator('#settings-view .settings-anchor')).toHaveCount(8);
     await expect(page.locator('#settings-view .settings-anchor[data-anchor="sec-terminal"]')).toBeAttached();
     await expect(page.locator('#settings-view .settings-anchor[data-anchor="sec-account"]')).toBeAttached();
     await expect(page.locator('#settings-view .settings-anchor[data-anchor="sec-server"]')).toBeAttached();
+    await expect(page.locator('#settings-view .settings-anchor[data-anchor="sec-restore"]')).toBeAttached();
   });
 
   test('server panel renders status + feature flags from /api/settings', async ({ authedPage: page }) => {
@@ -160,6 +161,34 @@ test.describe('Settings-View (Redesign Phase 1)', () => {
     expect(posted).toBe(0);
     await page.click('#srv-restart-btn');          // confirms → posts
     await expect.poll(() => posted).toBe(1);
+  });
+
+  test('session-restore section reflects settings + toggling PATCHes', async ({ authedPage: page }) => {
+    let patched = null;
+    await page.route('**/api/settings', route => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify({
+            settings: { tmuxMouse: 'on', remoteApproval: true, autoRestore: true, autoRestoreContinue: false },
+            status: { version: '9.9.9', uptimeSeconds: 1, sessions: 0, activePtys: 0 },
+            features: { voice: { enabled: false, lang: 'de' }, preview: { enabled: false, host: null },
+              cfAccess: { enabled: false }, push: { configured: false }, projectRoots: [], browseRoots: [], defaultProjectDir: '~' },
+          }),
+        });
+      }
+      patched = JSON.parse(route.request().postData() || '{}');
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ settings: {} }) });
+    });
+    await openSettings(page);
+    await page.waitForSelector('#srv-auto-restore', { state: 'attached', timeout: 10_000 });
+    // aria-pressed mirrors the fetched settings (continue off, master on).
+    await expect(page.locator('#srv-auto-restore')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#srv-auto-restore-continue')).toHaveAttribute('aria-pressed', 'false');
+    // Toggling the master switch flips aria + PATCHes the boolean.
+    await page.click('#srv-auto-restore');
+    await expect(page.locator('#srv-auto-restore')).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(() => patched && patched.autoRestore).toBe(false);
   });
 
 });
