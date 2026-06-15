@@ -110,6 +110,33 @@ test.describe('Board implement spawn (Phase 4)', () => {
     expect(cards.find(c => c.id === card.id)?.stage).toBe('brainstorming');
   });
 
+  test('failed implement spawn (500) leaves the card in brainstorming — no premature move', async ({ authedPage: page, isMobile }) => {
+    test.skip(!isMobile, 'stage dropdown is mobile-only (≤899px); desktop uses drag → real-app verify');
+    // Spawn rejected by tmux (e.g. "duplicate session") → 500. The card must NOT
+    // advance: a failed spawn used to leave the card moved anyway (error toast +
+    // card in the new column).
+    await page.route('**/api/board/cards/*/implement', async (route) => {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'duplicate session' }) });
+    });
+
+    const card = await seedCard(page, { title: 'IMPL fail ' + Date.now(), withSpec: true });
+    await goToBoard(page);
+
+    await page.locator(`.board-card[data-id="${card.id}"]`).click();
+    await page.waitForSelector('#board-detail:not([hidden])', { timeout: 3_000 });
+
+    await page.selectOption('#board-detail-stage', 'implement');
+    await expect(page.locator('#penates-confirm-modal.open')).toBeVisible({ timeout: 2_000 });
+    await page.locator('#penates-confirm-ok').click();
+
+    // Server-side stage must stay 'brainstorming' — the move only commits on a
+    // successful spawn.
+    await expect.poll(async () => {
+      const cards = await listCards(page);
+      return cards.find(c => c.id === card.id)?.stage;
+    }, { timeout: 4_000 }).toBe('brainstorming');
+  });
+
   test('detail panel has no start button (attach only when a session is alive)', async ({ authedPage: page }) => {
     const card = await seedCard(page, { title: 'IMPL nobtn ' + Date.now(), withSpec: true });
     await goToBoard(page);

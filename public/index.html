@@ -11912,8 +11912,10 @@
             danger: false,
           });
           if (!ok) return false;
+          // Erst spawnen, dann bewegen: scheitert der Spawn, bleibt die Karte in
+          // 'idea' (kein „Session-Fehler, aber Karte trotzdem verschoben").
+          if (!await startBrainstorm(card.id)) return false;
           await patchCard(card.id, { stage });
-          startBrainstorm(card.id);
           return true;
         }
         if (stage === 'implement') {
@@ -11926,8 +11928,10 @@
             danger: true,
           });
           if (!ok) return false;
+          // Erst spawnen, dann bewegen (s.o.) — ein Spawn-Fehler darf die Karte
+          // nicht nach 'implement' ziehen.
+          if (!await startImplement(card.id)) return false;
           await patchCard(card.id, { stage });
-          startImplement(card.id);
           return true;
         }
         if (stage === 'done' && card.stage === 'review') {
@@ -11962,17 +11966,18 @@
       async function startBrainstorm(id) {
         try {
           const r = await fetch(`/api/board/cards/${id}/brainstorm`, { method: 'POST', headers: jsonH() });
-          if (!r.ok) { showToast(t('board.brainstorm.failed'), 'error'); return; }
+          if (!r.ok) { showToast(t('board.brainstorm.failed'), 'error'); return false; }
           const data = await r.json();
           if (data && data.session) connectToSession(data.session);
-        } catch { showToast(t('board.brainstorm.failed'), 'error'); }
+          return true;
+        } catch { showToast(t('board.brainstorm.failed'), 'error'); return false; }
       }
       async function startImplement(id) {
         try {
           const r = await fetch(`/api/board/cards/${id}/implement`, { method: 'POST', headers: jsonH() });
           if (!r.ok) {
             const msg = r.status === 400 ? t('board.implement.noSpec') : t('board.implement.failed');
-            showToast(msg, 'error'); return;
+            showToast(msg, 'error'); return false;
           }
           const data = await r.json();
           // Der Server advanced brainstorming→implement beim Spawn. Lokal spiegeln,
@@ -11981,7 +11986,8 @@
           const c = cards.find(x => x.id === id);
           if (c && c.stage === 'brainstorming') { c.stage = 'implement'; render(); if (detailId === id) openDetail(id); }
           if (data && data.session) connectToSession(data.session);
-        } catch { showToast(t('board.implement.failed'), 'error'); }
+          return true;
+        } catch { showToast(t('board.implement.failed'), 'error'); return false; }
       }
       async function startFinish(id) {
         try {
