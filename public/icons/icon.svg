@@ -1,12 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2dd4bf"/>
-      <stop offset="1" stop-color="#0ea5e9"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <g fill="#0b0f12" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="700" font-size="260" text-anchor="middle">
-    <text x="256" y="346">&gt;_</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Penates">
+  <!-- Penates: a home (gabled house with overhanging eaves) holding a terminal
+       prompt. Flat, single teal mark on a soft Catppuccin-Latte tile. -->
+  <rect width="512" height="512" rx="112" fill="#eff1f5"/>
+  <!-- house silhouette: roof + body as one solid teal shape -->
+  <path d="M256 128 L412 256 L364 256 L364 408 L148 408 L148 256 L100 256 Z" fill="#179299"/>
+  <!-- terminal prompt ">_" knocked out as negative space (tile-coloured),
+       rounded strokes -->
+  <g fill="none" stroke="#eff1f5" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="192 290 254 332 192 374"/>
+    <line x1="276" y1="360" x2="320" y2="360"/>
   </g>
 </svg>
