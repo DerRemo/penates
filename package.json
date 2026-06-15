@@ -4,6 +4,9 @@
   "description": "Web interface to manage Claude Code sessions on a remote Mac mini",
   "type": "module",
   "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
