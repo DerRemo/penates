@@ -42,6 +42,7 @@ Mobile-Optimierung — alles auf der Catppuccin-Calm-Card-Designsprache.
 
 ## In Development: v1.0.1
 - [x] tmux-continumm einbauen
+- [x] Linux Phase 2: Hub OS-agnostisch lauffaehig machen (Windows nur via WSL2) {theme: oss-relaunch}
 
 ## Archiv: v0.3.0
 
