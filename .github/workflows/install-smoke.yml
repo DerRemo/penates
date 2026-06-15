@@ -1,0 +1,79 @@
+name: Install Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'install.sh'
+      - 'scripts/**'
+      - 'setup.sh'
+      - 'package.json'
+      - '.github/workflows/install-smoke.yml'
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: ShellCheck new install scripts (strict)
+        run: shellcheck -s bash install.sh scripts/lib.sh scripts/doctor.sh scripts/remote-setup.sh
+      - name: ShellCheck setup.sh (excluding pre-existing intentional patterns)
+        # SC2016: single-quoted hook/statusline commands are evaluated later, must NOT expand here.
+        # SC2046: `gui/$(id -u)` is always a single integer — no word-splitting risk.
+        run: shellcheck -s bash -e SC2016,SC2046 setup.sh
+
+  shell-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Shell-harness + touched JS unit tests
+        run: node --test scripts/*.test.js lib/files.test.js
+
+  macos-check:
+    # Real fresh-macOS detection smoke: runs the preflight (doctor) + arg parsing
+    # via `--check` (NO mutation — no brew installs, no LaunchAgent, no model download).
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Installer preflight (--check, no mutation)
+        # Exit 3 is expected on a CI runner missing some required prereqs; we assert it
+        # produces a coherent report and a 0-or-3 code, never a crash.
+        run: |
+          bash install.sh --check; code=$?
+          echo "doctor exit=$code"
+          [ "$code" = 0 ] || [ "$code" = 3 ]
+      - name: Shell unit tests on macOS
+        run: node --test scripts/*.test.js lib/files.test.js
+
+  macos-full-smoke:
+    # Heavy end-to-end install (real brew installs + setup.sh: LaunchAgent + ~574MB
+    # whisper model). Manual-only to keep PR/nightly gates fast and non-flaky.
+    # TODO: make this PR-gating once setup.sh gains CI flags to skip the model download
+    # and the LaunchAgent bootstrap (out of scope for the install-bootstrap iteration).
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Bootstrap headless (no CLI logins, no remote)
+        run: bash install.sh --yes --no-cli --remote=skip
+      - name: Hub answers /healthz
+        run: |
+          for _ in $(seq 1 30); do
+            curl -fsS http://localhost:3333/healthz && break || sleep 2
+          done
+          curl -fsS http://localhost:3333/healthz
+      - name: doctor reports ready
+        run: bash scripts/doctor.sh
