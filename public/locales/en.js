@@ -2,7 +2,7 @@
 window.__I18N_BUNDLES = window.__I18N_BUNDLES || {};
 window.__I18N_BUNDLES.en = {
   // Header
-  'header.logoProduct': 'Claude Code',
+  'header.logoProduct': 'Penates',
   'header.sidebarToggleAria': 'Toggle navigation',
   // Sidebar
   'sidebar.sessionsLabel': 'Sessions',
@@ -772,7 +772,7 @@ window.__I18N_BUNDLES.en = {
   'settings.updates.checking': 'Checking…',
   'settings.updates.error': 'Could not load updates.',
   'settings.updates.allCurrent': 'Everything is up to date.',
-  'settings.updates.group.hub': 'Hub',
+  'settings.updates.group.hub': 'Penates',
   'settings.updates.group.cli': 'CLIs',
   'settings.updates.group.dependency': 'Dependencies',
   'settings.updates.group.external': 'Externals',
