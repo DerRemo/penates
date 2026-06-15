@@ -47,9 +47,7 @@ setup_tailscale() {
     "Führe aus:  sudo tailscale up" \
     "und melde dich im Browser an." || { REMOTE_TODO+=("sudo tailscale up  # dann erneut: ./scripts/remote-setup.sh tailscale"); return 1; }
   # MagicDNS + HTTPS-Certs (Admin-Console, nicht skriptbar)
-  local host tnet url
-  # shellcheck disable=SC2034  # tnet unused placeholder; host/url consumed below
-  tnet=""
+  local host url
   host="$(tailscale status --json 2>/dev/null | sed -n 's/.*"DNSName":"\([^"]*\)".*/\1/p' | head -1)"
   host="${host%.}"
   guide_step "Tailscale HTTPS aktiv" bash -c "tailscale cert ${host:-x} >/dev/null 2>&1 || tailscale serve status >/dev/null 2>&1" -- \
