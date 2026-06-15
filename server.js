@@ -1087,6 +1087,13 @@ app.post('/api/board/cards/:id/brainstorm', async (req, res) => {
     try {
       await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', promptText: buildBrainstormPriming(card.title, card.id), auditMeta: auditLog.extractRequestMeta(req) });
     } catch (e) {
+      // Race: ein paralleler brainstorm-Trigger hat sessionName zwischen der
+      // Bump-Schleife und `tmux new-session` belegt → tmux "duplicate session".
+      // Existiert sie jetzt → an die bestehende Session attachen statt 500.
+      if (getTmuxSessions().some(s => s.name === sessionName)) {
+        await board.updateCard(card.id, { sessionRef: sessionName });
+        return res.status(200).json({ session: sessionName, reused: true });
+      }
       return res.status(500).json({ error: e.message });
     }
     await board.updateCard(card.id, { sessionRef: sessionName });
@@ -1138,15 +1145,25 @@ app.post('/api/board/cards/:id/implement', async (req, res) => {
     const advanceToImplement = () =>
       card.stage === 'brainstorming' ? board.moveCard(card.id, 'implement') : Promise.resolve();
 
-    // Idempotenz: lebt die deterministische Session schon → attach statt neu spawnen.
-    if (getTmuxSessions().some(s => s.name === sessionName)) {
+    // Attach an eine bereits laufende Session statt neu zu spawnen: Karte advancen,
+    // verlinken, 200 reused. Geteilt vom Idempotenz-Vorab-Check UND vom
+    // duplicate-session-Catch unten.
+    const attachExisting = async () => {
       await advanceToImplement();
       await board.updateCard(card.id, { sessionRef: sessionName, worktreePath: wtPath });
       return res.status(200).json({ session: sessionName, reused: true });
-    }
+    };
+
+    // Idempotenz: lebt die deterministische Session schon → attach statt neu spawnen.
+    if (getTmuxSessions().some(s => s.name === sessionName)) return attachExisting();
     try {
       await spawnTmuxSession({ sessionName, dir, cmd: 'claude --dangerously-skip-permissions', promptText: buildImplementPriming(card, { isolated: !!wtPath }), auditMeta: auditLog.extractRequestMeta(req) });
     } catch (e) {
+      // Race: zwischen dem Vorab-Check und `tmux new-session` ist die Session
+      // aufgetaucht — typisch zwei parallele Implement-Trigger derselben Karte
+      // (Doppel-Drag/-Klick, zwei Clients) → tmux "duplicate session". Existiert
+      // sie jetzt, ist das KEIN Fehler → attach statt 500.
+      if (getTmuxSessions().some(s => s.name === sessionName)) return attachExisting();
       return res.status(500).json({ error: e.message });
     }
     await advanceToImplement();
