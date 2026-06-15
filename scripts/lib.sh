@@ -30,6 +30,7 @@ have() {
 }
 
 os_detect() {
+  if [ -n "${PENATES_TEST_OS:-}" ]; then echo "$PENATES_TEST_OS"; return; fi
   case "$(uname -s)" in
     Darwin) echo macos ;;
     Linux)  echo linux ;;
@@ -39,6 +40,51 @@ os_detect() {
 
 arch_brew_prefix() {
   if [ "$(uname -m)" = "arm64" ]; then echo /opt/homebrew; else echo /usr/local; fi
+}
+
+# PENATES_TEST_PKG — Test-Seam: Komma-Liste „vorhandener" Paketmanager-Binaries.
+: "${PENATES_TEST_PKG:=}"
+_pkg_present() {
+  case ",${PENATES_TEST_PKG}," in *",$1,"*) return 0 ;; esac
+  have "$1"
+}
+
+# pkg_manager — erkennt den System-Paketmanager. echo apt|dnf|pacman, sonst "".
+pkg_manager() {
+  if   _pkg_present apt-get; then echo apt
+  elif _pkg_present dnf;     then echo dnf
+  elif _pkg_present pacman;  then echo pacman
+  else echo ""; fi
+}
+
+# install_pkg <canonical...> — mappt kanonische Namen auf Distro-Pakete und
+# installiert via dem erkannten Manager (respektiert --dry-run via run()).
+# Kanonische Tokens: node tmux git jq trash build-tools python3
+install_pkg() {
+  local pm; pm="$(pkg_manager)"
+  [ -z "$pm" ] && { warn "Kein apt/dnf/pacman erkannt — bitte manuell installieren: $*"; return 1; }
+  local pkgs=()
+  local tok
+  for tok in "$@"; do
+    case "$pm:$tok" in
+      apt:node)           pkgs+=(nodejs npm) ;;
+      apt:trash)          pkgs+=(trash-cli) ;;
+      apt:build-tools)    pkgs+=(build-essential python3) ;;
+      dnf:node)           pkgs+=(nodejs npm) ;;
+      dnf:trash)          pkgs+=(trash-cli) ;;
+      dnf:build-tools)    pkgs+=(gcc gcc-c++ make python3) ;;
+      pacman:node)        pkgs+=(nodejs npm) ;;
+      pacman:trash)       pkgs+=(trash-cli) ;;
+      pacman:build-tools) pkgs+=(base-devel python) ;;
+      *:python3)          [ "$pm" = pacman ] && pkgs+=(python) || pkgs+=(python3) ;;
+      *)                  pkgs+=("$tok") ;;  # tmux/git/jq sind überall identisch
+    esac
+  done
+  case "$pm" in
+    apt)    run sudo apt-get install -y "${pkgs[@]}" ;;
+    dnf)    run sudo dnf install -y "${pkgs[@]}" ;;
+    pacman) run sudo pacman -S --needed --noconfirm "${pkgs[@]}" ;;
+  esac
 }
 
 # is_tty — können wir den User interaktiv fragen? (auch wenn stdin = curl-Pipe)

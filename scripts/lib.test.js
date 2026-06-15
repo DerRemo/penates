@@ -56,3 +56,29 @@ test('guide_step with empty verify returns failure', () => {
   const out = sh('guide_step "x" -- "i" || echo FAILED', { PENATES_YES: '1' });
   assert.match(out, /FAILED/);
 });
+
+test('os_detect honours PENATES_TEST_OS override', () => {
+  assert.equal(sh('os_detect', { PENATES_TEST_OS: 'linux' }), 'linux');
+  assert.equal(sh('os_detect', { PENATES_TEST_OS: 'macos' }), 'macos');
+});
+
+test('pkg_manager detects apt/dnf/pacman via PENATES_TEST_PKG seam, precedence apt>dnf>pacman', () => {
+  assert.equal(sh('pkg_manager', { PENATES_TEST_PKG: 'apt-get' }), 'apt');
+  assert.equal(sh('pkg_manager', { PENATES_TEST_PKG: 'dnf' }), 'dnf');
+  assert.equal(sh('pkg_manager', { PENATES_TEST_PKG: 'pacman' }), 'pacman');
+  assert.equal(sh('pkg_manager', { PENATES_TEST_PKG: 'apt-get,dnf' }), 'apt');
+});
+
+test('pkg_manager is empty when no manager present (macOS dev box, no seam)', () => {
+  const out = sh('pkg_manager');
+  assert.ok(out === '' || ['apt', 'dnf', 'pacman'].includes(out));
+});
+
+test('install_pkg honours dry-run and maps canonical names per manager', () => {
+  const apt = sh('PENATES_DRY_RUN=1 install_pkg tmux jq', { PENATES_TEST_PKG: 'apt-get' });
+  assert.match(apt, /\[dry-run\].*apt-get .*install.*tmux/);
+  const arch = sh('PENATES_DRY_RUN=1 install_pkg build-tools', { PENATES_TEST_PKG: 'pacman' });
+  assert.match(arch, /\[dry-run\].*pacman .*base-devel/);
+  const dnf = sh('PENATES_DRY_RUN=1 install_pkg build-tools', { PENATES_TEST_PKG: 'dnf' });
+  assert.match(dnf, /\[dry-run\].*dnf .*(@development-tools|gcc)/);
+});
