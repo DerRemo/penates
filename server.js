@@ -1608,6 +1608,35 @@ async function spawnTmuxSession({ sessionName, dir, cmd, promptText, auditMeta =
   throw new Error(`Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`);
 }
 
+// Respawnt eine dormant Session (geteilt von POST /api/sessions/:name/restore
+// und dem Boot-Auto-Restore). Mirror der ursprünglichen Restore-Spawn-Logik:
+// tmux new-session mit hubEnvArgs + -c dir + command, 20×40ms Liveness-Poll,
+// knownSessions.add() bei Erfolg. Wirft NIE — liefert
+// { ok: true, session } | { ok: false, error } (der Aufrufer mappt auf seine
+// Status-Codes/Bodies bzw. Boot-Logs).
+async function spawnDormantSession(name, { directory, command }) {
+  try {
+    execFileSync(TMUX, ['new-session', '-d', '-s', name, ...hubEnvArgs(name), '-c', directory, command], {
+      encoding: 'utf-8', timeout: 5000,
+    });
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+  for (let i = 0; i < 20; i++) {
+    await sleep(40);
+    const created = getTmuxSessions().find(s => s.name === name);
+    if (created) {
+      try {
+        await knownSessions.add({ name, directory, command });
+      } catch (e) {
+        console.error('[known-sessions] restore persist failed:', e);
+      }
+      return { ok: true, session: created };
+    }
+  }
+  return { ok: false, error: `Session "${name}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${command}" nicht mehr im PATH.` };
+}
+
 // capture-pane (Plain-Text) einer Session; fehlertolerant (Session weg → '').
 function capturePane(sessionName) {
   try {
@@ -1943,28 +1972,9 @@ app.post('/api/sessions/:name/restore', async (req, res) => {
   if (getTmuxSessions().some(s => s.name === name)) {
     return res.status(409).json({ error: 'Session with this name is already running' });
   }
-  try {
-    execFileSync(TMUX, ['new-session', '-d', '-s', name, ...hubEnvArgs(name), '-c', entry.directory, entry.command], {
-      encoding: 'utf-8', timeout: 5000,
-    });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-  for (let i = 0; i < 20; i++) {
-    await sleep(40);
-    const created = getTmuxSessions().find(s => s.name === name);
-    if (created) {
-      try {
-        await knownSessions.add({ name, directory: entry.directory, command: entry.command });
-      } catch (e) {
-        console.error('[known-sessions] restore persist failed:', e);
-      }
-      return res.status(201).json({ ...created, status: 'running' });
-    }
-  }
-  res.status(500).json({
-    error: `Session "${name}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${entry.command}" nicht mehr im PATH.`,
-  });
+  const result = await spawnDormantSession(name, { directory: entry.directory, command: entry.command });
+  if (result.ok) return res.status(201).json({ ...result.session, status: 'running' });
+  return res.status(500).json({ error: result.error });
 });
 
 // Adopt a foreign tmux session: register it in known-sessions under its
