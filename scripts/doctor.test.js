@@ -37,3 +37,20 @@ test('all required present → ready=true and exit 0 (reference machine)', () =>
   if (json.ready) assert.equal(code, 0);
   else assert.equal(code, 3); // CI without all prereqs: still internally consistent
 });
+
+test('Linux branch reports build_tools instead of xcode/brew and is internally consistent', () => {
+  const { json } = runJson({ PENATES_TEST_OS: 'linux' });
+  assert.equal(json.os, 'linux');
+  assert.equal(typeof json.required.build_tools, 'boolean');
+  assert.equal(typeof json.required.node, 'boolean');
+  assert.equal(typeof json.required.trash, 'boolean');
+  assert.equal(json.required.xcode_clt, undefined); // no xcode key on linux
+  assert.equal(typeof json.ready, 'boolean');
+});
+
+test('Linux missing tmux → ready=false, exit 3', () => {
+  const { json, code } = runJson({ PENATES_TEST_OS: 'linux', PENATES_TEST_MISSING: 'tmux' });
+  assert.equal(json.required.tmux, false);
+  assert.equal(json.ready, false);
+  assert.equal(code, 3);
+});
