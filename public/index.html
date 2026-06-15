@@ -4485,6 +4485,8 @@
     }
     .settings-section { scroll-margin-top: 110px; }
     .settings-section + .settings-section { margin-top: 4px; }
+    .settings-row--sub { padding-left: 16px; }
+    .settings-row--sub > label { opacity: .85; }
 
     .settings-card {
       background: var(--bg-card);
@@ -5216,6 +5218,7 @@
         <button type="button" class="settings-anchor" data-anchor="sec-terminal"      data-i18n="settings.section.terminal">Terminal</button>
         <button type="button" class="settings-anchor" data-anchor="sec-notifications" data-i18n="settings.section.notifications">Notifications</button>
         <button type="button" class="settings-anchor" data-anchor="sec-behavior"      data-i18n="settings.section.behavior">Behavior</button>
+        <button type="button" class="settings-anchor" data-anchor="sec-restore"       data-i18n="settings.section.restore">Session restore</button>
         <button type="button" class="settings-anchor" data-anchor="sec-server"        data-i18n="settings.section.server">Server</button>
         <button type="button" class="settings-anchor" data-anchor="sec-account"       data-i18n="settings.section.account">Account</button>
         <button type="button" class="settings-anchor" data-anchor="sec-help"          data-i18n="settings.section.helpAbout">Help &amp; About</button>
@@ -5399,6 +5402,26 @@
           </div>
         </div>
         <p class="settings-row__hint" data-i18n="settings.sessions.bulkKillDesc"></p>
+      </section>
+
+      <!-- Session restore (tmux-continuum native) -->
+      <section class="settings-section" id="sec-restore">
+        <div class="settings-seclabel" data-i18n="settings.section.restore">Session restore</div>
+        <div class="settings-card">
+          <div class="settings-row">
+            <label data-i18n="settings.restore.autoRestore">Auto-restore after reboot</label>
+            <div class="settings-row__control">
+              <button type="button" class="toggle-btn" id="srv-auto-restore" aria-pressed="true"></button>
+            </div>
+          </div>
+          <div class="settings-row settings-row--sub">
+            <label data-i18n="settings.restore.continue">Continue conversation</label>
+            <div class="settings-row__control">
+              <button type="button" class="toggle-btn" id="srv-auto-restore-continue" aria-pressed="true"></button>
+            </div>
+          </div>
+        </div>
+        <p class="settings-row__hint" data-i18n="settings.restore.hint"></p>
       </section>
 
       <!-- Server & Features -->
@@ -11417,6 +11440,28 @@
           });
         } catch { tm.setAttribute('aria-pressed', next ? 'false' : 'true'); }
       });
+      // Session-restore toggles live in their own static section (#sec-restore)
+      // but are server settings from the same /api/settings payload → wire here
+      // (initServerPanel runs whenever the settings view opens). Effect is at the
+      // next boot only, so no live re-apply.
+      const wireRestoreToggle = (id, key) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.setAttribute('aria-pressed', s[key] ? 'true' : 'false');
+        btn.addEventListener('click', async () => {
+          const next = btn.getAttribute('aria-pressed') !== 'true';
+          btn.setAttribute('aria-pressed', next ? 'true' : 'false');
+          try {
+            await fetch('/api/settings', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', ...apiHeaders() },
+              body: JSON.stringify({ [key]: next }),
+            });
+          } catch { btn.setAttribute('aria-pressed', next ? 'false' : 'true'); }
+        });
+      };
+      wireRestoreToggle('srv-auto-restore', 'autoRestore');
+      wireRestoreToggle('srv-auto-restore-continue', 'autoRestoreContinue');
       const uc = document.getElementById('srv-update-check');
       if (uc) uc.addEventListener('click', async () => {
         uc.disabled = true;
