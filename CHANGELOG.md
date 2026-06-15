@@ -41,6 +41,7 @@ Mobile-Optimierung — alles auf der Catppuccin-Calm-Card-Designsprache.
 - [x] Komplette Mobile-Optimierung — Board Quick-Move plus Bottom-Sheet, DiffView-Back, sticky Modal-Footer, Roadmap-Reorder, Terminal Copy-Output, 44px-Tap-Targets plus Safe-Area plus Landscape, Usage-Overflow-Fix {priority: p1, theme: mobile}
 
 ## In Development: v1.0.1
+- [x] tmux-continumm einbauen
 
 ## Archiv: v0.3.0
 
