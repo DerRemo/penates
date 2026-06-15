@@ -10,6 +10,10 @@ TEAL="\033[38;5;43m"
 DIM="\033[2m"
 RESET="\033[0m"
 
+# OS-Branch: macOS = launchd/plist (unverändert), Linux = systemd --user-Unit.
+OS_KERNEL="$(uname -s)"   # Darwin | Linux
+is_wsl() { grep -qiE 'microsoft|wsl' /proc/version 2>/dev/null; }
+
 echo ""
 echo -e "${TEAL}${BOLD}  ⚡ Penates — Setup${RESET}"
 echo -e "${DIM}  ─────────────────────────────────────${RESET}"
@@ -25,19 +29,27 @@ fi
 echo "  ✓ Node.js $(node -v)"
 
 if ! command -v tmux &> /dev/null; then
-  echo "  ⚙ tmux wird installiert..."
-  brew install tmux
+  if [ "$OS_KERNEL" = "Darwin" ]; then
+    echo "  ⚙ tmux wird installiert..."
+    brew install tmux
+  else
+    echo "  ✕ tmux nicht gefunden. Installiere via install.sh oder deinem Paketmanager (apt/dnf/pacman install tmux)."
+    exit 1
+  fi
 fi
 echo "  ✓ tmux $(tmux -V)"
 
 # moshi-hook: read-only Datenquelle für Usage (Rate-Limits) + Recent-Dirs.
 # NUR Install — kein `serve`/`pair`/`install` (das würde Moshis eigene
 # Agent-Hooks schreiben und mit den Hub-Hooks kollidieren).
-if ! command -v moshi-hook &> /dev/null; then
-  echo "  ⚙ moshi-hook wird installiert (Datenquelle für Usage/Recent-Dirs)..."
-  brew tap rjyo/moshi && brew install moshi-hook
-else
-  echo "  ✓ moshi-hook vorhanden"
+# macOS-only (brew tap rjyo/moshi); auf Linux degradieren Usage/Recent-Dirs graceful zu null.
+if [ "$OS_KERNEL" = "Darwin" ]; then
+  if ! command -v moshi-hook &> /dev/null; then
+    echo "  ⚙ moshi-hook wird installiert (Datenquelle für Usage/Recent-Dirs)..."
+    brew tap rjyo/moshi && brew install moshi-hook
+  else
+    echo "  ✓ moshi-hook vorhanden"
+  fi
 fi
 
 # 2. Install dependencies
@@ -103,18 +115,21 @@ else
   echo "  → PREVIEW_DOMAIN bereits gesetzt (${CURRENT_PREVIEW}) — unverändert."
 fi
 
-# 4. Create LaunchAgent for auto-start
+# 4. Autostart einrichten (macOS: launchd/plist — Linux: systemd --user-Unit)
 echo ""
-echo -e "${BOLD}[5/9]${RESET} LaunchAgent einrichten..."
+echo -e "${BOLD}[5/9]${RESET} Autostart einrichten..."
 
-PLIST_DIR="$HOME/Library/LaunchAgents"
 LAUNCHAGENT_ID="${LAUNCHAGENT_ID:-com.penates}"
-PLIST_FILE="$PLIST_DIR/${LAUNCHAGENT_ID}.plist"
 APP_DIR="$(pwd)"
+mkdir -p "${APP_DIR}/logs"
+AUTOSTART_SKIPPED=0
 
-mkdir -p "$PLIST_DIR"
+if [ "$OS_KERNEL" = "Darwin" ]; then
+  PLIST_DIR="$HOME/Library/LaunchAgents"
+  PLIST_FILE="$PLIST_DIR/${LAUNCHAGENT_ID}.plist"
+  mkdir -p "$PLIST_DIR"
 
-cat > "$PLIST_FILE" << PLIST
+  cat > "$PLIST_FILE" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -160,11 +175,43 @@ cat > "$PLIST_FILE" << PLIST
 </plist>
 PLIST
 
-chmod 644 "$PLIST_FILE"
+  chmod 644 "$PLIST_FILE"
+  echo "  ✓ LaunchAgent erstellt: $PLIST_FILE"
+elif [ "$OS_KERNEL" = "Linux" ]; then
+  if command -v systemctl >/dev/null 2>&1; then
+    UNIT_DIR="$HOME/.config/systemd/user"
+    UNIT_FILE="$UNIT_DIR/penates.service"
+    NODE_BIN="$(command -v node)"
+    mkdir -p "$UNIT_DIR"
+    # %h = $HOME (systemd-Spezifizierer). Restart=always = launchd-KeepAlive-Äquivalent.
+    # PATH spiegelt platform.extraPaths() (Linux), damit tmux-Kinder claude/codex/agy finden.
+    cat > "$UNIT_FILE" << UNIT
+[Unit]
+Description=Penates — coding-agent session hub
+After=network.target
 
-mkdir -p "${APP_DIR}/logs"
+[Service]
+Type=simple
+WorkingDirectory=${APP_DIR}
+ExecStart=${NODE_BIN} ${APP_DIR}/server.js
+Restart=always
+RestartSec=2
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=LANG=en_US.UTF-8
+Environment=LC_CTYPE=en_US.UTF-8
+StandardOutput=append:${APP_DIR}/logs/stdout.log
+StandardError=append:${APP_DIR}/logs/stderr.log
 
-echo "  ✓ LaunchAgent erstellt: $PLIST_FILE"
+[Install]
+WantedBy=default.target
+UNIT
+    echo "  ✓ systemd-Unit erstellt: $UNIT_FILE"
+  else
+    echo "  ⚠ Kein systemd erkannt — Autostart übersprungen."
+    echo "    Starte manuell:  node ${APP_DIR}/server.js   (oder in deinen Init eintragen)."
+    AUTOSTART_SKIPPED=1
+  fi
+fi
 
 # 5. Claude-Code Hook-Installation
 echo ""
@@ -172,8 +219,12 @@ echo -e "${BOLD}[6/9]${RESET} Claude-Code Hooks installieren..."
 
 # jq ist Pflicht für Hook-Install UND das StatusLine-Reporting (runtime).
 if ! command -v jq &> /dev/null; then
-  echo "  ⚙ jq wird installiert…"
-  brew install jq || echo -e "  ${DIM}⚠ jq-Install fehlgeschlagen — Hooks/StatusLine eingeschränkt.${RESET}"
+  if [ "$OS_KERNEL" = "Darwin" ]; then
+    echo "  ⚙ jq wird installiert…"
+    brew install jq || echo -e "  ${DIM}⚠ jq-Install fehlgeschlagen — Hooks/StatusLine eingeschränkt.${RESET}"
+  else
+    echo -e "  ${DIM}⚠ jq fehlt — installiere via Paketmanager (apt/dnf/pacman install jq); Hooks/StatusLine sonst eingeschränkt.${RESET}"
+  fi
 fi
 
 SETTINGS_FILE="$HOME/.claude/settings.json"
@@ -330,47 +381,73 @@ fi
 echo ""
 echo -e "${BOLD}[8/9]${RESET} Voice-Input: whisper.cpp + Modell …"
 
-# 1) Binary via Homebrew (Metal-Build out-of-the-box auf Apple Silicon)
-if ! command -v whisper-cli >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/whisper-cli ]; then
-  brew install whisper-cpp || echo "  ⚠︎ brew install whisper-cpp fehlgeschlagen — Voice-Input bleibt aus."
-fi
-
-# 2) Multilinguales Turbo-Modell (quantisiert ~574 MB), idempotent
 MODEL_DIR="$HOME/.penates/models"
 MODEL_FILE="$MODEL_DIR/ggml-large-v3-turbo-q5_0.bin"
-mkdir -p "$MODEL_DIR"
-if [ ! -f "$MODEL_FILE" ]; then
-  echo "  Lade ggml-large-v3-turbo-q5_0.bin (~574 MB, einmalig) …"
-  curl -L --fail --progress-bar \
-    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin" \
-    -o "$MODEL_FILE" || { echo "  ⚠︎ Modell-Download fehlgeschlagen."; rm -f "$MODEL_FILE"; }
+# Multilinguales Turbo-Modell (quantisiert ~574 MB), idempotent.
+download_whisper_model() {
+  mkdir -p "$MODEL_DIR"
+  if [ ! -f "$MODEL_FILE" ]; then
+    echo "  Lade ggml-large-v3-turbo-q5_0.bin (~574 MB, einmalig) …"
+    curl -L --fail --progress-bar \
+      "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin" \
+      -o "$MODEL_FILE" || { echo "  ⚠︎ Modell-Download fehlgeschlagen."; rm -f "$MODEL_FILE"; }
+  fi
+}
+
+if [ "$OS_KERNEL" = "Darwin" ]; then
+  # Binary via Homebrew (Metal-Build out-of-the-box auf Apple Silicon)
+  if ! command -v whisper-cli >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/whisper-cli ]; then
+    brew install whisper-cpp || echo "  ⚠︎ brew install whisper-cpp fehlgeschlagen — Voice-Input bleibt aus."
+  fi
+  download_whisper_model
+  echo "  Hinweis: CoreML/ANE (~3× Encoder-Speedup) ist ein optionaler späterer Tune"
+  echo "  (whisper.cpp Source-Build mit -DWHISPER_COREML=1 + CoreML-Modell). Metal reicht auf M-Series."
+else
+  # Linux: Best-Effort, blockiert nie. whisper-cpp baut auf Linux (CPU, kein Metal),
+  # ist aber kein Standard-Distro-Paket → nur Modell ziehen, wenn das Binary schon da ist.
+  if command -v whisper-cli >/dev/null 2>&1; then
+    download_whisper_model
+  else
+    echo "  ⚠ whisper-cli nicht gefunden — Voice-Input bleibt aus (Best-Effort, optional)."
+    echo "    Build: https://github.com/ggerganov/whisper.cpp (CPU; kein GPU/CUDA in v1)."
+  fi
 fi
 
-# 3) .env-Vars setzen (nur wenn nicht vorhanden — User-Werte nicht überschreiben)
+# .env-Vars setzen (nur wenn nicht vorhanden — User-Werte nicht überschreiben)
 grep -q '^WHISPER_MODEL=' .env 2>/dev/null || echo "WHISPER_MODEL=$MODEL_FILE" >> .env
 grep -q '^VOICE_LANG=' .env 2>/dev/null || echo "VOICE_LANG=de" >> .env
-
-echo "  Hinweis: CoreML/ANE (~3× Encoder-Speedup) ist ein optionaler späterer Tune"
-echo "  (whisper.cpp Source-Build mit -DWHISPER_COREML=1 + CoreML-Modell). Metal reicht auf M-Series."
 
 # 9. Load and start
 echo ""
 echo -e "${BOLD}[9/9]${RESET} Starte Penates..."
 
-# Rebrand-Migration: vor-Penates-Labels entladen + alte Plists entfernen,
-# sonst liefe nach dem Rename ein zweiter Hub unter dem alten Label weiter.
-for _old_label in com.claude-code-hub com.derremo.claude-code-hub; do
-  if [ "$_old_label" != "$LAUNCHAGENT_ID" ]; then
-    launchctl bootout "gui/$(id -u)/${_old_label}" 2>/dev/null || true
-    rm -f "$PLIST_DIR/${_old_label}.plist"
-  fi
-done
+if [ "$OS_KERNEL" = "Darwin" ]; then
+  # Rebrand-Migration: vor-Penates-Labels entladen + alte Plists entfernen,
+  # sonst liefe nach dem Rename ein zweiter Hub unter dem alten Label weiter.
+  for _old_label in com.claude-code-hub com.derremo.claude-code-hub; do
+    if [ "$_old_label" != "$LAUNCHAGENT_ID" ]; then
+      launchctl bootout "gui/$(id -u)/${_old_label}" 2>/dev/null || true
+      rm -f "$PLIST_DIR/${_old_label}.plist"
+    fi
+  done
 
-# Vorherige Version entladen (idempotenter Re-Run)
-launchctl bootout gui/$(id -u) "$PLIST_FILE" 2>/dev/null || true
-# Falls das Label zuvor disabled wurde, wieder freigeben — sonst scheitert bootstrap mit EIO.
-launchctl enable "gui/$(id -u)/${LAUNCHAGENT_ID}" 2>/dev/null || true
-launchctl bootstrap gui/$(id -u) "$PLIST_FILE"
+  # Vorherige Version entladen (idempotenter Re-Run)
+  launchctl bootout gui/$(id -u) "$PLIST_FILE" 2>/dev/null || true
+  # Falls das Label zuvor disabled wurde, wieder freigeben — sonst scheitert bootstrap mit EIO.
+  launchctl enable "gui/$(id -u)/${LAUNCHAGENT_ID}" 2>/dev/null || true
+  launchctl bootstrap gui/$(id -u) "$PLIST_FILE"
+elif [ "$OS_KERNEL" = "Linux" ]; then
+  if [ "${AUTOSTART_SKIPPED:-0}" = 0 ] && command -v systemctl >/dev/null 2>&1; then
+    systemctl --user daemon-reload || true
+    systemctl --user enable --now penates.service \
+      || echo "  ⚠ systemctl --user enable --now penates.service fehlgeschlagen (läuft evtl. keine User-Session?)."
+    # enable-linger: Service startet auch ohne aktiven Login (Headless-VPS) + überlebt Logout.
+    loginctl enable-linger "$USER" 2>/dev/null || true
+    echo "  ✓ systemd-Service aktiviert (penates.service); enable-linger gesetzt."
+  else
+    echo "  → Kein Autostart aktiv: starte manuell mit  node ${APP_DIR}/server.js"
+  fi
+fi
 
 echo ""
 echo -e "${TEAL}${BOLD}  ✓ Penates läuft!${RESET}"
@@ -378,6 +455,10 @@ echo ""
 PORT="${PORT:-$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2)}"
 PORT="${PORT:-3333}"
 echo -e "  Lokal:   ${BOLD}http://localhost:${PORT}${RESET}"
+if [ "$OS_KERNEL" = "Linux" ] && is_wsl; then
+  echo -e "  ${DIM}WSL2 erkannt — aktuelle Windows-Builds forwarden localhost automatisch zu Windows."
+  echo -e "  Ältere Builds: nutze die WSL-IP (ip addr | grep eth0) statt localhost.${RESET}"
+fi
 echo ""
 # Remote-Zugriff: nur anbieten, wenn setup.sh DIREKT (nicht aus install.sh) läuft.
 # install.sh ruft remote-setup.sh selbst auf (Env-Marker PENATES_FROM_INSTALL).
