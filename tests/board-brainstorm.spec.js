@@ -4,7 +4,7 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 // Brainstorm-spawn UI spec (Idea Pipeline Phase 3).
 // The real endpoint spawns a claude session — too heavy for CI. We stub the
 // endpoint with page.route() and assert the UI contract only. The E2E server
-// runs with BOARD_PATH=/tmp/penates-e2e-board.json (isolated board).
+// runs with PENATES_HOME=/tmp/penates-e2e-home (isolated state dir).
 //
 // Moving a card INTO a stage is what spawns the session — via drag (desktop) OR
 // the stage dropdown (mobile/detail). Drag in headless Chromium is flaky, so we

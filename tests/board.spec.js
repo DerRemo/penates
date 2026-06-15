@@ -2,7 +2,7 @@ import { test, expect } from './fixtures.js';
 import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 
 // The board view (Idea Pipeline Phase 1). The E2E server runs with an isolated
-// BOARD_PATH=/tmp/penates-e2e-board.json (see playwright.config.js) so creating/
+// PENATES_HOME=/tmp/penates-e2e-home (see playwright.config.js) so creating/
 // deleting cards never touches the real ~/.penates/board.json. We still
 // reset the store between tests via the API so each test is independent.
 

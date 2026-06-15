@@ -4,7 +4,7 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 // Idea-generation UI spec (Idea Pipeline Phase 3-B). The real endpoint spawns a
 // claude session — too heavy for CI. We stub POST /api/projects/:id/ideagen with
 // page.route() and assert the UI contract only. Notes editing hits the real
-// (isolated) board via BOARD_PATH=/tmp/penates-e2e-board.json.
+// (isolated) board via PENATES_HOME=/tmp/penates-e2e-home.
 
 const NAV_PROJECTS = '[data-sidebar-nav="projects"]';
 const NAV_BOARD = '[data-sidebar-nav="board"]';

@@ -139,7 +139,7 @@ export async function navigateToBoard(page) {
   await ensureSidebarClosed(page);
 }
 
-// Create a board card via API (uses the isolated BOARD_PATH the test server
+// Create a board card via API (uses the isolated PENATES_HOME the test server
 // runs with). Returns the created card; delete it with deleteBoardCard.
 export async function createBoardCard(page, { projectId = 'penates', title, stage = 'idea' }) {
   const token = await getToken(page);

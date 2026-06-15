@@ -3,7 +3,7 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 
 // Finish UI spec (Idea Pipeline Phase 5). The real finish merges+pushes — too
 // heavy/irreversible for CI. We stub /finish and /branch-diff with page.route()
-// and assert the UI contract only. Isolated BOARD_PATH. Stage dropdown is
+// and assert the UI contract only. Isolated PENATES_HOME. Stage dropdown is
 // mobile-only (≤899px); desktop uses drag → real-app verify.
 
 const NAV_BOARD = '[data-sidebar-nav="board"]';

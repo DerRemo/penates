@@ -26,7 +26,7 @@ penates/
 ├── tests/               # Playwright E2E-Specs
 ├── scripts/             # Hilfsscripts
 ├── package.json         # Runtime-Deps: express, express-ws, node-pty, busboy, http-proxy, jose, web-push, dotenv
-├── .env / .env.example  # Konfiguration (PORT, AUTH_TOKEN, PREVIEW_DOMAIN, WHISPER_*, TMUX_MOUSE, …)
+├── .env / .env.example  # Konfiguration (PORT, AUTH_TOKEN, PREVIEW_DOMAIN, WHISPER_*, TMUX_MOUSE, PENATES_HOME, …)
 ├── setup.sh             # Installationsscript (deps, .env, LaunchAgent, Hooks, StatusLine)
 ├── logs/                # stdout.log, stderr.log
 ├── ROADMAP.md           # Lebendes Roadmap-Dokument (siehe „Roadmap / Planung")
@@ -61,6 +61,7 @@ Items in Released/In-Dev werden im Hub-Detail-View getoggelt (`PATCH /api/projec
 - **Auth:** Bearer-Token aus `.env`. Das Frontend holt den Token beim ersten Laden per `prompt()` und speichert ihn im `localStorage` (`penates_token`) — er steht **nicht** im HTML. REST: `Authorization: Bearer <token>`; WebSocket: `Sec-WebSocket-Protocol: bearer.<token>` (`?token=` als Migrations-Fallback).
 - **Remote-Zugriff:** optional via Cloudflare Tunnel auf eine eigene Domain → `localhost:<PORT>`; CF Access authentifiziert am Edge (`lib/cf-access.js` validiert das JWT via `jose`).
 - **Auto-Start:** macOS LaunchAgent (default `com.penates`, via `LAUNCHAGENT_ID`). Template in `setup.sh`.
+- **State-Dir:** persistenter Hub-State (`settings.json`/`sessions.json`/`board.json`) liegt unter `~/.penates`, überschreibbar via `PENATES_HOME` (`lib/penates-home.js`, lazy — von den settings/known-sessions/board-Stores genutzt). Primär ein Test-Seam (Unit-Tests + E2E isolieren darüber, damit kein Testlauf echten State anfasst).
 - **Graceful Shutdown:** bei `SIGTERM`/`SIGINT` werden alle aktiven PTYs gekillt, bevor der Server schließt.
 
 ## API-Endpunkte
