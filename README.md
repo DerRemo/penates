@@ -107,7 +107,21 @@ Antigravity (`agy`) installierst du nach [Googles offizieller Anleitung](https:/
 
 ## Installation
 
-### Repo herunterladen
+### Schnellstart (ein Befehl)
+
+```bash
+curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/DerRemo/claude-code-hub/main/install.sh | bash
+```
+
+Der Installer führt dich durch alles: prüft was schon da ist, installiert Fehlendes
+(Homebrew, Node, tmux, jq, die drei CLIs claude/codex/agy, moshi-hook), richtet den
+Hub als Dienst ein und bietet Remote-Zugriff an (Tailscale empfohlen). Manuelle
+Schritte (CLI-Logins, Tailscale-Anmeldung) werden inline erklärt; offene Punkte
+landen am Ende als Checkliste. Nur prüfen, nichts ändern: `./install.sh --check`.
+
+### Manuell
+
+Schon ein Checkout oder lieber Schritt für Schritt:
 
 ```bash
 cd ~
@@ -157,9 +171,29 @@ Beim ersten Besuch fragt der Browser nach dem Token — das ist der Wert aus `AU
 
 ---
 
-## Remote-Zugriff über Cloudflare Tunnel (optional)
+## Remote-Zugriff
 
-Wenn du den Hub auch von außerhalb deines Heimnetzwerks erreichen willst (iPhone unterwegs, anderer Rechner), kannst du Cloudflare Tunnel einrichten. Das ist kostenlos.
+Damit du den Hub auch von außerhalb deines Heimnetzwerks erreichst (iPhone unterwegs,
+anderer Rechner) — zwei Wege, der Installer bietet beide an (`./scripts/remote-setup.sh`).
+
+### Tailscale (empfohlen — keine Domain, echtes HTTPS)
+
+```bash
+./scripts/remote-setup.sh tailscale
+```
+
+Installiert Tailscale, meldet dich an und macht den Hub via `tailscale serve` unter
+`https://<rechner>.<tailnet>.ts.net` erreichbar — echtes Let's-Encrypt-Cert (nötig für
+PWA-Install + Web-Push), nur für deine eigenen Geräte, keine Domain, kein Cloudflare-Account.
+Einmalig im [Tailscale-Admin](https://login.tailscale.com/admin/dns) HTTPS-Certs aktivieren.
+
+### Cloudflare Tunnel (öffentlich / eigene Domain)
+
+```bash
+./scripts/remote-setup.sh cloudflare
+```
+
+Für öffentlichen Zugriff unter deiner Domain (kostenlos). Die manuellen Schritte im Detail:
 
 ### Cloudflare-Account und Domain
 

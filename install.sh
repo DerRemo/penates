@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Claude Code Hub — One-Line Bootstrap (geführt).
-#   curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/<OWNER/REPO>/main/install.sh | bash
-RAW_BASE="${CCHUB_RAW_BASE:-https://raw.githubusercontent.com/<OWNER/REPO>/main}"
-REPO_URL="${CCHUB_REPO_URL:-https://github.com/<OWNER/REPO>.git}"
+#   curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/DerRemo/claude-code-hub/main/install.sh | bash
+RAW_BASE="${CCHUB_RAW_BASE:-https://raw.githubusercontent.com/DerRemo/claude-code-hub/main}"
+REPO_URL="${CCHUB_REPO_URL:-https://github.com/DerRemo/claude-code-hub.git}"
 GIT_DIR="${CCHUB_GIT_DIR:-$HOME/claude-code-hub}"
 REMOTE="${CCHUB_REMOTE:-}"
 NO_CLI="${CCHUB_NO_CLI:-0}"
