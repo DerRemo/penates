@@ -25,6 +25,7 @@ import * as board from './lib/board.js';
 import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand, implementBranchName, isValidImplementBranch } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
 import * as serverControl from './lib/server-control.js';
+import { platform, resolveBin, extraPaths } from './lib/platform.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
@@ -133,21 +134,18 @@ function previewPortReady() {
   return activePreviewPort != null && isPreviewPortListening(activePreviewPort) ? activePreviewPort : null;
 }
 const SESSION_PREFIX = process.env.SESSION_PREFIX || 'cc-';
-const TMUX = process.env.TMUX_PATH || (() => {
-  // Auto-detect tmux in PATH instead of hardcoding Homebrew Apple Silicon path.
-  // Covers Intel Macs (/usr/local/bin), Linux, nix, MacPorts, etc.
-  try {
-    return execFileSync('/usr/bin/which', ['tmux'], { encoding: 'utf8' }).trim();
-  } catch {
-    return '/opt/homebrew/bin/tmux'; // last-resort fallback
-  }
-})();
 
-// LaunchAgent startet uns mit minimalem PATH (/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin).
-// `claude` liegt in ~/.local/bin und wäre sonst für tmux-Child-Prozesse unauffindbar →
-// neu erstellte Sessions würden sofort mit Exit 127 sterben.
-const EXTRA_PATHS = [join(homedir(), '.local/bin'), '/opt/homebrew/bin', '/usr/local/bin'];
+// Autostart (launchd/systemd) startet uns mit minimalem PATH. `claude` liegt in
+// ~/.local/bin und wäre sonst für tmux-Child-Prozesse unauffindbar → neu erstellte
+// Sessions würden mit Exit 127 sterben. Per-OS-Extra-Pfade zuerst voranstellen,
+// damit auch der tmux-Lookup darunter davon profitiert.
+const EXTRA_PATHS = extraPaths();
 process.env.PATH = [...new Set([...EXTRA_PATHS, ...(process.env.PATH || '').split(':')])].filter(Boolean).join(':');
+
+// tmux per OS-agnostischem PATH-Scan auflösen (kein /usr/bin/which-Hardcode mehr).
+// Last-Resort-Fallback per OS, falls tmux (noch) nicht im PATH liegt.
+const TMUX = process.env.TMUX_PATH || resolveBin('tmux') ||
+  (platform() === 'macos' ? '/opt/homebrew/bin/tmux' : '/usr/bin/tmux');
 
 // Mouse-Mode in tmux steuern. Default `on`, sodass Wheel-Events im xterm.js-
 // Client als Scroll-Back funktionieren. Ohne das sieht der attached Client keine
