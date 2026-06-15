@@ -37,3 +37,20 @@ test('--check never falls through to install/mutation phases', () => {
   // These phase headers only print AFTER the --check early-exit; their presence = fall-through.
   assert.doesNotMatch(out, /▸ Prereqs|▸ Coding-CLIs|▸ App|▸ Setup/);
 });
+
+test('Linux dry-run reaches Prereqs and uses a package manager (no brew gate)', () => {
+  const { out, code } = run(['--dry-run', '--yes', '--no-cli'], {
+    PENATES_TEST_OS: 'linux', PENATES_TEST_PKG: 'apt-get',
+    PENATES_TEST_MISSING: 'node,tmux,git,jq,gio,trash-put,cc,gcc',
+  });
+  assert.equal(code, 0);
+  assert.match(out, /▸ Prereqs/);
+  assert.doesNotMatch(out, /Nur macOS wird unterstützt/); // gate must be gone for linux
+  assert.match(out, /\[dry-run\].*apt-get .*install/);
+});
+
+test('unsupported OS still rejected', () => {
+  const { out, code } = run(['--yes'], { PENATES_TEST_OS: 'unsupported' });
+  assert.notEqual(code, 0);
+  assert.match(out, /nicht unterstützt|unsupported|macOS|Linux/i);
+});
