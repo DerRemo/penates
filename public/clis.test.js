@@ -99,3 +99,36 @@ test('variantByTier returns the matching variant or null', () => {
   assert.equal(variantByTier('antigravity', 'auto'), null);        // no such tier
   assert.equal(variantByTier('nope', 'safe'), null);
 });
+
+import { continueCommand } from './clis.js';
+
+test('continueCommand: claude inserts --continue after binary, keeps flags', () => {
+  assert.equal(continueCommand('claude'), 'claude --continue');
+  assert.equal(continueCommand('claude --permission-mode auto'), 'claude --continue --permission-mode auto');
+});
+test('continueCommand: codex first token → "codex resume --last", keeps flags', () => {
+  assert.equal(continueCommand('codex'), 'codex resume --last');
+  assert.equal(continueCommand('codex --sandbox workspace-write --ask-for-approval on-request'),
+    'codex resume --last --sandbox workspace-write --ask-for-approval on-request');
+});
+test('continueCommand: agy inserts --continue after binary', () => {
+  assert.equal(continueCommand('agy'), 'agy --continue');
+  assert.equal(continueCommand('agy --dangerously-skip-permissions'), 'agy --continue --dangerously-skip-permissions');
+});
+test('continueCommand: path-binary keeps the original token', () => {
+  assert.equal(continueCommand('/opt/homebrew/bin/claude --permission-mode auto'),
+    '/opt/homebrew/bin/claude --continue --permission-mode auto');
+  assert.equal(continueCommand('/usr/local/bin/codex'), '/usr/local/bin/codex resume --last');
+});
+test('continueCommand: idempotent (double call == single)', () => {
+  assert.equal(continueCommand('claude --continue --permission-mode auto'), 'claude --continue --permission-mode auto');
+  assert.equal(continueCommand(continueCommand('claude --permission-mode auto')), continueCommand('claude --permission-mode auto'));
+  assert.equal(continueCommand('codex resume --last --sandbox workspace-write'), 'codex resume --last --sandbox workspace-write');
+  assert.equal(continueCommand('agy --continue'), 'agy --continue');
+});
+test('continueCommand: unknown CLI / empty / null → null', () => {
+  assert.equal(continueCommand('bash -lc whatever'), null);
+  assert.equal(continueCommand(''), null);
+  assert.equal(continueCommand(null), null);
+  assert.equal(continueCommand(undefined), null);
+});

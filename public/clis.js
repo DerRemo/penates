@@ -60,3 +60,24 @@ export function variantByTier(cliId, tier) {
   if (!c) return null;
   return c.variants.find(v => v.tier === tier) || null;
 }
+
+// Wandelt einen gespeicherten Command in seine „letzte Konversation fortsetzen"-
+// Form um. CLI-id via cliFromCommand(); die Continue-Sequenz wird direkt nach dem
+// Binary-Token eingefügt, alle übrigen Flags bleiben erhalten. Idempotent (ein
+// bereits fortgesetzter Command kommt unverändert zurück — wichtig, weil der
+// Auto-Restore die Continue-Form persistiert). Unbekannte CLI / leer / null →
+// null (Caller fällt auf den Plain-Command zurück).
+export function continueCommand(command) {
+  const id = cliFromCommand(command);
+  if (!id) return null;
+  const tokens = command.trim().split(/\s+/);
+  const [bin, ...rest] = tokens;
+  if (id === 'codex') {
+    // Idempotenz: beginnt bereits mit „<bin> resume" → unverändert.
+    if (rest[0] === 'resume') return tokens.join(' ');
+    return [bin, 'resume', '--last', ...rest].join(' ');
+  }
+  // claude / antigravity: Continue-Flag direkt nach dem Binary.
+  if (rest.includes('--continue') || rest.includes('-c')) return tokens.join(' ');
+  return [bin, '--continue', ...rest].join(' ');
+}
