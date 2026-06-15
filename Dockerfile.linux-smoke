@@ -1,0 +1,29 @@
+# Linux smoke image for Penates. Verifies the OS-agnostic Hub really boots and
+# serves on a clean Linux box: doctor green → server boot → /healthz → a real
+# cc- tmux session spawn. Deps are provisioned here directly (deterministic image)
+# rather than via install.sh's package-manager arm, which is unit-tested separately.
+#
+#   docker build -f Dockerfile.linux-smoke -t penates-smoke .
+#   docker run --rm penates-smoke
+#
+# systemd autostart enable is NOT exercised here — a base container has no PID1
+# systemd. The unit-file generation is asserted at the text level by the unit
+# suite (scripts/setup.test.js); a live enable must be verified on a systemd host.
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+# Linux required set (mirrors doctor.sh's Linux column) + build toolchain for node-pty.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      curl ca-certificates git tmux jq trash-cli \
+      build-essential python3 \
+      nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . /app
+# node-pty compiles against the installed toolchain at install time.
+RUN npm install --no-audit --no-fund
+
+ENV PORT=3333 AUTH_TOKEN=smoke PENATES_HOME=/tmp/penates-home HOME=/root
+EXPOSE 3333
+CMD ["bash", "scripts/linux-smoke.sh"]
