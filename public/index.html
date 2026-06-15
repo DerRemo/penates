@@ -875,6 +875,20 @@
     .board-col[data-stage="implement"]     .board-col__glyph { color: var(--accent); }
     .board-col[data-stage="review"]        .board-col__glyph { color: var(--peach); }
     .board-col[data-stage="done"]          .board-col__glyph { color: var(--green); }
+
+    /* Stage-Chip auf Board-Session-Cards in der Overview — Farbe je Stufe,
+       analog zu .board-col[data-stage] (Idea = neutral/muted). */
+    .board-stage-chip {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      font-size: var(--text-xs); font-weight: 600; line-height: 1;
+      padding: 2px var(--space-2); border-radius: var(--radius-pill);
+      color: var(--text-muted);
+      background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+    }
+    .board-stage-chip[data-stage="brainstorming"] { color: var(--blue);   background: color-mix(in srgb, var(--blue) 14%, transparent); }
+    .board-stage-chip[data-stage="implement"]     { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+    .board-stage-chip[data-stage="review"]        { color: var(--peach);  background: color-mix(in srgb, var(--peach) 14%, transparent); }
+    .board-stage-chip[data-stage="done"]          { color: var(--green);  background: color-mix(in srgb, var(--green) 14%, transparent); }
     /* Review = Human-Gate: subtiler Akzent + „braucht dich"-Chip wenn Karten da. */
     .board-col[data-stage="review"].has-cards .board-col__head { box-shadow: inset 0 -2px 0 var(--peach); }
     .board-col__needyou { font-size: var(--text-xs); font-weight: 600; color: var(--peach); background: var(--peach-dim); border-radius: var(--radius-pill); padding: 1px var(--space-2); flex-shrink: 0; }
@@ -8483,9 +8497,15 @@
         return;
       }
 
-      // Gruppiere nach Status — stabile Reihenfolge innerhalb jeder Gruppe.
+      // Board-verlinkte LAUFENDE Sessions in eine eigene Sektion herausziehen
+      // (dormante bleiben in „Ruhend" — eine dormante Session lässt sich nicht killen).
+      const isBoardSession = (s) => !!s.boardCard && (s.status || 'running') === 'running';
+      const boardSessions = filtered.filter(isBoardSession);
+
+      // Gruppiere den Rest nach Status — stabile Reihenfolge innerhalb jeder Gruppe.
       const byStatus = { running: [], dormant: [], foreign: [] };
       for (const s of filtered) {
+        if (isBoardSession(s)) continue;   // keine Doppelung Board ↔ Aktiv
         const key = s.status || 'running';
         if (byStatus[key]) byStatus[key].push(s);
       }
@@ -8500,6 +8520,7 @@
           return bp - ap; // pinned first
         });
       }
+      boardSessions.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)); // pinned first
 
       const activityMap = {
         working: { cls: 'working', get label() { return t('sessionCard.status.working'); },      get title() { return t('sessionCard.status.workingTitle'); } },
@@ -8533,6 +8554,44 @@
         const pn = s.project && s.project.name;
         if (!pn || pn.toLowerCase() === (displayName || '').toLowerCase()) return '';
         return `<span class="session-card-project" title="${escapeHtml(pn)}">${escapeHtml(pn)}</span>`;
+      };
+
+      // Board-Session-Card: wie running, aber Name = Ideen-Titel (boardCard.title),
+      // data-name bleibt der tmux-Name (Attach unverändert), plus Stage-Chip. Das
+      // Activity-Badge bleibt erhalten — der User will beides sehen.
+      const renderBoardSessionCard = (s) => {
+        const bc = s.boardCard;
+        const displayName = bc.title;
+        const safeName = escapeHtml(s.name);
+        const act = activityMap[s.activity] || activityMap.unknown;
+        const label = s.activity === 'unknown' && !s.attached ? t('sessionCard.status.dormant') : act.label;
+        const unreadCls = unreadSessions.has(s.name) ? ' unread' : '';
+        const activityAttr = escapeHtml(s.activity || 'unknown');
+        const stageChip = `<span class="board-stage-chip" data-stage="${escapeHtml(bc.stage)}">${escapeHtml(t('board.stage.' + bc.stage))}</span>`;
+        return `
+          <div class="session-card${unreadCls}" data-status="running" data-board="true" data-name="${safeName}" data-attached="${s.attached}" data-activity="${activityAttr}">
+            <span class="card-accent" aria-hidden="true"></span>
+            <div class="session-card-header">
+              <div class="session-name">
+                ${cardCliLogo(s.command)}
+                <span class="session-name-text">${escapeHtml(displayName)}</span>
+                ${projectBadge(s, displayName)}
+              </div>
+              <div class="session-status ${act.cls}" title="${escapeHtml(act.title)}">${label}</div>
+            </div>
+            <div class="session-meta board-session-meta">${stageChip}</div>
+            <div class="session-actions" data-stop-propagation>
+              <button class="btn btn-danger btn-sm" data-action="kill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                ${t('sessionCard.action.kill')}
+              </button>
+              <span class="session-card-tools">
+                ${renderPinButton(s.pinned)}
+                ${renderMuteButton(s.muted)}
+              </span>
+            </div>
+          </div>
+        `;
       };
 
       const renderRunningCard = (s) => {
@@ -8661,6 +8720,7 @@
       // Flash.
       const newOrder = [];
       const sectionSpecs = [
+        [t('dashboard.section.board'),   boardSessions,    renderBoardSessionCard],
         [t('dashboard.section.active'),  byStatus.running, renderRunningCard],
         [t('dashboard.section.dormant'), byStatus.dormant, renderDormantCard],
         [t('dashboard.section.foreign'), byStatus.foreign, renderForeignCard],
@@ -11968,15 +12028,20 @@
           if (!card.brainstormDoc) { showToast(t('board.implement.noSpec'), 'info'); return false; }
           const ok = await showConfirmDialog({
             title: t('board.implement.confirmTitle'),
-            body: t('board.implement.confirmBody'),
+            // Lebt noch eine Brainstorming-Session, beenden wir sie als Teil dieses
+            // Confirms — KEIN zweiter Dialog.
+            body: card.sessionLive
+              ? `${t('board.implement.confirmBody')} ${t('board.implement.confirmBodyKill')}`
+              : t('board.implement.confirmBody'),
             confirmLabel: t('board.implement.confirmOk'),
             danger: true,
           });
           if (!ok) return false;
-          // Erst spawnen, dann bewegen (s.o.) — ein Spawn-Fehler darf die Karte
-          // nicht nach 'implement' ziehen.
-          if (!await startImplement(card.id)) return false;
-          await patchCard(card.id, { stage });
+          // patchCard killt+nullt die alte Brainstorm-Session und bewegt nach
+          // 'implement'; danach setzt der implement-Endpoint die NEUE sessionRef
+          // (sein board.moveCard wird zum No-op, Karte ist schon in 'implement').
+          await patchCard(card.id, { stage, endSession: true });
+          await startImplement(card.id);
           return true;
         }
         if (stage === 'done' && card.stage === 'review') {
@@ -11991,9 +12056,11 @@
           return true;
         }
         // Destruktiv-Gate: ein manueller Move nach `done` einer Karte mit
-        // Artefakten (Branch/Worktree/Session) räumt diese serverseitig auf →
-        // erst bestätigen (greift für Drag UND Stage-Dropdown). Reine Ideen-
-        // Karten ziehen lautlos. Der review→done-Pfad oben läuft über startFinish.
+        // Artefakten (Branch/Worktree/Session) räumt diese serverseitig auf
+        // (finalizeCardToDone) → erst bestätigen (greift für Drag UND Stage-
+        // Dropdown). Reine Ideen-Karten ziehen lautlos. Der review→done-Pfad oben
+        // läuft über startFinish; die Session-Kill-Meldung kommt aus der
+        // Cleanup-Summary (kein endSession nötig — finalizeCardToDone killt + meldet).
         if (stage === 'done' && (card.branch || card.worktreePath || card.sessionRef)) {
           const ok = await showConfirmDialog({
             title: t('board.done.confirmTitle'),
@@ -12002,6 +12069,24 @@
             danger: true,
           });
           if (!ok) return false;
+          await patchCard(card.id, { stage });
+          return true;
+        }
+        // Generischer Move (nicht-done): hat die Karte eine lebende Session, beim
+        // Stufenwechsel beenden (immer mit Confirm, gegated durch confirmKill).
+        // sessionLive kommt vom enrichCard-Backend; fehlt es (alt-gecachte Karte), kein Kill.
+        if (card.sessionLive) {
+          if (!window.Prefs || window.Prefs.get.confirmKill()) {
+            const ok = await showConfirmDialog({
+              title: t('board.move.endSessionTitle'),
+              body:  t('board.move.endSessionBody', { name: (card.sessionRef || '').replace(/^cc-/, '') }),
+              confirmLabel: t('board.move.endSessionOk'),
+              danger: true,
+            });
+            if (!ok) return false;   // kein Move; Aufrufer resynct die UI
+          }
+          await patchCard(card.id, { stage, endSession: true });
+          return true;
         }
         await patchCard(card.id, { stage });
         return true;

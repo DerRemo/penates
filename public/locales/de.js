@@ -59,6 +59,7 @@ window.__I18N_BUNDLES.de = {
   'dashboard.section.active': 'Aktiv',
   'dashboard.section.dormant': 'Ruhend',
   'dashboard.section.foreign': 'Fremd',
+  'dashboard.section.board': 'Board',
 
   // Session card — status badges
   'sessionCard.status.working': 'Arbeitet',
@@ -322,6 +323,10 @@ window.__I18N_BUNDLES.de = {
   'board.implement.confirmTitle': 'Umsetzung starten?',
   'board.implement.confirmBody': 'Spawnt einen autonomen Claude-Agenten, der einen Plan schreibt, mit Tests umsetzt und auf einem Branch committet (kein Push). Du reviewst danach.',
   'board.implement.confirmOk': 'Agent starten',
+  'board.implement.confirmBodyKill': 'Die aktuelle Brainstorming-Session wird beendet.',
+  'board.move.endSessionTitle': 'Karte verschieben & Session beenden?',
+  'board.move.endSessionBody': 'Diese Karte hat eine laufende Session („{name}"). Sie in eine andere Stufe zu verschieben beendet diese Session. Der Worktree bleibt erhalten.',
+  'board.move.endSessionOk': 'Verschieben & beenden',
   'board.implement.attach': 'Umsetzungs-Session öffnen',
   'board.implement.failed': 'Umsetzungs-Session konnte nicht gestartet werden.',
   'board.implement.noSpec': 'Erst den Brainstorming-Schritt abschließen — diese Idee hat noch keinen Spec.',
