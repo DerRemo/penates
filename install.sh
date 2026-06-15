@@ -64,10 +64,8 @@ log ""; log "${C_TEAL}${C_BOLD}  ⚡ Claude Code Hub — Installer${C_RESET}"
 
 # ---- Phase 0: Preflight-Report ----
 step "Preflight"
-bash "$DOCTOR" || true   # zeigt den ✓/✕-Report (Exit 3 ist hier ok)
-if [ "$DO_CHECK" = 1 ]; then
-  bash "$DOCTOR" >/dev/null || exit $?   # --check: nur Report + Exit-Code (|| prevents set -e early exit)
-fi
+doctor_rc=0; bash "$DOCTOR" || doctor_rc=$?   # ✓/✕-Report; Exit-Code fangen (|| umgeht set -e)
+if [ "$DO_CHECK" = 1 ]; then exit "$doctor_rc"; fi   # --check: Report + Exit-Code, IMMER beenden — keine Mutation
 [ "$(os_detect)" = macos ] || { err "Nur macOS wird unterstützt (Linux=Phase 2, Windows→WSL2)."; exit 1; }
 macos_major="$(sw_vers -productVersion 2>/dev/null | cut -d. -f1 || true)"
 [ "${macos_major:-0}" -ge 15 ] 2>/dev/null || warn "macOS < 15 (Sequoia) erkannt — jq/trash sind erst ab 15 Apple-mitgeliefert; best-effort via Homebrew."
