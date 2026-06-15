@@ -28,6 +28,7 @@ import * as serverControl from './lib/server-control.js';
 import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
+import { createTtlCache } from './lib/single-flight.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
 import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
 import { preflightFinish, finishCard } from './lib/git-finish.js';
@@ -469,28 +470,29 @@ app.post('/api/preview/select', (req, res) => {
 // ── Mata (iOS-Simulator-Viewer) — Status + Quick-Control ──
 // Feature-Gate: installed:false → 200 mit installed:false (Frontend versteckt das Feature).
 // 5s In-Memory-Cache analog GET /api/usage/costs.
-let mataStatusCache = { ts: 0, val: null };
 const MATA_STATUS_TTL_MS = 5000;
+// In-Flight-Dedup: jeder pollende Tab spawnte im Cold-Window sonst ein eigenes
+// `mata status` (4 s Timeout) + TCP-Probe.
+const mataStatusCache = createTtlCache(MATA_STATUS_TTL_MS);
 app.get('/api/mata/status', async (_req, res) => {
-  const now = Date.now();
-  if (mataStatusCache.val && now - mataStatusCache.ts < MATA_STATUS_TTL_MS) return res.json(mataStatusCache.val);
-  if (!mata.isInstalled()) {
-    const val = { installed: false, running: false, portOpen: false };
-    mataStatusCache = { ts: now, val };
-    return res.json(val);
+  try {
+    const val = await mataStatusCache.get(async () => {
+      if (!mata.isInstalled()) return { installed: false, running: false, portOpen: false };
+      const status = await mata.getStatus();
+      const portOpen = await mata.isViewerPortOpen();
+      return {
+        installed: true,
+        running: !!(status && status.running),
+        pid: status && status.pid != null ? status.pid : null,
+        version: status && status.version ? status.version : null,
+        startedAt: status && status.startedAt ? status.startedAt : null,
+        portOpen,
+      };
+    });
+    res.json(val);
+  } catch {
+    res.json({ installed: !!mata.isInstalled(), running: false, portOpen: false });
   }
-  const status = await mata.getStatus();
-  const portOpen = await mata.isViewerPortOpen();
-  const val = {
-    installed: true,
-    running: !!(status && status.running),
-    pid: status && status.pid != null ? status.pid : null,
-    version: status && status.version ? status.version : null,
-    startedAt: status && status.startedAt ? status.startedAt : null,
-    portOpen,
-  };
-  mataStatusCache = { ts: now, val };
-  res.json(val);
 });
 
 // Start/Stop/Restart der Mata-App. Action-Whitelist → 400. writeLimiter (global) deckt das ab.
@@ -499,8 +501,8 @@ app.post('/api/mata/control', async (req, res) => {
   const action = req.body && req.body.action;
   if (!MATA_ACTIONS.has(action)) return res.status(400).json({ error: 'invalid action' });
   if (!mata.isInstalled()) return res.status(409).json({ error: 'mata not installed' });
-  mataStatusCache = { ts: 0, val: null };          // State ändert sich → Cache invalidieren
   const r = await mata[action]();
+  mataStatusCache.invalidate();   // erst NACH der Action: sonst füllt ein Poll während des await wieder Stale-State nach
   if (!r || !r.ok) return res.status(502).json({ error: 'mata control failed', message: r && r.error });
   res.json({ ok: true });
 });
@@ -777,17 +779,11 @@ app.get('/api/sessions', (req, res) => {
 
 // Aggregierte Usage-Historie (Tages-Totals + Monatssumme). 60s-Cache, weil
 // die JSONL-Dateien nur minütlich neue Einträge bekommen.
-let usageCache = { ts: 0, data: null };
+const usageCache = createTtlCache(60_000);
 app.get('/api/usage/history', async (req, res) => {
   const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 90);
-  const key = `days=${days}`;
-  const now = Date.now();
-  if (usageCache.data && usageCache.key === key && now - usageCache.ts < 60_000) {
-    return res.json(usageCache.data);
-  }
   try {
-    const data = await getDailyUsageV2({ days });
-    usageCache = { ts: now, key, data };
+    const data = await usageCache.get(() => getDailyUsageV2({ days }), { key: `days=${days}` });
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: 'Failed to compute usage', detail: e.message });
@@ -795,34 +791,33 @@ app.get('/api/usage/history', async (req, res) => {
 });
 
 // Account-weite Limit-History (moshi-hook usage). 30s-Cache.
-let limitsCache = { ts: 0, data: null };
+// 30s-Cache + In-Flight-Dedup. Der ganze Build (inkl. der Seiteneffekt-Aufruf
+// recordUsageSnapshot) läuft so genau einmal pro Cold-Window statt pro Request.
+const limitsCache = createTtlCache(30_000);
 app.get('/api/usage/limits', async (req, res) => {
   const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), 30);
-  const now = Date.now();
-  const key = `days=${days}`;
-  if (limitsCache.data && limitsCache.key === key && now - limitsCache.ts < 30_000) {
-    return res.json(limitsCache.data);
-  }
   try {
-    const usage = moshiHook.getUsage();
-    if (usage) usageLimits.recordUsageSnapshot(usage);
-    const data = await usageLimits.getLimitHistory({ days });
-    // Antigravity läuft nicht über moshi-hook (kein Support) — separat aus den
-    // CLI-Logs ableiten. Erscheint nur wenn aktuell quota-limitiert.
-    const agy = getAntigravityUsage();
-    if (agy) data.accounts = [...(data.accounts || []), agy];
-    // Attach pace to every limit window before caching.
-    for (const acc of (data.accounts || [])) {
-      for (const w of (acc.windows || [])) {
-        const mins = windowMinutes(w.label);
-        const pace = (typeof w.usedPercentage === 'number' && w.resetsAt && mins)
-          ? computePace({ usedPercent: w.usedPercentage, resetsAt: w.resetsAt, windowMinutes: mins })
-          : null;
-        // Floor: suppress pace too early in the window (expected < 3%).
-        w.pace = (pace && pace.expectedPct >= 3) ? pace : null;
+    const data = await limitsCache.get(async () => {
+      const usage = moshiHook.getUsage();
+      if (usage) usageLimits.recordUsageSnapshot(usage);
+      const d = await usageLimits.getLimitHistory({ days });
+      // Antigravity läuft nicht über moshi-hook (kein Support) — separat aus den
+      // CLI-Logs ableiten. Erscheint nur wenn aktuell quota-limitiert.
+      const agy = getAntigravityUsage();
+      if (agy) d.accounts = [...(d.accounts || []), agy];
+      // Attach pace to every limit window before caching.
+      for (const acc of (d.accounts || [])) {
+        for (const w of (acc.windows || [])) {
+          const mins = windowMinutes(w.label);
+          const pace = (typeof w.usedPercentage === 'number' && w.resetsAt && mins)
+            ? computePace({ usedPercent: w.usedPercentage, resetsAt: w.resetsAt, windowMinutes: mins })
+            : null;
+          // Floor: suppress pace too early in the window (expected < 3%).
+          w.pace = (pace && pace.expectedPct >= 3) ? pace : null;
+        }
       }
-    }
-    limitsCache = { ts: now, key, data };
+      return d;
+    }, { key: `days=${days}` });
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: 'Failed to read limit history', detail: e.message });
@@ -1283,6 +1278,13 @@ app.post('/api/projects/:id/ideagen', async (req, res) => {
     try {
       await spawnTmuxSession({ sessionName, dir: project.path, cmd: 'claude', promptText: buildIdeaGenPriming(project.id, project.displayName), auditMeta: auditLog.extractRequestMeta(req) });
     } catch (e) {
+      // Race: ein paralleler ideagen-Trigger (Doppelklick/zwei Clients) hat den
+      // deterministischen Namen zwischen Vorab-Check und `tmux new-session`
+      // belegt → tmux "duplicate session". Existiert sie jetzt → reuse statt 500
+      // (gleich wie brainstorm/implement).
+      if (getTmuxSessions().some(s => s.name === sessionName)) {
+        return res.status(200).json({ session: sessionName, reused: true });
+      }
       return res.status(500).json({ error: e.message });
     }
     // Trust-Gate-Watchdog im Hintergrund (blockiert die HTTP-Antwort nicht).
