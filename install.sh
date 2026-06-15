@@ -110,7 +110,7 @@ cd "$APP_DIR"
 
 # ---- Phase 5: setup.sh ----
 step "Setup"
-run bash ./setup.sh
+CCHUB_FROM_INSTALL=1 run bash ./setup.sh
 
 # ---- Phase 6: Remote ----
 step "Remote-Zugriff"
@@ -121,16 +121,16 @@ CCHUB_TODO_FILE="$TODO_FILE" CCHUB_REMOTE_OUT="$REMOTE_OUT" \
 
 # ---- Phase 7: Abschluss-Report ----
 step "Fertig"
-PORT="$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2-)"; PORT="${PORT:-3333}"
-TOKEN="$(grep '^AUTH_TOKEN=' .env 2>/dev/null | cut -d= -f2-)"
-REMOTE_URL="$(sed -n 's/^URL=//p' "$REMOTE_OUT" 2>/dev/null | head -1)"
+PORT="$(grep '^PORT=' .env 2>/dev/null | cut -d= -f2- || true)"; PORT="${PORT:-3333}"
+TOKEN="$(grep '^AUTH_TOKEN=' .env 2>/dev/null | cut -d= -f2- || true)"
+REMOTE_URL="$(sed -n 's/^URL=//p' "$REMOTE_OUT" 2>/dev/null | head -1 || true)"
 log ""
 ok "Hub läuft:  http://localhost:${PORT}"
 [ -n "$REMOTE_URL" ] && ok "Remote:     ${REMOTE_URL}"
 [ -n "$TOKEN" ] && log "  ${C_BOLD}Token:${C_RESET} ${TOKEN}"
 log ""
 log "  ${C_BOLD}📋 Noch von dir zu tun:${C_RESET}"
-for cli in claude codex agy; do have "$cli" && log "    • $cli   → einmal starten und im Browser einloggen"; done
+for cli in claude codex agy; do have "$cli" && log "    • $cli   → einmal starten und im Browser einloggen" || true; done
 if [ -s "$TODO_FILE" ]; then while IFS= read -r t; do log "    • $t"; done < "$TODO_FILE"; fi
 log "    • Prüfen:  ./scripts/doctor.sh"
 rm -f "$TODO_FILE" "$REMOTE_OUT"

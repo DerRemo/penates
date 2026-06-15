@@ -70,7 +70,7 @@ else
   printf '  Optional:  %s whisper  %s tailscale  %s cloudflared  %s moshi-hook\n' \
     "$(mark "$o_whisper")" "$(mark "$o_tailscale")" "$(mark "$o_cloudflared")" "$(mark "$o_moshi")"
   printf '  Hub running (:%s): %s\n' "$hub_port" "$(mark "$hub_running")"
-  [ "$READY" = true ] && ok "alle Required-Prereqs vorhanden" || warn "Required-Prereqs fehlen — siehe ✕ oben"
+  if [ "$READY" = true ]; then ok "alle Required-Prereqs vorhanden"; else warn "Required-Prereqs fehlen — siehe ✕ oben"; fi
 fi
 
 [ "$OS" = macos ] || exit 1
