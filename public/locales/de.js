@@ -344,6 +344,13 @@ window.__I18N_BUNDLES.de = {
   'board.finish.reason.no-branch': 'Der Branch dieser Karte existiert nicht mehr.',
   'board.finish.reason.conflict': 'Merge würde konfligieren — erst manuell auflösen.',
   'board.finish.reason.no-changelog-section': 'Keine „## In Development"-Section im Changelog.',
+  'board.done.confirmTitle': 'Auf Fertig setzen?',
+  'board.done.confirmBody': 'Diese Karte auf Fertig setzen? Beendet die laufende Session und entfernt den Worktree. Der Branch wird gelöscht, falls er gemergt ist (ungemergt bleibt er erhalten).',
+  'board.done.confirmOk': 'Auf Fertig',
+  'board.cleanup.sessionKilled': 'Session beendet',
+  'board.cleanup.worktreeRemoved': 'Worktree entfernt',
+  'board.cleanup.branchDeleted': 'Branch gelöscht',
+  'board.cleanup.branchKept': 'Branch behalten (ungemergt)',
   'board.detail.notes': 'Notizen',
   'board.card.notesPlaceholder': 'Noch keine Notizen',
 

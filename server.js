@@ -32,7 +32,7 @@ import { createTtlCache } from './lib/single-flight.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
 import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
 import { preflightFinish, finishCard } from './lib/git-finish.js';
-import { canIsolate, worktreePathFor, ensureWorktree, removeWorktree, deleteBranch } from './lib/worktree.js';
+import { canIsolate, worktreePathFor, ensureWorktree, removeWorktree, deleteBranch, branchExists } from './lib/worktree.js';
 import {
   listDir as filesListDir,
   readFile as filesReadFile,
@@ -1039,7 +1039,10 @@ app.patch('/api/board/cards/:id', async (req, res) => {
     if (Object.keys(rest).length) card = await board.updateCard(req.params.id, rest);
     if (!card) card = board.getCard(req.params.id);
     if (!card) return res.status(404).json({ error: 'Card not found' });
-    res.json(card);
+    // Übergang nach `done` → Artefakte aufräumen (geteilter Pfad mit /finish).
+    let cleanup;
+    if (stage === 'done') cleanup = await finalizeCardToDone(card, auditLog.extractRequestMeta(req));
+    res.json(cleanup ? { ...card, cleanup } : card);
   } catch (e) {
     if (e.message === 'unknown-id') return res.status(404).json({ error: 'Card not found' });
     res.status(400).json({ error: 'Bad request', detail: e.message });
@@ -1237,19 +1240,12 @@ app.post('/api/board/cards/:id/finish', async (req, res) => {
       return res.status(500).json({ error: e.stage || 'finish', detail: e.message });
     }
 
-    // Erfolg → Session beenden (falls vorhanden), Karte → done.
-    if (card.sessionRef && getTmuxSessions().some(s => s.name === card.sessionRef)) {
-      try { destroySession(card.sessionRef, auditLog.extractRequestMeta(req)); } catch {}
-    }
-    await board.moveCard(card.id, 'done');
-    // Worktree-Isolation: nach erfolgtem Merge den Worktree entfernen und den
-    // (jetzt gemergten) Branch löschen. removeWorktree VOR deleteBranch — Git
-    // verbietet das Löschen eines noch ausgecheckten Branches.
-    if (card.worktreePath) {
-      removeWorktree(repo, card.worktreePath);
-      try { await board.updateCard(card.id, { worktreePath: null }); } catch { /* ignore */ }
-    }
-    deleteBranch(repo, card.branch);
+    // Erfolg → Karte auf done, dann konsolidierter Cleanup (Session-Kill +
+    // Worktree-Removal + Branch-Delete) über finalizeCardToDone — derselbe Pfad
+    // wie der manuelle Drag→Done (Safety-Net statt zweiter Kopie). Nach
+    // erfolgreichem Merge ist der Branch gemergt → -d löscht ihn.
+    const moved = await board.moveCard(card.id, 'done');
+    await finalizeCardToDone(moved, auditLog.extractRequestMeta(req));
     auditLog.record('card.finish', { ...auditLog.extractRequestMeta(req), card: card.id, branch: card.branch, base });
     res.json({ done: true, base, pushed: result.pushed });
   } catch (e) {
@@ -1692,6 +1688,43 @@ async function cleanupWorktreeForSession(name) {
     if (project && project.path) removeWorktree(project.path, card.worktreePath);
   } catch { /* Projekt weg → Worktree verbleibt, Boot-Reconciliation/prune räumt */ }
   try { await board.updateCard(card.id, { worktreePath: null }); } catch { /* ignore */ }
+}
+
+// Zentraler, idempotenter, best-effort Cleanup beim Übergang einer Karte nach
+// `done` — geteilt vom manuellen Board-Drag/Dropdown (PATCH stage:done) UND von
+// `/finish`. Wirft nie (jeder Sub-Step eigenes try/catch, Vorbild
+// cleanupWorktreeForSession). Reihenfolge zwingend: Worktree VOR Branch (git
+// verbietet `branch -d` auf ausgechecktem Branch). Gibt eine Summary für die UX
+// zurück. reqMeta = auditLog.extractRequestMeta(req).
+async function finalizeCardToDone(card, reqMeta = {}) {
+  const summary = { sessionKilled: false, worktreeRemoved: false, branchDeleted: false, branchKept: false };
+  let repo = null;
+  try { repo = (await getProject(card.projectId))?.path || null; } catch { repo = null; }
+
+  // 1. Live-Session beenden (nur wenn sie noch in tmux lebt).
+  if (card.sessionRef && getTmuxSessions().some(s => s.name === card.sessionRef)) {
+    try { destroySession(card.sessionRef, reqMeta); summary.sessionKilled = true; } catch { /* ignore */ }
+  }
+
+  // 2. Worktree (force) — nur mit aufgelöstem repo. removeWorktree schluckt selbst.
+  if (card.worktreePath && repo) {
+    try { removeWorktree(repo, card.worktreePath); summary.worktreeRemoved = true; } catch { /* ignore */ }
+    try { await board.updateCard(card.id, { worktreePath: null }); } catch { /* ignore */ }
+  }
+
+  // 3. Branch (-d, sicher). existedBefore verhindert, dass ein schon fehlender
+  //    Branch fälschlich als gelöscht/behalten gemeldet wird.
+  if (card.branch && repo) {
+    const existedBefore = branchExists(repo, card.branch);
+    deleteBranch(repo, card.branch);                       // git branch -d, schluckt Fehler
+    if (existedBefore) {
+      summary.branchKept    =  branchExists(repo, card.branch);  // ungemergt → -d verweigert
+      summary.branchDeleted = !branchExists(repo, card.branch);  // gemergt → weg
+    }
+  }
+
+  try { auditLog.record('card.done-cleanup', { ...reqMeta, card: card.id, branch: card.branch ?? null, ...summary }); } catch { /* ignore */ }
+  return summary;
 }
 
 // Kill session

@@ -344,6 +344,13 @@ window.__I18N_BUNDLES.en = {
   'board.finish.reason.no-branch': 'The branch for this card no longer exists.',
   'board.finish.reason.conflict': 'Merge would conflict — resolve it manually first.',
   'board.finish.reason.no-changelog-section': 'No "## In Development" section in the changelog.',
+  'board.done.confirmTitle': 'Move to Done?',
+  'board.done.confirmBody': 'Set this card to Done? Ends the running session and removes the worktree. The branch is deleted if it is merged (an unmerged branch is kept).',
+  'board.done.confirmOk': 'Move to Done',
+  'board.cleanup.sessionKilled': 'Session ended',
+  'board.cleanup.worktreeRemoved': 'Worktree removed',
+  'board.cleanup.branchDeleted': 'Branch deleted',
+  'board.cleanup.branchKept': 'Branch kept (unmerged)',
   'board.detail.notes': 'Notes',
   'board.card.notesPlaceholder': 'No notes yet',
 
