@@ -10,15 +10,16 @@
 
 if [ -t 1 ]; then
   C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'
-  C_TEAL=$'\033[38;5;43m'; C_RED=$'\033[31m'; C_YELLOW=$'\033[33m'; C_GREEN=$'\033[32m'
+  C_TEAL=$'\033[38;5;43m'; C_YELLOW=$'\033[33m'; C_GREEN=$'\033[32m'
 else
-  C_RESET=''; C_BOLD=''; C_DIM=''; C_TEAL=''; C_RED=''; C_YELLOW=''; C_GREEN=''
+  C_RESET=''; C_BOLD=''; C_DIM=''; C_TEAL=''; C_YELLOW=''; C_GREEN=''
 fi
+if [ -t 2 ]; then C_ERR_RED=$'\033[31m'; C_ERR_RESET=$'\033[0m'; else C_ERR_RED=''; C_ERR_RESET=''; fi
 
 log()  { printf '%s\n' "$*"; }
 ok()   { printf '  %s✓%s %s\n' "$C_GREEN"   "$C_RESET" "$*"; }
 warn() { printf '  %s⚠%s %s\n' "$C_YELLOW"  "$C_RESET" "$*"; }
-err()  { printf '  %s✕%s %s\n' "$C_RED"     "$C_RESET" "$*" >&2; }
+err()  { printf '  %s✕%s %s\n' "$C_ERR_RED" "$C_ERR_RESET" "$*" >&2; }
 step() { printf '\n%s▸ %s%s\n' "$C_TEAL$C_BOLD" "$*" "$C_RESET"; }
 dbg()  { [ "$CCHUB_VERBOSE" = 1 ] && printf '  %s· %s%s\n' "$C_DIM" "$*" "$C_RESET" || true; }
 
@@ -41,8 +42,9 @@ arch_brew_prefix() {
 }
 
 # is_tty — können wir den User interaktiv fragen? (auch wenn stdin = curl-Pipe)
-is_tty() { [ -t 0 ] || [ -r /dev/tty ]; }
+is_tty() { [ -t 0 ] || { true >/dev/tty; } 2>/dev/null; }
 
+# Hinweis: confirm = auto-JA bei --yes/headless (für „fortfahren?"-Prompts); guide_step hingegen SKIP bei headless.
 # confirm <prompt> → 0=ja / 1=nein. Auto-ja bei --yes/headless.
 confirm() {
   [ "$CCHUB_YES" = 1 ] && return 0
@@ -66,6 +68,7 @@ guide_step() {
   local verify=()
   while [ $# -gt 0 ] && [ "$1" != "--" ]; do verify+=("$1"); shift; done
   shift || true   # consume "--"
+  if [ "${#verify[@]}" -eq 0 ]; then err "guide_step: kein verify-Befehl angegeben"; return 1; fi
   if "${verify[@]}" >/dev/null 2>&1; then ok "$label"; return 0; fi
   warn "$label — Aktion nötig:"
   local line; for line in "$@"; do printf '    %s\n' "$line"; done

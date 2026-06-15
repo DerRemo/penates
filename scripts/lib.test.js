@@ -34,3 +34,25 @@ test('run honours dry-run (prints, does not execute)', () => {
   assert.match(out, /\[dry-run\] touch/);
   assert.equal(sh('test -e /tmp/cchub-should-not-exist-xyz && echo EXISTS || echo absent'), 'absent');
 });
+
+test('run with CCHUB_DRY_RUN=0 actually executes', () => {
+  const tmp = '/tmp/cchub-run-test-' + Date.now();
+  sh(`CCHUB_DRY_RUN=0 run touch ${tmp}`);
+  assert.equal(sh(`test -e ${tmp} && echo EXISTS || echo absent`), 'EXISTS');
+  sh(`rm -f ${tmp}`);
+});
+
+test('confirm returns 0 (auto-yes) when CCHUB_YES=1', () => {
+  const out = sh('if confirm "x"; then echo Y; else echo N; fi', { CCHUB_YES: '1' });
+  assert.equal(out, 'Y');
+});
+
+test('guide_step returns success when verify command passes', () => {
+  const out = sh('guide_step "x" true -- "i" && echo OK', { CCHUB_YES: '1' });
+  assert.match(out, /OK/);
+});
+
+test('guide_step with empty verify returns failure', () => {
+  const out = sh('guide_step "x" -- "i" || echo FAILED', { CCHUB_YES: '1' });
+  assert.match(out, /FAILED/);
+});
