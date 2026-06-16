@@ -1,20 +1,34 @@
 ---
 title: Updaten
-description: Wie Penates und seine mitgelieferten CLIs über das integrierte Update-Center auf die neueste Version aktualisiert werden.
+description: Wie Penates und seine mitgelieferten CLIs auf die neueste Version aktualisiert werden.
 sidebar:
   order: 6
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+## Penates aktualisieren
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
+```bash
+cd ~/penates
+git pull
+npm install
+launchctl kickstart -k gui/$(id -u)/com.penates
+```
 
-## Was es ist
+`git pull` holt den neuen Code, `npm install` synchronisiert geänderte Abhängigkeiten, und `launchctl kickstart -k` ersetzt den laufenden Prozess durch die aktualisierte Version, ohne den LaunchAgent zu entfernen.
 
-## Warum / wann
+## Update Center
 
-## Wie nutzen
+Die Settings-View enthält ein **Update Center** mit vier Kategorien:
 
-## Grenzen
+- **Hub** — der Penates-Server selbst (vergleicht die laufende Version mit dem neuesten GitHub-Release).
+- **CLIs** — Claude Code, Codex, Antigravity (prüft die npm-Registry auf die aktuellste veröffentlichte Version).
+- **Externals** — Homebrew-verwaltete Tools wie tmux, moshi-hook, whisper-cpp.
+- **Deps** — npm-Abhängigkeiten (nur Anzeige; Update durch `npm install`).
+
+Der Update-Button neben einer Komponente startet das Update. Der Hub spawnt eine detachte tmux-Session `cc-update-<komponente>`, die den Update-Befehl ausführt. Durch Attachen lässt sich der Fortschritt beobachten.
+
+Ein Teal-Punkt am Sidebar-Eintrag „Settings" signalisiert, dass ein Hub-Update verfügbar ist.
+
+Für das Hub-Update selbst führt das Update Center dieselbe `git pull && npm install && launchctl kickstart`-Sequenz aus und prüft vorher, ob der Working Tree sauber ist. Falls nicht, gibt der Button `409` zurück und erklärt was den Update blockiert.
+
+Vollständige Beschreibung der Update-Center-UI: [Settings & Updates](/de/docs/features/settings-updates).

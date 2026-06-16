@@ -1,20 +1,169 @@
 ---
 title: Remote access
-description: Expose Penates securely from anywhere using a Cloudflare Tunnel and optional Cloudflare Access authentication.
+description: Expose Penates securely from anywhere using Tailscale or a Cloudflare Tunnel, with optional Cloudflare Access Zero Trust authentication.
 sidebar:
   order: 5
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
+By default the server only listens on `localhost:3333`. To reach it from another device or over the internet, you need a tunnel. The setup script (`scripts/remote-setup.sh`) automates both options below.
+
+```bash
+./scripts/remote-setup.sh tailscale    # or: cloudflare
+```
+
+## Tailscale (recommended)
+
+Tailscale creates a private mesh network between your own devices. No domain, no public exposure, real HTTPS via Let's Encrypt (required for PWA install and Web Push).
+
+```bash
+./scripts/remote-setup.sh tailscale
+```
+
+The script installs Tailscale, authenticates, and configures `tailscale serve` to forward HTTPS to `localhost:3333`. Your hub becomes available at:
+
+```
+https://<machine-name>.<tailnet>.ts.net
+```
+
+One manual step: in the [Tailscale admin panel](https://login.tailscale.com/admin/dns), enable HTTPS certificates for your tailnet. Without this, `tailscale serve` uses a self-signed cert that browsers reject.
+
+## Cloudflare Tunnel
+
+For public access under your own domain (free Cloudflare account, domain ~1 €/year).
+
+### Install cloudflared
+
+```bash
+brew install cloudflared
+```
+
+### Create a tunnel
+
+```bash
+cloudflared tunnel login
+cloudflared tunnel create penates
+```
+
+The second command prints a tunnel ID (format: `abc123de-...`). Keep it — you need it in the next steps.
+
+### Route DNS
+
+```bash
+cloudflared tunnel route dns penates code.yourdomain.xyz
+```
+
+### Write the config file
+
+```bash
+mkdir -p ~/.cloudflared
+nano ~/.cloudflared/config.yml
+```
+
+Paste the following, replacing `TUNNEL-ID`, `YOUR-USERNAME`, and `yourdomain.xyz`:
+
+```yaml
+tunnel: TUNNEL-ID
+credentials-file: /Users/YOUR-USERNAME/.cloudflared/TUNNEL-ID.json
+
+ingress:
+  - hostname: code.yourdomain.xyz
+    service: http://localhost:3333
+  - service: http_status:404
+```
+
+Save with `Ctrl+O`, `Enter`, `Ctrl+X`.
+
+### Install as a LaunchAgent
+
+```bash
+cloudflared service install
+launchctl start com.cloudflare.cloudflared
+```
+
+The hub is now reachable at `https://code.yourdomain.xyz`. The tunnel starts automatically after reboot.
+
+<Aside type="note">
+If you also use the browser preview proxy, add a second hostname in the ingress block:
+
+```yaml
+  - hostname: preview.yourdomain.xyz
+    service: http://localhost:3333
+```
+
+and set `PREVIEW_DOMAIN=yourdomain.xyz` in `.env`.
 </Aside>
 
-## What it is
+## Cloudflare Access (Zero Trust hardening)
 
-## Why / when to use it
+The Cloudflare Tunnel alone leaves only the bearer token as the auth layer. Cloudflare Access adds an identity gate: every browser visit is redirected to a Cloudflare login (GitHub, Google, one-time email PIN, or others) before it can touch the hub. The hub then validates the resulting JWT. Requests that originate on the Mac itself (Claude Code hooks, API calls) bypass the tunnel and continue to authenticate with the bearer token only.
 
-## How to use it
+### Prerequisites
 
-## Limits
+- Cloudflare Tunnel is already running (see above).
+- Zero Trust is activated on your Cloudflare account (free for personal use — [dash.cloudflare.com/zero-trust](https://dash.cloudflare.com/zero-trust)).
+
+### Create an Access Application
+
+<Steps>
+1. Open the Zero Trust dashboard → **Access → Applications → Add an application → Self-hosted**.
+2. Set **Application name** to `Penates` (or anything you like).
+3. Set **Session duration** to `24h` (or longer).
+4. Set **Application domain** to your tunnel domain (e.g. `code.yourdomain.xyz`).
+5. Under **Identity providers**, enable at least one:
+   - **GitHub OAuth** — one click if you already use GitHub.
+   - **One-Time PIN** — sends a code to your email; no OAuth app needed.
+6. Create a **Policy**: Action = `Allow`, Include = one or both of:
+   - `Emails` → your email address (for the PIN flow)
+   - `GitHub` → your GitHub username (for GitHub OAuth)
+7. Save the application.
+8. On the application overview, copy the **Application Audience (AUD) tag** — a 64-character hex string.
+</Steps>
+
+### Configure the hub
+
+Edit `~/penates/.env` and add both variables:
+
+```bash
+CF_ACCESS_TEAM_DOMAIN=yourteam.cloudflareaccess.com
+CF_ACCESS_AUD=3c994b6913e0ee914f118337173aabdaa7a54a7c82f98e6f2b93b57fa7078db5
+```
+
+`CF_ACCESS_TEAM_DOMAIN` is the team URL shown in the top-left of the Zero Trust dashboard (without `https://`). `CF_ACCESS_AUD` is the tag from step 8.
+
+Restart the server:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.penates
+```
+
+### Verify
+
+Navigate to `https://code.yourdomain.xyz` in a browser. You should be redirected to a Cloudflare login page. After authenticating, you land on the hub dashboard.
+
+Check the audit log:
+
+```bash
+tail -1 ~/.penates/audit.log
+```
+
+You should see an `auth.login` entry with your email address.
+
+### Troubleshoot 401 errors
+
+```bash
+tail -20 ~/.penates/audit.log | grep auth.fail | jq -c
+```
+
+| `reason` | Fix |
+|---|---|
+| `bad-jwt:no-jwt` | Browser did not go through Cloudflare Access. Clear cookies for the domain and reload — the login flow should restart. |
+| `bad-jwt:bad-aud` | `CF_ACCESS_AUD` in `.env` does not match the AUD tag on the Access Application. Copy it again from the dashboard. |
+| `bad-jwt:bad-iss` | `CF_ACCESS_TEAM_DOMAIN` is wrong. Must be the team URL without `https://`. |
+| `bad-jwt:expired` | JWT has expired. Increase the Session Duration in the Access Application settings. |
+| `bad-bearer` | Bearer token in the browser does not match `AUTH_TOKEN` in `.env`. Clear it: `localStorage.removeItem('penates_token')` in DevTools, then reload. |
+
+### Disable Cloudflare Access
+
+Remove both variables from `.env` (or set them to empty strings) and restart the server. No code changes needed — the feature is entirely env-gated.

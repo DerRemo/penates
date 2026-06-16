@@ -7,14 +7,36 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
+## macOS
+
+macOS ist die primäre Plattform. Apple Silicon (M-Serie) und Intel Macs werden beide unterstützt. Das Verhalten ist zwischen den beiden Architekturen byte-identisch.
+
+Alle Features sind auf macOS verfügbar:
+
+- **iOS-Simulator-Viewer** (Mata-Integration) — erfordert [Mata](https://getmata.app/) als macOS-App installiert.
+- **Voice-Input** — erfordert `whisper-cli` aus `brew install whisper-cpp` und eine Modelldatei. Relevante `.env`-Variablen unter [Konfiguration](/de/docs/install/configuration).
+- **moshi-hook** — Usage-Daten und Recency-Verzeichnisse kommen von [moshi-hook](https://getmoshi.app/), installiert via `brew tap rjyo/moshi && brew install moshi-hook`.
+
+Der LaunchAgent-Label ist `com.penates`. Plist-Pfad: `~/Library/LaunchAgents/com.penates.plist`.
+
+## Linux
+
+Linux läuft nativ. Getestete Distributionen: Debian/Ubuntu (apt), Fedora/RHEL (dnf), Arch (pacman). Das Installationsscript (`install.sh`) erkennt den Paketmanager und installiert Voraussetzungen entsprechend.
+
+Unterschiede zu macOS:
+
+- **Autostart** verwendet eine systemd-User-Unit statt eines LaunchAgent. `setup.sh` installiert sie unter `~/.config/systemd/user/penates.service` und ruft `loginctl enable-linger` auf, damit die Unit ohne interaktive Session aktiv bleibt.
+- **moshi-hook** ist auf Linux nicht verfügbar. Der Hub läuft ohne es; Usage-Daten und der Recency-Quick-Pick im New-Session-Modal bleiben leer.
+- **Mata iOS-Simulator-Viewer** ist auf Linux nicht verfügbar.
+- **Voice-Input** (whisper.cpp) ist auf Linux standardmäßig aus. Es kann manuell aktiviert werden, wenn du whisper-cpp aus dem Quellcode kompilierst — das ist aber nicht getestet.
+- **Papierkorb** — Dateilöschung nutzt `gio trash` (GNOME) oder `trash-put` (trash-cli) statt macOS `/usr/bin/trash`. Wenn keines davon installiert ist, schlägt die Löschung mit einem Fehler fehl, anstatt lautlos `rm` zu nutzen.
+
+<Aside type="note">
+Die einzige Quelle der OS-Wahrheit zur Laufzeit ist `lib/platform.js`. Es liefert `platform()` → `"macos" | "linux"` und `resolveBin()` für Binary-Lookups. Alle OS-Branches im Code gehen durch dieses Modul.
 </Aside>
 
-## Was es ist
+## Windows
 
-## Warum / wann
+Windows wird nicht direkt unterstützt. Der einzige getestete Pfad ist **WSL2**: eine Debian- oder Ubuntu-Distribution über den Microsoft Store installieren und dann den Linux-Anweisungen innerhalb dieser WSL2-Umgebung folgen.
 
-## Wie nutzen
-
-## Grenzen
+Browser-Zugriff funktioniert vom Windows-Host aus via `localhost` oder der WSL2-IP. PWA-Installation und Web Push erfordern HTTPS mit einem echten Zertifikat — `tailscale serve` deckt das ohne separate Domain ab.

@@ -7,14 +7,68 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
+`setup.sh` richtet Autostart automatisch ein. Diese Seite erklärt die launchctl-Befehle, die du auf macOS im Alltag brauchst, und zeigt was auf Linux anders ist.
+
+## macOS LaunchAgent
+
+`setup.sh` installiert eine LaunchAgent-Plist unter `~/Library/LaunchAgents/com.penates.plist`. launchd lädt sie beim Login und hält den Server am Laufen. Die Plist wird von `setup.sh` idempotent neu erzeugt — erneutes Ausführen nach einem Update ist sicher.
+
+<Aside type="note">
+Die Plist muss Mode `644` haben. launchd verweigert world-writable Plists stillschweigend (`Bootstrap failed: 5`). `setup.sh` setzt das; wenn du die Plist manuell bearbeitest, danach `chmod 644 ~/Library/LaunchAgents/com.penates.plist` ausführen.
 </Aside>
 
-## Was es ist
+### Status
 
-## Warum / wann
+```bash
+launchctl list | grep penates
+```
 
-## Wie nutzen
+Eine Zeile mit PID in der zweiten Spalte bedeutet, der Server läuft. `0` = sauber beendet. Negativer Wert = Exit-Code — `logs/stderr.log` prüfen.
 
-## Grenzen
+### Neu starten
+
+Nach Änderungen an `.env` oder nach Code-Updates:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.penates
+```
+
+### Stoppen
+
+```bash
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
+```
+
+Der LaunchAgent wird entladen und der Server stoppt. Wieder manuell starten:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
+```
+
+### Logs
+
+```bash
+tail -f ~/penates/logs/stdout.log
+tail -f ~/penates/logs/stderr.log
+```
+
+### Audit-Log
+
+Sicherheits-Events (Auth-Versuche, Session-Lifecycle, Rate-Limit-Treffer) werden im JSONL-Format nach `~/.penates/audit.log` geschrieben:
+
+```bash
+tail -f ~/.penates/audit.log | jq -c
+```
+
+## Linux (systemd)
+
+Auf Linux installiert `setup.sh` eine systemd-User-Unit unter `~/.config/systemd/user/penates.service` und aktiviert sie mit `loginctl enable-linger`, damit der Service auch ohne aktive Session läuft. Entsprechende Befehle:
+
+```bash
+systemctl --user status penates
+systemctl --user restart penates
+systemctl --user stop penates
+journalctl --user -u penates -f
+```
+
+Mehr Details: [Plattform-Hinweise](/de/docs/install/platforms).

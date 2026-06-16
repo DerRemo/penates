@@ -5,16 +5,71 @@ sidebar:
   order: 2
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Steps, Aside } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
+Once the [requirements](/docs/install/requirements) are in place, installation takes a single command or a few manual steps.
+
+## One-line install
+
+```bash
+curl -fsSL --proto '=https' --tlsv1.2 \
+  https://raw.githubusercontent.com/DerRemo/penates/main/install.sh | bash
+```
+
+The installer checks what is already present, installs what is missing (Homebrew, Node, tmux, jq, the CLIs, moshi-hook), runs `setup.sh`, and guides you through CLI logins and optional remote access inline. Anything still requiring manual action is printed as a checklist at the end.
+
+To check prerequisites without changing anything:
+
+```bash
+./install.sh --check
+```
+
+## Manual install
+
+Clone the repository, then run `setup.sh`:
+
+```bash
+cd ~
+git clone https://github.com/DerRemo/penates.git
+cd penates
+chmod +x setup.sh
+./setup.sh
+```
+
+`setup.sh` does five things in order:
+
+<Steps>
+1. Checks that Node.js and tmux are present (installs tmux via Homebrew if missing).
+2. Runs `npm install` to pull in server dependencies.
+3. Creates a `.env` file with a randomly generated `AUTH_TOKEN`.
+4. Installs a macOS LaunchAgent (or a Linux systemd user unit) so the server starts automatically after a reboot.
+5. Starts the server.
+</Steps>
+
+When the script finishes, you see:
+
+```
+  ✓ Penates läuft!
+
+  Lokal:   http://localhost:3333
+```
+
+<Aside type="caution">
+`setup.sh` prints your `AUTH_TOKEN` exactly once. Write it down — you need it to log in from any browser. You can always retrieve it later:
+
+```bash
+grep AUTH_TOKEN ~/penates/.env
+```
 </Aside>
 
-## What it is
+## First login
 
-## Why / when to use it
+Open a browser on the same machine:
 
-## How to use it
+```
+http://localhost:3333
+```
 
-## Limits
+The browser prompts for the token on first visit. After you enter it, it is stored in `localStorage` and you will not be asked again on that browser.
+
+For access from other devices or over the internet, see [Remote access](/docs/install/remote-access).

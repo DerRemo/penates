@@ -7,14 +7,43 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
+Alle Einstellungen stehen in `~/penates/.env`. `setup.sh` erstellt diese Datei mit sinnvollen Standardwerten — du musst sie nur anfassen, wenn du optionale Features aktivieren oder den Port ändern willst.
+
+## Umgebungsvariablen
+
+| Variable | Standard | Beschreibung |
+|---|---|---|
+| `PORT` | `3333` | TCP-Port, auf dem der Server lauscht. |
+| `AUTH_TOKEN` | — | **Pflichtfeld.** Bearer-Token für alle Requests. Wird von `setup.sh` generiert. Nachschlagen mit `grep AUTH_TOKEN ~/penates/.env`. |
+| `SESSION_PREFIX` | `cc-` | Prefix, der allen neuen Session-Namen in tmux vorangestellt wird. |
+| `DEFAULT_PROJECT_DIR` | `~` | Standard-Arbeitsverzeichnis beim Erstellen einer neuen Session. |
+| `TMUX_PATH` | auto | Pfad zum tmux-Binary. Wird automatisch per PATH-Scan gefunden; nur überschreiben wenn tmux an einem ungewöhnlichen Ort liegt. |
+| `TMUX_MOUSE` | `on` | tmux-Mouse-Mode. Auf `off` setzen, wenn du Moshi nutzt und native Touch-Selektion im Terminal willst — dann ist Scroll-Wheel in Hub-Terminals nicht verfügbar. |
+| `PROJECT_ROOTS` | `~/Projects` | Kommagetrennte Verzeichnisse, die für die Projekt-Erkennung gescannt werden. |
+| `BROWSE_ROOTS` | `$HOME` | Doppelpunkt-getrennte Allow-List für den Verzeichnis-Picker im UI. `~` ist erlaubt. Beispiel: `~/Projects:/Volumes/SSD/code`. |
+| `PENATES_HOME` | `~/.penates` | Verzeichnis für den persistenten Hub-State (`settings.json`, `known-sessions.json`, `board.json`, `audit.log`). |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | auto | Web-Push-Keys. Werden beim ersten Start generiert; nicht manuell setzen, außer bei Migration von einer anderen Installation. |
+| `VAPID_SUBJECT` | — | Pflicht für Apple Web Push. Muss eine echte HTTPS-Domain sein (kein localhost). Beispiel: `https://penates.deinedomain.xyz`. |
+| `PREVIEW_DOMAIN` | — | Basis-Domain für den Browser-Preview-Proxy. Wenn gesetzt, proxied `preview.<PREVIEW_DOMAIN>` einen lokalen Dev-Server. Leer lassen um das Feature zu deaktivieren. |
+| `CF_ACCESS_TEAM_DOMAIN` | — | Cloudflare-Zero-Trust-Team-Domain, z.B. `deinteam.cloudflareaccess.com`. Leer = CF-Access-JWT-Validierung deaktiviert. |
+| `CF_ACCESS_AUD` | — | Cloudflare-Access-Application-Audience-Tag (64-Zeichen-Hex-String aus dem Dashboard). Beide `CF_ACCESS_*`-Variablen müssen zusammen gesetzt sein. |
+| `WHISPER_BIN` | auto | Pfad zum `whisper-cli`-Binary für Voice-Input. Wird automatisch gefunden; überschreiben bei nicht-standardmäßigem Installationsort. |
+| `WHISPER_MODEL` | — | Pfad zu einer `.gguf`-Whisper-Modelldatei. Pflicht für Voice-Input. |
+| `VOICE_LANG` | `de` | Standard-Transkriptionssprache für whisper-cli. |
+| `VOICE_ENABLED` | `true` | Auf `false` setzen, um den Mikrofon-Button vollständig auszublenden. Wird auch automatisch deaktiviert, wenn Binary oder Modell fehlen. |
+
+## Änderungen anwenden
+
+Der Server liest `.env` beim Start. Nach jeder Änderung Server neu starten:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.penates
+```
+
+<Aside type="note">
+Auf Linux mit systemd lautet der entsprechende Befehl:
+
+```bash
+systemctl --user restart penates
+```
 </Aside>
-
-## Was es ist
-
-## Warum / wann
-
-## Wie nutzen
-
-## Grenzen
