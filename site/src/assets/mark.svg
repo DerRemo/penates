@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="86 98 340 340" role="img" aria-label="Penates">
+  <!-- Penates brand glyph: the teal house only (no tile), transparent bg so it
+       sits on any theme. Used for the in-app header + sidebar marks. -->
+  <path d="M256 128 L412 256 L364 256 L364 408 L148 408 L148 256 L100 256 Z" fill="#179299"/>
+  <g fill="none" stroke="#eff1f5" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="192 290 254 332 192 374"/>
+    <line x1="276" y1="360" x2="320" y2="360"/>
+  </g>
+</svg>
