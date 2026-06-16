@@ -1,20 +1,36 @@
 ---
 title: Quickstart
-description: Get Penates running on your machine in under five minutes with a single setup script.
+description: From zero to a running Penates hub in about five minutes.
 sidebar:
   order: 2
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Steps, Aside } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
+<Steps>
+
+1. **Install prerequisites** — Node ≥20, tmux, and at least Claude Code. See [Requirements](/docs/install/requirements) for the full list and one-liners.
+
+2. **Clone and run setup**
+
+   ```bash
+   cd ~
+   git clone https://github.com/DerRemo/penates.git
+   cd penates
+   chmod +x setup.sh
+   ./setup.sh
+   ```
+
+   `setup.sh` installs dependencies, writes a `.env` with a random auth token, sets up auto-start, and launches the server.
+
+3. **Open the hub** at `http://localhost:3333`. On first visit the browser asks for the token — it's the `AUTH_TOKEN` value in `penates/.env` (look it up any time with `grep AUTH_TOKEN penates/.env`).
+
+4. **Start a session** from the dashboard, pick a CLI, and you're in.
+
+</Steps>
+
+<Aside title="One-line install">
+Prefer a guided installer? `curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/DerRemo/penates/main/install.sh | bash` walks you through everything. See [Installation](/docs/install/installation).
 </Aside>
 
-## What it is
-
-## Why / when to use it
-
-## How to use it
-
-## Limits
+Next: [Core concepts](/docs/concepts) · [Remote access](/docs/install/remote-access).

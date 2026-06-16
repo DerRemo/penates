@@ -1,20 +1,29 @@
 ---
 title: What is Penates?
-description: Penates is a self-hosted web interface for managing and remote-controlling coding CLI sessions (Claude, Codex, Antigravity) on macOS and Linux.
+description: A web interface to manage and remote-control coding-CLI sessions (Claude Code, Codex, Antigravity) on your own machine — from any browser.
 sidebar:
   order: 1
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
+Penates is a small self-hosted server that runs on your Mac or Linux box. It shows every running coding-CLI session in one dashboard and lets you drop into the terminal from any browser — your Mac, iPad, or phone, on your network or over the internet. No cloud relay: your machine, your sessions.
 
-## What it is
+You start sessions with **Claude Code** (Anthropic), **Codex** (OpenAI), or **Antigravity** (Google `agy`) from a CLI picker, each with tiered approval/sandbox variants. Claude Code is the most deeply integrated (hook-based notifications, usage tracking, image paste); the others run as full terminal sessions with their own login.
 
-## Why / when to use it
+<CardGrid>
+  <Card title="Manage sessions" icon="laptop">
+    Start, attach, rename, and stop tmux-backed CLI sessions from a live dashboard with activity, context-token, and 5h-limit status.
+  </Card>
+  <Card title="Steer from anywhere" icon="rocket">
+    Installable PWA, optional Cloudflare Tunnel or Tailscale for secure remote access — full terminal with colors, even from your phone.
+  </Card>
+  <Card title="A board for ideas" icon="list-format">
+    A Kanban board turns ideas into shipped work — brainstorm, implement (in an isolated git worktree), review, and merge, partly autonomously.
+  </Card>
+  <Card title="See everything" icon="approve-check">
+    Usage dashboard, file browser, repo panel (changes · history · branches), browser preview, voice input, and more.
+  </Card>
+</CardGrid>
 
-## How to use it
-
-## Limits
+<LinkButton href="/docs/quickstart">Get started in 5 minutes →</LinkButton>

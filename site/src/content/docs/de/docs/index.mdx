@@ -1,20 +1,29 @@
 ---
 title: Was ist Penates?
-description: Penates ist eine selbst gehostete Web-Oberfläche zur Verwaltung und Fernsteuerung von Coding-CLI-Sessions (Claude, Codex, Antigravity) auf macOS und Linux.
+description: Eine Web-Oberfläche zum Verwalten und Fernsteuern von Coding-CLI-Sessions (Claude Code, Codex, Antigravity) auf deiner eigenen Maschine — aus jedem Browser.
 sidebar:
   order: 1
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
+Penates ist ein kleiner selbst gehosteter Server, der auf deinem Mac oder Linux-Rechner läuft. Er zeigt alle laufenden Coding-CLI-Sessions in einem Dashboard und lässt dich per Browser ins Terminal einsteigen — vom Mac, iPad oder iPhone, im Heimnetz oder über das Internet. Kein Cloud-Relay: deine Maschine, deine Sessions.
 
-## Was es ist
+Du startest Sessions mit **Claude Code** (Anthropic), **Codex** (OpenAI) oder **Antigravity** (Google `agy`) über einen CLI-Picker, jeweils mit gestuften Approval-/Sandbox-Varianten. Claude Code ist die am tiefsten integrierte CLI (Hook-basierte Notifications, Usage-Tracking, Image-Paste); die anderen laufen als vollwertige Terminal-Sessions mit eigenem Login.
 
-## Warum / wann
+<CardGrid>
+  <Card title="Sessions verwalten" icon="laptop">
+    Sessions starten, verbinden, umbenennen und beenden — Live-Dashboard mit Aktivität, Context-Tokens und 5h-Limit-Status.
+  </Card>
+  <Card title="Von überall steuern" icon="rocket">
+    Installierbare PWA, optionaler Cloudflare-Tunnel oder Tailscale für sicheren Remote-Zugriff — volles Terminal mit Farben, auch vom Handy.
+  </Card>
+  <Card title="Ein Board für Ideen" icon="list-format">
+    Ein Kanban-Board verwandelt Ideen in ausgelieferte Features — Brainstorm, Implementierung (in einem isolierten Git-Worktree), Review und Merge, teils autonom.
+  </Card>
+  <Card title="Alles im Blick" icon="approve-check">
+    Usage-Dashboard, Filebrowser, Repo-Panel (Änderungen · History · Branches), Browser-Preview, Voice-Input und mehr.
+  </Card>
+</CardGrid>
 
-## Wie nutzen
-
-## Grenzen
+<LinkButton href="/de/docs/quickstart">In 5 Minuten loslegen →</LinkButton>
