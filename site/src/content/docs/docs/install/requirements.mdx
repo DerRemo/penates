@@ -1,0 +1,79 @@
+---
+title: Requirements
+description: Hardware, OS, and software prerequisites before installing Penates.
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Penates runs on macOS (Apple Silicon and Intel) and Linux. The install script handles most setup, but a few tools must be present before you run it.
+
+## Xcode Command Line Tools (macOS only)
+
+node-pty, which drives the terminal, compiles native extensions. Xcode CLT provides the C compiler that npm needs for this:
+
+```bash
+xcode-select --install
+```
+
+A system dialog appears — click Install and wait roughly five minutes. If CLT is already installed, the command prints `xcode-select: error: command line tools are already installed` and you can move on.
+
+## Homebrew
+
+Homebrew is the package manager used to install tmux, cloudflared, and other dependencies:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+After installation, the script prints two lines to add Homebrew to your PATH — run them exactly as shown. Verify:
+
+```bash
+brew --version
+# Homebrew 4.x.x
+```
+
+On Linux, `install.sh` uses the system package manager (apt/dnf/pacman) instead of Homebrew.
+
+## Node.js ≥ 20
+
+```bash
+brew install node
+node --version
+# v20.x.x or newer
+```
+
+Node 18 is end-of-life and not supported.
+
+## Claude Code
+
+Claude Code is the only required CLI. Every other coding CLI is optional.
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude --version
+```
+
+If `claude` is not found after installation, the binary likely landed in `~/.local/bin`, which is not in the default shell PATH on a fresh Mac. Fix it:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
+source ~/.zprofile
+```
+
+After that, run `claude` once and follow the prompts to connect your Anthropic account.
+
+## Optional CLIs
+
+The hub also spawns **Codex** (OpenAI) and **Antigravity** (Google `agy`). These are optional — a missing CLI causes only that CLI's sessions to exit with a "not in PATH" error; it does not affect other sessions.
+
+```bash
+npm install -g @openai/codex      # Binary: codex
+```
+
+Antigravity (`agy`) follows [Google's official install instructions](https://antigravity.google/). Both binaries must be in your PATH, same as `claude`.
+
+<Aside type="note">
+The hub adds `~/.local/bin`, `/opt/homebrew/bin`, and `/usr/local/bin` to `PATH` at runtime when spawning sessions. If you installed a CLI with npm and it ended up in one of those locations, it will be found even without a shell-profile change — but the shell profile change is still recommended so terminal sessions outside the hub work too.
+</Aside>

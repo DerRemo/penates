@@ -1,0 +1,26 @@
+---
+title: Core concepts
+description: The four building blocks of Penates — sessions, projects, the board, and auth — and how they fit together.
+sidebar:
+  order: 3
+---
+
+## Sessions
+
+A session is a tmux process (prefixed `cc-`) running one CLI in a project directory. tmux is the source of truth: the hub holds no session state of its own, so sessions survive a hub restart. Foreign sessions — ones not started by the hub — can be adopted into the dashboard without renaming. The hub tracks activity state via Claude Code hooks (`Stop`, `Notification`, `UserPromptSubmit`) so the dashboard knows whether a session is idle, working, or waiting for input without polling the terminal.
+
+## Projects
+
+A project is a registered directory (usually a git repo) with an associated planning document (`CHANGELOG.md`). The hub reads it to show what is in development and what has shipped. Projects are the anchor for the file browser, the repo panel (changes, history, branches), and board cards.
+
+## Board
+
+The board is a global Kanban with six stages: `idea → brainstorming → spec → implement → review → done`. Each card represents one idea attached to a project. Cards can spawn their own sessions — a brainstorm session to flesh out the idea, an implement session in an isolated git worktree, and a finish step that merges, writes a changelog entry, and pushes. Moving a card to `done` cleans up the worktree and branch automatically.
+
+## Auth
+
+Access is gated by a Bearer token stored in `.env`. The browser prompts for it on first visit and stores it in `localStorage` — it never appears in the HTML. For remote access over the internet, you can put Cloudflare Access (Zero Trust) in front of the hub; the hub validates the CF Access JWT on every request.
+
+---
+
+See [Installation](/docs/install/installation) to get started, [Sessions](/docs/features/sessions) and [Board](/docs/features/board) for feature details, or [Remote access](/docs/install/remote-access) for internet-facing setups.

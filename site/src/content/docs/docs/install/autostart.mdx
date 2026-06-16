@@ -1,0 +1,74 @@
+---
+title: Auto-start
+description: Configure Penates to launch automatically at login via a macOS LaunchAgent or Linux systemd user unit.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`setup.sh` installs auto-start automatically. This page covers the launchctl commands you need day-to-day on macOS, and where to look on Linux.
+
+## macOS LaunchAgent
+
+`setup.sh` installs a LaunchAgent plist at `~/Library/LaunchAgents/com.penates.plist`. launchd loads it at login and keeps the server running. The plist is re-created idempotently by `setup.sh`, so re-running setup after an update is safe.
+
+<Aside type="note">
+The plist must have mode `644`. launchd silently refuses world-writable plists (`Bootstrap failed: 5`). `setup.sh` sets this; if you edit the plist manually, run `chmod 644 ~/Library/LaunchAgents/com.penates.plist` afterwards.
+</Aside>
+
+### Status
+
+```bash
+launchctl list | grep penates
+```
+
+A row with PID in the second column means the server is running. A row with `0` means it exited cleanly. A negative number is an exit code — check `logs/stderr.log`.
+
+### Restart
+
+Use this after changing `.env` or pulling code updates:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.penates
+```
+
+### Stop
+
+```bash
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
+```
+
+The LaunchAgent is unloaded and the server stops. To start it again manually:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
+```
+
+### Logs
+
+```bash
+tail -f ~/penates/logs/stdout.log
+tail -f ~/penates/logs/stderr.log
+```
+
+### Audit log
+
+Security events (auth attempts, session lifecycle, rate-limit hits) are appended to `~/.penates/audit.log` in JSONL format:
+
+```bash
+tail -f ~/.penates/audit.log | jq -c
+```
+
+## Linux (systemd)
+
+On Linux, `setup.sh` installs a systemd user unit at `~/.config/systemd/user/penates.service` and enables it with `loginctl enable-linger` so the service survives without an active session. Equivalent commands:
+
+```bash
+systemctl --user status penates
+systemctl --user restart penates
+systemctl --user stop penates
+journalctl --user -u penates -f
+```
+
+For more detail, see [Platform notes](/docs/install/platforms).

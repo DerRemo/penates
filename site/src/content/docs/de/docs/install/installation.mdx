@@ -1,0 +1,75 @@
+---
+title: Installation
+description: Schritt-für-Schritt-Anleitung zur Installation von Penates auf macOS oder Linux.
+sidebar:
+  order: 2
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Wenn die [Voraussetzungen](/de/docs/install/requirements) erfüllt sind, reicht ein einziger Befehl oder wenige manuelle Schritte.
+
+## Schnellstart (ein Befehl)
+
+```bash
+curl -fsSL --proto '=https' --tlsv1.2 \
+  https://raw.githubusercontent.com/DerRemo/penates/main/install.sh | bash
+```
+
+Der Installer prüft, was schon vorhanden ist, installiert Fehlendes (Homebrew, Node, tmux, jq, die CLIs, moshi-hook), führt `setup.sh` aus und begleitet dich dabei durch CLI-Logins und optionalen Remote-Zugriff. Offene manuelle Punkte erscheinen am Ende als Checkliste.
+
+Nur prüfen, nichts ändern:
+
+```bash
+./install.sh --check
+```
+
+## Manuelle Installation
+
+Repository klonen und `setup.sh` ausführen:
+
+```bash
+cd ~
+git clone https://github.com/DerRemo/penates.git
+cd penates
+chmod +x setup.sh
+./setup.sh
+```
+
+`setup.sh` macht fünf Dinge der Reihe nach:
+
+<Steps>
+1. Prüft ob Node.js und tmux vorhanden sind (installiert tmux via Homebrew falls nötig).
+2. Führt `npm install` aus.
+3. Erstellt eine `.env`-Datei mit einem zufälligen `AUTH_TOKEN`.
+4. Installiert einen macOS LaunchAgent (oder eine Linux-systemd-User-Unit), damit der Server nach jedem Neustart automatisch startet.
+5. Startet den Server.
+</Steps>
+
+Am Ende des Scripts erscheint:
+
+```
+  ✓ Penates läuft!
+
+  Lokal:   http://localhost:3333
+```
+
+<Aside type="caution">
+`setup.sh` zeigt deinen `AUTH_TOKEN` genau einmal. Notiere ihn — du brauchst ihn für den Browser-Login. Jederzeit wieder nachschlagen:
+
+```bash
+grep AUTH_TOKEN ~/penates/.env
+```
+</Aside>
+
+## Erster Zugriff
+
+Browser auf demselben Rechner öffnen:
+
+```
+http://localhost:3333
+```
+
+Beim ersten Besuch fragt der Browser nach dem Token. Nach der Eingabe wird er im `localStorage` gespeichert und du wirst in diesem Browser nicht erneut gefragt.
+
+Für Zugriff von anderen Geräten oder über das Internet: [Remote-Zugriff](/de/docs/install/remote-access).

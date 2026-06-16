@@ -1,0 +1,169 @@
+---
+title: Remote-Zugriff
+description: Penates sicher von überall erreichbar machen – mit Tailscale oder einem Cloudflare Tunnel und optionaler Cloudflare-Access-Authentifizierung.
+sidebar:
+  order: 5
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Standardmäßig lauscht der Server nur auf `localhost:3333`. Für Zugriff von anderen Geräten oder über das Internet braucht es einen Tunnel. Das Setup-Script (`scripts/remote-setup.sh`) automatisiert beide Optionen:
+
+```bash
+./scripts/remote-setup.sh tailscale    # oder: cloudflare
+```
+
+## Tailscale (empfohlen)
+
+Tailscale baut ein privates Mesh-Netzwerk zwischen deinen eigenen Geräten. Keine Domain, keine öffentliche Exposition, echtes HTTPS via Let's Encrypt (notwendig für PWA-Install und Web Push).
+
+```bash
+./scripts/remote-setup.sh tailscale
+```
+
+Das Script installiert Tailscale, meldet dich an und konfiguriert `tailscale serve`, um HTTPS an `localhost:3333` weiterzuleiten. Der Hub ist dann erreichbar unter:
+
+```
+https://<rechnername>.<tailnet>.ts.net
+```
+
+Einmaliger manueller Schritt: Im [Tailscale-Admin-Panel](https://login.tailscale.com/admin/dns) HTTPS-Zertifikate für dein Tailnet aktivieren. Ohne das nutzt `tailscale serve` ein selbstsigniertes Zertifikat, das Browser ablehnen.
+
+## Cloudflare Tunnel
+
+Für öffentlichen Zugriff unter deiner eigenen Domain (kostenloser Cloudflare-Account, Domain ca. 1 €/Jahr).
+
+### cloudflared installieren
+
+```bash
+brew install cloudflared
+```
+
+### Tunnel erstellen
+
+```bash
+cloudflared tunnel login
+cloudflared tunnel create penates
+```
+
+Der zweite Befehl gibt eine Tunnel-ID aus (Format: `abc123de-...`). Merken — sie wird in den nächsten Schritten benötigt.
+
+### DNS-Eintrag anlegen
+
+```bash
+cloudflared tunnel route dns penates code.deinedomain.xyz
+```
+
+### Konfigurationsdatei schreiben
+
+```bash
+mkdir -p ~/.cloudflared
+nano ~/.cloudflared/config.yml
+```
+
+Inhalt einfügen, `TUNNEL-ID`, `DEIN-USERNAME` und `deinedomain.xyz` ersetzen:
+
+```yaml
+tunnel: TUNNEL-ID
+credentials-file: /Users/DEIN-USERNAME/.cloudflared/TUNNEL-ID.json
+
+ingress:
+  - hostname: code.deinedomain.xyz
+    service: http://localhost:3333
+  - service: http_status:404
+```
+
+Speichern mit `Ctrl+O`, `Enter`, `Ctrl+X`.
+
+### Als LaunchAgent installieren
+
+```bash
+cloudflared service install
+launchctl start com.cloudflare.cloudflared
+```
+
+Der Hub ist jetzt unter `https://code.deinedomain.xyz` erreichbar. Der Tunnel startet nach dem Neustart automatisch.
+
+<Aside type="note">
+Wenn du auch den Browser-Preview-Proxy nutzt, einen zweiten Hostname im Ingress-Block ergänzen:
+
+```yaml
+  - hostname: preview.deinedomain.xyz
+    service: http://localhost:3333
+```
+
+und `PREVIEW_DOMAIN=deinedomain.xyz` in `.env` setzen.
+</Aside>
+
+## Cloudflare Access (Zero-Trust-Härtung)
+
+Der Cloudflare Tunnel allein lässt den Bearer-Token als einzige Auth-Schicht. Cloudflare Access fügt ein Identity-Gate hinzu: jeder Browser-Besuch wird zuerst auf eine Cloudflare-Login-Seite umgeleitet (GitHub, Google, Email-PIN oder andere), bevor er den Hub erreicht. Der Hub validiert dann das resultierende JWT. Requests, die vom Mac selbst kommen (Claude-Code-Hooks, API-Aufrufe), passieren den Tunnel nicht und authentifizieren sich weiterhin nur per Bearer-Token.
+
+### Voraussetzungen
+
+- Cloudflare Tunnel läuft schon (siehe oben).
+- Zero Trust ist im Cloudflare-Account aktiviert (kostenlos für Privat-Nutzung — [dash.cloudflare.com/zero-trust](https://dash.cloudflare.com/zero-trust)).
+
+### Access-Application anlegen
+
+<Steps>
+1. Zero-Trust-Dashboard öffnen → **Access → Applications → Add an application → Self-hosted**.
+2. **Application name** auf `Penates` setzen (frei wählbar).
+3. **Session duration** auf `24h` setzen (oder länger).
+4. **Application domain** auf deine Tunnel-Domain setzen (z.B. `code.deinedomain.xyz`).
+5. Unter **Identity providers** mindestens einen aktivieren:
+   - **GitHub OAuth** — ein Klick, wenn du GitHub eh nutzt.
+   - **One-Time PIN** — sendet einen Code an deine Email; keine OAuth-App nötig.
+6. **Policy anlegen**: Action = `Allow`, Include = eine oder beide Regeln:
+   - `Emails` → deine Email-Adresse (für den PIN-Pfad)
+   - `GitHub` → dein GitHub-Username (für GitHub OAuth)
+7. Application speichern.
+8. In der Application-Übersicht den **Application Audience (AUD) Tag** kopieren — ein 64-Zeichen-Hex-String.
+</Steps>
+
+### Hub konfigurieren
+
+`~/penates/.env` editieren und beide Variablen setzen:
+
+```bash
+CF_ACCESS_TEAM_DOMAIN=deinteam.cloudflareaccess.com
+CF_ACCESS_AUD=3c994b6913e0ee914f118337173aabdaa7a54a7c82f98e6f2b93b57fa7078db5
+```
+
+`CF_ACCESS_TEAM_DOMAIN` ist die Team-URL oben links im Zero-Trust-Dashboard (ohne `https://`). `CF_ACCESS_AUD` ist der Tag aus Schritt 8.
+
+Server neu starten:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.penates
+```
+
+### Prüfen
+
+`https://code.deinedomain.xyz` im Browser aufrufen. Du wirst auf eine Cloudflare-Login-Seite umgeleitet. Nach der Anmeldung landest du im Hub-Dashboard.
+
+Audit-Log prüfen:
+
+```bash
+tail -1 ~/.penates/audit.log
+```
+
+Es sollte ein `auth.login`-Eintrag mit deiner Email-Adresse erscheinen.
+
+### 401-Fehler beheben
+
+```bash
+tail -20 ~/.penates/audit.log | grep auth.fail | jq -c
+```
+
+| `reason` | Lösung |
+|---|---|
+| `bad-jwt:no-jwt` | Browser ist nicht durch Cloudflare Access gegangen. Cookies für die Domain löschen und neu laden — der Login-Flow sollte neu starten. |
+| `bad-jwt:bad-aud` | `CF_ACCESS_AUD` in `.env` stimmt nicht mit dem AUD-Tag der Access-Application überein. Nochmal im Cloudflare-Dashboard kopieren. |
+| `bad-jwt:bad-iss` | `CF_ACCESS_TEAM_DOMAIN` ist falsch. Muss exakt die Team-URL ohne `https://` sein. |
+| `bad-jwt:expired` | JWT ist abgelaufen. Session-Duration in den Access-Application-Einstellungen erhöhen. |
+| `bad-bearer` | Bearer-Token im Browser stimmt nicht mit `AUTH_TOKEN` in `.env` überein. Token löschen: `localStorage.removeItem('penates_token')` in der DevTools-Console, dann neu laden. |
+
+### Cloudflare Access deaktivieren
+
+Beide Variablen aus `.env` entfernen (oder auf leere Strings setzen) und Server neu starten. Kein Code-Rollback nötig — das Feature ist vollständig Env-gesteuert.

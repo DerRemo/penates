@@ -1,0 +1,42 @@
+---
+title: Platform notes
+description: OS-specific notes for macOS (Apple Silicon and Intel) and Linux; Windows is supported only via WSL2.
+sidebar:
+  order: 7
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## macOS
+
+macOS is the primary platform. Apple Silicon (M-series) and Intel Macs are both supported. Behaviour is byte-identical between the two architectures.
+
+All features are available on macOS:
+
+- **iOS Simulator viewer** (Mata integration) — requires [Mata](https://getmata.app/) installed as a macOS app.
+- **Voice input** — requires `whisper-cli` from `brew install whisper-cpp` and a model file. See [Configuration](/docs/install/configuration) for the relevant `.env` variables.
+- **moshi-hook** — usage data and recent-directories are sourced from [moshi-hook](https://getmoshi.app/), installed via `brew tap rjyo/moshi && brew install moshi-hook`.
+
+The LaunchAgent label is `com.penates`. Plist path: `~/Library/LaunchAgents/com.penates.plist`.
+
+## Linux
+
+Linux runs natively. Tested distributions: Debian/Ubuntu (apt), Fedora/RHEL (dnf), Arch (pacman). The install script (`install.sh`) detects the package manager and installs prerequisites accordingly.
+
+Differences from macOS:
+
+- **Auto-start** uses a systemd user unit instead of a LaunchAgent. `setup.sh` installs it at `~/.config/systemd/user/penates.service` and calls `loginctl enable-linger` so the unit stays active without an interactive session.
+- **moshi-hook** is not available on Linux. The hub runs without it; usage data and the recent-directories quick-pick will show empty.
+- **Mata iOS Simulator viewer** is not available on Linux.
+- **Voice input** (whisper.cpp) is off by default on Linux. It can be enabled manually if you compile whisper-cpp from source, but this is not tested.
+- **Trash** — file deletion uses `gio trash` (GNOME) or `trash-put` (trash-cli) instead of macOS `/usr/bin/trash`. If neither is installed, file deletion falls back to a hard error rather than silently using `rm`.
+
+<Aside type="note">
+The single source of truth for OS detection at runtime is `lib/platform.js`. It exposes `platform()` → `"macos" | "linux"` and `resolveBin()` for binary lookups. All OS branches in the codebase go through this module.
+</Aside>
+
+## Windows
+
+Windows is not directly supported. The only tested path is **WSL2**: install a Debian or Ubuntu distribution through the Microsoft Store, then follow the Linux instructions inside that WSL2 environment.
+
+Browser access works from the Windows host via `localhost` or the WSL2 IP. PWA installation and Web Push require HTTPS and therefore a domain with a real certificate — Tailscale's `tailscale serve` covers this without a separate domain.

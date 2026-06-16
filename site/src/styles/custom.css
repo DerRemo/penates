@@ -1,0 +1,51 @@
+/* Self-hosted fonts (Vite resolves node_modules @imports) */
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+:root {
+  --sl-font: 'Inter Variable', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+}
+
+/* Dark = Catppuccin Mocha (Starlight default root) */
+:root {
+  --sl-color-accent-low: #1d3a36;
+  --sl-color-accent: #179a8c;
+  --sl-color-accent-high: #94e2d5;
+  --sl-color-white: #cdd6f4;
+  --sl-color-gray-1: #bac2de;
+  --sl-color-gray-2: #a6adc8;
+  --sl-color-gray-3: #7f849c;
+  --sl-color-gray-4: #585b70;
+  --sl-color-gray-5: #45475a;
+  --sl-color-gray-6: #313244;
+  --sl-color-black: #1e1e2e;
+}
+
+/* Light = Catppuccin Latte */
+:root[data-theme='light'] {
+  --sl-color-accent-low: #cfeae6;
+  --sl-color-accent: #179299;
+  --sl-color-accent-high: #0f6d72;
+  --sl-color-white: #4c4f69;
+  --sl-color-gray-1: #5c5f77;
+  --sl-color-gray-2: #6c6f85;
+  --sl-color-gray-3: #7c7f93;
+  --sl-color-gray-4: #9ca0b0;
+  --sl-color-gray-5: #bcc0cc;
+  --sl-color-gray-6: #ccd0da;
+  --sl-color-gray-7: #dce0e8;
+  --sl-color-black: #eff1f5;
+}
+
+/* Display font for headings + site title (Bricolage Grotesque) */
+.site-title,
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4 {
+  font-family: 'Bricolage Grotesque Variable', var(--sl-font);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}

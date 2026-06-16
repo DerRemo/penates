@@ -1,0 +1,41 @@
+---
+// Landing page for penates.dev (skeleton — full marketing build is Phase 2)
+import '@fontsource-variable/bricolage-grotesque';
+import '@fontsource-variable/inter';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Penates — steer your coding agents from anywhere</title>
+    <meta
+      name="description"
+      content="Self-hosted web interface to manage and remote-control coding-CLI sessions on your own machine. Your machine, no cloud relay."
+    />
+    <link rel="icon" href="/favicon.svg" />
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0; min-height: 100vh; display: grid; place-items: center;
+        font-family: 'Inter Variable', system-ui, sans-serif;
+        background: #eff1f5; color: #4c4f69; text-align: center; padding: 2rem;
+      }
+      h1 { font-family: 'Bricolage Grotesque Variable', sans-serif; font-size: clamp(2rem, 6vw, 4rem); margin: 0 0 .5rem; letter-spacing: -0.02em; }
+      p { font-size: 1.25rem; max-width: 42rem; margin: 0 auto 2rem; }
+      a { color: #179299; font-weight: 600; }
+      .cta { display: inline-block; margin-top: 1rem; padding: .75rem 1.5rem; border-radius: .75rem; background: #179299; color: #fff; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Penates</h1>
+      <p>Steer your coding agents from anywhere — your machine, no cloud relay.</p>
+      <a class="cta" href="/docs">Read the docs →</a>
+      <p style="font-size:1rem; margin-top:2rem;">
+        <a href="https://github.com/DerRemo/penates">GitHub</a> · <a href="/de/">Deutsch</a>
+      </p>
+    </main>
+  </body>
+</html>

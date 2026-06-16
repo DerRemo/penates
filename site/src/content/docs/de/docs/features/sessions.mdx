@@ -1,0 +1,28 @@
+---
+title: Terminal & Sessions
+description: Coding-CLI-Sessions starten, verbinden, umbenennen, adoptieren, anpinnen und nach einem Neustart automatisch wiederherstellen — alles auf Basis von tmux.
+sidebar:
+  order: 1
+---
+
+## Was es ist
+
+Eine Session ist eine tmux-Session (Prefix `cc-`), die eine Coding-CLI — Claude Code, Codex oder Antigravity — in einem Projektverzeichnis ausführt. tmux ist die einzige Quelle der Wahrheit: Der Hub hält keinen eigenen Session-State, weshalb Sessions einen Hub-Neustart überleben und sogar von außerhalb von Penates gestartete Sessions adoptiert werden können (z. B. über SSH oder Moshi).
+
+## Warum / wann
+
+Das Dashboard ist der einzige Ort, um alle laufenden Agents im Blick zu haben und zu steuern: Live-Aktivität (working · waiting · idle), Context-Token-Verbrauch und das Account-5h-Limit pro Karte, dazu ein CLI-Badge zur Identifikation. Jede Session wird über ein vollwertiges Browser-Terminal bedient — Farben, Copy/Paste, Scrollback — vom Mac oder vom Smartphone.
+
+## Wie nutzen
+
+- **Erstellen:** **New session** klicken, CLI und Approval-/Sandbox-Variante wählen, Verzeichnis auswählen, starten. Namen bekommen automatisch den Prefix `cc-`.
+- **Verbinden:** Karte öffnen, um über einen robusten WebSocket ins Terminal zu wechseln (automatischer Reconnect mit Backoff; Scrollback-Replay beim ersten Verbinden).
+- **Multi-CLI:** Der Picker bietet Claude Code, Codex (`--sandbox`-Varianten) und Antigravity (`agy`), jede CLI mit eigenem Login.
+- **Umbenennen / adoptieren / anpinnen / stummschalten:** Umbenennen behält den Hook-State; *adoptieren* registriert eine fremde Session unter ihrem Originalnamen; *anpinnen* sortiert sie nach oben; *stummschalten* unterdrückt ihre Benachrichtigungen.
+- **Auto-Restore:** Nach einem Neustart startet der Hub die zuletzt laufenden `cc-`-Sessions in ihrem ursprünglichen Verzeichnis neu und setzt die CLI-Konversation fort (`claude --continue`, `codex resume --last`, `agy --continue`). Opt-out durch bewusstes Stoppen der Session.
+
+![Das Penates Session-Dashboard](../../../../../assets/screenshots/sessions.png)
+
+## Grenzen
+
+Auto-Restore gilt nur nach einem Neustart und stellt die CLI-Konversation wieder her — keinen unterbrochenen Task und keinen im RAM gespeicherten tmux-Scrollback. Fremde (nicht über den Hub gestartete) Sessions zeigen Aktivität `unknown`, bis ein Hook feuert. Die `@`-Mention-Helfer (Image-Paste, Voice) sind Claude-Code-spezifisch.

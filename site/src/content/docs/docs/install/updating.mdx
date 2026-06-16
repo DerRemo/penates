@@ -1,0 +1,34 @@
+---
+title: Updating
+description: How to update Penates and its bundled CLIs to the latest version.
+sidebar:
+  order: 6
+---
+
+## Update Penates
+
+```bash
+cd ~/penates
+git pull
+npm install
+launchctl kickstart -k gui/$(id -u)/com.penates
+```
+
+The `git pull` brings in new code, `npm install` syncs any new or changed dependencies, and `launchctl kickstart -k` replaces the running process with the updated one without removing the LaunchAgent.
+
+## Update Center
+
+The Settings view includes an **Update Center** that tracks four categories:
+
+- **Hub** — the Penates server itself (compares the running version against the latest GitHub release).
+- **CLIs** — Claude Code, Codex, Antigravity (checks npm registry for latest published version).
+- **Externals** — Homebrew-managed tools like tmux, moshi-hook, whisper-cpp.
+- **Deps** — npm dependencies (display only; update by running `npm install`).
+
+Click the Update button next to any component to trigger an update. The hub spawns a detached tmux session named `cc-update-<component>` that runs the update command. You can attach to it to watch progress.
+
+A teal dot on the Settings sidebar entry indicates a hub update is available.
+
+For the hub specifically, the Update Center runs the same `git pull && npm install && launchctl kickstart` sequence and verifies that the working tree is clean before proceeding (to avoid overwriting local changes). If the check fails, the button returns a `409` and tells you what is blocking the update.
+
+See [Settings & updates](/docs/features/settings-updates) for a full walkthrough of the Update Center UI.
