@@ -5856,16 +5856,19 @@
       clearInterval(pingTimer); pingTimer = null;
       clearTimeout(pongTimer); pongTimer = null;
     }
-    // Client schickt alle 15s einen app-level ping; bleibt der pong >10s aus, ist
+    // Client schickt alle 12s einen app-level ping; bleibt der pong >18s aus, ist
     // der Link tot → close() (triggert Reconnect), statt auf den TCP-Timeout zu warten.
+    // Trade-off: 18s liegt über kurzen CF-Tunnel-Latenzspitzen (kein Fehlalarm wie bei
+    // 10s), erholt sich bei echtem stillen Link-Tod aber schneller als 25s. Ping auf 12s
+    // (statt 15s) → die Leitung wird häufiger geprüft, der Tod also früher bestätigt.
     function startHeartbeat(ws) {
       stopHeartbeat();
       pingTimer = setInterval(() => {
         if (ws.readyState !== WebSocket.OPEN) return;
         try { ws.send(JSON.stringify({ type: 'ping' })); } catch {}
         clearTimeout(pongTimer);
-        pongTimer = setTimeout(() => { try { ws.close(); } catch {} }, 10000);
-      }, 15000);
+        pongTimer = setTimeout(() => { try { ws.close(); } catch {} }, 18000);
+      }, 12000);
     }
     let pendingCtrl = false;       // Touch-Toolbar: sticky Ctrl-Modifier
     let touchScrollAbort = null;   // AbortController für Touch-Scroll-Listener
@@ -8373,7 +8376,14 @@
       const boot = res.headers.get('X-Penates-Boot');
       if (!boot) return;
       if (lastServerBoot === null) { lastServerBoot = boot; return; }
-      if (boot !== lastServerBoot) {
+      // Nur reloaden, wenn der Server-Boot ECHT NEUER ist. START_TIME ist ein
+      // monoton steigender ms-Timestamp; ein bloßes `!==` würde auch auf eine
+      // ältere, von Cloudflare zwischendurch gecachte Antwort feuern → Endlos-
+      // Reload-Loop (alt/neu im Wechsel). `>` ignoriert stale ältere Boot-IDs;
+      // wir baseline'n auf den höchsten gesehenen Wert, damit alte Caches stumm bleiben.
+      const bn = Number(boot), ln = Number(lastServerBoot);
+      if (Number.isFinite(bn) && bn > ln) {
+        lastServerBoot = boot;
         // Cooldown via sessionStorage damit wir nicht in eine Reload-Schleife
         // kommen falls der Server flappt.
         const lastReload = sessionStorage.getItem('penates_reload_at');

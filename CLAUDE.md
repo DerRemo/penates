@@ -27,13 +27,15 @@ penates/
 ├── scripts/             # Hilfsscripts
 ├── package.json         # Runtime-Deps: express, express-ws, node-pty, busboy, http-proxy, jose, web-push, dotenv
 ├── .env / .env.example  # Konfiguration (PORT, AUTH_TOKEN, PREVIEW_DOMAIN, WHISPER_*, TMUX_MOUSE, PENATES_HOME, …)
-├── setup.sh             # Installationsscript (deps, .env, LaunchAgent, Hooks, StatusLine)
+├── setup.sh             # Installationsscript (deps, .env, LaunchAgent|systemd, Hooks, StatusLine)
+├── install.sh           # OS-agnostischer Prereq-Installer (apt/dnf/pacman/brew via scripts/lib.sh)
+├── Dockerfile.linux-smoke # Container-Smoke für den Linux-Arm (scripts/linux-smoke.sh)
 ├── logs/                # stdout.log, stderr.log
-├── ROADMAP.md           # Lebendes Roadmap-Dokument (siehe „Roadmap / Planung")
+├── CHANGELOG.md         # Lebendes Planungs-Dokument (git-getrackt; siehe „Roadmap / Planung")
 └── CLAUDE.md
 ```
 
-Jeder Feature-Bereich hat ein `lib/`-Modul (Express-frei + unit-testbar) plus dünne Routen in `server.js` und ein Frontend-IIFE in `index.html`. Wichtige Module: `files.js`/`file-watcher.js` (Filebrowser), `attention.js`/`attach-tracker.js` (Hook-State + Notifications), `usage.js`/`usage-limits.js`/`pace.js` (Usage), `moshi-hook.js`/`antigravity-usage.js` (Interop), `git-diff.js` (Diff-Viewer), `session-images.js` (Image-Paste), `preview-proxy.js`/`port-scan.js` (Browser-Preview), `voice.js` (Voice-Input), `scrollback.js`/`backoff.js` (Connection-Robustness), `projects.js`/`roadmap.js`/`roadmap-writer.js`/`project-watcher.js` (Projekte/Roadmap/Changelog), `board.js` (Idea-Pipeline-Board → `board.json`), `settings.js`/`server-control.js` (Settings), `approvals.js`, `audit-log.js`, `cf-access.js`, `i18n.js`, `push-subscriptions.js`/`vapid.js`, `known-sessions.js`, `rate-limit.js`, `mutations.js`.
+Jeder Feature-Bereich hat ein `lib/`-Modul (Express-frei + unit-testbar) plus dünne Routen in `server.js` und ein Frontend-IIFE in `index.html`. Wichtige Module: `files.js`/`file-watcher.js`/`session-files.js` (Filebrowser + Terminal-File-Preview), `attention.js`/`attach-tracker.js` (Hook-State + Notifications), `usage.js`/`usage-limits.js`/`pace.js` (Usage), `moshi-hook.js`/`antigravity-usage.js` (Interop), `git-diff.js`/`git-history.js` (Repo-Panel: Diff · Log/Branches), `session-images.js` (Image-Paste), `preview-proxy.js`/`port-scan.js` (Browser-Preview), `mata.js` (iOS-Simulator), `voice.js` (Voice-Input), `scrollback.js`/`backoff.js` (Connection-Robustness), `projects.js`/`roadmap.js`/`roadmap-writer.js`/`project-watcher.js` (Projekte/Roadmap/Changelog), `board.js` (Idea-Pipeline-Board → `board.json`), `brainstorm-spawn.js`/`git-finish.js`/`worktree.js` (autonome Pipeline: Spawn-Logik · Finish/Merge · Worktree-Isolation), `session-restore.js` (Auto-Restore), `updates.js`/`update-check.js` (Update-System), `platform.js`/`penates-home.js` (OS-Abstraktion + State-Dir), `settings.js`/`server-control.js` (Settings), `approvals.js`, `audit-log.js`, `cf-access.js`, `i18n.js`, `push-subscriptions.js`/`vapid.js`, `known-sessions.js`, `rate-limit.js`, `single-flight.js`, `mutations.js`.
 
 ## Roadmap / Planung & Board (Idea Pipeline Phase 1)
 
@@ -48,6 +50,8 @@ Jeder Feature-Bereich hat ein `lib/`-Modul (Express-frei + unit-testbar) plus d�
 **Board (Kanban):** `lib/board.js` (Express-frei, atomare Persistenz nach `known-sessions.js`-Vorbild → `~/.penates/board.json`) hält die Karten. Eine Karte = eine Idee mit `{projectId, title, priority, stage, origin, theme, order}`. **Stage-Keys (stabil/englisch):** `idea | brainstorming | spec | implement | review | done` (UI-Labels via i18n). Routen `GET/POST/PATCH/DELETE /api/board/cards` (Mutationen unter dem globalen `writeLimiter`); `board.load()` + hub-only `migrateBacklog()` (idempotent, skip bei vorhandener `CHANGELOG.md`) beim Boot. Frontend: neue Top-Level-View „Board" (`data-view="board"`, `BoardView`-IIFE) — 6 Spalten, HTML5-Drag = Stufenwechsel (`PATCH {stage}`), Projekt-Filter, `+ Idee` (POST), rechtes Detail-Panel (Titel/Prio/Stage editierbar, 2-Klick-Delete; Mobile-Stage-Dropdown als Drag-Fallback).
 
 **Cleanup bei Move→Done:** jeder Übergang einer Karte nach `done` (manueller Drag/Dropdown-PATCH **und** `/finish`) läuft durch den geteilten, idempotenten `finalizeCardToDone(card, reqMeta)`-Helper in `server.js`: erst die laufende Session killen (falls `sessionRef` in tmux lebt), dann den Worktree `--force` entfernen, dann den Branch sicher mit `git branch -d` löschen (ungemergt → bleibt erhalten; `lib/worktree.js#branchExists` ermittelt das Ergebnis nach dem `-d`-Versuch). Die PATCH-Response trägt eine `cleanup`-Summary; das Frontend (`applyTransition`) zeigt davor einen Destruktiv-Confirm (nur wenn die Karte `branch`/`worktreePath`/`sessionRef` hat — reine Ideen-Karten ziehen lautlos) und danach einen Ergebnis-Toast. Best-effort: ist das Projekt nicht mehr registriert (`repo` null), bleiben Worktree/Branch — die Boot-Reconciliation räumt den Worktree später. `review→done` läuft weiter über `/finish` (Merge+Push), das jetzt denselben Helper als Safety-Net nutzt.
+
+**Autonome Pipeline-Phasen (P2–P5):** Karten spawnen Sessions selbst. `lib/brainstorm-spawn.js` (rein, unit-testbar) liefert die Spawn-Logik: `slugifySessionName`/`implementSessionName`/`implementBranchName` (whitelist-konform, `idea/<slug>`), `buildBrainstormPriming`/`buildImplementPriming`/`buildIdeaGenPriming` (einzeilige Priming-Prompts — `$PENATES_URL`/`$PENATES_TOKEN` bleiben Shell-Literale), `isValidImplementBranch`, `looksLikeTrustPrompt`/`promptedSpawnCommand` (Trust-Prompt-Auto-Confirm). Routen: `POST /api/board/cards/:id/brainstorm` (Brainstorm-Session), `…/implement` (Implement-Session im **eigenen git-Worktree** via `lib/worktree.js`), `GET …/branch-diff` (Branch↔Base-Diff für die Review-Spalte), `POST …/finish` (Review→Done: Merge+Changelog+Push über `lib/git-finish.js#preflightFinish`/`finishCard`, Worktree-isolierter Merge). `POST /api/projects/:id/ideagen` spawnt eine Ideen-Generierungs-Session, `POST …/release` schneidet ein Release im Plan-Doc.
 
 **Capture-Idea** (Terminal-Toolbar) legt jetzt eine Board-Karte an (`POST /api/board/cards {stage:'idea', origin:'solo'}`) statt eines Backlog-Items. **Overview-Session-Cards** zeigen ein Projekt-Badge (cwd → Registry-Match via `getProjectsSync()`, `project`-Feld in `GET /api/sessions`).
 
@@ -76,7 +80,12 @@ Items in Released/In-Dev werden im Hub-Detail-View getoggelt (`PATCH /api/projec
 | DELETE | `/api/sessions/:name` | Session beenden |
 | PATCH | `/api/sessions/:name` | Umbenennen (`{ newName }`) |
 | POST | `/api/sessions/:name/adopt` | Foreign Session unter Originalnamen registrieren (kein `cc-`-Rename) |
-| GET | `/api/sessions/:name/diff` | Uncommittete Änderungen der Session-cwd (Diff-Viewer) |
+| POST | `/api/sessions/:name/restore` | Dormant Session neu spawnen (geteilt mit dem Boot-Auto-Restore) |
+| POST | `/api/sessions/:name/mute`·`/pin` | Notification-Mute · Sidebar-Pin (toggle) |
+| DELETE | `/api/sessions/:name/known` | Eintrag aus `known-sessions.json` entfernen |
+| GET | `/api/sessions/:name/diff` | Uncommittete Änderungen der Session-cwd (Repo-Panel „Changes") |
+| GET | `/api/sessions/:name/git/log`·`/branches`·`/commit/:sha` | Repo-Panel: Commit-History · Branches · Commit-Detail (`lib/git-history.js`) |
+| GET | `/api/sessions/:name/file-content` | Datei-Inhalt für klickbare Terminal-Pfade (`lib/session-files.js`) |
 | GET | `/api/sessions/:name/scrollback?lines=N` | tmux-History für Reconnect-Replay |
 | POST | `/api/sessions/:name/upload` | Upload in Session-cwd (Busboy multipart) |
 | POST | `/api/sessions/:name/image` | Einzelnes PNG (`express.raw image/png`, ≤8 MB) → `.penates-images/`, liefert `{rel}` |
@@ -84,14 +93,18 @@ Items in Released/In-Dev werden im Hub-Detail-View getoggelt (`PATCH /api/projec
 | WS | `/api/terminal/:name` | Terminal-WS. Close `4004` Session weg, `4001` Auth-Fehler |
 | WS | `/api/files/events` | Live-Updates: `{subscribe/unsubscribe projectId}`, `{subscribeSession/unsubscribeSession name}` |
 | POST | `/api/hooks/:event` | Claude-Code-Hooks (`Stop`/`Notification`/`UserPromptSubmit`/`SubagentStop`/`SessionStart`/`SessionEnd`), Session via `X-Penates-Session` |
+| POST | `/api/hooks/pre-tool-use` | PreToolUse-Hook → Approvals-Gate (`lib/approvals.js`) |
 | POST | `/api/hooks/statusline` | StatusLine-Daten (rate_limits, cost, context, model) |
 | GET | `/api/usage/limits?days=7` | Account-Level-Limits + History + Peaks |
 | GET | `/api/usage/costs` | Aggregierte Kosten aller frischen Sessions |
 | GET | `/api/usage/history?days=30` | Erweitertes JSONL-Aggregat (`getDailyUsageV2`) |
 | GET | `/api/recent-dirs` | Recency-rankte Arbeitsverzeichnisse (`moshi-hook cwd-list`) |
-| `*` | `/api/projects/*` | Projekt-CRUD + Roadmap-Items (`PATCH …/items`) + Filebrowser (siehe unten) |
+| `*` | `/api/projects/*` | Projekt-CRUD + Roadmap-Items (`PATCH …/items`) + `release`/`ideagen` + Filebrowser (siehe unten) |
 | `*` | `/api/board/cards` | Board-Karten (Idea Pipeline): `GET ?projectId`, `POST`, `PATCH :id` (stage/order via `moveCard`, sonst `updateCard`), `DELETE :id` |
-| `*` | `/api/preview/*`, `/api/voice/*`, `/api/settings`, `/api/server/*` | Feature-Routen (siehe jeweilige Abschnitte) |
+| POST·GET | `/api/board/cards/:id/{brainstorm,implement,finish}`·`/branch-diff` | Autonome Pipeline: Spawns (Brainstorm/Implement→Worktree) · Finish (Merge+Push) · Branch-Diff (siehe „Roadmap / Planung & Board") |
+| GET·POST | `/api/updates`·`/api/updates/:id` | Update-System: Komponentenliste · Update-Trigger (detachte `cc-update-*`-Session; siehe „Update-System") |
+| GET·POST | `/api/version`·`/api/version/check` | Hub-Version + GitHub-Releases-Update-Check (`lib/update-check.js`) |
+| `*` | `/api/preview/*`, `/api/voice/*`, `/api/approvals/*`, `/api/push/*`, `/api/browse/mkdir`, `/api/settings`, `/api/server/*` | Feature-Routen (siehe jeweilige Abschnitte) |
 | GET·POST | `/api/mata/status`, `/api/mata/control` | Mata iOS-Simulator: Status (`installed/running/portOpen`) + start/stop/restart (siehe „Mata-Integration") |
 | POST | `/api/sessions/:name/mata-capture` | Simulator-Frame → `.penates-images/` → `@`-Mention (reuse `saveSessionImage`) |
 
@@ -200,13 +213,15 @@ Routen: `POST /api/hooks/statusline`, `GET /api/usage/limits` (account-level via
 - **Session-Card:** CLI-Badge via `cliFromCommand(s.command)` (auf running/dormant/foreign Cards; `GET /api/sessions` reicht `command` mit).
 - Auth out-of-scope: jede CLI nutzt ihren eigenen Login; fehlende CLI → Session stirbt mit „nicht im PATH"-Hinweis.
 
-## Diff-Viewer
+## Repo-Panel (Files · Changes · History · Branches)
 
-Native Diff-View pro Session (uncommittete Änderungen der cwd: unstaged/staged/untracked), Einstieg über den klickbaren Git-Badge der Session-Card.
+Konsolidiertes rechtes Split-Panel pro Session — die früher separaten Files-/Diff-Views sind zu **einem getabbten Repo-Panel** zusammengelegt. `RepoPanel`-IIFE besitzt das Panel + koordiniert Tab-Wechsel/Lifecycle (`TABS = ['files','changes','history','branches']`, Tab + Breite in `localStorage`); `FileBrowser`/`DiffView`/`RepoHistory` bleiben Logik-Owner und rendern in ihre Panes (lazy pro Tab). **Mutual-exclusive mit der Browser-Preview** (eigener Slot). Einstieg über den Repo-Toggle/Git-Dot der Session-Card.
 
-`lib/git-diff.js`: `parseStatusV2(raw)` parst `git status --porcelain=v2 --branch -z` → `{branch, ahead, behind, files:[{category, path, oldPath?, status}]}` (eine Datei kann staged + unstaged zugleich sein; Renames liefern `oldPath`; `server.js getGitStatus` nutzt denselben Parser). `getDiff(cwd, {maxFileBytes=200_000, maxUntracked=100})` liefert pro Datei `additions/deletions/binary/oversize/diff` über **gebündelte** git-Aufrufe (`git diff` + `--cached`, client-seitig an `diff --git`-Grenzen gesplittet, `--numstat -z` für Counts; untracked einzeln via `git diff --no-index`). Alles via `execFileSync('git', […])`.
+**Changes (`lib/git-diff.js`):** `parseStatusV2(raw)` parst `git status --porcelain=v2 --branch -z` → `{branch, ahead, behind, files:[{category, path, oldPath?, status}]}` (eine Datei kann staged + unstaged zugleich sein; Renames liefern `oldPath`; `server.js getGitStatus` nutzt denselben Parser). `getDiff(cwd, {maxFileBytes=200_000, maxUntracked=100})` liefert pro Datei `additions/deletions/binary/oversize/diff` über **gebündelte** git-Aufrufe (`git diff` + `--cached`, client-seitig an `diff --git`-Grenzen gesplittet, `--numstat -z` für Counts; untracked einzeln via `git diff --no-index`). Route `GET /api/sessions/:name/diff` (cwd via `resolveSessionCwd`; `isRepo:false` → 200). Frontend `DiffView`-IIFE: Rendering via **diff2html** (lazy CDN-ESM, `<pre>`-Fallback), side-by-side ≥900 px sonst line-by-line.
 
-Route `GET /api/sessions/:name/diff` (cwd via `resolveSessionCwd`; `isRepo:false` → 200). Live-Refresh über `{subscribeSession:<name>}` auf der Files-Events-WS (debounced ~300 ms). Frontend: `DiffView`-IIFE, Rendering via **diff2html** (lazy CDN-ESM, `<pre>`-Fallback), side-by-side ≥900 px sonst line-by-line.
+**History + Branches (`lib/git-history.js`,** teilt `git()`/`splitUnifiedDiff()`/`parseNumstat()` mit `git-diff.js`): `getLog(cwd, {limit, skip})` → lineare Commit-Timeline (`%H/%h/%s/%an/%aI/%D`, Ref-Dekorationen geparst, `hasMore`-Paginierung via `skip`), `getBranches(cwd)` → local + remote (read-only), `showCommit(cwd, sha)` → Header + per-file Diffs eines Commits (SHA via `^[0-9a-f]{4,40}$` validiert). Routen `GET /api/sessions/:name/git/log|branches|commit/:sha`. Fehlertolerant: kein Repo / git fehlt → leere/null Payloads (nie werfen). Frontend `RepoHistory`-IIFE: Timeline mit Typ-Farben + Ref-Badges, Tap auf Commit → Changes-Tab zeigt ihn (`showCommitSource`).
+
+Alle git-Aufrufe via `execFileSync('git', […])` mit Argv-Array — kein Shell-Interp. Live-Refresh der Changes über `{subscribeSession:<name>}` auf der Files-Events-WS (debounced ~300 ms).
 
 **Grenze:** der File-Watcher ignoriert `.git`, daher triggert `git add`/`reset` kein Live-Event — der manuelle Refresh-Button deckt das ab.
 
@@ -274,6 +289,14 @@ Nach einem tmux-Tod (Mac-Reboot / `tmux kill-server` / Server-Crash) fährt der 
 - **Settings** (`lib/settings.js`, beide default `true`): `autoRestore` (Master-Switch) + `autoRestoreContinue` (`--continue` vs. Frischstart). `GET/PATCH /api/settings`; Sektion „Session-Wiederherstellung" in der Settings-View (zwei Toggles, Continue als Unter-Option). Wirkt **erst beim nächsten Boot** (kein Live-Reload — Auto-Restore läuft nur beim Start).
 
 **Grenze:** Reboot-only by design; nur die CLI-Konversation kommt zurück, kein abgebrochener Task, kein sichtbarer tmux-Scrollback (lebte im RAM des toten Servers). Spec: `docs/superpowers/specs/2026-06-13-tmux-continuum-design.md`.
+
+## Update-System
+
+Update-Center in den Settings (4 Kategorien: **Hub · CLIs · Externals · Deps**). `lib/updates.js` (Express-frei, Collectors injizierbar für Tests) baut eine flache Komponentenliste über vier fehlertolerante Collectors: `collectHub` (eigene Version vs. GitHub-Release), `collectClis` (`CLI_TARGETS` claude/codex/gemini/agy → `<bin> --version` vs. npm-Registry-`latest`; agy = display-only), `collectBrew` (`BREW_ALLOWLIST` moshi-hook/whisper-cpp/tmux via `brew outdated`), `collectNpmDeps` (`npm outdated`, **display-only**). Eine statische **Update-Registry** mappt `componentId → Befehl | null` (`null` = nur Anzeige, kein Button) — die Befehle sind **statische Strings** (nie aus User-Input; nur `repoDir` wird server-kontrolliert interpoliert). `scripts/update.sh` ist das Hub-Self-Update-Script.
+
+`lib/update-check.js`: `createChecker()` fragt die GitHub-Releases-API (`DerRemo/penates`) beim Boot + alle 12 h, `semverGt` vergleicht. Self-Update-**Guard** (`canSelfUpdate`/`hubGuard`): Hub-Update nur wenn neuer **+** Working-Tree clean **+** nicht vor origin — sonst 409.
+
+Routen: `GET /api/updates?refresh=1` (1 h-Cache, Guard jeweils frisch berechnet), `POST /api/updates/:id` (Whitelist via `isExecutable` → 400; Hub-Guard → 409; spawnt eine **detachte `cc-update-*`-tmux-Session** via `bash -lc <command>`, idempotent — läuft sie schon, kein zweiter Start; überlebt den `setup.sh`-Restart), `GET /api/version`, `POST /api/version/check`. Frontend: Updates-Panel in der Settings-View + Teal-Dot am Sidebar-Eintrag bei verfügbarem Hub-Update.
 
 ## Bekannte Einschränkungen
 

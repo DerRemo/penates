@@ -21,7 +21,7 @@ import * as usageLimits from './lib/usage-limits.js';
 import * as moshiHook from './lib/moshi-hook.js';
 import { getAntigravityUsage } from './lib/antigravity-usage.js';
 import * as knownSessions from './lib/known-sessions.js';
-import { planAutoRestore } from './lib/session-restore.js';
+import { planAutoRestore, RESTORE_MAX_AGE_MS } from './lib/session-restore.js';
 import * as board from './lib/board.js';
 import { slugifySessionName, buildBrainstormPriming, resolveBrainstormSpawn, ideaGenSessionName, buildIdeaGenPriming, looksLikeTrustPrompt, implementSessionName, buildImplementPriming, promptedSpawnCommand, implementBranchName, isValidImplementBranch } from './lib/brainstorm-spawn.js';
 import * as settings from './lib/settings.js';
@@ -46,6 +46,7 @@ import {
   writeStream as filesWriteStream,
   streamFileToResponse as filesStreamToResponse,
   FileError,
+  classifyFileError,
 } from './lib/files.js';
 import Busboy from 'busboy';
 import * as projectWatcher from './lib/project-watcher.js';
@@ -1365,24 +1366,12 @@ app.delete('/api/projects/:id', async (req, res) => {
 // secureMiddleware-Block auf /api/* automatisch geschützt.
 
 function handleFileError(res, err) {
-  if (err instanceof FileError) {
-    const status = {
-      forbidden: 403,
-      'not-found': 404,
-      'not-a-dir': 400,
-      'not-a-file': 400,
-      'bad-name': 400,
-      oversize: 413,
-      unsupported: 415,
-      exists: 409,
-      'into-self': 400,
-      'same-path': 400,
-      'trash-failed': 500,
-    }[err.code] || 500;
-    return res.status(status).json({ error: err.code, message: err.message, meta: err.meta });
-  }
-  console.error('[files] unexpected:', err);
-  return res.status(500).json({ error: 'internal' });
+  const { status, code, unexpected } = classifyFileError(err);
+  if (unexpected) console.error('[files] unexpected:', err);
+  const body = err instanceof FileError
+    ? { error: code, message: err.message, meta: err.meta }
+    : { error: code };
+  return res.status(status).json(body);
 }
 
 function handleSessionFileError(res, err) {
@@ -2858,6 +2847,18 @@ const wsHeartbeatTimer = setInterval(() => {
 }, WS_HEARTBEAT_MS);
 wsHeartbeatTimer.unref();
 
+// Keepalive für die Event-WS (files/events, notifications): diese tragen oft
+// minutenlang keine Daten. Cloudflare kappt idle WebSockets nach ~100s → sonst
+// reconnectet die files/events-WS im 2-Minuten-Takt (notifications hält sich
+// per 20s-Presence selbst wach, files/events hat nichts). Ein Protocol-Ping
+// alle 45s hält die Verbindung "busy", unter Cloudflares Idle-Fenster.
+const EVENT_WS_KEEPALIVE_MS = 45_000;
+const eventWsKeepaliveTimer = setInterval(() => {
+  for (const ws of projectEventClients) { try { ws.ping(); } catch {} }
+  for (const ws of notificationClients) { try { ws.ping(); } catch {} }
+}, EVENT_WS_KEEPALIVE_MS);
+eventWsKeepaliveTimer.unref();
+
 // ── WebSocket file-events ─────────────────────────────────────────────────────
 // Client sendet { subscribe: projectId } / { unsubscribe: projectId }.
 // Server broadcastet FSEvent-Objekte für die abonnierten Projekte.
@@ -2989,8 +2990,13 @@ const server = app.listen(PORT, async () => {
     try {
       const { autoRestore, autoRestoreContinue } = settings.get();
       if (autoRestore) {
+        const now = Date.now();
         const liveNames = getTmuxSessions().map(s => s.name);
-        const plan = planAutoRestore({ known: knownSessions.list(), liveNames, continueEnabled: autoRestoreContinue });
+        // Boot-Cleanup: dormant Karteileichen (>7 Tage nicht live) aus der Registry
+        // entfernen, damit sie nicht jeden Boot als Phantom-Sessions hochgefahren werden.
+        const pruned = await knownSessions.pruneStale({ liveNames, now, maxAgeMs: RESTORE_MAX_AGE_MS });
+        if (pruned.length) console.log(`  ▸ known-sessions: pruned ${pruned.length} stale entr${pruned.length === 1 ? 'y' : 'ies'}`);
+        const plan = planAutoRestore({ known: knownSessions.list(), liveNames, continueEnabled: autoRestoreContinue, now, maxAgeMs: RESTORE_MAX_AGE_MS });
         let restored = 0;
         for (const item of plan) {
           let result = await spawnDormantSession(item.name, { directory: item.directory, command: item.command });
@@ -3075,6 +3081,7 @@ function shutdown(signal) {
   console.log(`\n  ${signal} received — killing ${activePtys.size} active PTY(s) and shutting down`);
   clearInterval(heartbeatTimer);
   clearInterval(wsHeartbeatTimer);
+  clearInterval(eventWsKeepaliveTimer);
   clearInterval(usagePollTimer);
   for (const p of activePtys) { try { p.kill(); } catch {} }
   projectWatcher.closeAll();
