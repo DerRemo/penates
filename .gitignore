@@ -41,3 +41,7 @@ claude-code-hub-preview.html
 
 # Idea-Pipeline migration backups (ROADMAP.md → CHANGELOG.md cutover)
 ROADMAP.md.bak-*
+
+# Docs/Landing site build artefacts (site/ has its own Astro build)
+site/dist/
+site/.astro/
