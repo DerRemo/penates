@@ -26,6 +26,9 @@ tmp-debug/
 
 # Internal dev plans/specs (local only)
 docs/
+# Allow the doc-site content under site/ (docs/ above would otherwise swallow it)
+!site/src/content/docs/
+!site/src/content/docs/**
 
 # Superpowers brainstorming artefacts
 .superpowers/
