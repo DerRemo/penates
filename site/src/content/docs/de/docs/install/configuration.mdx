@@ -28,7 +28,7 @@ Alle Einstellungen stehen in `~/penates/.env`. `setup.sh` erstellt diese Datei m
 | `CF_ACCESS_TEAM_DOMAIN` | (leer) | Cloudflare-Zero-Trust-Team-Domain, z.B. `deinteam.cloudflareaccess.com`. Leer = CF-Access-JWT-Validierung deaktiviert. |
 | `CF_ACCESS_AUD` | (leer) | Cloudflare-Access-Application-Audience-Tag (64-Zeichen-Hex-String aus dem Dashboard). Beide `CF_ACCESS_*`-Variablen müssen zusammen gesetzt sein. |
 | `WHISPER_BIN` | auto | Pfad zum `whisper-cli`-Binary für Voice-Input. Wird automatisch gefunden; überschreiben bei nicht-standardmäßigem Installationsort. |
-| `WHISPER_MODEL` | (Pflicht für Voice) | Pfad zu einer `.gguf`-Whisper-Modelldatei. Pflicht für Voice-Input. |
+| `WHISPER_MODEL` | (Pflicht für Voice) | Pfad zu einer `.bin`-ggml-Whisper-Modelldatei (z. B. `ggml-large-v3-turbo-q5_0.bin`). Pflicht für Voice-Input. |
 | `VOICE_LANG` | `de` | Standard-Transkriptionssprache für whisper-cli. |
 | `VOICE_ENABLED` | `true` | Auf `false` setzen, um den Mikrofon-Button vollständig auszublenden. Wird auch automatisch deaktiviert, wenn Binary oder Modell fehlen. |
 
