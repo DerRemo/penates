@@ -58,6 +58,7 @@ struct OverviewView: View {
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
             Button("Umbenennen") {
+                // Defense-in-depth: a hardware-keyboard Return can bypass .disabled on an alert button.
                 guard let s = renameTarget, SessionName.isValid(renameText) else { return }
                 let newName = renameText
                 renameTarget = nil
