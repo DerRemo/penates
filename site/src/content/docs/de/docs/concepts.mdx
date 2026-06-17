@@ -1,13 +1,13 @@
 ---
 title: Kernkonzepte
-description: Die vier Bausteine von Penates — Sessions, Projekte, das Board und Auth — und wie sie zusammenspielen.
+description: Die vier Bausteine von Penates (Sessions, Projekte, das Board und Auth) und wie sie zusammenspielen.
 sidebar:
   order: 3
 ---
 
 ## Sessions
 
-Eine Session ist ein tmux-Prozess (Präfix `cc-`), der eine CLI in einem Projektverzeichnis ausführt. tmux ist die einzige Wahrheitsquelle: Der Hub hält keinen eigenen Session-State, daher überleben Sessions einen Hub-Neustart. Fremde Sessions — solche, die nicht vom Hub gestartet wurden — lassen sich ins Dashboard adoptieren, ohne umbenannt zu werden. Der Hub verfolgt den Aktivitätsstatus über Claude-Code-Hooks (`Stop`, `Notification`, `UserPromptSubmit`), sodass das Dashboard weiß, ob eine Session idle, arbeitend oder auf Eingabe wartend ist — ohne das Terminal zu pollen.
+Eine Session ist ein tmux-Prozess (Präfix `cc-`), der eine CLI in einem Projektverzeichnis ausführt. tmux ist die einzige Wahrheitsquelle: Der Hub hält keinen eigenen Session-State, daher überleben Sessions einen Hub-Neustart. Fremde Sessions (solche, die nicht vom Hub gestartet wurden) lassen sich ins Dashboard adoptieren, ohne umbenannt zu werden. Der Hub verfolgt den Aktivitätsstatus über Claude-Code-Hooks (`Stop`, `Notification`, `UserPromptSubmit`), sodass das Dashboard weiß, ob eine Session idle, arbeitend oder auf Eingabe wartend ist, ohne das Terminal zu pollen.
 
 ## Projekte
 
@@ -15,11 +15,11 @@ Ein Projekt ist ein registriertes Verzeichnis (in der Regel ein Git-Repo) mit ei
 
 ## Board
 
-Das Board ist ein globales Kanban mit sechs Stufen: `idea → brainstorming → spec → implement → review → done`. Jede Karte steht für eine Idee, die einem Projekt zugeordnet ist. Karten können eigene Sessions spawnen — eine Brainstorm-Session zum Ausarbeiten der Idee, eine Implement-Session in einem isolierten Git-Worktree und einen Finish-Schritt, der mergt, einen Changelog-Eintrag schreibt und pusht. Das Verschieben einer Karte nach `done` räumt Worktree und Branch automatisch auf.
+Das Board ist ein globales Kanban mit sechs Stufen: `idea → brainstorming → spec → implement → review → done`. Jede Karte steht für eine Idee, die einem Projekt zugeordnet ist. Karten können eigene Sessions spawnen: eine Brainstorm-Session zum Ausarbeiten der Idee, eine Implement-Session in einem isolierten Git-Worktree und einen Finish-Schritt, der mergt, einen Changelog-Eintrag schreibt und pusht. Das Verschieben einer Karte nach `done` räumt Worktree und Branch automatisch auf.
 
 ## Auth
 
-Der Zugriff ist durch ein Bearer-Token in `.env` geschützt. Der Browser fragt beim ersten Besuch danach und speichert es im `localStorage` — es erscheint nie im HTML. Für Remote-Zugriff über das Internet lässt sich Cloudflare Access (Zero Trust) vorschalten; der Hub validiert das CF-Access-JWT bei jeder Anfrage.
+Der Zugriff ist durch ein Bearer-Token in `.env` geschützt. Der Browser fragt beim ersten Besuch danach und speichert es im `localStorage`. Es erscheint nie im HTML. Für Remote-Zugriff über das Internet lässt sich Cloudflare Access (Zero Trust) vorschalten; der Hub validiert das CF-Access-JWT bei jeder Anfrage.
 
 ---
 
