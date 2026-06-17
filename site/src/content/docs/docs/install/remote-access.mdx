@@ -46,7 +46,7 @@ cloudflared tunnel login
 cloudflared tunnel create penates
 ```
 
-The second command prints a tunnel ID (format: `abc123de-...`). Keep it — you need it in the next steps.
+The second command prints a tunnel ID (format: `abc123de-...`). Keep it: you need it in the next steps.
 
 ### Route DNS
 
@@ -102,7 +102,7 @@ The Cloudflare Tunnel alone leaves only the bearer token as the auth layer. Clou
 ### Prerequisites
 
 - Cloudflare Tunnel is already running (see above).
-- Zero Trust is activated on your Cloudflare account (free for personal use — [dash.cloudflare.com/zero-trust](https://dash.cloudflare.com/zero-trust)).
+- Zero Trust is activated on your Cloudflare account (free for personal use; [dash.cloudflare.com/zero-trust](https://dash.cloudflare.com/zero-trust)).
 
 ### Create an Access Application
 
@@ -112,13 +112,13 @@ The Cloudflare Tunnel alone leaves only the bearer token as the auth layer. Clou
 3. Set **Session duration** to `24h` (or longer).
 4. Set **Application domain** to your tunnel domain (e.g. `code.yourdomain.xyz`).
 5. Under **Identity providers**, enable at least one:
-   - **GitHub OAuth** — one click if you already use GitHub.
-   - **One-Time PIN** — sends a code to your email; no OAuth app needed.
+   - **GitHub OAuth**: one click if you already use GitHub.
+   - **One-Time PIN**: sends a code to your email; no OAuth app needed.
 6. Create a **Policy**: Action = `Allow`, Include = one or both of:
    - `Emails` → your email address (for the PIN flow)
    - `GitHub` → your GitHub username (for GitHub OAuth)
 7. Save the application.
-8. On the application overview, copy the **Application Audience (AUD) tag** — a 64-character hex string.
+8. On the application overview, copy the **Application Audience (AUD) tag** (a 64-character hex string).
 </Steps>
 
 ### Configure the hub
@@ -158,7 +158,7 @@ tail -20 ~/.penates/audit.log | grep auth.fail | jq -c
 
 | `reason` | Fix |
 |---|---|
-| `bad-jwt:no-jwt` | Browser did not go through Cloudflare Access. Clear cookies for the domain and reload — the login flow should restart. |
+| `bad-jwt:no-jwt` | Browser did not go through Cloudflare Access. Clear cookies for the domain and reload; the login flow should restart. |
 | `bad-jwt:bad-aud` | `CF_ACCESS_AUD` in `.env` does not match the AUD tag on the Access Application. Copy it again from the dashboard. |
 | `bad-jwt:bad-iss` | `CF_ACCESS_TEAM_DOMAIN` is wrong. Must be the team URL without `https://`. |
 | `bad-jwt:expired` | JWT has expired. Increase the Session Duration in the Access Application settings. |
@@ -166,4 +166,4 @@ tail -20 ~/.penates/audit.log | grep auth.fail | jq -c
 
 ### Disable Cloudflare Access
 
-Remove both variables from `.env` (or set them to empty strings) and restart the server. No code changes needed — the feature is entirely env-gated.
+Remove both variables from `.env` (or set them to empty strings) and restart the server. No code changes needed; the feature is entirely env-gated.

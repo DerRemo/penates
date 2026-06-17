@@ -1,6 +1,6 @@
 ---
 title: Autostart
-description: Penates so einrichten, dass es beim Login automatisch startet – via macOS LaunchAgent oder Linux systemd User-Unit.
+description: Penates so einrichten, dass es beim Login automatisch startet, via macOS LaunchAgent oder Linux systemd User-Unit.
 sidebar:
   order: 4
 ---
@@ -11,7 +11,7 @@ import { Aside } from '@astrojs/starlight/components';
 
 ## macOS LaunchAgent
 
-`setup.sh` installiert eine LaunchAgent-Plist unter `~/Library/LaunchAgents/com.penates.plist`. launchd lädt sie beim Login und hält den Server am Laufen. Die Plist wird von `setup.sh` idempotent neu erzeugt — erneutes Ausführen nach einem Update ist sicher.
+`setup.sh` installiert eine LaunchAgent-Plist unter `~/Library/LaunchAgents/com.penates.plist`. launchd lädt sie beim Login und hält den Server am Laufen. Die Plist wird von `setup.sh` idempotent neu erzeugt. Erneutes Ausführen nach einem Update ist sicher.
 
 <Aside type="note">
 Die Plist muss Mode `644` haben. launchd verweigert world-writable Plists stillschweigend (`Bootstrap failed: 5`). `setup.sh` setzt das; wenn du die Plist manuell bearbeitest, danach `chmod 644 ~/Library/LaunchAgents/com.penates.plist` ausführen.
@@ -23,7 +23,7 @@ Die Plist muss Mode `644` haben. launchd verweigert world-writable Plists stills
 launchctl list | grep penates
 ```
 
-Eine Zeile mit PID in der zweiten Spalte bedeutet, der Server läuft. `0` = sauber beendet. Negativer Wert = Exit-Code — `logs/stderr.log` prüfen.
+Eine Zeile mit PID in der zweiten Spalte bedeutet, der Server läuft. `0` = sauber beendet. Negativer Wert = Exit-Code: `logs/stderr.log` prüfen.
 
 ### Neu starten
 
