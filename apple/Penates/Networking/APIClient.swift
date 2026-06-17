@@ -44,6 +44,15 @@ final class APIClient {
         let _: EmptyResponse = try await request("POST", "/api/sessions", body: body)
     }
 
+    func deleteSession(name: String) async throws {
+        let _: EmptyResponse = try await request("DELETE", "/api/sessions/\(name)")
+    }
+
+    func renameSession(name: String, to newName: String) async throws {
+        let body = try JSONEncoder().encode(["newName": newName])
+        let _: EmptyResponse = try await request("PATCH", "/api/sessions/\(name)", body: body)
+    }
+
     // MARK: - Generic request
 
     func request<T: Decodable>(_ method: String, _ path: String,

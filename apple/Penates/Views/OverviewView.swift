@@ -5,6 +5,14 @@ struct OverviewView: View {
     @State private var model: OverviewModel?
     @State private var showSettings = false
     @State private var showNewSession = false
+
+    // Task 18: kill + rename state
+    @State private var killTarget: Session?
+    @State private var renameTarget: Session?
+    @State private var renameText = ""
+    @State private var errorMessage: String?
+    @State private var showError = false
+
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
     var body: some View {
@@ -31,6 +39,41 @@ struct OverviewView: View {
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showNewSession) { NewSessionView { Task { await model?.load() } } }
+        // Kill confirmation dialog
+        .confirmationDialog(
+            killTarget.map { "Session \"\($0.name)\" beenden?" } ?? "",
+            isPresented: Binding(get: { killTarget != nil }, set: { if !$0 { killTarget = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Beenden", role: .destructive) {
+                guard let s = killTarget else { return }
+                killTarget = nil
+                Task { await performKill(s) }
+            }
+            Button("Abbrechen", role: .cancel) { killTarget = nil }
+        }
+        // Rename alert
+        .alert("Session umbenennen", isPresented: Binding(get: { renameTarget != nil }, set: { if !$0 { renameTarget = nil } })) {
+            TextField("Neuer Name", text: $renameText)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+            Button("Umbenennen") {
+                guard let s = renameTarget, SessionName.isValid(renameText) else { return }
+                let newName = renameText
+                renameTarget = nil
+                Task { await performRename(s, to: newName) }
+            }
+            .disabled(!SessionName.isValid(renameText))
+            Button("Abbrechen", role: .cancel) { renameTarget = nil }
+        } message: {
+            Text("Der Prefix \"cc-\" wird automatisch ergänzt.")
+        }
+        // Error alert
+        .alert("Fehler", isPresented: $showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "Unbekannter Fehler")
+        }
         .task { await setup() }
     }
 
@@ -40,12 +83,36 @@ struct OverviewView: View {
                 ForEach(items) { s in
                     NavigationLink(value: s) {
                         SessionCard(session: s,
-                                    onKill: { /* Task 18 */ },
-                                    onRename: { /* Task 18 */ })
+                                    onKill: { killTarget = s },
+                                    onRename: { renameText = ""; renameTarget = s })
                     }
                     .buttonStyle(.plain)
                 }
             } header: { HStack { Text(title).font(.subheadline.bold()).foregroundStyle(.secondary); Spacer() } }
+        }
+    }
+
+    private func performKill(_ s: Session) async {
+        guard let creds = app.credentials else { return }
+        let client = APIClient(credentials: creds)
+        do {
+            try await client.deleteSession(name: s.name)
+            await model?.load()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    private func performRename(_ s: Session, to newName: String) async {
+        guard let creds = app.credentials else { return }
+        let client = APIClient(credentials: creds)
+        do {
+            try await client.renameSession(name: s.name, to: newName)
+            await model?.load()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
         }
     }
 
