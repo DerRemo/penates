@@ -13,6 +13,23 @@ struct SwiftTermBridge: UIViewRepresentable {
     func makeUIView(context: Context) -> TerminalView {
         let tv = TerminalView(frame: .zero)
         tv.terminalDelegate = context.coordinator
+
+        // Replace the built-in TerminalAccessory with our custom accessory bar.
+        // `TerminalAccessory` is public-but-not-open so we cannot subclass it.
+        // Instead we build a `PenatesAccessoryBar: UIInputView` and wire
+        // sticky-Ctrl through `tv.controlModifier` (a public property). The
+        // TerminalView input pipeline already falls back to `controlModifier`
+        // when `terminalAccessory` (the TerminalAccessory cast) is nil:
+        //   `terminalAccessory?.controlModifier ?? controlModifier ?? false`
+        // so sticky-Ctrl is fully preserved.
+        let isPhone = UIDevice.current.userInterfaceIdiom == .phone
+        let accessoryHeight: CGFloat = isPhone ? 44 : 52
+        let accessory = PenatesAccessoryBar(
+            frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: accessoryHeight),
+            terminalView: tv
+        )
+        tv.inputAccessoryView = accessory
+
         // Feed scrollback seed before opening the live connection
         if !seed.isEmpty {
             tv.feed(byteArray: seed[...])
