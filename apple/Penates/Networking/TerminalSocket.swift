@@ -14,6 +14,7 @@ final class TerminalSocket {
     private var backoff = Backoff()
     private var lastPong = Date()
     private var pingTimer: Timer?
+    private var didConfirmAlive = false
     var onBytes: ([UInt8]) -> Void = { _ in }
 
     init(credentials: ServerCredentials, name: String, session: URLSession = .shared) {
@@ -31,7 +32,6 @@ final class TerminalSocket {
         task = t
         t.resume()
         lastPong = Date()
-        backoff.reset()
         startHeartbeat()
         receive()
     }
@@ -63,6 +63,7 @@ final class TerminalSocket {
             guard let self else { return }
             switch result {
             case .success(let msg):
+                if !self.didConfirmAlive { self.didConfirmAlive = true; self.backoff.reset() }
                 if let inbound = TerminalInbound.decode(msg) {
                     switch inbound {
                     case .bytes(let b): self.onBytes(b)
@@ -81,10 +82,9 @@ final class TerminalSocket {
         let code = task?.closeCode.rawValue ?? 1006
         pingTimer?.invalidate()
         pingTimer = nil
+        didConfirmAlive = false
         guard Self.decision(forCloseCode: code) == .retry else { return }
-        var b = backoff
-        let delay = b.next()
-        backoff = b
+        let delay = backoff.next()
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.connect()
         }
