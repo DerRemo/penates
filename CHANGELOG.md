@@ -43,6 +43,7 @@ Mobile-Optimierung — alles auf der Catppuccin-Calm-Card-Designsprache.
 ## In Development: v1.0.1
 - [x] tmux-continumm einbauen
 - [x] Linux Phase 2: Hub OS-agnostisch lauffaehig machen (Windows nur via WSL2) {theme: oss-relaunch}
+- [x] opencode als vierte Coding-CLI — registry-only Parität zu codex/antigravity (Spawn plus Badge plus continue-Restore), nur Standard-Variante Build-Agent weil das opencode-TUI kein Permission-Bypass-Flag hat und der Plan-Agent ein Live-Tab-Toggle ist, plus echtes Update-Center-Ziel über opencode upgrade {priority: p1, theme: multi-cli}
 
 ## Archiv: v0.3.0
 
