@@ -1,6 +1,6 @@
 ---
 title: Repo-Panel
-description: Ein Seitenpanel mit Tabs fur uncommittete Anderungen, Commit-Verlauf und Branch-Liste des Session-Arbeitsverzeichnisses.
+description: Ein Seitenpanel mit Tabs für uncommittete Änderungen, Commit-Verlauf und Branch-Liste des Session-Arbeitsverzeichnisses.
 sidebar:
   order: 5
 ---
@@ -9,25 +9,25 @@ sidebar:
 
 Das Repo-Panel ist ein Tabbed-Split-Panel, das rechts neben dem Terminal einer Session aufgeht. Es hat vier Tabs: **Files**, **Changes**, **History** und **Branches**.
 
-- **Files** zeigt den [Filebrowser](/de/docs/features/file-browser) fur das Arbeitsverzeichnis der Session.
-- **Changes** zeigt uncommittete Anderungen, gerendert mit diff2html. Ab 900 px Breite wird Side-by-Side angezeigt; darunter zeilenweise. Die Daten kommen aus `git status --porcelain=v2` und `git diff` (staged und unstaged), geparst in `lib/git-diff.js`.
-- **History** ist eine paginierte Commit-Timeline. Jeder Eintrag zeigt den kurzen Hash, den Betreff, den Author, das Datum und eventuelle Ref-Dekorationen (Branches, Tags). Ein Klick auf einen Commit ladt seine Datei-Diffs in den Changes-Tab.
-- **Branches** listet lokale und Remote-Branches auf. Dieser Tab ist schreibgeschutzt.
+- **Files** zeigt den [Filebrowser](/de/docs/features/file-browser) für das Arbeitsverzeichnis der Session.
+- **Changes** zeigt uncommittete Änderungen, gerendert mit diff2html. Ab 900 px Breite wird Side-by-Side angezeigt; darunter zeilenweise. Die Daten kommen aus `git status --porcelain=v2` und `git diff` (staged und unstaged), geparst in `lib/git-diff.js`.
+- **History** ist eine paginierte Commit-Timeline. Jeder Eintrag zeigt den kurzen Hash, den Betreff, den Author, das Datum und eventuelle Ref-Dekorationen (Branches, Tags). Ein Klick auf einen Commit lädt seine Datei-Diffs in den Changes-Tab.
+- **Branches** listet lokale und Remote-Branches auf. Dieser Tab ist schreibgeschützt.
 
-Das Repo-Panel und die [Browser-Preview](/de/docs/features/browser-preview) teilen denselben Panel-Slot und schließen sich gegenseitig aus. Nur eines kann gleichzeitig geoffnet sein.
+Das Repo-Panel und die [Browser-Preview](/de/docs/features/browser-preview) teilen denselben Panel-Slot und schließen sich gegenseitig aus. Nur eines kann gleichzeitig geöffnet sein.
 
 ## Warum / wann
 
-Der Changes-Tab ist der schnellste Weg, um zu sehen, was eine Coding-Session geschrieben hat, bevor committet wird. Staged und unstaged Diffs lassen sich nebeneinander betrachten, ohne ein weiteres Tool zu offnen. Der History-Tab bietet ein schlankes Commit-Log fur das Nachvollziehen des jungsten Kontexts, ohne den Browser zu verlassen.
+Der Changes-Tab ist der schnellste Weg, um zu sehen, was eine Coding-Session geschrieben hat, bevor committet wird. Staged und unstaged Diffs lassen sich nebeneinander betrachten, ohne ein weiteres Tool zu öffnen. Der History-Tab bietet ein schlankes Commit-Log für das Nachvollziehen des jüngsten Kontexts, ohne den Browser zu verlassen.
 
 ## Wie nutzen
 
-- **Panel offnen:** Repo-Toggle auf der Session-Karte klicken (oder den Git-Dot, wenn uncommittete Anderungen vorhanden sind).
+- **Panel öffnen:** Repo-Toggle auf der Session-Karte klicken (oder den Git-Dot, wenn uncommittete Änderungen vorhanden sind).
 - **Tabs wechseln:** Files, Changes, History oder Branches oben im Panel anklicken.
-- **History durchsuchen:** Die History-Timeline scrollen und einen Commit anklicken, um seine Anderungen zu sehen.
-- **Changes aktualisieren:** Den Refresh-Button im Changes-Tab klicken, um die Diff-Abfrage neu auszufuhren. Das ist nach `git add` oder `git reset` notig, da diese Operationen nur `.git` beruhren und kein Live-File-Watcher-Event auslosem.
-- **Breite anpassen:** Den Panel-Teiler ziehen, um das Verhaltnis zwischen Terminal und Panel einzustellen.
+- **History durchsuchen:** Die History-Timeline scrollen und einen Commit anklicken, um seine Änderungen zu sehen.
+- **Changes aktualisieren:** Den Refresh-Button im Changes-Tab klicken, um die Diff-Abfrage neu auszuführen. Das ist nach `git add` oder `git reset` nötig, da diese Operationen nur `.git` berühren und kein Live-File-Watcher-Event auslösen.
+- **Breite anpassen:** Den Panel-Teiler ziehen, um das Verhältnis zwischen Terminal und Panel einzustellen.
 
 ## Grenzen
 
-Der File-Watcher ignoriert `.git`, daher aktualisiert das Stagen oder Unstagen von Dateien den Changes-Tab nicht automatisch. Nach jedem `git add` oder `git reset` den manuellen Refresh-Button nutzen. Der Branches-Tab ist schreibgeschutzt; Branches anlegen und wechseln muss im Terminal erfolgen. Alle git-Aufrufe nutzen `execFileSync` mit Argv-Arrays und haben keine Shell-Interpolation.
+Der File-Watcher ignoriert `.git`, daher aktualisiert das Stagen oder Unstagen von Dateien den Changes-Tab nicht automatisch. Nach jedem `git add` oder `git reset` den manuellen Refresh-Button nutzen. Der Branches-Tab ist schreibgeschützt; Branches anlegen und wechseln muss im Terminal erfolgen. Alle git-Aufrufe nutzen `execFileSync` mit Argv-Arrays und haben keine Shell-Interpolation.
