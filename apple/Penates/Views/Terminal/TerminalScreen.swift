@@ -6,11 +6,12 @@ struct TerminalScreen: View {
     @State private var socket: TerminalSocket?
     @State private var seed: [UInt8] = []
     @State private var isReady = false
+    @AppStorage("terminalFontSize") private var fontSize = 13.0
 
     var body: some View {
         Group {
             if isReady, let s = socket {
-                SwiftTermBridge(socket: s, seed: seed)
+                SwiftTermBridge(socket: s, seed: seed, fontSize: fontSize)
                     .ignoresSafeArea(.container, edges: .bottom)
             } else {
                 ProgressView("Connecting…")

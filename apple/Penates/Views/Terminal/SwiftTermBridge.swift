@@ -7,12 +7,14 @@ import SwiftTerm
 struct SwiftTermBridge: UIViewRepresentable {
     let socket: TerminalSocket
     let seed: [UInt8]
+    var fontSize: Double = 13.0
 
     func makeCoordinator() -> Coordinator { Coordinator(socket: socket) }
 
     func makeUIView(context: Context) -> TerminalView {
         let tv = TerminalView(frame: .zero)
         tv.terminalDelegate = context.coordinator
+        tv.font = UIFont.monospacedSystemFont(ofSize: CGFloat(fontSize), weight: .regular)
 
         // Replace the built-in TerminalAccessory with our custom accessory bar.
         // `TerminalAccessory` is public-but-not-open so we cannot subclass it.
@@ -43,7 +45,12 @@ struct SwiftTermBridge: UIViewRepresentable {
         return tv
     }
 
-    func updateUIView(_ uiView: TerminalView, context: Context) {}
+    func updateUIView(_ uiView: TerminalView, context: Context) {
+        let newFont = UIFont.monospacedSystemFont(ofSize: CGFloat(fontSize), weight: .regular)
+        if uiView.font != newFont {
+            uiView.font = newFont
+        }
+    }
 
     // MARK: - Delegate
 
