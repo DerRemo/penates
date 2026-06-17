@@ -25,7 +25,7 @@ struct SwiftTermBridge: UIViewRepresentable {
         let isPhone = UIDevice.current.userInterfaceIdiom == .phone
         let accessoryHeight: CGFloat = isPhone ? 44 : 52
         let accessory = PenatesAccessoryBar(
-            frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: accessoryHeight),
+            frame: CGRect(x: 0, y: 0, width: 0, height: accessoryHeight),
             terminalView: tv
         )
         tv.inputAccessoryView = accessory

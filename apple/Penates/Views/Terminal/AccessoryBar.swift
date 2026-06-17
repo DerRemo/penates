@@ -156,9 +156,17 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
 
     // MARK: Actions
 
-    @objc private func tapEsc() {
+    /// Shared helper for all bar keys that send a character/escape sequence.
+    /// Clears the sticky-Ctrl latch (fires its didSet → updates controlModifier
+    /// and button highlight) then delivers the sequence to the terminal.
+    private func sendKey(_ sequence: String) {
         UIDevice.current.playInputClick()
-        terminalView?.send(txt: AccessoryKey.esc)
+        if ctrlActive { ctrlActive = false }   // a bar key consumes and clears the Ctrl latch
+        terminalView?.send(txt: sequence)
+    }
+
+    @objc private func tapEsc() {
+        sendKey(AccessoryKey.esc)
     }
 
     @objc private func tapCtrl() {
@@ -167,33 +175,29 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
     }
 
     @objc private func tapTab() {
-        UIDevice.current.playInputClick()
-        terminalView?.send(txt: AccessoryKey.tab)
+        sendKey(AccessoryKey.tab)
     }
 
+    // TODO: auto-repeat-on-hold deferred — v1 fires on tap only (TerminalAccessory had a repeat timer).
     @objc private func tapUp() {
-        UIDevice.current.playInputClick()
-        terminalView?.send(txt: AccessoryKey.up)
+        sendKey(AccessoryKey.up)
     }
 
     @objc private func tapDown() {
-        UIDevice.current.playInputClick()
-        terminalView?.send(txt: AccessoryKey.down)
+        sendKey(AccessoryKey.down)
     }
 
     @objc private func tapLeft() {
-        UIDevice.current.playInputClick()
-        terminalView?.send(txt: AccessoryKey.left)
+        sendKey(AccessoryKey.left)
     }
 
     @objc private func tapRight() {
-        UIDevice.current.playInputClick()
-        terminalView?.send(txt: AccessoryKey.right)
+        sendKey(AccessoryKey.right)
     }
 
     @objc private func tapDismiss() {
         UIDevice.current.playInputClick()
-        terminalView?.resignFirstResponder()
+        _ = terminalView?.resignFirstResponder()
     }
 
     // MARK: Ctrl button visual feedback
