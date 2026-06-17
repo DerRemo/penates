@@ -1,20 +1,51 @@
 ---
 title: Notifications
-description: Browser push and in-app notifications when a session goes idle or needs attention, with mute and cooldown controls.
+description: Browser push and in-app alerts when a session goes idle or needs attention, driven entirely by Claude Code hooks.
 sidebar:
   order: 11
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
-
 ## What it is
+
+Session state in Penates comes entirely from Claude Code hooks, not from parsing terminal output or polling. When Claude Code fires a hook event, the hub receives a POST request and updates the session's activity state. Two broadcast types flow from that state:
+
+**`session-activity`** updates the badge on every card whenever the state changes, including when a session is attached or muted. This is always sent.
+
+**`session-attention`** fires a notification: a beep, a card flash, an unread dot, an in-app toast, and (if subscribed) a web push. It fires only on `Stop` or `Notification` events, only when the session is unattached and not muted, and only if ten seconds have passed since the last notification for that session (the cooldown).
+
+Hook events and their effects:
+
+| Event | Activity state | Triggers notification? |
+|---|---|---|
+| `UserPromptSubmit` | working | no |
+| `Stop` | idle | yes, if unattached |
+| `SubagentStop` | idle | yes, if unattached |
+| `Notification` | waiting | yes, if unattached |
+| `SessionStart` | (init) | no |
+| `SessionEnd` | (purge) | no |
 
 ## Why / when to use it
 
+When an agent finishes a long task or stops to ask a question, you get an immediate signal. You do not need to watch the terminal or refresh the page. On a phone, the web push reaches you even when the browser is in the background.
+
+See [usage dashboard](/docs/features/usage-dashboard) for context on how session costs and limits are tracked alongside activity state.
+
 ## How to use it
 
+**Hooks installation:** `setup.sh` writes the hook configuration to `~/.claude/settings.json` (using a `"_owner": "penates"` sentinel so re-runs only replace hub-owned entries and leave other hooks intact). No manual step is needed after running `setup.sh`.
+
+**Web push:** open Settings and go to the Notifications section. Click **Enable push notifications** and accept the browser permission prompt. Push subscriptions are stored server-side; they survive a hub restart.
+
+**Muting a session:** on any session card, click the bell icon to toggle mute. A muted session still shows activity state changes but does not trigger beeps, flashes, or pushes. Click again to unmute.
+
+**Checking activity state:** the colored dot on each session card reflects the current state: working (blue), waiting (amber), idle (grey). If no hook has fired in the last 60 seconds, the state falls back to `unknown` and the card shows "Active".
+
+**Renaming:** if you rename a session, the hub tracks the alias internally. Hooks from the renamed session still resolve correctly.
+
 ## Limits
+
+- Notifications require the hooks to be installed. Sessions started outside Penates without hook configuration show activity as `unknown`.
+- If a non-hub client (for example a direct `tmux attach` or Moshi) is attached to a session, the push notification for that session is suppressed. The in-app toast and badge still update.
+- Hook data older than 60 seconds is treated as stale. The activity state falls back to `unknown` rather than showing an outdated value.
+- The 10-second cooldown is per session. Rapid-fire stop/start cycles produce at most one notification every 10 seconds.
+- Occasionally Claude Code sends malformed hook JSON. The endpoint tolerates this: if parsing fails, it treats the payload as empty and continues.

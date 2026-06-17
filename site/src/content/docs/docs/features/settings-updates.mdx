@@ -1,20 +1,58 @@
 ---
 title: Settings & updates
-description: Configure Penates behaviour through the in-app settings panel and trigger one-click updates for the hub and CLIs.
+description: Configure Penates behaviour through the in-app settings panel and trigger one-click updates for the hub, CLIs, and Homebrew tools.
 sidebar:
   order: 12
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
-
 ## What it is
+
+The Settings view is the central place to configure how Penates looks and behaves, and to apply updates to the hub and the tools it depends on.
+
+**Settings** covers seven sections:
+
+- **Appearance:** theme (Catppuccin Latte, Frappé, Macchiato, Mocha) and UI language (English or German).
+- **Terminal:** font size, scrollback lines, mouse mode (`TMUX_MOUSE`), and copy-on-select.
+- **Session restore:** two toggles control auto-restore after a reboot. The first enables or disables the feature; the second controls whether `--continue` is passed to the CLI (to resume the last conversation). Both take effect on the next hub boot.
+- **Notifications:** web push subscription control.
+- **Server control:** restart the hub process or view the last lines of `logs/stdout.log` and `logs/stderr.log` without leaving the browser.
+- **Advanced:** miscellaneous server-side knobs.
+
+**Update Center** tracks four component categories:
+
+- **Hub:** the Penates server itself, checked against GitHub releases.
+- **CLIs:** Claude Code, Codex, Gemini, and Antigravity, checked against the npm registry.
+- **Externals:** Homebrew-managed tools (moshi-hook, whisper-cpp, tmux), checked via `brew outdated`.
+- **Deps:** npm dependencies (`npm outdated`), shown for reference only.
+
+Each updatable component has an **Update** button. Clicking it spawns a detached `cc-update-*` tmux session that runs the update command in the background. The session survives a hub restart, so a hub self-update can finish even after the process it was spawned from exits.
 
 ## Why / when to use it
 
+Use Settings to change the theme or language immediately, adjust terminal scrollback, or toggle session restore behavior. Use the Update Center to keep all components current without opening a terminal window.
+
+For instructions on updating Penates from the command line, see [Updating](/docs/install/updating).
+
 ## How to use it
 
+**Open Settings:** click the gear icon in the sidebar.
+
+**Change theme or language:** pick a value from the dropdown in the Appearance section. The change takes effect immediately.
+
+**Toggle session restore:** in the Session restore section, switch **Auto-restore** on or off. If auto-restore is on, the **Continue conversation** toggle controls whether `--continue` (or the equivalent for Codex/Antigravity) is passed. Both toggles take effect on the next boot.
+
+**Restart the server:** in the Server control section, click **Restart**. The hub process restarts via the OS service manager (LaunchAgent on macOS, systemd on Linux). The browser reconnects automatically.
+
+**View logs:** click **View logs** to show the last 100 lines of the server logs inline.
+
+**Check for updates:** open the **Updates** section. Current versions and available versions are listed. Click **Update** next to any component. A `cc-update-*` session appears in the session list and runs the update. For the hub, the session will restart the hub as part of the update script, and the browser will reconnect.
+
+**Hub self-update guard:** the Update button for the hub is active only when: a newer version is available, the working tree is clean (no uncommitted changes), and the local branch is not behind `origin`. If any condition is not met, the button is disabled with a reason.
+
 ## Limits
+
+- Session-restore settings (auto-restore and continue) take effect on the next boot, not immediately.
+- Deps (npm dependencies) are display-only. The Update button is not available for them. To update, run `npm install` in the Penates directory.
+- The hub self-update guard requires a clean working tree. If you have local changes, commit or stash them first.
+- Update commands run in a detached tmux session. If the command fails, the session stays open in the session list and you can attach to read the error output.
+- On Linux, service restart uses systemd. On macOS, it uses the LaunchAgent (`launchctl`).

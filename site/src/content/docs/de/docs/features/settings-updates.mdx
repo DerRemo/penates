@@ -1,20 +1,58 @@
 ---
 title: Settings & Updates
-description: Das Verhalten von Penates über das In-App-Einstellungspanel konfigurieren und Ein-Klick-Updates für Hub und CLIs auslösen.
+description: Das Verhalten von Penates über das In-App-Einstellungspanel konfigurieren und Ein-Klick-Updates für Hub, CLIs und Homebrew-Tools auslösen.
 sidebar:
   order: 12
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
-
 ## Was es ist
+
+Die Settings-Ansicht ist der zentrale Ort, um das Aussehen und Verhalten von Penates zu konfigurieren und Updates für den Hub sowie seine Abhängigkeiten einzuspielen.
+
+**Einstellungen** umfassen sieben Bereiche:
+
+- **Erscheinungsbild:** Theme (Catppuccin Latte, Frappé, Macchiato, Mocha) und UI-Sprache (Englisch oder Deutsch).
+- **Terminal:** Schriftgröße, Scrollback-Zeilen, Mouse-Mode (`TMUX_MOUSE`) und Copy-on-Select.
+- **Session-Wiederherstellung:** Zwei Schalter steuern das automatische Wiederherstellen nach einem Neustart. Der erste aktiviert oder deaktiviert das Feature; der zweite legt fest, ob `--continue` an die CLI übergeben wird, um die letzte Konversation fortzusetzen. Beide Schalter gelten ab dem nächsten Hub-Start.
+- **Notifications:** Steuerung des Web-Push-Abonnements.
+- **Server-Steuerung:** Den Hub-Prozess neu starten oder die letzten Zeilen von `logs/stdout.log` und `logs/stderr.log` direkt im Browser anzeigen.
+- **Erweitert:** Verschiedene serverseitige Optionen.
+
+**Update-Center** verfolgt vier Komponentenkategorien:
+
+- **Hub:** Der Penates-Server selbst, geprüft gegen GitHub-Releases.
+- **CLIs:** Claude Code, Codex, Gemini und Antigravity, geprüft gegen die npm-Registry.
+- **Externals:** Homebrew-verwaltete Tools (moshi-hook, whisper-cpp, tmux), geprüft über `brew outdated`.
+- **Deps:** npm-Abhängigkeiten (`npm outdated`), nur zur Anzeige.
+
+Für jede aktualisierbare Komponente gibt es einen **Update**-Button. Ein Klick darauf startet eine losgelöste `cc-update-*`-tmux-Session, die den Update-Befehl im Hintergrund ausführt. Die Session überlebt einen Hub-Neustart, sodass ein Hub-Self-Update auch dann abgeschlossen werden kann, wenn der Prozess, der sie gestartet hat, beendet wurde.
 
 ## Warum / wann
 
+Settings nutzen, um Theme oder Sprache sofort zu ändern, den Terminal-Scrollback anzupassen oder das Session-Wiederherstellungsverhalten umzustellen. Das Update-Center nutzen, um alle Komponenten aktuell zu halten, ohne ein Terminal-Fenster öffnen zu müssen.
+
+Anleitung zur Aktualisierung von Penates über die Befehlszeile: [Aktualisieren](/de/docs/install/updating).
+
 ## Wie nutzen
 
+**Settings öffnen:** Das Zahnrad-Icon in der Sidebar anklicken.
+
+**Theme oder Sprache ändern:** Im Bereich Erscheinungsbild einen Wert aus dem Dropdown wählen. Die Änderung tritt sofort in Kraft.
+
+**Session-Wiederherstellung umschalten:** Im Bereich Session-Wiederherstellung **Auto-Restore** ein- oder ausschalten. Ist Auto-Restore aktiv, steuert der Schalter **Konversation fortsetzen**, ob `--continue` (bzw. das Äquivalent für Codex/Antigravity) übergeben wird. Beide Schalter gelten ab dem nächsten Start.
+
+**Server neu starten:** Im Bereich Server-Steuerung auf **Neu starten** klicken. Der Hub-Prozess startet über den OS-Service-Manager neu (LaunchAgent auf macOS, systemd auf Linux). Der Browser verbindet sich automatisch wieder.
+
+**Logs anzeigen:** Auf **Logs anzeigen** klicken, um die letzten 100 Zeilen der Server-Logs inline anzuzeigen.
+
+**Auf Updates prüfen:** Den Bereich **Updates** öffnen. Aktuelle und verfügbare Versionen sind aufgelistet. Neben einer Komponente auf **Update** klicken. Eine `cc-update-*`-Session erscheint in der Session-Liste und führt das Update aus. Beim Hub startet das Update-Script den Hub im Rahmen des Prozesses neu, und der Browser verbindet sich wieder.
+
+**Hub-Self-Update-Guard:** Der Update-Button für den Hub ist nur aktiv, wenn: eine neuere Version verfügbar ist, der Working-Tree sauber ist (keine uncommitteten Änderungen) und der lokale Branch nicht hinter `origin` liegt. Ist eine Bedingung nicht erfüllt, ist der Button mit einer Begründung deaktiviert.
+
 ## Grenzen
+
+- Session-Wiederherstellungseinstellungen (Auto-Restore und Continue) gelten erst ab dem nächsten Start, nicht sofort.
+- Deps (npm-Abhängigkeiten) sind nur zur Anzeige. Der Update-Button steht dafür nicht zur Verfügung. Zum Aktualisieren `npm install` im Penates-Verzeichnis ausführen.
+- Der Hub-Self-Update-Guard setzt einen sauberen Working-Tree voraus. Lokale Änderungen zuerst committen oder stashen.
+- Update-Befehle laufen in einer losgelösten tmux-Session. Schlägt ein Befehl fehl, bleibt die Session in der Session-Liste offen und kann zum Lesen der Fehlerausgabe verbunden werden.
+- Auf Linux verwendet der Service-Neustart systemd; auf macOS den LaunchAgent (`launchctl`).

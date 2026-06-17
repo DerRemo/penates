@@ -1,20 +1,37 @@
 ---
 title: Voice input
-description: Dictate into any session terminal using local whisper.cpp transcription — no cloud required.
+description: Dictate into any session terminal using local whisper.cpp transcription, no cloud required.
 sidebar:
   order: 8
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
-
 ## What it is
+
+Voice input lets you dictate text directly into a session terminal. A mic button in the terminal toolbar records your speech, whisper.cpp transcribes it locally on your Mac, and the resulting text lands in the input line of the active session. No keypress is added automatically; the text is staged for you to review and send.
+
+Transcription runs on-device using Homebrew `whisper-cpp` with a Metal build and the `ggml-large-v3-turbo-q5_0` model (about 574 MB). The default language is German (`VOICE_LANG=de`); this can be changed in `.env`.
 
 ## Why / when to use it
 
+Dictating is useful when your hands are busy, when you are on a phone with an awkward keyboard, or when you need to describe something quickly in natural language rather than typing a long prompt. Because transcription is local, nothing leaves your machine.
+
+The feature pairs naturally with [image paste](/docs/features/image-paste): you can drop a screenshot into the session and dictate instructions about it without typing.
+
 ## How to use it
 
+1. Make sure `setup.sh` has run. It installs `whisper-cpp` and the model and sets `VOICE_ENABLED=true` in `.env`.
+2. Open a session terminal. A mic icon appears in the toolbar.
+3. Click the mic icon to start recording. The icon changes state to show that the mic is active.
+4. Speak your message.
+5. Click the mic icon again to stop. The hub sends the audio to `POST /api/voice/transcribe`, whisper.cpp runs, and the transcribed text is inserted into the input line.
+6. Review the text and press Enter to send it.
+
+To change the default language, set `VOICE_LANG` in `.env` to any language code that whisper.cpp accepts (for example `en` for English).
+
 ## Limits
+
+- Only one transcription runs at a time. If you click the mic while a transcription is already processing, the request returns a 429 and the button stays disabled until the current clip finishes.
+- There is no live streaming. The full audio clip is sent after you stop recording.
+- The `@`-style text injection is specific to Claude Code. In a Codex or Antigravity session the text is still inserted into the input line, but those CLIs do not use the `@`-mention convention.
+- The feature is disabled on Linux and on macOS when either the `whisper-cpp` binary or the model file is missing. In that case the mic button does not appear.
+- Clips are capped at 10 MB. Longer recordings should be split.

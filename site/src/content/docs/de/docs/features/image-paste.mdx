@@ -1,20 +1,44 @@
 ---
 title: Image-Paste
-description: Bilder direkt in eine Session einfügen, annotieren und ablegen; Penates speichert das PNG und fügt einen @-Verweis für Claude ein.
+description: Bilder per Zwischenablage, Datei-Picker oder Drag and Drop in eine Claude-Session einfügen, annotieren und als @-Mention injizieren.
 sidebar:
   order: 9
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
-
 ## Was es ist
+
+Image-Paste ermöglicht es, ein PNG über die Zwischenablage, einen Datei-Picker oder Drag and Drop in eine Claude-Session einzufügen. In einem optionalen Annotationsschritt kann das Bild mit Pfeilen, Rechtecken, Freihandlinien oder Textbeschriftungen (alle in Rot) versehen werden. Die Datei wird unter einem zeitgestempelten Namen in `<cwd>/.penates-images/` gespeichert, und ihr cwd-relativer Pfad wird als `@`-Mention in die Eingabezeile der Session eingefügt, damit Claude das Bild anhängt und liest.
+
+`lib/session-images.js` übernimmt das Schreiben: Es legt das Verzeichnis beim ersten Aufruf an, trägt es in `.gitignore` ein, damit es nie versehentlich committed wird, und löscht PNGs, die älter als sieben Tage sind, im Hintergrund.
 
 ## Warum / wann
 
+Der häufigste Anwendungsfall ist, Claude einen Screenshot eines UI-Bugs, einer fehlgeschlagenen Testausgabe oder eines Design-Entwurfs zu zeigen. Statt alles in Worten zu beschreiben, lässt sich das Bild ablegen und der relevante Bereich per Pfeil oder Rechteck markieren.
+
+Für Sprache und Bild zusammen: [Voice-Input](/de/docs/features/voice-input) ermöglicht es, ein Bild einzufügen und dazu Anweisungen zu diktieren, ohne zu tippen.
+
 ## Wie nutzen
 
+**Aus der Zwischenablage einfügen:** Strg+V (oder Cmd+V auf macOS) drücken, während das Session-Terminal fokussiert ist. Enthält die Zwischenablage Bilddaten, öffnet sich der Annotator.
+
+**Datei-Picker:** Das Bild-Icon in der Session-Toolbar anklicken, um einen Datei-Picker zu öffnen. Eine beliebige PNG-Datei auswählen.
+
+**Drag and Drop:** Eine Bilddatei auf den Terminal-Bereich ziehen. Ein Drop-Overlay bestätigt das Ziel.
+
+**Annotieren:**
+
+1. Nach dem Öffnen des Annotators ein Werkzeug aus der Toolbar wählen: Pfeil, Rechteck, Stift oder Text.
+2. Auf dem Bild zeichnen. Alle Markierungen sind rot.
+3. Undo entfernt die letzte Markierung.
+4. **Senden** anklicken, um zu speichern und einzufügen, oder **Abbrechen**, um zu verwerfen.
+
+Wer keine Annotation möchte, klickt direkt auf **Senden**.
+
+Nach dem Einfügen enthält die Eingabezeile beispielsweise `@.penates-images/2026-06-17-143022.png `. Den Text prüfen und mit Enter absenden.
+
 ## Grenzen
+
+- Das Upload-Limit liegt bei 8 MB. Größere Dateien werden mit einem 413-Fehler abgelehnt.
+- Die `@`-Mention-Injektion ist Claude-Code-spezifisch. In Codex- oder Antigravity-Sessions wird der Text eingefügt, aber diese CLIs interpretieren den `@`-Pfad nicht als angehängtes Bild. Die Datei wird trotzdem auf der Festplatte gespeichert.
+- Der Annotator skaliert Bilder mit einer Seite über 2000 px vor dem Zeichnen herunter, damit die Canvas handhabbar bleibt.
+- Bilder werden in `<cwd>/.penates-images/` abgelegt, nicht an einem zentralen Ort. Jedes Projektverzeichnis hat seinen eigenen Ordner mit eigenem Bereinigungszyklus.

@@ -1,20 +1,51 @@
 ---
 title: Notifications
-description: Browser-Push- und In-App-Benachrichtigungen, wenn eine Session in den Leerlauf geht oder Aufmerksamkeit benötigt – mit Stummschalt- und Cooldown-Optionen.
+description: Browser-Push- und In-App-Benachrichtigungen, wenn eine Session fertig ist oder Eingabe benötigt, gesteuert ausschließlich über Claude-Code-Hooks.
 sidebar:
   order: 11
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
-
 ## Was es ist
+
+Der Session-Zustand in Penates kommt ausschließlich aus Claude-Code-Hooks, nicht aus dem Parsen der Terminal-Ausgabe oder aus Polling. Wenn Claude Code einen Hook-Event auslöst, empfängt der Hub eine POST-Anfrage und aktualisiert den Aktivitätszustand der Session. Daraus ergeben sich zwei Broadcast-Typen:
+
+**`session-activity`** aktualisiert das Badge auf jeder Karte, sobald sich der Zustand ändert, auch beim Verbinden oder Stummschalten einer Session. Dieser Broadcast wird immer gesendet.
+
+**`session-attention`** löst eine Benachrichtigung aus: einen Ton, ein Aufblitzen der Karte, einen Unread-Punkt, einen In-App-Toast und (bei aktiviertem Abo) einen Web-Push. Er feuert nur bei `Stop`- oder `Notification`-Events, nur wenn die Session nicht verbunden und nicht stummgeschaltet ist, und nur wenn seit der letzten Benachrichtigung für diese Session mindestens zehn Sekunden vergangen sind (Cooldown).
+
+Hook-Events und ihre Auswirkungen:
+
+| Event | Aktivitätszustand | Löst Benachrichtigung aus? |
+|---|---|---|
+| `UserPromptSubmit` | working | nein |
+| `Stop` | idle | ja, wenn nicht verbunden |
+| `SubagentStop` | idle | ja, wenn nicht verbunden |
+| `Notification` | waiting | ja, wenn nicht verbunden |
+| `SessionStart` | (Init) | nein |
+| `SessionEnd` | (Purge) | nein |
 
 ## Warum / wann
 
+Wenn ein Agent eine lange Aufgabe beendet oder eine Frage stellt, erhält man sofort ein Signal, ohne das Terminal beobachten oder die Seite neu laden zu müssen. Auf einem Smartphone erreicht der Web-Push auch dann, wenn der Browser im Hintergrund ist.
+
+Zum Zusammenhang zwischen Session-Kosten und Aktivitätszustand: [Usage-Dashboard](/de/docs/features/usage-dashboard).
+
 ## Wie nutzen
 
+**Hooks installieren:** `setup.sh` schreibt die Hook-Konfiguration in `~/.claude/settings.json` (mit einem `"_owner": "penates"`-Sentinel, damit erneute Ausführungen nur Hub-eigene Einträge ersetzen und andere Hooks unangetastet bleiben). Nach dem Ausführen von `setup.sh` ist kein manueller Schritt nötig.
+
+**Web-Push aktivieren:** Settings öffnen und zum Bereich Notifications gehen. Auf **Push-Benachrichtigungen aktivieren** klicken und die Browser-Berechtigung bestätigen. Push-Abonnements werden serverseitig gespeichert und überleben einen Hub-Neustart.
+
+**Session stummschalten:** Auf das Glocken-Icon einer Session-Karte klicken, um die Stummschaltung umzuschalten. Eine stummgeschaltete Session zeigt weiterhin Zustandsänderungen im Badge, löst aber keine Töne, kein Aufblitzen oder Push-Benachrichtigungen aus. Erneutes Klicken hebt die Stummschaltung auf.
+
+**Aktivitätszustand prüfen:** Der farbige Punkt auf jeder Session-Karte zeigt den aktuellen Zustand: working (blau), waiting (bernstein), idle (grau). Wurde in den letzten 60 Sekunden kein Hook ausgelöst, fällt der Zustand auf `unknown` zurück und die Karte zeigt "Aktiv".
+
+**Umbenennen:** Wird eine Session umbenannt, verfolgt der Hub intern den Alias. Hooks von der umbenannten Session werden weiterhin korrekt aufgelöst.
+
 ## Grenzen
+
+- Benachrichtigungen setzen installierte Hooks voraus. Außerhalb von Penates gestartete Sessions ohne Hook-Konfiguration zeigen Aktivität als `unknown`.
+- Ist ein Nicht-Hub-Client (z. B. direktes `tmux attach` oder Moshi) mit der Session verbunden, wird der Web-Push für diese Session unterdrückt. Der In-App-Toast und das Badge werden trotzdem aktualisiert.
+- Hook-Daten, die älter als 60 Sekunden sind, gelten als veraltet. Der Aktivitätszustand fällt auf `unknown` zurück, statt einen veralteten Wert anzuzeigen.
+- Der 10-Sekunden-Cooldown gilt pro Session. Schnelle Stop-/Start-Zyklen erzeugen höchstens eine Benachrichtigung alle 10 Sekunden.
+- Claude Code sendet gelegentlich fehlerhaftes Hook-JSON. Der Endpunkt toleriert das: Schlägt das Parsen fehl, behandelt er das Payload als leer und fährt fort.
