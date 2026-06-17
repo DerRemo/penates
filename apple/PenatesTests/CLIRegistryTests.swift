@@ -21,3 +21,7 @@ import Testing
 @Test func everyCLIHasAtLeastOneVariant() {
     for cli in CLIRegistry.all { #expect(!cli.variants.isEmpty) }
 }
+
+@Test func resolvesPathPrefixedCommand() {
+    #expect(CLIRegistry.from(command: "/usr/local/bin/claude --continue")?.id == "claude")
+}

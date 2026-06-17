@@ -64,7 +64,7 @@ enum CLIRegistry {
     static func from(command: String) -> CLI? {
         let trimmed = command.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty,
-              let firstToken = trimmed.split(separator: " ").first.map(String.init)
+              let firstToken = trimmed.split(whereSeparator: { $0.isWhitespace }).first.map(String.init)
         else { return nil }
         let bin = (firstToken as NSString).lastPathComponent
         return all.first { $0.binary == bin }
