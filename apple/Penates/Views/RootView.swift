@@ -16,7 +16,7 @@ struct RootView: View {
                             LockOverlay {
                                 Task {
                                     let ok = await BiometricGate.authenticate(
-                                        reason: "Schuetzt den Zugriff auf deine Sessions."
+                                        reason: "Schützt den Zugriff auf deine Sessions."
                                     )
                                     if ok { unlocked = true }
                                 }
