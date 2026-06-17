@@ -3,7 +3,10 @@ import SwiftUI
 extension Color {
     init(hex: String) {
         let s = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        var v: UInt64 = 0; Scanner(string: s).scanHexInt64(&v)
+        guard s.count == 6, let v = UInt64(s, radix: 16) else {
+            self = .gray
+            return
+        }
         self.init(.sRGB,
                   red: Double((v >> 16) & 0xff) / 255,
                   green: Double((v >> 8) & 0xff) / 255,
