@@ -1,12 +1,12 @@
 // Mirror of public/clis.js — keep in sync
 import Foundation
 
-struct CLIVariant: Equatable {
+struct CLIVariant: Equatable, Hashable {
     let label: String
     let command: String
 }
 
-struct CLI: Identifiable, Equatable {
+struct CLI: Identifiable, Equatable, Hashable {
     let id: String
     let label: String
     let binary: String

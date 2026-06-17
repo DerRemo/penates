@@ -1,13 +1,5 @@
 import SwiftUI
 
-// Hashable conformances needed for SwiftUI Picker bindings.
-extension CLI: Hashable {
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
-}
-extension CLIVariant: Hashable {
-    func hash(into hasher: inout Hasher) { hasher.combine(command) }
-}
-
 // MARK: - NewSessionView
 
 struct NewSessionView: View {
@@ -241,9 +233,11 @@ struct NewSessionView: View {
 
         do {
             let entries = try await client.browse(path: path)
+            guard browseStack.indices.contains(idx) else { return }
             browseStack[idx].entries = entries
             browseStack[idx].isLoading = false
         } catch {
+            guard browseStack.indices.contains(idx) else { return }
             browseStack[idx].isLoading = false
             browseStack[idx].entries = []
         }
