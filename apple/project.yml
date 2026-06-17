@@ -1,0 +1,48 @@
+name: Penates
+options:
+  bundleIdPrefix: dev.penates
+  deploymentTarget:
+    iOS: "18.0"
+  developmentLanguage: en
+packages:
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    branch: main
+targets:
+  Penates:
+    type: application
+    platform: iOS
+    sources:
+      - path: Penates
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.penates.app
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSFaceIDUsageDescription: "Schuetzt den Zugriff auf deine Sessions."
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+    dependencies:
+      - package: SwiftTerm
+  PenatesTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: PenatesTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+    dependencies:
+      - target: Penates
+schemes:
+  Penates:
+    build:
+      targets:
+        Penates: all
+        PenatesTests: [test]
+    test:
+      targets:
+        - PenatesTests
