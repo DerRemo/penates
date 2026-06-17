@@ -19,10 +19,14 @@ final class APIClient {
     func request<T: Decodable>(_ method: String, _ path: String,
                                query: [String: String] = [:],
                                body: Data? = nil) async throws -> T {
-        var comps = URLComponents(url: credentials.baseURL.appendingPathComponent(path),
-                                  resolvingAgainstBaseURL: false)!
+        guard let base = URLComponents(url: credentials.baseURL.appendingPathComponent(path),
+                                      resolvingAgainstBaseURL: false) else {
+            throw APIError.transport("invalid URL for path \(path)")
+        }
+        var comps = base
         if !query.isEmpty { comps.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) } }
-        var req = URLRequest(url: comps.url!)
+        guard let url = comps.url else { throw APIError.transport("invalid URL for path \(path)") }
+        var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("Bearer \(credentials.token)", forHTTPHeaderField: "Authorization")
         if let body { req.httpBody = body; req.setValue("application/json", forHTTPHeaderField: "Content-Type") }
