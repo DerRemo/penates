@@ -51,6 +51,7 @@ struct SystemKeychain: KeychainBackend {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                 kSecAttrService as String: service,
                                 kSecAttrAccount as String: account,
+                                kSecMatchLimit as String: kSecMatchLimitOne,
                                 kSecReturnData as String: true]
         var out: CFTypeRef?
         return SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess ? out as? Data : nil
