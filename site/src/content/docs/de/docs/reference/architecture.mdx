@@ -1,20 +1,76 @@
 ---
 title: Architektur
-description: Technischer Überblick über das Penates-Backend (Express + tmux + node-pty), das Frontend (Single-File-SPA) und die Datenflüsse.
+description: Technischer Überblick über das Penates-Backend, das Frontend, das Session-Modell und die Auth-Schichten für Beitragende.
 sidebar:
   order: 3
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+## Überblick
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
+Penates ist eine Node.js-Anwendung auf Basis von Express, express-ws, node-pty und tmux. Der Code nutzt ES-Module und lauscht standardmäßig auf Port 3333. Es gibt keinen Build-Schritt und kein Frontend-Framework.
 
-## Was es ist
+Das Backend stellt eine REST-API für alle CRUD-Operationen und eine WebSocket-API für Terminal-I/O sowie Live-Datei-Events bereit. Das Frontend wird als Single-Page-Application aus `public/index.html` ausgeliefert.
 
-## Warum / wann
+## Backend
 
-## Wie nutzen
+Jeder Funktionsbereich liegt in einem eigenen `lib/`-Modul. Diese Module sind Express-frei und lassen sich isoliert in Unit-Tests prüfen. Die Routen in `server.js` sind dünne Wrapper, die in die Module delegieren und HTTP-Belange (Statuscodes, Auth, Rate-Limiting) behandeln.
 
-## Grenzen
+Wichtige Module und ihr Zuständigkeitsbereich:
+
+- `lib/files.js` + `lib/file-watcher.js` + `lib/session-files.js` - Filebrowser, Live-Änderungs-Events, Terminal-Pfad-Previews
+- `lib/attention.js` + `lib/attach-tracker.js` - Hook-State, Benachrichtigungsversand
+- `lib/usage.js` + `lib/usage-limits.js` + `lib/pace.js` - Usage-Aggregation und Rate-Limit-Tracking
+- `lib/git-diff.js` + `lib/git-history.js` - Repo-Panel (Changes, History, Branches)
+- `lib/board.js` - Idea-Pipeline-Board, gespeichert in `~/.penates/board.json`
+- `lib/brainstorm-spawn.js` + `lib/git-finish.js` + `lib/worktree.js` - autonome Pipeline (Spawn, Merge, Worktree-Isolation)
+- `lib/session-restore.js` - Boot-seitiges Auto-Restore dormanter Sessions
+- `lib/platform.js` + `lib/penates-home.js` - OS-Abstraktion und State-Verzeichnis
+- `lib/settings.js` + `lib/server-control.js` - persistente Einstellungen und Server-Neustart
+- `lib/preview-proxy.js` + `lib/port-scan.js` - Browser-Preview-Reverse-Proxy
+- `lib/mata.js` - iOS-Simulator (Mata) Integration
+- `lib/voice.js` - lokale whisper.cpp-Transkription
+- `lib/moshi-hook.js` + `lib/antigravity-usage.js` - moshi-hook- und Antigravity-Interop
+- `lib/updates.js` + `lib/update-check.js` - Update-System
+- `lib/approvals.js`, `lib/audit-log.js`, `lib/cf-access.js`, `lib/rate-limit.js` - Sicherheitsschicht
+
+**Keine Shell-Interpolation.** Alle Aufrufe externer Prozesse (tmux, git, Systemtools) verwenden `execFile` oder `execFileSync` mit einem Argv-Array, nie Template-Strings, die an eine Shell übergeben werden. Jeder neue Code, der externe Prozesse aufruft, muss dasselbe Muster befolgen.
+
+## Frontend
+
+Das Frontend ist eine einzige HTML-Datei unter `public/index.html` mit eingebettetem CSS und JS. Es gibt keinen Bundler, keine Transpilierung und kein Framework. xterm.js 6.0 und seine Addons sind unter `public/vendor/xterm/` gevendert.
+
+Jeder Funktionsbereich ist als eigenständiges IIFE (Immediately Invoked Function Expression) innerhalb von `index.html` implementiert. IIFEs teilen State nur über schmale Schnittstellen, nicht über globale Variablen.
+
+Geteilter Code, der sowohl im Browser als auch in `node:test` verwendet wird, liegt als separate ES-Module-Dateien unter `public/`:
+
+- `public/clis.js` - CLI-Registry (claude, codex, antigravity) und Kommando-Hilfsfunktionen
+- `public/prefs.js` - clientseitige Präferenzen (Theme, Sprache)
+- `public/usage-format.js` - geteilte Usage-Formatierungshelfer
+
+`public/sw.js` ist der Service Worker für PWA- und Web-Push-Unterstützung.
+
+## Sessions und State
+
+tmux ist die einzige Quelle der Wahrheit für laufende Sessions. Der Hub hält keinen eigenen In-Memory-Session-State außer dem, was für das Hook-Activity-Tracking benötigt wird. `GET /api/sessions` ruft `tmux list-sessions` direkt auf.
+
+Persistenter Hub-State (Einstellungen, bekannte Sessions, Board-Karten) liegt standardmäßig unter `~/.penates`. Der Pfad ist über `PENATES_HOME` überschreibbar, was der primäre Isolationsmechanismus für Unit-Tests und E2E-Tests ist.
+
+Der `cc-`-Session-Prefix wird bei allen über den Hub angelegten Sessions erzwungen. Fremde Sessions (außerhalb des Hubs gestartet, z. B. über SSH oder Moshi) können über `POST /api/sessions/:name/adopt` registriert werden und werden unter ihrem Originalnamen geführt.
+
+## Auth und Remote-Zugriff
+
+**Lokal:** jeder REST-Request muss `Authorization: Bearer <token>` tragen. WebSocket-Verbindungen authentifizieren sich über das Subprotocol `bearer.<token>`.
+
+**Remote über Cloudflare Tunnel:** der Hub lässt sich über einen Cloudflare-Tunnel auf einer eigenen Domain exponieren. Am Host-Rechner müssen keine eingehenden Ports geöffnet werden.
+
+**Cloudflare Access (optional):** wenn `CF_ACCESS_TEAM_DOMAIN` und `CF_ACCESS_AUD` gesetzt sind, validiert `lib/cf-access.js` das `Cf-Access-Jwt-Assertion`-JWT bei allen Requests, die über den Tunnel eingehen (erkennbar an einem `Cf-Ray`-Header). Direkte lokale Requests überspringen die JWT-Validierung.
+
+**Rate-Limiting:** `lib/rate-limit.js` erzwingt ein Fixed-Window-Rate-Limit bei Schreiboperationen (geteilter `writeLimiter` für Upload-, Datei-Mutations-, Board- und Voice-Endpunkte). Alle Auth-Fehler werden an `~/.penates/audit.log` angehängt.
+
+## Plattformunterstützung
+
+`lib/platform.js` ist die einzige Quelle der Wahrheit für die OS-Erkennung. `platform()` gibt `macos` oder `linux` zurück. Alle OS-spezifischen Verzweigungen in `server.js` und den lib-Modulen gehen über diese Funktion, nicht über direkte `process.platform`-Prüfungen.
+
+macOS-Verhalten muss bei Änderungen byte-identisch bleiben. Linux-Unterschiede sind explizite OS-Zweige. Apple-exklusive Features (Mata, Voice-Input, moshi-hook) degradieren auf Linux graceful, anstatt abzustürzen.
+
+Die Linux-Paketverwaltung wird von `install.sh` und `scripts/lib.sh` übernommen, die apt, dnf und pacman unterstützen. Windows wird nur über WSL2 unterstützt, das dem Linux-Codepfad folgt.

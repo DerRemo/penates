@@ -5,16 +5,83 @@ sidebar:
   order: 4
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+### Port 3333 ist bereits belegt
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
+Ein anderer Prozess nutzt den Port. PID ermitteln und beenden:
 
-## Was es ist
+```bash
+lsof -i :3333
+kill -9 <PID aus der Ausgabe>
+```
 
-## Warum / wann
+Alternativ einen anderen Port in der `.env` setzen:
 
-## Wie nutzen
+```
+PORT=3334
+```
 
-## Grenzen
+### Der Hub startet nach einem Neustart nicht
+
+Der LaunchAgent muss möglicherweise neu geladen werden. Beide Befehle nacheinander ausführen:
+
+```bash
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
+```
+
+Gibt der zweite Befehl `Bootstrap failed: 5` aus, prüfen ob die Plist-Datei den Modus `644` hat (`chmod 644 ~/Library/LaunchAgents/com.penates.plist`). launchd lehnt world-writable Dateien stillschweigend ab.
+
+### `claude` (oder `codex`, `agy`) wird im Terminal nicht gefunden
+
+Der Server-Prozess, den der LaunchAgent startet, erbt möglicherweise nicht den Shell-PATH. Die benötigten Verzeichnisse in `~/.zprofile` eintragen, damit launchd sie übernimmt:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"' >> ~/.zprofile
+source ~/.zprofile
+```
+
+Danach den LaunchAgent neu starten, damit der neue PATH übernommen wird.
+
+### Ich habe den Auth-Token vergessen
+
+Den Token direkt aus der `.env`-Datei lesen:
+
+```bash
+grep AUTH_TOKEN ~/penates/.env
+```
+
+Der Token ist derselbe Wert, den der Browser beim ersten Besuch abgefragt hat. Er ist im Browser unter dem `localStorage`-Key `penates_token` gespeichert.
+
+### Ich erhalte 401-Fehler seit Cloudflare Access aktiviert ist
+
+Im Audit-Log nachschauen, welcher Grund gemeldet wird:
+
+```bash
+tail -20 ~/.penates/audit.log | grep auth.fail | jq -c
+```
+
+Häufige Reason-Codes:
+
+- `bad-jwt:no-jwt` - der Browser ist nicht durch Cloudflare Access gegangen. Cookies für die Domain löschen und neu laden, damit der Access-Login-Flow erneut durchläuft.
+- `bad-jwt:bad-aud` - `CF_ACCESS_AUD` in der `.env` stimmt nicht mit dem Audience-Tag der Access-Applikation überein. Den Wert im Cloudflare-Dashboard unter Access > Applications nachprüfen.
+- `bad-jwt:bad-iss` - `CF_ACCESS_TEAM_DOMAIN` ist falsch. Muss exakt die Team-URL ohne `https://` sein.
+- `bad-jwt:expired` - das JWT ist abgelaufen. Die Session-Duration in den Access-Applikation-Einstellungen erhöhen.
+- `bad-bearer` - der im Browser gespeicherte Bearer-Token stimmt nicht mit `AUTH_TOKEN` in der `.env` überein. Den gespeicherten Token mit `localStorage.removeItem('penates_token')` in der DevTools-Console löschen. Der Hub fragt beim nächsten Request erneut nach dem Token.
+
+### Der tmux-Socket fehlt
+
+Das kann nach einer Neuinstallation passieren, bevor tmux jemals gestartet wurde. Den Socket durch Starten einer temporären Session anlegen:
+
+```bash
+tmux new-session -d -s init
+```
+
+Der Socket bleibt für die Laufzeit des tmux-Servers erhalten. Der Hub kann danach normal darauf zugreifen.
+
+### Sessions zeigen Aktivität „unknown"
+
+Sessions, die außerhalb des Hubs gestartet wurden (über SSH, Moshi oder ein normales Terminal), haben keine Claude-Code-Hooks eingerichtet. Die Aktivität bleibt `unknown`, bis ein Hook feuert. `setup.sh` auf dem Rechner ausführen, auf dem die Session läuft, um die Hooks zu installieren, oder `POST /api/sessions/:name/adopt` aufrufen, um die Session im Hub zu registrieren.
+
+### Das Terminal zeigt korrumpierte Mehrbyte-Zeichen
+
+Die PTY-Umgebung benötigt das richtige Locale. Der Hub setzt `LANG` und `LC_CTYPE` automatisch für Sessions, die er anlegt. Erscheinen `_` anstelle von Zeichen wie `ö`, `⏺` oder `✻`, sicherstellen, dass tmux mit dem Flag `-u` gestartet wird und das Shell-Profil ein UTF-8-Locale exportiert.

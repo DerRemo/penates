@@ -1,20 +1,136 @@
 ---
 title: API-Endpunkte
-description: Vollständige Referenz aller Penates REST- und WebSocket-Endpunkte inklusive Request-/Response-Strukturen.
+description: Vollständige Referenz aller Penates REST- und WebSocket-Endpunkte. Basis-URL ist http://localhost:3333 (oder deine Remote-Domain).
 sidebar:
   order: 1
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+Die Penates-API ist eine REST-API auf Port 3333 (konfigurierbar über `PORT`). Alle Endpunkte unter `/api/` erfordern Authentifizierung. Fehlermeldungen sind immer auf Englisch, unabhängig von der Browser-Sprache.
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
+## Authentifizierung
 
-## Was es ist
+**REST:** Token in jedem Request-Header mitschicken:
 
-## Warum / wann
+```
+Authorization: Bearer <token>
+```
 
-## Wie nutzen
+**WebSocket:** Token als Subprotocol übergeben:
 
-## Grenzen
+```js
+new WebSocket(url, ["bearer." + token])
+```
+
+Der Server gibt das Subprotocol in der Handshake-Antwort zurück. Ein Legacy-Fallback über `?token=` als Query-Parameter wird zur Migration akzeptiert.
+
+**Remote-Zugriff über Cloudflare Access:** Wenn `CF_ACCESS_TEAM_DOMAIN` und `CF_ACCESS_AUD` gesetzt sind, müssen Tunnel-Requests zusätzlich ein gültiges Cloudflare-Access-JWT im Header `Cf-Access-Jwt-Assertion` tragen. Direkte lokale Requests überspringen diese Prüfung.
+
+## Sessions
+
+| Methode | Route | Beschreibung |
+|---------|-------|--------------|
+| GET | `/api/sessions` | Alle tmux-Sessions auflisten. Jeder Eintrag enthält `command`, `limits` und `cost`. |
+| POST | `/api/sessions` | Session anlegen. Body: `{ name, directory, command }`. Namen müssen dem Muster `^[\w\-. ]{1,64}$` entsprechen. |
+| DELETE | `/api/sessions/:name` | Session beenden und aus dem Known-Sessions-Store entfernen. |
+| PATCH | `/api/sessions/:name` | Session umbenennen. Body: `{ newName }`. |
+| POST | `/api/sessions/:name/adopt` | Fremde (nicht über den Hub gestartete) Session unter ihrem Originalnamen registrieren, ohne sie umzubenennen. |
+| POST | `/api/sessions/:name/restore` | Dormante (bekannte, aber nicht laufende) Session neu spawnen. |
+| POST | `/api/sessions/:name/mute` | Notification-Stummschaltung für eine Session umschalten. |
+| POST | `/api/sessions/:name/pin` | Sidebar-Pin für eine Session umschalten. |
+| DELETE | `/api/sessions/:name/known` | Eintrag aus `known-sessions.json` entfernen, ohne die Session zu beenden. |
+| GET | `/api/sessions/:name/diff` | Nicht committete Änderungen im Session-Arbeitsverzeichnis (für den Repo-Panel-Tab „Changes"). |
+| GET | `/api/sessions/:name/git/log` | Commit-History des Session-Repos. Unterstützt `?limit` und `?skip` für Pagination. |
+| GET | `/api/sessions/:name/git/branches` | Lokale und Remote-Branches des Session-Repos. |
+| GET | `/api/sessions/:name/git/commit/:sha` | Header und Diffs pro Datei für einen einzelnen Commit. |
+| GET | `/api/sessions/:name/file-content` | Datei per Pfad lesen, für klickbare Terminal-Pfad-Previews. |
+| GET | `/api/sessions/:name/scrollback` | tmux-Scrollback-History lesen. Akzeptiert `?lines=N`. |
+| POST | `/api/sessions/:name/upload` | Dateien ins Session-Arbeitsverzeichnis hochladen (multipart/form-data via Busboy). |
+| POST | `/api/sessions/:name/image` | Einzelnes PNG hochladen (raw `image/png`, max. 8 MB) nach `.penates-images/`. Gibt `{ rel }` zurück. |
+| POST | `/api/sessions/:name/mata-capture` | Aktuellen iOS-Simulator-Frame aufnehmen und als Session-Image speichern. Gibt `{ rel }` zurück. |
+
+## Board
+
+| Methode | Route | Beschreibung |
+|---------|-------|--------------|
+| GET | `/api/board/cards` | Karten auflisten. `?projectId` filtert nach Projekt. |
+| POST | `/api/board/cards` | Karte anlegen. Body: `{ projectId, title, priority, stage, origin }`. |
+| PATCH | `/api/board/cards/:id` | Karte aktualisieren. Stufenwechsel laufen über `moveCard`; andere Felder über `updateCard`. |
+| DELETE | `/api/board/cards/:id` | Karte löschen. Karten mit aktiven Sessions oder Worktrees lösen Cleanup aus. |
+| POST | `/api/board/cards/:id/brainstorm` | Brainstorm-Session für die Karte spawnen. |
+| POST | `/api/board/cards/:id/implement` | Implement-Session in einem isolierten git-Worktree spawnen. |
+| GET | `/api/board/cards/:id/branch-diff` | Diff zwischen dem Karten-Branch und dem Basis-Branch (für die Review-Spalte). |
+| POST | `/api/board/cards/:id/finish` | Mergen, Changelog aktualisieren und pushen (Review zu Done). Führt `preflightFinish` + `finishCard` aus. |
+
+## Projekte und Dateien
+
+| Methode | Route | Beschreibung |
+|---------|-------|--------------|
+| GET | `/api/projects` | Alle registrierten Projekte auflisten. |
+| POST | `/api/projects` | Neues Projekt registrieren. Body: `{ name, path }`. |
+| PATCH | `/api/projects/:id` | Projekt-Metadaten aktualisieren. |
+| DELETE | `/api/projects/:id` | Projekt aus der Registry entfernen. |
+| PATCH | `/api/projects/:id/items` | Checkbox in Released/In-Dev im Plandokument umschalten. |
+| POST | `/api/projects/:id/release` | Neues Release im `CHANGELOG.md` des Projekts anlegen. |
+| POST | `/api/projects/:id/ideagen` | Ideen-Generierungs-Session für das Projekt spawnen. |
+| GET | `/api/projects/:id/files` | Verzeichnisinhalt auflisten. `?path=` für Unterverzeichnis. |
+| POST | `/api/projects/:id/files` | Datei oder Verzeichnis innerhalb des Projekts anlegen. |
+| PATCH | `/api/projects/:id/files` | Datei innerhalb des Projekts umbenennen, verschieben oder kopieren. |
+| DELETE | `/api/projects/:id/files` | Datei in den Papierkorb verschieben. |
+| GET | `/api/projects/:id/files/read` | Dateiinhalt lesen. Gibt Text (max. 2 MB) oder Base64-Bild/PDF (max. 10 MB) zurück. |
+| GET | `/api/browse` | Verzeichnis-Picker. Akzeptiert `?path=` und `?hidden=1`. Beschränkt auf `$HOME` und `BROWSE_ROOTS`. |
+| POST | `/api/browse/mkdir` | Verzeichnis innerhalb der erlaubten Browse-Roots anlegen. |
+
+## Usage
+
+| Methode | Route | Beschreibung |
+|---------|-------|--------------|
+| GET | `/api/usage/limits` | Account-weite Rate-Limits, History und Peaks aus dem Statusline-State. 30 s gecacht. |
+| GET | `/api/usage/costs` | Aggregierte Kosten aller aktiven Sessions. 10 s gecacht. |
+| GET | `/api/usage/history` | Erweitertes Tages-Aggregat (`getDailyUsageV2`). Akzeptiert `?days=30`. |
+| GET | `/api/recent-dirs` | Recency-rankte Arbeitsverzeichnisse aus moshi-hook. |
+
+## Hooks
+
+Diese Endpunkte werden von Claude-Code-Hook-Skripten aufgerufen, die `setup.sh` konfiguriert. Sie sind nicht für manuelle Clients gedacht.
+
+| Methode | Route | Beschreibung |
+|---------|-------|--------------|
+| POST | `/api/hooks/Stop` | Claude-Code-Stop-Hook. Markiert die Session als idle. |
+| POST | `/api/hooks/Notification` | Claude-Code-Notification-Hook. Markiert die Session als waiting. |
+| POST | `/api/hooks/UserPromptSubmit` | Claude-Code-UserPromptSubmit-Hook. Markiert die Session als working. |
+| POST | `/api/hooks/SubagentStop` | Claude-Code-SubagentStop-Hook. Wird wie Stop behandelt. |
+| POST | `/api/hooks/SessionStart` | Claude-Code-SessionStart-Hook. Initialisiert den Session-State. |
+| POST | `/api/hooks/SessionEnd` | Claude-Code-SessionEnd-Hook. Bereinigt den Session-State. |
+| POST | `/api/hooks/pre-tool-use` | PreToolUse-Hook. Leitet den Aufruf durch das Approvals-Gate. |
+| POST | `/api/hooks/statusline` | Empfängt Statusline-Daten (Rate-Limits, Kosten, Kontextfenster, Modell) vom Statusline-Skript. |
+
+Alle Hook-Routen akzeptieren `X-Penates-Session` als Header zur Identifikation der sendenden Session. Ungültiges JSON im Payload wird fehlertolerant behandelt: der Endpunkt parst opportunistisch und fällt bei Fehler auf `{}` zurück.
+
+## WebSocket
+
+| Protokoll | Route | Beschreibung |
+|-----------|-------|--------------|
+| WS | `/api/terminal/:name` | An den Session-PTY anhängen. Binäre Frames enthalten rohe PTY-Bytes; Text-Frames enthalten JSON-Steuernachrichten. Close-Code `4004` bedeutet, die Session existiert nicht; `4001` bedeutet Authentifizierungsfehler. |
+| WS | `/api/files/events` | Live-Dateiänderungs-Events. `{ subscribe: projectId }` oder `{ subscribeSession: name }` senden, um Events zu empfangen. |
+
+**Terminal-Frame-Format:**
+
+- Client an Server (Text, JSON): `{ type: "input", data }`, `{ type: "resize", cols, rows }`, `{ type: "ping" }`.
+- Server an Client (binär): rohe PTY-Bytes (UTF-8).
+- Server an Client (Text, JSON): `{ type: "error", message }`, `{ type: "pong" }`.
+
+## Weitere Routen
+
+| Methode | Route | Beschreibung |
+|---------|-------|--------------|
+| GET/POST | `/api/preview/config`, `/api/preview/ports`, `/api/preview/select` | Browser-Preview-Proxy-Konfiguration. |
+| GET/POST | `/api/mata/status`, `/api/mata/control` | iOS-Simulator (Mata): Status sowie Start/Stop/Restart. |
+| GET/POST | `/api/voice/config`, `/api/voice/transcribe` | Voice-Input-Konfiguration und WAV-Transkription. |
+| GET/POST | `/api/approvals/*` | PreToolUse-Approvals-Gate. |
+| GET/POST | `/api/push/*` | Web-Push-Abonnementverwaltung. |
+| GET/POST | `/api/settings` | Server-Einstellungen lesen und schreiben (`GET` / `PATCH`). |
+| POST | `/api/server/restart` | Hub-Prozess über den OS-Service-Manager neu starten. |
+| GET | `/api/server/logs` | Aktuelle Log-Ausgabe streamen. |
+| GET/POST | `/api/updates` | Verfügbare Komponenten-Updates auflisten. Akzeptiert `?refresh=1`. |
+| POST | `/api/updates/:id` | Update auslösen, indem eine losgelöste tmux-Session gestartet wird. |
+| GET/POST | `/api/version`, `/api/version/check` | Hub-Version und GitHub-Release-Update-Check. |
