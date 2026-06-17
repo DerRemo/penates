@@ -3,13 +3,12 @@ import SwiftUI
 struct OverviewView: View {
     @Environment(AppSession.self) private var app
     @State private var model: OverviewModel?
-    @State private var selected: Session?
     @State private var showSettings = false
     @State private var showNewSession = false
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
     var body: some View {
-        NavigationSplitView {
+        NavigationStack {
             ScrollView {
                 if let model {
                     LazyVGrid(columns: columns, spacing: 12) {
@@ -28,9 +27,7 @@ struct OverviewView: View {
                 }
             }
             .refreshable { await model?.load() }
-        } detail: {
-            if let selected { TerminalScreen(session: selected) }
-            else { ContentUnavailableView("Session wählen", systemImage: "terminal") }
+            .navigationDestination(for: Session.self) { s in TerminalScreen(session: s) }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showNewSession) { NewSessionView { Task { await model?.load() } } }
@@ -41,10 +38,12 @@ struct OverviewView: View {
         if !items.isEmpty {
             Section {
                 ForEach(items) { s in
-                    SessionCard(session: s,
-                                onKill: { /* Task 18 */ },
-                                onRename: { /* Task 18 */ })
-                        .onTapGesture { selected = s }
+                    NavigationLink(value: s) {
+                        SessionCard(session: s,
+                                    onKill: { /* Task 18 */ },
+                                    onRename: { /* Task 18 */ })
+                    }
+                    .buttonStyle(.plain)
                 }
             } header: { HStack { Text(title).font(.subheadline.bold()).foregroundStyle(.secondary); Spacer() } }
         }

@@ -8,7 +8,7 @@ enum SessionStatus: String, Decodable, Equatable {
     case running, dormant, foreign
 }
 
-struct Session: Identifiable, Equatable, Decodable {
+struct Session: Identifiable, Hashable, Decodable {
     var id: String { name }
     let name: String
     let command: String?

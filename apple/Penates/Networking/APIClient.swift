@@ -17,6 +17,12 @@ final class APIClient {
     func version() async throws -> VersionInfo { try await request("GET", "/api/version") }
     func sessions() async throws -> [Session] { try await request("GET", "/api/sessions") }
 
+    private struct Scrollback: Decodable { let data: String }
+    func scrollback(name: String, lines: Int = 2000) async throws -> String {
+        let r: Scrollback = try await request("GET", "/api/sessions/\(name)/scrollback", query: ["lines": "\(lines)"])
+        return r.data
+    }
+
     func request<T: Decodable>(_ method: String, _ path: String,
                                query: [String: String] = [:],
                                body: Data? = nil) async throws -> T {

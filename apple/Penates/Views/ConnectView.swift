@@ -2,8 +2,10 @@ import SwiftUI
 
 struct ConnectView: View {
     @Environment(AppSession.self) private var app
-    @State private var urlText = ""
-    @State private var token = ""
+    @State private var urlText = ProcessInfo.processInfo.environment["PENATES_URL"]
+        ?? ProcessInfo.processInfo.environment["SIMCTL_CHILD_PENATES_URL"] ?? ""
+    @State private var token = ProcessInfo.processInfo.environment["PENATES_TOKEN"]
+        ?? ProcessInfo.processInfo.environment["SIMCTL_CHILD_PENATES_TOKEN"] ?? ""
     @State private var error: String?
     @State private var busy = false
 
