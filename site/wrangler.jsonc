@@ -1,0 +1,12 @@
+{
+  // Static-assets-only Worker for penates.dev (Astro static output).
+  // No Worker script / no adapter — Cloudflare serves the prebuilt files in dist/.
+  // Deployed via the dashboard "Workers Builds" flow (root dir = site) or
+  // locally with: cd site && npm run build && npx wrangler deploy
+  "name": "penates",
+  "compatibility_date": "2026-06-17",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
