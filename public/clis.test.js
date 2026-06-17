@@ -7,6 +7,8 @@ test('cliFromCommand maps first token to cli id', () => {
   assert.equal(cliFromCommand('claude --dangerously-skip-permissions'), 'claude');
   assert.equal(cliFromCommand('codex --dangerously-bypass-approvals-and-sandbox'), 'codex');
   assert.equal(cliFromCommand('agy --dangerously-skip-permissions'), 'antigravity');
+  assert.equal(cliFromCommand('opencode'), 'opencode');
+  assert.equal(cliFromCommand('opencode --continue'), 'opencode');
 });
 
 test('cliFromCommand strips a path prefix from the binary', () => {
@@ -22,9 +24,9 @@ test('cliFromCommand returns null for unknown or empty', () => {
 });
 
 test('CLIS registry integrity', () => {
-  assert.ok(Array.isArray(CLIS) && CLIS.length === 3);
+  assert.ok(Array.isArray(CLIS) && CLIS.length === 4);
   const ids = CLIS.map(c => c.id);
-  assert.deepEqual(ids, ['claude', 'codex', 'antigravity']);
+  assert.deepEqual(ids, ['claude', 'codex', 'antigravity', 'opencode']);
   for (const c of CLIS) {
     assert.ok(c.id && c.label && c.binary && c.color, `cli ${c.id} has core fields`);
     assert.ok(Array.isArray(c.variants) && c.variants.length >= 1, `cli ${c.id} has variants`);
@@ -54,12 +56,16 @@ test('claude logo is the Claude sunburst, not the Anthropic A', () => {
 });
 
 // Task 1: tier field on variants
-test('every variant carries a tier, ordered safe → danger', () => {
+test('every variant carries a tier; first is safe, last is danger (or safe-only)', () => {
   for (const c of CLIS) {
     const tiers = c.variants.map(v => v.tier);
     assert.ok(tiers.every(Boolean), `${c.id}: every variant has a tier`);
     assert.equal(tiers[0], 'safe', `${c.id}: first variant is safe`);
-    assert.equal(tiers[tiers.length - 1], 'danger', `${c.id}: last variant is danger`);
+    if (c.variants.length === 1) {
+      assert.equal(tiers[0], 'safe', `${c.id}: single variant is safe`);
+    } else {
+      assert.equal(tiers[tiers.length - 1], 'danger', `${c.id}: last variant is danger`);
+    }
   }
 });
 
@@ -84,6 +90,14 @@ test('antigravity has no auto tier (safe + danger only)', () => {
   assert.deepEqual(agy.variants.map(v => v.tier), ['safe', 'danger']);
 });
 
+test('opencode has a single safe Standard variant = "opencode"', () => {
+  const oc = CLIS.find(c => c.id === 'opencode');
+  assert.ok(oc, 'opencode is registered');
+  assert.equal(oc.binary, 'opencode');
+  assert.deepEqual(oc.variants.map(v => v.tier), ['safe']);
+  assert.equal(oc.variants[0].command, 'opencode');
+});
+
 // Task 2: defaultVariant + variantByTier helpers
 import { defaultVariant, variantByTier } from './clis.js';
 
@@ -91,6 +105,7 @@ test('defaultVariant prefers the auto tier, else the first variant', () => {
   assert.equal(defaultVariant('claude').command, 'claude --permission-mode auto');
   assert.equal(defaultVariant('codex').command, 'codex --sandbox workspace-write --ask-for-approval on-request');
   assert.equal(defaultVariant('antigravity').command, 'agy');      // no auto → first (safe)
+  assert.equal(defaultVariant('opencode').command, 'opencode');   // no auto → first (safe)
   assert.equal(defaultVariant('nope'), null);
 });
 
@@ -98,6 +113,8 @@ test('variantByTier returns the matching variant or null', () => {
   assert.equal(variantByTier('claude', 'danger').command, 'claude --dangerously-skip-permissions');
   assert.equal(variantByTier('antigravity', 'auto'), null);        // no such tier
   assert.equal(variantByTier('nope', 'safe'), null);
+  assert.equal(variantByTier('opencode', 'safe').command, 'opencode');
+  assert.equal(variantByTier('opencode', 'danger'), null);        // no such tier
 });
 
 import { continueCommand } from './clis.js';
@@ -114,6 +131,11 @@ test('continueCommand: codex first token → "codex resume --last", keeps flags'
 test('continueCommand: agy inserts --continue after binary', () => {
   assert.equal(continueCommand('agy'), 'agy --continue');
   assert.equal(continueCommand('agy --dangerously-skip-permissions'), 'agy --continue --dangerously-skip-permissions');
+});
+test('continueCommand: opencode inserts --continue after binary, idempotent', () => {
+  assert.equal(continueCommand('opencode'), 'opencode --continue');
+  assert.equal(continueCommand('opencode --continue'), 'opencode --continue');
+  assert.equal(continueCommand('opencode -c'), 'opencode -c');
 });
 test('continueCommand: path-binary keeps the original token', () => {
   assert.equal(continueCommand('/opt/homebrew/bin/claude --permission-mode auto'),

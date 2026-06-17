@@ -1,13 +1,13 @@
 import { test, expect } from './fixtures.js';
 
 test.describe('multi-CLI picker', () => {
-  // ── Test 1: picker renders 3 CLIs, claude+auto default, modus switches ───
-  test('picker: three CLIs, claude default, modus reflects CLI + auto default', async ({ authedPage: page }) => {
+  // ── Test 1: picker renders 4 CLIs, claude+auto default, modus switches ───
+  test('picker: four CLIs, claude default, modus reflects CLI + auto default', async ({ authedPage: page }) => {
     await page.click('#new-session-btn');
     await page.waitForSelector('#new-session-modal.open', { timeout: 5_000 });
 
     const picker = page.locator('#cli-picker');
-    await expect(picker.locator('.cli-pick-btn')).toHaveCount(3, { timeout: 5_000 });
+    await expect(picker.locator('.cli-pick-btn')).toHaveCount(4, { timeout: 5_000 });
 
     // Claude is the default CLI
     await expect(picker.locator('.cli-pick-btn[data-cli="claude"]')).toHaveAttribute('aria-pressed', 'true');
@@ -23,6 +23,12 @@ test.describe('multi-CLI picker', () => {
     await expect(modus.locator('.modus-btn')).toHaveCount(2, { timeout: 5_000 });
     await expect(modus.locator('.modus-btn[data-tier="safe"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#new-session-cmd')).toHaveValue('agy');
+
+    // Switch to opencode → single Standard tier (safe), command "opencode"
+    await picker.locator('.cli-pick-btn[data-cli="opencode"]').click();
+    await expect(modus.locator('.modus-btn')).toHaveCount(1, { timeout: 5_000 });
+    await expect(modus.locator('.modus-btn[data-tier="safe"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#new-session-cmd')).toHaveValue('opencode');
 
     await page.keyboard.press('Escape');
   });
@@ -46,7 +52,7 @@ test.describe('multi-CLI picker', () => {
     await page.fill('#new-session-name', 'x');
 
     const picker = page.locator('#cli-picker');
-    await expect(picker.locator('.cli-pick-btn')).toHaveCount(3, { timeout: 5_000 });
+    await expect(picker.locator('.cli-pick-btn')).toHaveCount(4, { timeout: 5_000 });
     await picker.locator('.cli-pick-btn[data-cli="codex"]').click();
 
     // codex default = full-auto (workspace-write + on-request); hidden command reflects it

@@ -6171,6 +6171,7 @@
       'codex': 'codex', 'openai-codex': 'codex',
       'antigravity': 'antigravity', 'agy': 'antigravity',
       'gemini': 'gemini',
+      'opencode': 'opencode',
     };
     function agentToCliId(agent) {
       if (!agent) return null;
@@ -6179,7 +6180,7 @@
       if (AGENT_TO_CLI[a.replace(/-code$/, '')]) return AGENT_TO_CLI[a.replace(/-code$/, '')];
       // Substring-Fallback: deckt künftige Kennungen wie "openai/codex" oder
       // "google-antigravity" ab, ohne dass die Map exakt stimmen muss.
-      for (const key of ['antigravity', 'codex', 'claude', 'gemini']) {
+      for (const key of ['antigravity', 'codex', 'claude', 'gemini', 'opencode']) {
         if (a.includes(key)) return AGENT_TO_CLI[key];
       }
       return null;
