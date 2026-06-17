@@ -13,7 +13,7 @@ Die Transkription läuft auf dem Gerät über Homebrew `whisper-cpp` mit Metal-B
 
 ## Warum / wann
 
-Diktieren ist nützlich, wenn die Hände beschäftigt sind, wenn man ein Smartphone mit kleiner Tastatur verwendet, oder wenn man eine längere Anfrage schnell in natürlicher Sprache beschreiben möchte. Da die Transkription lokal erfolgt, verlässt keine Audiodaten das Gerät.
+Diktieren ist nützlich, wenn die Hände beschäftigt sind, wenn man ein Smartphone mit kleiner Tastatur verwendet, oder wenn man eine längere Anfrage schnell in natürlicher Sprache beschreiben möchte. Da die Transkription lokal erfolgt, verlassen keine Audiodaten das Gerät.
 
 Das Feature ergänzt [Image-Paste](/de/docs/features/image-paste): Einen Screenshot in die Session ablegen und dazu Anweisungen diktieren, ohne tippen zu müssen.
 
@@ -32,6 +32,6 @@ Zur Sprachänderung `VOICE_LANG` in `.env` auf einen von whisper.cpp unterstütz
 
 - Es läuft jeweils nur eine Transkription gleichzeitig. Klickt man während einer laufenden Transkription erneut auf das Mikrofon, antwortet der Server mit 429; der Button bleibt deaktiviert, bis der aktuelle Clip abgeschlossen ist.
 - Es gibt kein Live-Streaming. Der vollständige Audioclip wird erst nach dem Stoppen übertragen.
-- Die `@`-Textinjektion ist Claude-Code-spezifisch. In Codex- oder Antigravity-Sessions wird der Text ebenfalls in die Eingabezeile eingefügt, aber diese CLIs interpretieren die `@`-Mention-Konvention nicht.
+- Der transkribierte Text ist reiner Text, der direkt in die Eingabezeile eingefügt wird. Er funktioniert in jeder CLI-Session (Claude Code, Codex, Antigravity). Er hängt keine Dateien an wie das Image-Paste.
 - Das Feature ist auf Linux und auf macOS ohne installiertes `whisper-cpp`-Binary oder fehlendes Modell deaktiviert. In diesem Fall wird der Mikrofon-Button nicht angezeigt.
 - Clips sind auf 10 MB begrenzt. Längere Aufnahmen sollten aufgeteilt werden.

@@ -32,6 +32,6 @@ To change the default language, set `VOICE_LANG` in `.env` to any language code 
 
 - Only one transcription runs at a time. If you click the mic while a transcription is already processing, the request returns a 429 and the button stays disabled until the current clip finishes.
 - There is no live streaming. The full audio clip is sent after you stop recording.
-- The `@`-style text injection is specific to Claude Code. In a Codex or Antigravity session the text is still inserted into the input line, but those CLIs do not use the `@`-mention convention.
+- The transcribed text is plain text inserted directly into the input line. It works in any CLI session (Claude Code, Codex, Antigravity). It does not attach a file the way image paste does.
 - The feature is disabled on Linux and on macOS when either the `whisper-cpp` binary or the model file is missing. In that case the mic button does not appear.
 - Clips are capped at 10 MB. Longer recordings should be split.

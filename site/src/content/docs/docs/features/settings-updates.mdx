@@ -9,14 +9,16 @@ sidebar:
 
 The Settings view is the central place to configure how Penates looks and behaves, and to apply updates to the hub and the tools it depends on.
 
-**Settings** covers seven sections:
+**Settings** covers eight sections:
 
 - **Appearance:** theme (Catppuccin Latte, Frappé, Macchiato, Mocha) and UI language (English or German).
 - **Terminal:** font size, scrollback lines, mouse mode (`TMUX_MOUSE`), and copy-on-select.
-- **Session restore:** two toggles control auto-restore after a reboot. The first enables or disables the feature; the second controls whether `--continue` is passed to the CLI (to resume the last conversation). Both take effect on the next hub boot.
 - **Notifications:** web push subscription control.
-- **Server control:** restart the hub process or view the last lines of `logs/stdout.log` and `logs/stderr.log` without leaving the browser.
-- **Advanced:** miscellaneous server-side knobs.
+- **Behavior:** start view and other UX preferences.
+- **Session restore:** two toggles control auto-restore after a reboot. The first enables or disables the feature; the second controls whether `--continue` is passed to the CLI (to resume the last conversation). Both take effect on the next hub boot.
+- **Server & Features:** restart the hub process or view the last lines of `logs/stdout.log` and `logs/stderr.log` without leaving the browser.
+- **Account & Data:** sign out of the browser session or reset local preferences.
+- **Help & About:** keyboard shortcuts reference, current version, and latest release.
 
 **Update Center** tracks four component categories:
 
@@ -41,7 +43,7 @@ For instructions on updating Penates from the command line, see [Updating](/docs
 
 **Toggle session restore:** in the Session restore section, switch **Auto-restore** on or off. If auto-restore is on, the **Continue conversation** toggle controls whether `--continue` (or the equivalent for Codex/Antigravity) is passed. Both toggles take effect on the next boot.
 
-**Restart the server:** in the Server control section, click **Restart**. The hub process restarts via the OS service manager (LaunchAgent on macOS, systemd on Linux). The browser reconnects automatically.
+**Restart the server:** in the Server & Features section, click **Restart**. The hub process restarts via the OS service manager (LaunchAgent on macOS, systemd on Linux). The browser reconnects automatically.
 
 **View logs:** click **View logs** to show the last 100 lines of the server logs inline.
 

@@ -9,14 +9,16 @@ sidebar:
 
 Die Settings-Ansicht ist der zentrale Ort, um das Aussehen und Verhalten von Penates zu konfigurieren und Updates für den Hub sowie seine Abhängigkeiten einzuspielen.
 
-**Einstellungen** umfassen sieben Bereiche:
+**Einstellungen** umfassen acht Bereiche:
 
 - **Erscheinungsbild:** Theme (Catppuccin Latte, Frappé, Macchiato, Mocha) und UI-Sprache (Englisch oder Deutsch).
 - **Terminal:** Schriftgröße, Scrollback-Zeilen, Mouse-Mode (`TMUX_MOUSE`) und Copy-on-Select.
-- **Session-Wiederherstellung:** Zwei Schalter steuern das automatische Wiederherstellen nach einem Neustart. Der erste aktiviert oder deaktiviert das Feature; der zweite legt fest, ob `--continue` an die CLI übergeben wird, um die letzte Konversation fortzusetzen. Beide Schalter gelten ab dem nächsten Hub-Start.
 - **Notifications:** Steuerung des Web-Push-Abonnements.
-- **Server-Steuerung:** Den Hub-Prozess neu starten oder die letzten Zeilen von `logs/stdout.log` und `logs/stderr.log` direkt im Browser anzeigen.
-- **Erweitert:** Verschiedene serverseitige Optionen.
+- **Behavior:** Startansicht und weitere UX-Einstellungen.
+- **Session-Wiederherstellung:** Zwei Schalter steuern das automatische Wiederherstellen nach einem Neustart. Der erste aktiviert oder deaktiviert das Feature; der zweite legt fest, ob `--continue` an die CLI übergeben wird, um die letzte Konversation fortzusetzen. Beide Schalter gelten ab dem nächsten Hub-Start.
+- **Server & Features:** Den Hub-Prozess neu starten oder die letzten Zeilen von `logs/stdout.log` und `logs/stderr.log` direkt im Browser anzeigen.
+- **Account & Data:** Browser-Session abmelden oder lokale Einstellungen zurücksetzen.
+- **Help & About:** Tastaturkürzel-Referenz, aktuelle Version und neuestes Release.
 
 **Update-Center** verfolgt vier Komponentenkategorien:
 
@@ -41,7 +43,7 @@ Anleitung zur Aktualisierung von Penates über die Befehlszeile: [Aktualisieren]
 
 **Session-Wiederherstellung umschalten:** Im Bereich Session-Wiederherstellung **Auto-Restore** ein- oder ausschalten. Ist Auto-Restore aktiv, steuert der Schalter **Konversation fortsetzen**, ob `--continue` (bzw. das Äquivalent für Codex/Antigravity) übergeben wird. Beide Schalter gelten ab dem nächsten Start.
 
-**Server neu starten:** Im Bereich Server-Steuerung auf **Neu starten** klicken. Der Hub-Prozess startet über den OS-Service-Manager neu (LaunchAgent auf macOS, systemd auf Linux). Der Browser verbindet sich automatisch wieder.
+**Server neu starten:** Im Bereich Server & Features auf **Neu starten** klicken. Der Hub-Prozess startet über den OS-Service-Manager neu (LaunchAgent auf macOS, systemd auf Linux). Der Browser verbindet sich automatisch wieder.
 
 **Logs anzeigen:** Auf **Logs anzeigen** klicken, um die letzten 100 Zeilen der Server-Logs inline anzuzeigen.
 
