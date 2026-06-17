@@ -23,6 +23,29 @@ final class APIClient {
         return r.data
     }
 
+    // MARK: - Browse & directory helpers
+
+    func browse(path: String, hidden: Bool = false) async throws -> [DirEntry] {
+        struct Resp: Decodable { let entries: [DirEntry] }
+        let r: Resp = try await request("GET", "/api/browse",
+                                        query: ["path": path, "hidden": hidden ? "1" : "0"])
+        return r.entries
+    }
+
+    func recentDirs() async throws -> [String] {
+        struct RecentDir: Decodable { let cwd: String }
+        struct Resp: Decodable { let dirs: [RecentDir] }
+        let r: Resp = try await request("GET", "/api/recent-dirs")
+        return r.dirs.map(\.cwd)
+    }
+
+    func createSession(name: String, directory: String, command: String) async throws {
+        let body = try JSONEncoder().encode(["name": name, "directory": directory, "command": command])
+        let _: EmptyResponse = try await request("POST", "/api/sessions", body: body)
+    }
+
+    // MARK: - Generic request
+
     func request<T: Decodable>(_ method: String, _ path: String,
                                query: [String: String] = [:],
                                body: Data? = nil) async throws -> T {
