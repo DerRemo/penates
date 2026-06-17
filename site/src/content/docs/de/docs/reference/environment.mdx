@@ -1,20 +1,61 @@
 ---
 title: Umgebungsvariablen
-description: Alle unterstützten .env-Keys mit Standardwerten, Typen und Beschreibungen.
+description: Alle unterstützten .env-Keys mit Standardwerten und Beschreibungen, gruppiert nach Funktionsbereich.
 sidebar:
   order: 2
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+`.env.example` im Repo-Root nach `.env` kopieren und die Werte vor dem Server-Start setzen. Variablen mit `(erforderlich)` haben keinen Standardwert; der Server startet ohne sie nicht korrekt. Einen geführten Überblick über die wichtigsten Optionen bietet [Konfiguration](/de/docs/install/configuration).
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
+## Kern
 
-## Was es ist
+| Variable | Standard | Beschreibung |
+|----------|----------|--------------|
+| `PORT` | `3333` | TCP-Port, auf dem der HTTP-Server lauscht. |
+| `AUTH_TOKEN` | `(erforderlich)` | Bearer-Token für alle API- und WebSocket-Requests. Wird von `setup.sh` generiert. |
+| `SESSION_PREFIX` | `cc-` | Prefix, der allen vom Hub angelegten tmux-Session-Namen vorangestellt wird. |
+| `DEFAULT_PROJECT_DIR` | `~` | Standard-Arbeitsverzeichnis für neue Sessions, wenn keines angegeben wird. |
+| `TMUX_PATH` | `(auto)` | Absoluter Pfad zur tmux-Binärdatei. Wird automatisch über den PATH erkannt, wenn leer. |
+| `TMUX_MOUSE` | `on` | Globaler tmux-Mouse-Modus. Auf `off` setzen, wenn Moshi oder mobile Terminals verwendet werden, bei denen native Touch-Selektion wichtig ist. |
+| `PROJECT_ROOTS` | `~/Projects` | Doppelpunkt-getrennte Liste von Wurzelverzeichnissen für den Projekt-Picker. |
+| `BROWSE_ROOTS` | `(keine)` | Zusätzliche Verzeichnisse für `/api/browse` und die Pfadauswahl neuer Projekte. Doppelpunkt-getrennt. Standard: nur `$HOME`. Beispiel: `~/Projects:/Volumes/SSD/code`. |
 
-## Warum / wann
+## State-Verzeichnis
 
-## Wie nutzen
+| Variable | Standard | Beschreibung |
+|----------|----------|--------------|
+| `PENATES_HOME` | `~/.penates` | Verzeichnis für persistenten Hub-State: `settings.json`, `sessions.json`, `board.json`, Usage-History und Modelle. In Tests überschreiben, um den State zu isolieren. |
 
-## Grenzen
+## Browser-Preview
+
+| Variable | Standard | Beschreibung |
+|----------|----------|--------------|
+| `PREVIEW_DOMAIN` | `(keine)` | Basis-Domain für den Dev-Server-Reverse-Proxy. Leer lassen, um das Feature zu deaktivieren. Beispiel: `hub.example.com` macht den Proxy unter `https://preview.hub.example.com/` erreichbar. Erfordert einen einzelnen DNS-CNAME-Eintrag `preview`, der auf deinen Cloudflare-Tunnel zeigt; kein Wildcard-DNS-Eintrag nötig. Zusätzlich wird eine passende Cloudflare-Access-Policy benötigt. |
+
+## Web Push
+
+| Variable | Standard | Beschreibung |
+|----------|----------|--------------|
+| `VAPID_PUBLIC_KEY` | `(auto)` | VAPID-Public-Key für Web-Push-Benachrichtigungen. Wird beim ersten Server-Start automatisch generiert, wenn leer. |
+| `VAPID_PRIVATE_KEY` | `(auto)` | VAPID-Private-Key. Wird zusammen mit dem Public-Key automatisch generiert. |
+| `VAPID_SUBJECT` | `https://deine-domain.tld` | VAPID-Subject-URI. Apple Web Push erfordert eine echte HTTPS-Domain, nicht `localhost`. |
+
+## Cloudflare Access
+
+Beide Variablen müssen gesetzt sein, um die JWT-Validierung zu aktivieren. Fehlt eine davon, läuft der Server im Bearer-only-Modus ohne Cloudflare-Access-Prüfung.
+
+| Variable | Standard | Beschreibung |
+|----------|----------|--------------|
+| `CF_ACCESS_TEAM_DOMAIN` | `(keine)` | Deine Cloudflare-Zero-Trust-Team-Domain, ohne `https://`. Zu finden im Cloudflare-Dashboard unter Access. |
+| `CF_ACCESS_AUD` | `(keine)` | Audience-Tag deiner Cloudflare-Access-Applikation. Zu finden unter Access > Applications > deine App. |
+
+## Voice-Input
+
+Voice-Input wird automatisch deaktiviert, wenn `WHISPER_BIN` oder `WHISPER_MODEL` fehlen. Mit `VOICE_ENABLED=false` lässt sich das Feature auch dann hart abschalten, wenn beide vorhanden sind.
+
+| Variable | Standard | Beschreibung |
+|----------|----------|--------------|
+| `VOICE_ENABLED` | `(abgeleitet)` | Auf `false` setzen, um Voice-Input hart zu deaktivieren. Wenn leer, ist das Feature nur aktiv, wenn sowohl `WHISPER_BIN` als auch `WHISPER_MODEL` auf vorhandene Dateien zeigen. |
+| `WHISPER_BIN` | `/opt/homebrew/bin/whisper-cli` | Absoluter Pfad zur `whisper-cli`-Binärdatei. Mit `WHISPER_BIN` überschreiben, wenn anderswo installiert. |
+| `WHISPER_MODEL` | `(keine)` | Absoluter Pfad zur `.bin`-Modelldatei für whisper.cpp. `setup.sh` lädt `ggml-large-v3-turbo-q5_0.bin` nach `~/.penates/models/` herunter. |
+| `VOICE_LANG` | `de` | Standard-Transkriptionssprache für whisper.cpp. Beliebiger von Whisper unterstützter Sprachcode (z. B. `en`, `de`, `fr`). |

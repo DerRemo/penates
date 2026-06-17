@@ -20,10 +20,10 @@ The `git pull` brings in new code, `npm install` syncs any new or changed depend
 
 The Settings view includes an **Update Center** that tracks four categories:
 
-- **Hub** — the Penates server itself (compares the running version against the latest GitHub release).
-- **CLIs** — Claude Code, Codex, Antigravity (checks npm registry for latest published version).
-- **Externals** — Homebrew-managed tools like tmux, moshi-hook, whisper-cpp.
-- **Deps** — npm dependencies (display only; update by running `npm install`).
+- **Hub**: the Penates server itself (compares the running version against the latest GitHub release).
+- **CLIs**: Claude Code, Codex, Antigravity (checks npm registry for latest published version).
+- **Externals**: Homebrew-managed tools like tmux, moshi-hook, whisper-cpp.
+- **Deps**: npm dependencies (display only; update by running `npm install`).
 
 Click the Update button next to any component to trigger an update. The hub spawns a detached tmux session named `cc-update-<component>` that runs the update command. You can attach to it to watch progress.
 

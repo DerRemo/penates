@@ -1,20 +1,30 @@
 ---
 title: Projekte
-description: Lokale Repositories als Projekte registrieren, um Roadmap-Tracking, Datei-Browser und Board-Integration an einem Ort zu erhalten.
+description: Lokale Repositories als Projekte registrieren, um Fortschritt zu verfolgen, Dateien zu durchsuchen und Board-Ideen mit echten Codebases zu verbinden.
 sidebar:
   order: 3
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
-
 ## Was es ist
+
+Ein Projekt ist ein registriertes Verzeichnis (meist ein git-Repository) mit einem Planungsdokument. Dieses Dokument ist `CHANGELOG.md`, strukturiert in drei Abschnitte: `## Released: vX.Y.Z` für Fertiges, `## In Entwicklung: vA.B.C` für aktive Arbeit und `## Changelog` für narrative Release-Notizen. Der Hub liest diese Datei über `lib/projects.js` und `lib/roadmap.js`; `ROADMAP.md` wird als Fallback für nicht migrierte Projekte unterstützt.
+
+Der Backlog wohnt nicht mehr im Planungsdokument. Alle künftigen Ideen gehören auf das [Board](/de/docs/features/board), nicht in die `CHANGELOG.md`.
 
 ## Warum / wann
 
+Ein registriertes Projekt verbindet zwei Dinge. Erstens verknüpft es Board-Karten mit einer echten Codebase: Die autonome Pipeline kann Worktrees anlegen, Coding-Sessions starten und Changelog-Einträge direkt ins Projekt schreiben. Zweitens zeigt die Projekt-Detailansicht einen Live-Snapshot des Stands mit Checkboxen zum Abhaken.
+
+Wer mehrere Repositories in einer Penates-Instanz betreibt, braucht die Projektregistrierung: Sie teilt dem Board, dem Filebrowser und dem Repo-Panel mit, welches Verzeichnis zu welcher Arbeit gehört.
+
 ## Wie nutzen
 
+- **Projekt registrieren:** Projects-Ansicht öffnen und den Pfad zum lokalen Repository eintragen. Penates liest dort die `CHANGELOG.md`.
+- **Fortschritt ansehen:** Die Detailansicht zeigt Released- und In-Development-Abschnitte. Ein Klick auf ein Item toggled die Checkbox (`PATCH /api/projects/:id/items`).
+- **Release schneiden:** Die Release-Aktion stempelt den aktuellen In-Development-Abschnitt als neue Release-Version ins Planungsdokument.
+- **Ideen generieren:** Die *Ideagen*-Aktion startet eine Coding-Session, die das Projekt liest und neue Board-Karten vorschlägt. Diese Karten landen in der `idea`-Spalte des [Boards](/de/docs/features/board).
+- **Dateien durchsuchen:** Jedes Projekt hat einen [Filebrowser](/de/docs/features/file-browser), der auf sein Verzeichnis beschränkt ist.
+
 ## Grenzen
+
+Beim manuellen Bearbeiten der `CHANGELOG.md` gelten folgende Regeln: nur Top-Level-Checkboxen (keine eingerückten Unterelemente), keine `{}`-Zeichen im Item-Text (kollidieren mit dem internen Meta-Suffix), keine Steuerzeichen. Änderungen über die Hub-UI sind parser-sicher validiert. `board.json` niemals direkt bearbeiten; stattdessen UI oder API verwenden.

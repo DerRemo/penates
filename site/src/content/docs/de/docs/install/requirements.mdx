@@ -11,13 +11,13 @@ Penates läuft auf macOS (Apple Silicon und Intel) und Linux. Das Installationss
 
 ## Xcode Command Line Tools (nur macOS)
 
-node-pty — der Terminal-Treiber des Hubs — kompiliert native Erweiterungen. Xcode CLT stellt den dafür benötigten C-Compiler bereit:
+node-pty (der Terminal-Treiber des Hubs) kompiliert native Erweiterungen. Xcode CLT stellt den dafür benötigten C-Compiler bereit:
 
 ```bash
 xcode-select --install
 ```
 
-Ein Systemdialog erscheint — auf „Installieren" klicken und ca. fünf Minuten warten. Wenn CLT schon installiert ist, gibt der Befehl `xcode-select: error: command line tools are already installed` aus, und du kannst weitermachen.
+Ein Systemdialog erscheint. Auf „Installieren" klicken und ca. fünf Minuten warten. Wenn CLT schon installiert ist, gibt der Befehl `xcode-select: error: command line tools are already installed` aus, und du kannst weitermachen.
 
 ## Homebrew
 
@@ -27,7 +27,7 @@ Homebrew ist der Paketmanager für tmux, cloudflared und andere Abhängigkeiten:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-Nach der Installation druckt das Script zwei Zeilen, um Homebrew zum PATH hinzuzufügen — diese genau so ausführen. Prüfen:
+Nach der Installation druckt das Script zwei Zeilen, um Homebrew zum PATH hinzuzufügen. Diese genau so ausführen, dann prüfen:
 
 ```bash
 brew --version
@@ -66,7 +66,7 @@ Danach einmalig `claude` starten und den Anweisungen folgen (Anthropic-Account v
 
 ## Optionale CLIs
 
-Der Hub startet auch **Codex** (OpenAI) und **Antigravity** (Google `agy`). Diese sind optional — eine fehlende CLI lässt nur die eigenen Sessions mit einem „nicht im PATH"-Hinweis sterben, ohne andere Sessions zu stören.
+Der Hub startet auch **Codex** (OpenAI) und **Antigravity** (Google `agy`). Diese sind optional. Eine fehlende CLI lässt nur die eigenen Sessions mit einem „nicht im PATH"-Hinweis sterben, ohne andere Sessions zu stören.
 
 ```bash
 npm install -g @openai/codex      # Binary: codex
@@ -75,5 +75,5 @@ npm install -g @openai/codex      # Binary: codex
 Antigravity (`agy`) wird nach [Googles offizieller Anleitung](https://antigravity.google/) installiert. Beide Binaries müssen genauso wie `claude` im PATH liegen.
 
 <Aside type="note">
-Der Hub fügt `~/.local/bin`, `/opt/homebrew/bin` und `/usr/local/bin` beim Spawnen von Sessions zur Laufzeit zum PATH hinzu. Wenn ein CLI nach der npm-Installation in einem dieser Pfade liegt, wird es gefunden — aber die Profil-Änderung wird trotzdem empfohlen, damit Terminal-Sessions außerhalb des Hubs funktionieren.
+Der Hub fügt `~/.local/bin`, `/opt/homebrew/bin` und `/usr/local/bin` beim Spawnen von Sessions zur Laufzeit zum PATH hinzu. Wenn ein CLI nach der npm-Installation in einem dieser Pfade liegt, wird es gefunden. Die Profil-Änderung wird trotzdem empfohlen, damit Terminal-Sessions außerhalb des Hubs funktionieren.
 </Aside>

@@ -1,20 +1,30 @@
 ---
 title: Projects
-description: Register local repositories as projects to get roadmap tracking, file browsing, and board integration in one place.
+description: Register local repositories as projects to track progress, browse files, and connect board ideas to real codebases.
 sidebar:
   order: 3
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
-
 ## What it is
+
+A project is a registered directory (usually a git repository) with a planning document. That document is `CHANGELOG.md`, structured around three sections: `## Released: vX.Y.Z` for what is live, `## In Entwicklung: vA.B.C` for active work, and `## Changelog` for narrative release notes. The hub reads this file via `lib/projects.js` and `lib/roadmap.js`; `ROADMAP.md` is supported as a fallback for unmigrated projects.
+
+The backlog no longer lives in the planning document. All future ideas belong on the [board](/docs/features/board), not in `CHANGELOG.md`.
 
 ## Why / when to use it
 
+Registering a project gives the hub two things. First, it connects board cards to a real codebase: the autonomous pipeline can spawn worktrees, run coding sessions, and write changelog entries directly into the project. Second, the project detail view shows a live snapshot of what is released and what is in development, with checkboxes to tick off items as they land.
+
+If you work on multiple repositories from a single Penates instance, the project registry is what lets the board, the file browser, and the repo panel know which directory belongs to which work.
+
 ## How to use it
 
+- **Register a project:** open the Projects view and add the path to a local repository. Penates reads the `CHANGELOG.md` there.
+- **View progress:** the project detail view shows Released and In Development sections. Click any item to toggle its checkbox (`PATCH /api/projects/:id/items`).
+- **Cut a release:** use the release action to stamp the current In Development section as a new release version in the planning doc.
+- **Generate ideas:** the *Ideagen* action spawns a coding session primed to read the project and suggest new board cards. Those cards land in the `idea` stage on the [board](/docs/features/board).
+- **Browse files:** each project has a [file browser](/docs/features/file-browser) scoped to its directory.
+
 ## Limits
+
+When editing `CHANGELOG.md` by hand, follow these rules: only top-level checkboxes (no indented sub-items), no `{}` characters in item text (they collide with the internal meta suffix), and no control characters. Edits made through the hub UI are validated to be parser-safe. Never edit `board.json` by hand; use the UI or API.

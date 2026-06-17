@@ -1,6 +1,6 @@
 ---
 title: Remote-Zugriff
-description: Penates sicher von überall erreichbar machen – mit Tailscale oder einem Cloudflare Tunnel und optionaler Cloudflare-Access-Authentifizierung.
+description: Penates sicher von überall erreichbar machen, mit Tailscale oder einem Cloudflare Tunnel und optionaler Cloudflare-Access-Authentifizierung.
 sidebar:
   order: 5
 ---
@@ -46,7 +46,7 @@ cloudflared tunnel login
 cloudflared tunnel create penates
 ```
 
-Der zweite Befehl gibt eine Tunnel-ID aus (Format: `abc123de-...`). Merken — sie wird in den nächsten Schritten benötigt.
+Der zweite Befehl gibt eine Tunnel-ID aus (Format: `abc123de-...`). Merken: sie wird in den nächsten Schritten benötigt.
 
 ### DNS-Eintrag anlegen
 
@@ -102,7 +102,7 @@ Der Cloudflare Tunnel allein lässt den Bearer-Token als einzige Auth-Schicht. C
 ### Voraussetzungen
 
 - Cloudflare Tunnel läuft schon (siehe oben).
-- Zero Trust ist im Cloudflare-Account aktiviert (kostenlos für Privat-Nutzung — [dash.cloudflare.com/zero-trust](https://dash.cloudflare.com/zero-trust)).
+- Zero Trust ist im Cloudflare-Account aktiviert (kostenlos für Privat-Nutzung; [dash.cloudflare.com/zero-trust](https://dash.cloudflare.com/zero-trust)).
 
 ### Access-Application anlegen
 
@@ -112,13 +112,13 @@ Der Cloudflare Tunnel allein lässt den Bearer-Token als einzige Auth-Schicht. C
 3. **Session duration** auf `24h` setzen (oder länger).
 4. **Application domain** auf deine Tunnel-Domain setzen (z.B. `code.deinedomain.xyz`).
 5. Unter **Identity providers** mindestens einen aktivieren:
-   - **GitHub OAuth** — ein Klick, wenn du GitHub eh nutzt.
-   - **One-Time PIN** — sendet einen Code an deine Email; keine OAuth-App nötig.
+   - **GitHub OAuth**: ein Klick, wenn du GitHub eh nutzt.
+   - **One-Time PIN**: sendet einen Code an deine Email; keine OAuth-App nötig.
 6. **Policy anlegen**: Action = `Allow`, Include = eine oder beide Regeln:
    - `Emails` → deine Email-Adresse (für den PIN-Pfad)
    - `GitHub` → dein GitHub-Username (für GitHub OAuth)
 7. Application speichern.
-8. In der Application-Übersicht den **Application Audience (AUD) Tag** kopieren — ein 64-Zeichen-Hex-String.
+8. In der Application-Übersicht den **Application Audience (AUD) Tag** kopieren (ein 64-Zeichen-Hex-String).
 </Steps>
 
 ### Hub konfigurieren
@@ -158,7 +158,7 @@ tail -20 ~/.penates/audit.log | grep auth.fail | jq -c
 
 | `reason` | Lösung |
 |---|---|
-| `bad-jwt:no-jwt` | Browser ist nicht durch Cloudflare Access gegangen. Cookies für die Domain löschen und neu laden — der Login-Flow sollte neu starten. |
+| `bad-jwt:no-jwt` | Browser ist nicht durch Cloudflare Access gegangen. Cookies für die Domain löschen und neu laden; der Login-Flow sollte neu starten. |
 | `bad-jwt:bad-aud` | `CF_ACCESS_AUD` in `.env` stimmt nicht mit dem AUD-Tag der Access-Application überein. Nochmal im Cloudflare-Dashboard kopieren. |
 | `bad-jwt:bad-iss` | `CF_ACCESS_TEAM_DOMAIN` ist falsch. Muss exakt die Team-URL ohne `https://` sein. |
 | `bad-jwt:expired` | JWT ist abgelaufen. Session-Duration in den Access-Application-Einstellungen erhöhen. |
@@ -166,4 +166,4 @@ tail -20 ~/.penates/audit.log | grep auth.fail | jq -c
 
 ### Cloudflare Access deaktivieren
 
-Beide Variablen aus `.env` entfernen (oder auf leere Strings setzen) und Server neu starten. Kein Code-Rollback nötig — das Feature ist vollständig Env-gesteuert.
+Beide Variablen aus `.env` entfernen (oder auf leere Strings setzen) und Server neu starten. Kein Code-Rollback nötig; das Feature ist vollständig Env-gesteuert.

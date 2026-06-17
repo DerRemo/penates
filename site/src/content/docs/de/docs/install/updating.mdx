@@ -20,10 +20,10 @@ launchctl kickstart -k gui/$(id -u)/com.penates
 
 Die Settings-View enthält ein **Update Center** mit vier Kategorien:
 
-- **Hub** — der Penates-Server selbst (vergleicht die laufende Version mit dem neuesten GitHub-Release).
-- **CLIs** — Claude Code, Codex, Antigravity (prüft die npm-Registry auf die aktuellste veröffentlichte Version).
-- **Externals** — Homebrew-verwaltete Tools wie tmux, moshi-hook, whisper-cpp.
-- **Deps** — npm-Abhängigkeiten (nur Anzeige; Update durch `npm install`).
+- **Hub**: der Penates-Server selbst (vergleicht die laufende Version mit dem neuesten GitHub-Release).
+- **CLIs**: Claude Code, Codex, Antigravity (prüft die npm-Registry auf die aktuellste veröffentlichte Version).
+- **Externals**: Homebrew-verwaltete Tools wie tmux, moshi-hook, whisper-cpp.
+- **Deps**: npm-Abhängigkeiten (nur Anzeige; Update durch `npm install`).
 
 Der Update-Button neben einer Komponente startet das Update. Der Hub spawnt eine detachte tmux-Session `cc-update-<komponente>`, die den Update-Befehl ausführt. Durch Attachen lässt sich der Fortschritt beobachten.
 

@@ -1,17 +1,17 @@
 ---
 title: Terminal & Sessions
-description: Coding-CLI-Sessions starten, verbinden, umbenennen, adoptieren, anpinnen und nach einem Neustart automatisch wiederherstellen — alles auf Basis von tmux.
+description: Coding-CLI-Sessions starten, verbinden, umbenennen, adoptieren, anpinnen und nach einem Neustart automatisch wiederherstellen, alles auf Basis von tmux.
 sidebar:
   order: 1
 ---
 
 ## Was es ist
 
-Eine Session ist eine tmux-Session (Prefix `cc-`), die eine Coding-CLI — Claude Code, Codex oder Antigravity — in einem Projektverzeichnis ausführt. tmux ist die einzige Quelle der Wahrheit: Der Hub hält keinen eigenen Session-State, weshalb Sessions einen Hub-Neustart überleben und sogar von außerhalb von Penates gestartete Sessions adoptiert werden können (z. B. über SSH oder Moshi).
+Eine Session ist eine tmux-Session (Prefix `cc-`), die eine Coding-CLI (Claude Code, Codex oder Antigravity) in einem Projektverzeichnis ausführt. tmux ist die einzige Quelle der Wahrheit: Der Hub hält keinen eigenen Session-State, weshalb Sessions einen Hub-Neustart überleben und sogar von außerhalb von Penates gestartete Sessions adoptiert werden können (z. B. über SSH oder Moshi).
 
 ## Warum / wann
 
-Das Dashboard ist der einzige Ort, um alle laufenden Agents im Blick zu haben und zu steuern: Live-Aktivität (working · waiting · idle), Context-Token-Verbrauch und das Account-5h-Limit pro Karte, dazu ein CLI-Badge zur Identifikation. Jede Session wird über ein vollwertiges Browser-Terminal bedient — Farben, Copy/Paste, Scrollback — vom Mac oder vom Smartphone.
+Das Dashboard ist der einzige Ort, um alle laufenden Agents im Blick zu haben und zu steuern: Live-Aktivität (working · waiting · idle), Context-Token-Verbrauch und das Account-5h-Limit pro Karte, dazu ein CLI-Badge zur Identifikation. Jede Session wird über ein vollwertiges Browser-Terminal bedient (Farben, Copy/Paste, Scrollback) vom Mac oder vom Smartphone.
 
 ## Wie nutzen
 
@@ -25,4 +25,4 @@ Das Dashboard ist der einzige Ort, um alle laufenden Agents im Blick zu haben un
 
 ## Grenzen
 
-Auto-Restore gilt nur nach einem Neustart und stellt die CLI-Konversation wieder her — keinen unterbrochenen Task und keinen im RAM gespeicherten tmux-Scrollback. Fremde (nicht über den Hub gestartete) Sessions zeigen Aktivität `unknown`, bis ein Hook feuert. Die `@`-Mention-Helfer (Image-Paste, Voice) sind Claude-Code-spezifisch.
+Auto-Restore gilt nur nach einem Neustart und stellt die CLI-Konversation wieder her, keinen unterbrochenen Task und keinen im RAM gespeicherten tmux-Scrollback. Fremde (nicht über den Hub gestartete) Sessions zeigen Aktivität `unknown`, bis ein Hook feuert. Die `@`-Mention-Helfer (Image-Paste, Voice) sind Claude-Code-spezifisch.

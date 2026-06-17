@@ -1,20 +1,83 @@
 ---
 title: Mitmachen
-description: Wie man Bugs meldet, Features vorschlägt und Pull Requests zum Open-Source-Projekt Penates einreicht.
+description: Entwicklungsumgebung einrichten, Tests ausführen, Projektkonventionen befolgen und Änderungen an Penates einreichen.
 sidebar:
   order: 1
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+## Entwicklungsumgebung einrichten
 
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
+Repository klonen und Abhängigkeiten installieren:
 
-## Was es ist
+```bash
+git clone https://github.com/DerRemo/penates.git
+cd penates
+npm install
+```
 
-## Warum / wann
+Server starten:
 
-## Wie nutzen
+```bash
+npm start
+```
 
-## Grenzen
+`npm start` führt `node server.js` direkt aus. Es gibt keinen Build-Schritt, keinen Watch-Modus und keinen Bundler. Nach Änderungen an `server.js` oder einem `lib/`-Modul den Prozess neu starten, um die Änderungen zu übernehmen. Nach Änderungen an `public/index.html` genügt ein Seiten-Reload im Browser.
+
+Läuft auf demselben Rechner der LaunchAgent, diesen zuerst stoppen, um zwei Instanzen auf demselben Port zu vermeiden:
+
+```bash
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
+```
+
+## Tests ausführen
+
+**Backend-Unit-Tests** (jede `lib/*.test.js`-Datei läuft isoliert):
+
+```bash
+node --test lib/*.test.js
+```
+
+**Tests für geteilte Module** (Browser + node:test gemeinsam genutzer Code):
+
+```bash
+node --test public/*.test.js
+```
+
+**Playwright-E2E-Tests:**
+
+```bash
+npm run test:e2e                              # alle Projekte
+npm run test:e2e -- --project=chromium        # nur Desktop-Chromium
+npm run test:e2e -- --project=webkit-mobile   # nur iOS-Viewport
+npm run test:e2e:ui                           # interaktiver UI-Modus
+```
+
+Alle Unit-Tests nach jeder Änderung ausführen, bevor ein Pull Request geöffnet wird. Bei E2E-Tests die betroffene Spec-Datei gezielt ausführen, nicht die gesamte Matrix.
+
+## Konventionen
+
+**Modulstruktur.** Jeder Funktionsbereich bekommt ein `lib/`-Modul, das Express-frei und ohne laufenden Server unit-testbar ist. Routen in `server.js` sind dünne Wrapper. Der Frontend-Code für den Bereich ist ein eigenständiges IIFE in `public/index.html`.
+
+**Keine Shell-Interpolation.** Alle Aufrufe externer Prozesse (tmux, git, Systemtools) verwenden `execFile` oder `execFileSync` mit einem Argv-Array. Nutzerkontrollierte Eingaben dürfen nie in einen Shell-String eingebettet werden. Das ist eine Sicherheitsanforderung, kein Stilpräferenz.
+
+**Kein Build-Schritt, keine Frameworks.** Das Frontend ist eine einzige HTML-Datei mit eingebettetem CSS und JS. Keinen Bundler, Transpiler oder Frontend-Framework einführen. xterm.js und seine Addons sind unter `public/vendor/xterm/` gevendert; Aktualisierungen erfolgen durch Ersetzen der Vendor-Dateien, nicht durch Hinzufügen einer Paket-Abhängigkeit.
+
+**Geteilter Code.** Code, der sowohl im Browser als auch in `node:test` genutzt wird, kommt in eine separate ES-Module-Datei unter `public/` (`clis.js`, `prefs.js`, `usage-format.js`). Diese Dateien dürfen keine Node.js-Built-Ins importieren.
+
+**`CHANGELOG.md`-Änderungen.** Änderungen am `CHANGELOG.md` über die Hub-API werden auf Parser-Sicherheit validiert. Manuelle Bearbeitungen müssen denselben Regeln folgen: nur Top-Level-Checkboxen (keine Einrückungen), kein `{}` im Item-Text, keine Steuerzeichen. Der Parser in `lib/roadmap.js` ist die maßgebliche Quelle für das Format.
+
+**macOS bleibt byte-identisch.** Jede Änderung, die macOS-Verhalten betrifft, darf die bestehende Ausgabe nicht verändern. Linux-Unterschiede sind explizite `if (platform() === 'linux')`-Zweige. Apple-exklusive Features (Mata, Voice-Input, moshi-hook) müssen auf Linux graceful degradieren, nicht abstürzen.
+
+**Zweisprachige UI.** Nutzerseitige Strings laufen über `lib/i18n.js` und müssen Einträge in `public/locales/en.js` und `public/locales/de.js` haben. API-Fehlermeldungen bleiben auf Englisch.
+
+## Änderungen einreichen
+
+Auf einem Branch arbeiten:
+
+```bash
+git checkout -b name-der-feature-branch
+```
+
+Pull Request gegen den `main`-Branch von `DerRemo/penates` öffnen. Kurze Beschreibung der Änderung und wie sie geprüft werden kann beifügen. Falls vorhanden, die zugehörige Board-Karten-ID angeben.
+
+Die PR-Beschreibung muss die Commit-Nachrichten nicht wiederholen. Intention und nicht offensichtliche Entscheidungen beschreiben; den Rest deckt der Diff ab.

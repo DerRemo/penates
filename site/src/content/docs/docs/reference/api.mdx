@@ -1,20 +1,136 @@
 ---
 title: API endpoints
-description: Complete reference for all Penates REST and WebSocket endpoints, including request/response shapes.
+description: Complete reference for all Penates REST and WebSocket endpoints. Base URL is http://localhost:3333 (or your remote domain).
 sidebar:
   order: 1
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+The Penates API is a REST API served on port 3333 (configurable via `PORT`). All endpoints under `/api/` require authentication. Error messages are always in English regardless of the browser language setting.
 
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
+## Authentication
 
-## What it is
+**REST:** include the token in every request header:
 
-## Why / when to use it
+```
+Authorization: Bearer <token>
+```
 
-## How to use it
+**WebSocket:** pass the token as a subprotocol:
 
-## Limits
+```js
+new WebSocket(url, ["bearer." + token])
+```
+
+The server echoes the subprotocol back in the handshake response. A legacy `?token=` query-string fallback is accepted for migration purposes.
+
+**Remote access via Cloudflare Access:** when `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` are set, tunnel requests must additionally carry a valid Cloudflare Access JWT in the `Cf-Access-Jwt-Assertion` header. Direct local requests bypass this check.
+
+## Sessions
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/sessions` | List all tmux sessions. Each entry includes `command`, `limits`, and `cost`. |
+| POST | `/api/sessions` | Create a session. Body: `{ name, directory, command }`. Names must match `^[\w\-. ]{1,64}$`. |
+| DELETE | `/api/sessions/:name` | Kill a session and remove it from the known-sessions store. |
+| PATCH | `/api/sessions/:name` | Rename a session. Body: `{ newName }`. |
+| POST | `/api/sessions/:name/adopt` | Register a foreign (non-hub) session under its original name without renaming it. |
+| POST | `/api/sessions/:name/restore` | Respawn a dormant (known but not running) session. |
+| POST | `/api/sessions/:name/mute` | Toggle notification mute for a session. |
+| POST | `/api/sessions/:name/pin` | Toggle sidebar pin for a session. |
+| DELETE | `/api/sessions/:name/known` | Remove an entry from `known-sessions.json` without killing the session. |
+| GET | `/api/sessions/:name/diff` | Uncommitted changes in the session working directory (used by the Repo panel Changes tab). |
+| GET | `/api/sessions/:name/git/log` | Commit history for the session repo. Supports `?limit` and `?skip` for pagination. |
+| GET | `/api/sessions/:name/git/branches` | Local and remote branches for the session repo. |
+| GET | `/api/sessions/:name/git/commit/:sha` | Header and per-file diffs for a single commit. |
+| GET | `/api/sessions/:name/file-content` | Read a file by path for clickable terminal path previews. |
+| GET | `/api/sessions/:name/scrollback` | Capture tmux scrollback history. Accepts `?lines=N`. |
+| POST | `/api/sessions/:name/upload` | Upload files into the session working directory (multipart/form-data via Busboy). |
+| POST | `/api/sessions/:name/image` | Upload a single PNG (raw `image/png`, max 8 MB) into `.penates-images/`. Returns `{ rel }`. |
+| POST | `/api/sessions/:name/mata-capture` | Capture the current iOS Simulator frame and save it as a session image. Returns `{ rel }`. |
+
+## Board
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/board/cards` | List cards. Accepts `?projectId` to filter by project. |
+| POST | `/api/board/cards` | Create a card. Body: `{ projectId, title, priority, stage, origin }`. |
+| PATCH | `/api/board/cards/:id` | Update a card. Stage changes run through `moveCard`; other fields use `updateCard`. |
+| DELETE | `/api/board/cards/:id` | Delete a card. Cards with active sessions or worktrees trigger cleanup. |
+| POST | `/api/board/cards/:id/brainstorm` | Spawn a brainstorm session for the card. |
+| POST | `/api/board/cards/:id/implement` | Spawn an implement session in an isolated git worktree. |
+| GET | `/api/board/cards/:id/branch-diff` | Diff between the card branch and its base branch (used by the Review column). |
+| POST | `/api/board/cards/:id/finish` | Merge, update the changelog, and push (Review to Done). Runs `preflightFinish` + `finishCard`. |
+
+## Projects and files
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/projects` | List all registered projects. |
+| POST | `/api/projects` | Register a new project. Body: `{ name, path }`. |
+| PATCH | `/api/projects/:id` | Update project metadata. |
+| DELETE | `/api/projects/:id` | Remove a project from the registry. |
+| PATCH | `/api/projects/:id/items` | Toggle a Released/In-Dev checklist item in the project plan document. |
+| POST | `/api/projects/:id/release` | Cut a new release entry in the project `CHANGELOG.md`. |
+| POST | `/api/projects/:id/ideagen` | Spawn an idea-generation session for the project. |
+| GET | `/api/projects/:id/files` | List directory contents. Accepts `?path=` for subdirectory. |
+| POST | `/api/projects/:id/files` | Create a file or directory inside the project. |
+| PATCH | `/api/projects/:id/files` | Rename, move, or copy a file within the project. |
+| DELETE | `/api/projects/:id/files` | Move a file to the system trash. |
+| GET | `/api/projects/:id/files/read` | Read a file's contents. Returns text (max 2 MB) or base64 image/PDF (max 10 MB). |
+| GET | `/api/browse` | Directory picker. Accepts `?path=` and `?hidden=1`. Restricted to `$HOME` and `BROWSE_ROOTS`. |
+| POST | `/api/browse/mkdir` | Create a directory anywhere within the allowed browse roots. |
+
+## Usage
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/usage/limits` | Account-level rate limits, history, and peaks from the statusline state. Cached for 30 s. |
+| GET | `/api/usage/costs` | Aggregated costs for all active sessions. Cached for 10 s. |
+| GET | `/api/usage/history` | Extended daily usage aggregate (`getDailyUsageV2`). Accepts `?days=30`. |
+| GET | `/api/recent-dirs` | Recency-ranked working directories from moshi-hook. |
+
+## Hooks
+
+These endpoints are called by Claude Code hook scripts configured by `setup.sh`. They do not require a human-facing client.
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/hooks/Stop` | Claude Code Stop hook. Marks the session as idle. |
+| POST | `/api/hooks/Notification` | Claude Code Notification hook. Marks the session as waiting. |
+| POST | `/api/hooks/UserPromptSubmit` | Claude Code UserPromptSubmit hook. Marks the session as working. |
+| POST | `/api/hooks/SubagentStop` | Claude Code SubagentStop hook. Treated the same as Stop. |
+| POST | `/api/hooks/SessionStart` | Claude Code SessionStart hook. Initialises session state. |
+| POST | `/api/hooks/SessionEnd` | Claude Code SessionEnd hook. Purges session state. |
+| POST | `/api/hooks/pre-tool-use` | PreToolUse hook. Routes the call through the approvals gate. |
+| POST | `/api/hooks/statusline` | Receives statusline data (rate limits, cost, context window, model) from the status line script. |
+
+All hook routes accept `X-Penates-Session` as a header to identify the sending session. Malformed JSON payloads are handled gracefully (the endpoint parses opportunistically and falls back to `{}`).
+
+## WebSocket
+
+| Protocol | Route | Description |
+|----------|-------|-------------|
+| WS | `/api/terminal/:name` | Attach to a session PTY. Binary frames carry raw PTY bytes; text frames carry JSON control messages. Close code `4004` means the session does not exist; `4001` means authentication failed. |
+| WS | `/api/files/events` | Live file-change events. Send `{ subscribe: projectId }` or `{ subscribeSession: name }` to start receiving events. |
+
+**Terminal frame format:**
+
+- Client to server (text, JSON): `{ type: "input", data }`, `{ type: "resize", cols, rows }`, `{ type: "ping" }`.
+- Server to client (binary): raw PTY bytes (UTF-8).
+- Server to client (text, JSON): `{ type: "error", message }`, `{ type: "pong" }`.
+
+## Other routes
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET/POST | `/api/preview/config`, `/api/preview/ports`, `/api/preview/select` | Browser-preview proxy configuration. |
+| GET/POST | `/api/mata/status`, `/api/mata/control` | iOS Simulator (Mata) status and start/stop/restart control. |
+| GET/POST | `/api/voice/config`, `/api/voice/transcribe` | Voice input configuration and WAV transcription. |
+| GET/POST | `/api/approvals/*` | PreToolUse approval gate. |
+| GET/POST | `/api/push/*` | Web Push subscription management. |
+| GET/POST | `/api/settings` | Read and write server settings (`GET` / `PATCH`). |
+| POST | `/api/server/restart` | Restart the hub process via the OS service manager. |
+| GET | `/api/server/logs` | Stream recent log output. |
+| GET/POST | `/api/updates` | List available component updates. Accepts `?refresh=1`. |
+| POST | `/api/updates/:id` | Trigger an update by spawning a detached tmux session. |
+| GET/POST | `/api/version`, `/api/version/check` | Hub version and GitHub release update check. |

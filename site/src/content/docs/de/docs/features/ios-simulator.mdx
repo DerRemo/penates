@@ -5,16 +5,27 @@ sidebar:
   order: 7
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
-
 ## Was es ist
+
+[Mata](https://getmata.app/) ist eine macOS-App, die einen Remote-iOS-Simulator-Viewer betreibt. Wenn ein Simulator streamt, öffnet die Mata-Host-App einen WebSocket-Video-Feed auf `localhost:3070` (Pfad `/session`). Penates bettet diesen lokalen Viewer über dieselbe Reverse-Proxy-Infrastruktur ein, die auch die [Browser-Preview](/de/docs/features/browser-preview) nutzt.
+
+Das Preview-Panel bekommt einen Source-Switcher (Dev / Simulator). Bei Wahl von Simulator lädt das iframe von `https://preview.<PREVIEW_DOMAIN>/session`. Der Hub fügt der Terminal-Toolbar außerdem einen Capture-Button hinzu: Er ruft den aktuellen Simulator-Frame über `/session/capture` ab, schreibt das PNG in `.penates-images/` im Arbeitsverzeichnis der Session und injiziert den Pfad als `@`-Mention in die Eingabezeile, sodass Claude Code das Bild lesen kann.
+
+Das Feature ist Apple-only. Auf Linux ist es abwesend, stürzt aber nicht ab; das Panel versteckt die Simulator-Option einfach, wenn `installed: false`.
 
 ## Warum / wann
 
+Das Simulator-Panel ist nützlich, wenn eine Coding-Session eine iOS-App baut und man das laufende Ergebnis sehen möchte, ohne zum Mata-Fenster oder Xcode Simulator zu wechseln. Die Capture-Aktion ist der schnellste Weg, den aktuellen Bildschirmstand an Claude Code zu übergeben: Ein Klick schreibt den Bildpfad in den Prompt.
+
 ## Wie nutzen
 
+- **Mata installieren:** [Mata](https://getmata.app/) herunterladen und als reguläre macOS-App installieren. Penates erkennt sie unter `/Applications/Mata.app/Contents/MacOS/mata` (überschreibbar mit `MATA_BIN` in `.env`). `setup.sh` installiert Mata nicht.
+- **Preview aktivieren:** `PREVIEW_DOMAIN` muss gesetzt sein (gleiche Voraussetzung wie bei der [Browser-Preview](/de/docs/features/browser-preview)).
+- **Panel öffnen:** Preview-Toggle auf der Session-Karte klicken und im Source-Switcher **Simulator** wählen (nur sichtbar, wenn Mata installiert ist).
+- **Simulator starten/stoppen:** Wenn Mata installiert, aber nicht laufend ist, zeigt das Panel einen Start-Button. Mit den Steuer-Buttons lässt sich der Simulator starten, stoppen oder neu starten.
+- **Auf den Stream warten:** Port 3070 öffnet sich erst on-demand, wenn ein Simulator aktiv streamt. Das Panel zeigt einen Hinweis, wenn der Port noch nicht offen ist.
+- **Frame capturen:** Kamera-Icon in der Terminal-Toolbar klicken. Der aktuelle Frame wird gespeichert und sein Pfad erscheint in der Eingabezeile als `@.penates-images/<timestamp>.png`.
+
 ## Grenzen
+
+Es steht nur ein Preview-Slot zur Verfügung (Web-Preview und Simulator schließen sich gegenseitig aus). Remote-Zugriff nutzt den WebSocket-Video-Pfad durch den Cloudflare-Tunnel; SRT und UDP überqueren den Tunnel nicht, daher ist die Latenz höher als bei einem lokalen Mata-Fenster. Port 3070 ist geschlossen, bis ein Simulator streamt. Das `@`-Mention-Capture ist Claude-Code-spezifisch: Bei Codex oder Antigravity wird die Datei gespeichert, aber der `@`-Prefix hat keine besondere Bedeutung. Mata wird nicht von `setup.sh` installiert und muss separat eingerichtet werden.

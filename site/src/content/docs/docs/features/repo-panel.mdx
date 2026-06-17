@@ -5,16 +5,29 @@ sidebar:
   order: 5
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
-
 ## What it is
+
+The repo panel is a tabbed split panel that opens to the right of a session's terminal. It has four tabs: **Files**, **Changes**, **History**, and **Branches**.
+
+- **Files** shows the [file browser](/docs/features/file-browser) for the session's working directory.
+- **Changes** shows uncommitted modifications rendered with diff2html. At 900 px or wider the view is side-by-side; narrower viewports use line-by-line. The underlying data comes from `git status --porcelain=v2` and `git diff` (staged and unstaged), parsed in `lib/git-diff.js`.
+- **History** is a paginated commit timeline. Each entry shows the short hash, subject, author, date, and any ref decorations (branches, tags). Clicking a commit loads its per-file diffs in the Changes tab.
+- **Branches** lists local and remote branches. This tab is read-only.
+
+The repo panel and the [browser preview](/docs/features/browser-preview) share the same panel slot and are mutually exclusive. Only one can be open at a time.
 
 ## Why / when to use it
 
+The Changes tab is the quickest way to review what a coding session has written before committing. You can see staged and unstaged diffs side by side without opening another tool. The History tab gives a lightweight commit log for understanding recent context without leaving the browser.
+
 ## How to use it
 
+- **Open the panel:** click the repo toggle (or the git dot on the session card if there are uncommitted changes).
+- **Switch tabs:** click Files, Changes, History, or Branches at the top of the panel.
+- **Browse history:** scroll the History timeline and click any commit to see its changes.
+- **Refresh Changes:** click the refresh button in the Changes tab to re-run the diff query. This is necessary after `git add` or `git reset` because those operations touch only `.git` and do not trigger a live file-watcher event.
+- **Resize:** drag the panel divider to adjust the split between terminal and panel.
+
 ## Limits
+
+The file watcher ignores `.git`, so staging or unstaging files does not automatically refresh the Changes tab. Use the manual refresh button after any `git add` or `git reset`. The Branches tab is read-only; branch creation and switching must be done in the terminal. All git calls use `execFileSync` with argv arrays and have no shell interpolation.

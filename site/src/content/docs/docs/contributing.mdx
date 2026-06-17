@@ -1,20 +1,83 @@
 ---
 title: Contributing
-description: How to report bugs, propose features, and submit pull requests to the Penates open-source project.
+description: How to set up a development environment, run tests, follow project conventions, and submit changes to Penates.
 sidebar:
   order: 1
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+## Development setup
 
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
+Clone the repository and install dependencies:
 
-## What it is
+```bash
+git clone https://github.com/DerRemo/penates.git
+cd penates
+npm install
+```
 
-## Why / when to use it
+Start the server:
 
-## How to use it
+```bash
+npm start
+```
 
-## Limits
+`npm start` runs `node server.js` directly. There is no build step, no watch mode, and no bundler. After changing `server.js` or any `lib/` module, restart the process to pick up the changes. After changing `public/index.html`, a browser page reload is enough.
+
+If you are running the LaunchAgent on the same machine, stop it first to avoid two instances on the same port:
+
+```bash
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.penates.plist
+```
+
+## Running tests
+
+**Backend unit tests** (each `lib/*.test.js` file runs in isolation):
+
+```bash
+node --test lib/*.test.js
+```
+
+**Shared module tests** (browser + node:test shared code):
+
+```bash
+node --test public/*.test.js
+```
+
+**Playwright E2E tests:**
+
+```bash
+npm run test:e2e                          # all projects
+npm run test:e2e -- --project=chromium   # desktop Chromium only
+npm run test:e2e -- --project=webkit-mobile  # iOS viewport only
+npm run test:e2e:ui                       # interactive UI mode
+```
+
+Run all unit tests after every change before opening a pull request. For E2E tests, run the targeted spec file rather than the full matrix when verifying a single feature.
+
+## Conventions
+
+**Module structure.** Each feature area gets a `lib/` module that is Express-free and unit-testable without starting the server. Routes in `server.js` are thin wrappers. Frontend code for that feature is a self-contained IIFE in `public/index.html`.
+
+**No shell interpolation.** All calls to external processes (tmux, git, system tools) use `execFile` or `execFileSync` with an argv array. Never pass user-controlled input into a shell string. This is a security requirement, not a style preference.
+
+**No build step, no frameworks.** The frontend is a single HTML file with inline CSS and JS. Do not introduce a bundler, a transpiler, or a frontend framework. xterm.js and its addons are vendored under `public/vendor/xterm/`; update them by replacing the vendor files, not by adding a package dependency.
+
+**Shared code.** Code used by both the browser and `node:test` goes into a separate ES Module file under `public/` (`clis.js`, `prefs.js`, `usage-format.js`). It must not import Node.js built-ins.
+
+**CHANGELOG.md edits.** Changes to `CHANGELOG.md` made through the hub API are validated to be parser-safe. Manual edits must follow the same rules: top-level checkboxes only (no indentation), no `{}` in item text, no control characters. The parser in `lib/roadmap.js` is the source of truth for the format.
+
+**macOS stays byte-identical.** Any change that affects macOS behavior must not alter the existing output. Linux differences are explicit `if (platform() === 'linux')` branches. Apple-only features (Mata, voice input, moshi-hook) must degrade gracefully on Linux, not crash.
+
+**Bilingual UI.** User-facing strings go through `lib/i18n.js` and have entries in both `public/locales/en.js` and `public/locales/de.js`. API error strings stay in English.
+
+## Submitting changes
+
+Work on a branch:
+
+```bash
+git checkout -b your-feature-name
+```
+
+Open a pull request against the `main` branch of `DerRemo/penates`. Include a short description of what the change does and how to verify it. Reference any related board card ID if applicable.
+
+The pull request description does not need to repeat the commit messages. Describe the intent and any non-obvious decisions; the diff covers the rest.

@@ -1,20 +1,76 @@
 ---
 title: Architecture
-description: Technical overview of the Penates backend (Express + tmux + node-pty), frontend (single-file SPA), and data flows.
+description: Technical overview of the Penates backend, frontend, session model, and auth layers for contributors.
 sidebar:
   order: 3
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+## Overview
 
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
+Penates is a Node.js application using Express, express-ws, node-pty, and tmux. It is written as ES Modules and runs on the default port 3333. There is no build step and no frontend framework.
 
-## What it is
+The backend serves a REST API for all CRUD operations and a WebSocket API for terminal I/O and live file events. The frontend is a single-page application delivered from `public/index.html`.
 
-## Why / when to use it
+## Backend
 
-## How to use it
+Each feature area lives in a dedicated `lib/` module. These modules are Express-free and unit-testable in isolation. Routes in `server.js` are thin wrappers that call into the modules and handle HTTP concerns (status codes, auth, rate limiting).
 
-## Limits
+Key modules and what they own:
+
+- `lib/files.js` + `lib/file-watcher.js` + `lib/session-files.js` - file browser, live change events, terminal path previews
+- `lib/attention.js` + `lib/attach-tracker.js` - hook state, notification dispatch
+- `lib/usage.js` + `lib/usage-limits.js` + `lib/pace.js` - usage aggregation and rate-limit tracking
+- `lib/git-diff.js` + `lib/git-history.js` - repo panel (changes, history, branches)
+- `lib/board.js` - idea pipeline board, backed by `~/.penates/board.json`
+- `lib/brainstorm-spawn.js` + `lib/git-finish.js` + `lib/worktree.js` - autonomous pipeline (spawn, merge, worktree isolation)
+- `lib/session-restore.js` - boot-time auto-restore of dormant sessions
+- `lib/platform.js` + `lib/penates-home.js` - OS abstraction and state directory resolution
+- `lib/settings.js` + `lib/server-control.js` - persistent settings and server restart
+- `lib/preview-proxy.js` + `lib/port-scan.js` - browser preview reverse proxy
+- `lib/mata.js` - iOS Simulator (Mata) integration
+- `lib/voice.js` - local whisper.cpp transcription
+- `lib/moshi-hook.js` + `lib/antigravity-usage.js` - moshi-hook and Antigravity interop
+- `lib/updates.js` + `lib/update-check.js` - update system
+- `lib/approvals.js`, `lib/audit-log.js`, `lib/cf-access.js`, `lib/rate-limit.js` - security layer
+
+**No shell interpolation.** All calls to tmux, git, and external tools use `execFile` or `execFileSync` with argv arrays, never template strings passed to a shell. Any new code that invokes external processes must follow the same pattern.
+
+## Frontend
+
+The frontend is a single HTML file at `public/index.html` with all CSS and JS inlined. There is no bundler, no transpilation, and no frontend framework. xterm.js 6.0 and its addons are vendored under `public/vendor/xterm/`.
+
+Each feature area is implemented as a self-contained IIFE (immediately-invoked function expression) inside `index.html`. IIFEs share state only through narrow interfaces, not global variables.
+
+Shared code that is used by both the browser and `node:test` lives as separate ES Module files:
+
+- `public/clis.js` - CLI registry (claude, codex, antigravity) and command utilities
+- `public/prefs.js` - client-side preferences (theme, language)
+- `public/usage-format.js` - shared usage formatting helpers
+
+`public/sw.js` is the service worker for PWA and Web Push support.
+
+## Sessions and state
+
+tmux is the source of truth for running sessions. The hub keeps no in-memory session state beyond what is needed for hook activity tracking. `GET /api/sessions` calls `tmux list-sessions` directly.
+
+Persistent hub state (settings, known sessions, board cards) lives under `~/.penates` by default. The path is overridable via `PENATES_HOME`, which is the primary isolation mechanism for unit tests and E2E tests.
+
+The `cc-` session prefix is enforced on all sessions created through the hub. Foreign sessions (started outside the hub, e.g. via SSH or Moshi) can be adopted via `POST /api/sessions/:name/adopt` and are registered under their original name.
+
+## Auth and remote access
+
+**Local:** every REST request must carry `Authorization: Bearer <token>`. WebSocket connections authenticate via the `bearer.<token>` subprotocol.
+
+**Remote via Cloudflare Tunnel:** the hub can be exposed through a Cloudflare Tunnel to a custom domain. No inbound ports need to be opened on the host machine.
+
+**Cloudflare Access (optional):** when `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` are set, `lib/cf-access.js` validates the `Cf-Access-Jwt-Assertion` JWT on all requests that arrive through the tunnel (identified by the presence of a `Cf-Ray` header). Direct local requests bypass JWT validation.
+
+**Rate limiting:** `lib/rate-limit.js` enforces a fixed-window rate limit on write operations (shared `writeLimiter` used by upload, file mutation, board, and voice endpoints). All auth failures are appended to `~/.penates/audit.log`.
+
+## Platform support
+
+`lib/platform.js` is the single source of truth for OS detection. `platform()` returns `macos` or `linux`. All OS-specific branches in `server.js` and the lib modules go through this function rather than inline `process.platform` checks.
+
+macOS behavior must remain byte-identical across changes. Linux differences are explicit OS branches. Apple-only features (Mata, voice input, moshi-hook) degrade gracefully on Linux rather than crashing.
+
+Linux package management is handled by `install.sh` and `scripts/lib.sh`, which support apt, dnf, and pacman. Windows is supported only via WSL2, which follows the Linux code path.

@@ -1,20 +1,37 @@
 ---
 title: Voice-Input
-description: Mithilfe lokaler whisper.cpp-Transkription in jedes Session-Terminal diktieren – ohne Cloud.
+description: Mithilfe lokaler whisper.cpp-Transkription in jedes Session-Terminal diktieren, ohne Cloud-Anbindung.
 sidebar:
   order: 8
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
-
 ## Was es ist
+
+Voice-Input ermöglicht es, Text direkt in ein Session-Terminal zu diktieren. Ein Mikrofon-Button in der Terminal-Toolbar nimmt die Spracheingabe auf, whisper.cpp transkribiert sie lokal auf dem Mac, und der resultierende Text erscheint in der Eingabezeile der aktiven Session. Es wird kein Enter automatisch gesendet; der Text liegt zur Prüfung bereit.
+
+Die Transkription läuft auf dem Gerät über Homebrew `whisper-cpp` mit Metal-Build und dem Modell `ggml-large-v3-turbo-q5_0` (ca. 574 MB). Die Standardsprache ist Deutsch (`VOICE_LANG=de`); das lässt sich in `.env` ändern.
 
 ## Warum / wann
 
+Diktieren ist nützlich, wenn die Hände beschäftigt sind, wenn man ein Smartphone mit kleiner Tastatur verwendet, oder wenn man eine längere Anfrage schnell in natürlicher Sprache beschreiben möchte. Da die Transkription lokal erfolgt, verlassen keine Audiodaten das Gerät.
+
+Das Feature ergänzt [Image-Paste](/de/docs/features/image-paste): Einen Screenshot in die Session ablegen und dazu Anweisungen diktieren, ohne tippen zu müssen.
+
 ## Wie nutzen
 
+1. `setup.sh` ausführen. Das Script installiert `whisper-cpp` und das Modell und setzt `VOICE_ENABLED=true` in `.env`.
+2. Eine Session-Terminal öffnen. In der Toolbar erscheint ein Mikrofon-Icon.
+3. Das Mikrofon-Icon anklicken, um die Aufnahme zu starten. Das Icon wechselt den Zustand.
+4. Die Nachricht sprechen.
+5. Das Mikrofon-Icon erneut anklicken, um die Aufnahme zu beenden. Der Hub sendet die Audiodaten an `POST /api/voice/transcribe`, whisper.cpp transkribiert, und der Text wird in die Eingabezeile eingefügt.
+6. Den Text prüfen und mit Enter absenden.
+
+Zur Sprachänderung `VOICE_LANG` in `.env` auf einen von whisper.cpp unterstützten Sprachcode setzen (z. B. `en` für Englisch).
+
 ## Grenzen
+
+- Es läuft jeweils nur eine Transkription gleichzeitig. Klickt man während einer laufenden Transkription erneut auf das Mikrofon, antwortet der Server mit 429; der Button bleibt deaktiviert, bis der aktuelle Clip abgeschlossen ist.
+- Es gibt kein Live-Streaming. Der vollständige Audioclip wird erst nach dem Stoppen übertragen.
+- Der transkribierte Text ist reiner Text, der direkt in die Eingabezeile eingefügt wird. Er funktioniert in jeder CLI-Session (Claude Code, Codex, Antigravity). Er hängt keine Dateien an wie das Image-Paste.
+- Das Feature ist auf Linux und auf macOS ohne installiertes `whisper-cpp`-Binary oder fehlendes Modell deaktiviert. In diesem Fall wird der Mikrofon-Button nicht angezeigt.
+- Clips sind auf 10 MB begrenzt. Längere Aufnahmen sollten aufgeteilt werden.

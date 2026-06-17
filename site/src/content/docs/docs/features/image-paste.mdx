@@ -1,20 +1,44 @@
 ---
 title: Image paste
-description: Paste, annotate and drop images directly into a session; Penates saves the PNG and injects an @-mention for Claude.
+description: Paste, annotate, and drop images directly into a Claude session; Penates saves the PNG and injects an @-mention so Claude attaches it.
 sidebar:
   order: 9
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
-
 ## What it is
+
+Image paste lets you put a PNG into a Claude session from the clipboard, a file picker, or drag and drop. An optional annotation step lets you draw on the image (arrows, boxes, freehand lines, or text labels, all in red) before sending. The file is saved to `<cwd>/.penates-images/` under a timestamped name, and its path is injected as an `@`-mention into the session input line so Claude attaches and reads the image.
+
+`lib/session-images.js` handles the write. It creates the directory on first use, appends a `.gitignore` entry so the folder is never accidentally committed, and deletes PNGs older than seven days in the background.
 
 ## Why / when to use it
 
+The most common use is to show Claude a screenshot of a UI bug, a failing test output, or a design reference. Instead of describing what you see, you drop the image and point to the relevant part with an annotation arrow or box.
+
+For voice and image together, see [voice input](/docs/features/voice-input): you can paste an image and then dictate instructions about it without typing.
+
 ## How to use it
 
+**Paste from clipboard:** press Ctrl+V (or Cmd+V on macOS) while the session terminal is focused. If the clipboard contains image data, the annotator opens.
+
+**File picker:** click the image icon in the session toolbar to open a file picker. Select any PNG.
+
+**Drag and drop:** drag an image file onto the terminal area. A drop overlay appears to confirm the target.
+
+**Annotating:**
+
+1. When the annotator opens, choose a tool from the toolbar: arrow, box, pen, or text.
+2. Draw on the image. All marks are red.
+3. Use Undo to remove the last mark.
+4. Click **Send** to save and inject, or **Cancel** to discard.
+
+If you skip annotation, click **Send** directly.
+
+After injection, the input line contains something like `@.penates-images/2026-06-17-143022.png `. Review it and press Enter to send.
+
 ## Limits
+
+- The upload limit is 8 MB. Files above that are rejected with a 413 error.
+- The `@`-mention injection is specific to Claude Code. In Codex or Antigravity sessions the text is inserted but those CLIs do not interpret the `@` path as an attached image. The file is still saved to disk.
+- The annotator downsizes images larger than 2000 px on either axis before drawing, to keep the canvas manageable.
+- Images are stored in `<cwd>/.penates-images/`, not in a central location. Each project directory has its own folder and its own cleanup cycle.

@@ -5,16 +5,40 @@ sidebar:
   order: 10
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
-
 ## Was es ist
+
+Das Usage-Dashboard zeigt Token-Verbrauch, geschätzte Kosten, Rate-Limit-Fortschritt und historische Trends für jede Coding-CLI, die mit dem Hub verbunden ist. Die Daten stammen aus zwei unabhängigen Pipelines, die zu einer gemeinsamen Ansicht zusammengeführt werden.
+
+**Statusline-Pipeline.** Das Statusline-Script von Claude Code (`~/.claude/statusline-command.sh`, installiert von `setup.sh`) sendet bei jedem Terminal-Render ein JSON-Payload an `POST /api/hooks/statusline`. Das Payload enthält: aktuelle Rate-Limit-Prozentwerte und Reset-Zeiten, Session-Kosten, Context-Window-Füllstand und das aktive Modell. Diese Daten werden pro Session im Arbeitsspeicher gehalten und an eine append-only JSONL-Historiendatei unter `~/.penates/usage-limits.jsonl` angehängt (Rotation bei 5 MB). Daraus entstehen die Live-Limit-Balken mit Reset-Countdown und die Session-Kostenanzeige.
+
+**JSONL-Analyse-Pipeline.** `lib/usage.js` liest die Claude/Codex-Konversationslogs aus `~/.claude/projects/` und aggregiert: Token pro Projekt, eine 7-mal-24-Heatmap der Aktivität, die zehn meistgenutzten Tools, Cache-Hit-Rate, API-Fehlerzähler, Sessions pro Tag und geschätzte Kosten. `lib/pace.js` berechnet die aktuelle Verbrauchsrate aus den letzten Aktivitäten. Die Ausgabe ist nach Anbieter aufgeteilt (Claude, Codex).
+
+Das Sidebar-Usage-Panel liest account-weite 5h- und 7d-Rate-Limits aus `moshi-hook` und zeigt sie als Fortschrittsbalken pro Account an.
 
 ## Warum / wann
 
+Das Dashboard bietet den schnellsten Überblick darüber, ob ein Rate-Limit vor einer langen autonomen Aufgabe erreicht werden könnte. Außerdem lässt sich mit der Heatmap erkennen, wann Agents am aktivsten sind, und mit den Kostentotalen der monatliche Verbrauch verfolgen, ohne den Hub zu verlassen.
+
+Für Hinweise darauf, wie der Hub bei abgeschlossenen Sessions oder bei Eingabebedarf benachrichtigt, siehe [Notifications](/de/docs/features/notifications).
+
 ## Wie nutzen
 
+Die **Usage**-Ansicht über die Sidebar öffnen. Die Ansicht hat zwei Hauptbereiche.
+
+**Live-Limits:** Eine Karte pro Account zeigt den aktuellen 5h- und 7d-Verbrauch als Balken mit Reset-Countdown. Ist Antigravity gerade quota-limitiert, erscheint es hier als voller roter Balken mit der Reset-Zeit.
+
+**Historie:** Ein Balkendiagramm zeigt den täglichen Token-Verbrauch der letzten 30 Tage. Mit dem Datumsbereich-Selektor kann man hereinzoomen.
+
+**Session-Kosten:** Im oberen Bereich der Sessions-Ansicht zeigt jede Session-Karte die Kosten und den Context-Füllstand aus dem letzten Statusline-Update.
+
+**Heatmap und Tools:** Am unteren Ende der Usage-Ansicht sind die 7-mal-24-Aktivitätsheatmap und die Top-Tool-Aufschlüsselung zu finden.
+
+Alle Daten aktualisieren sich automatisch, wenn neue Statusline-Payloads eintreffen. Bei veralteten Werten die Seite neu laden.
+
 ## Grenzen
+
+- Account-weite Rate-Limits kommen von `moshi-hook`. Ist diese CLI nicht installiert, werden die Limit-Balken nicht angezeigt.
+- Das Antigravity-Quota ist nur sichtbar, wenn Antigravity aktuell gedrosselt ist. Ohne aktive Drosselung ist kein Prozentwert verfügbar (die Cloud-API gibt für Free-Tier-Quota-Abfragen 403 zurück), sodass die Karte ausgeblendet wird.
+- Die JSONL-Analyse liest lokale Log-Dateien. Sie erfasst nur Claude Code und Codex; außerhalb dieser CLIs gemachte API-Aufrufe sind nicht enthalten.
+- Die Historie ist durch die JSONL-Rotation auf 5 MB begrenzt. Bei sehr hohem Volumen kann das Historienfenster kürzer sein.
+- Kostenwerte sind Schätzungen auf Basis von Token-Zählungen und veröffentlichten Preisen. Sie sind keine verbindlichen Abrechnungsdaten.
