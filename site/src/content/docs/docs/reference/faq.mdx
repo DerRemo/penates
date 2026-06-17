@@ -84,4 +84,4 @@ Sessions started outside the hub (via SSH, Moshi, or a plain terminal) do not ha
 
 ### The terminal shows garbled multi-byte characters
 
-The PTY environment needs the correct locale. The hub sets `LANG` and `LC_CTYPE` automatically for sessions it creates. If you see `_` instead of characters like `ö`, `⏺`, or `✻`, ensure tmux is started with the `-u` flag and that your shell profile exports a UTF-8 locale.
+The PTY environment needs the correct locale. The hub sets `LANG` and `LC_CTYPE` automatically for sessions it creates. If you see `_` instead of characters like `ö`, `⏺`, or `✻`, check that tmux is started with the `-u` flag and that your shell profile exports a UTF-8 locale.

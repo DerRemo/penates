@@ -30,7 +30,7 @@ sidebar:
 
 | Variable | Standard | Beschreibung |
 |----------|----------|--------------|
-| `PREVIEW_DOMAIN` | `(keine)` | Basis-Domain für den Dev-Server-Reverse-Proxy. Leer lassen, um das Feature zu deaktivieren. Beispiel: `hub.example.com` macht den Proxy unter `https://preview.hub.example.com/` erreichbar. Erfordert einen Wildcard-DNS-Eintrag `*.preview.<domain>` und eine passende Cloudflare-Access-Policy. |
+| `PREVIEW_DOMAIN` | `(keine)` | Basis-Domain für den Dev-Server-Reverse-Proxy. Leer lassen, um das Feature zu deaktivieren. Beispiel: `hub.example.com` macht den Proxy unter `https://preview.hub.example.com/` erreichbar. Erfordert einen einzelnen DNS-CNAME-Eintrag `preview`, der auf deinen Cloudflare-Tunnel zeigt; kein Wildcard-DNS-Eintrag nötig. Zusätzlich wird eine passende Cloudflare-Access-Policy benötigt. |
 
 ## Web Push
 

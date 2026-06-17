@@ -11,7 +11,7 @@ The browser preview is a split panel to the right of the terminal that embeds a 
 
 One preview port is active at a time. The hub scans listening ports via `lsof` and lists them in a combobox; you pick one. The proxy handles both HTTP and WebSocket connections, so hot-module replacement (HMR) works through the panel.
 
-The feature is off unless `PREVIEW_DOMAIN` is set in `.env`. It requires a Cloudflare DNS wildcard entry (`*.<domain>`) and a public hostname pointing to `localhost:<PORT>`.
+The feature is off unless `PREVIEW_DOMAIN` is set in `.env`. It requires a single DNS CNAME record named `preview` pointing at your Cloudflare Tunnel and a public hostname pointing to `localhost:<PORT>`. No wildcard DNS record is needed; Cloudflare's Universal SSL certificate (`*.<domain>`) covers the subdomain automatically.
 
 ## Why / when to use it
 
@@ -26,4 +26,4 @@ The preview panel removes the need to open a separate browser tab when iterating
 
 ## Limits
 
-Only one preview is active at a time. Apps with hardcoded origin URLs may misroute because the hub does not rewrite response bodies. HMR clients that reject the proxied origin require `server.hmr.clientPort: 443` (or equivalent) in the dev project configuration. The feature requires a working Cloudflare tunnel and wildcard DNS; it does not work on a plain local network without those. The [iOS simulator panel](/docs/features/ios-simulator) shares the same slot, so web preview and simulator cannot be open simultaneously.
+Only one preview is active at a time. Apps with hardcoded origin URLs may misroute because the hub does not rewrite response bodies. HMR clients that reject the proxied origin require `server.hmr.clientPort: 443` (or equivalent) in the dev project configuration. The feature requires a working Cloudflare tunnel with the `preview` CNAME and public hostname configured; it does not work on a plain local network without those. The [iOS simulator panel](/docs/features/ios-simulator) shares the same slot, so web preview and simulator cannot be open simultaneously.

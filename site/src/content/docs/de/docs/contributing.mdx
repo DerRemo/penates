@@ -68,7 +68,7 @@ Alle Unit-Tests nach jeder Änderung ausführen, bevor ein Pull Request geöffne
 
 **macOS bleibt byte-identisch.** Jede Änderung, die macOS-Verhalten betrifft, darf die bestehende Ausgabe nicht verändern. Linux-Unterschiede sind explizite `if (platform() === 'linux')`-Zweige. Apple-exklusive Features (Mata, Voice-Input, moshi-hook) müssen auf Linux graceful degradieren, nicht abstürzen.
 
-**Zweisprachige UI.** Nutzerseitige Strings laufen über `lib/i18n.js` und müssen Einträge in `public/locales/en.json` und `public/locales/de.json` haben. API-Fehlermeldungen bleiben auf Englisch.
+**Zweisprachige UI.** Nutzerseitige Strings laufen über `lib/i18n.js` und müssen Einträge in `public/locales/en.js` und `public/locales/de.js` haben. API-Fehlermeldungen bleiben auf Englisch.
 
 ## Änderungen einreichen
 

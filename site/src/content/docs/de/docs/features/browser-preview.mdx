@@ -11,7 +11,7 @@ Die Browser-Preview ist ein Split-Panel rechts neben dem Terminal, das einen lau
 
 Zu einer Zeit ist nur ein Preview-Port aktiv. Der Hub scannt lauschende Ports via `lsof` und listet sie in einer Combobox auf; man wählt einen aus. Der Proxy behandelt sowohl HTTP- als auch WebSocket-Verbindungen, sodass Hot-Module-Replacement (HMR) durch das Panel funktioniert.
 
-Das Feature ist inaktiv, wenn `PREVIEW_DOMAIN` nicht in `.env` gesetzt ist. Es benötigt einen Cloudflare-DNS-Wildcard-Eintrag (`*.<domain>`) und einen Public Hostname, der auf `localhost:<PORT>` zeigt.
+Das Feature ist inaktiv, wenn `PREVIEW_DOMAIN` nicht in `.env` gesetzt ist. Es erfordert einen einzelnen DNS-CNAME-Eintrag `preview`, der auf deinen Cloudflare-Tunnel zeigt, sowie einen Public Hostname, der auf `localhost:<PORT>` zeigt. Kein Wildcard-DNS-Eintrag ist nötig; das Universal-SSL-Zertifikat von Cloudflare (`*.<domain>`) deckt die Subdomain automatisch ab.
 
 ## Warum / wann
 
@@ -26,4 +26,4 @@ Das Preview-Panel macht es überflüssig, einen separaten Browser-Tab zu öffnen
 
 ## Grenzen
 
-Nur eine Preview ist gleichzeitig aktiv. Apps mit hartkodierten Origin-URLs können fehlrouten, da der Hub keine Response-Bodies umschreibt. HMR-Clients, die den geproxieten Origin ablehnen, benötigen `server.hmr.clientPort: 443` (oder äquivalent) in der Dev-Projekt-Konfiguration. Das Feature benötigt einen funktionierenden Cloudflare-Tunnel und Wildcard-DNS; es funktioniert nicht in einem lokalen Netzwerk ohne diese Voraussetzungen. Das [iOS-Simulator-Panel](/de/docs/features/ios-simulator) teilt denselben Slot, daher können Web-Preview und Simulator nicht gleichzeitig geöffnet sein.
+Nur eine Preview ist gleichzeitig aktiv. Apps mit hartkodierten Origin-URLs können fehlrouten, da der Hub keine Response-Bodies umschreibt. HMR-Clients, die den geproxieten Origin ablehnen, benötigen `server.hmr.clientPort: 443` (oder äquivalent) in der Dev-Projekt-Konfiguration. Das Feature benötigt einen funktionierenden Cloudflare-Tunnel mit konfiguriertem `preview`-CNAME und Public Hostname; es funktioniert nicht in einem lokalen Netzwerk ohne diese Voraussetzungen. Das [iOS-Simulator-Panel](/de/docs/features/ios-simulator) teilt denselben Slot, daher können Web-Preview und Simulator nicht gleichzeitig geöffnet sein.

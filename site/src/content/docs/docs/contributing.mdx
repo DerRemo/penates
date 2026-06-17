@@ -68,7 +68,7 @@ Run all unit tests after every change before opening a pull request. For E2E tes
 
 **macOS stays byte-identical.** Any change that affects macOS behavior must not alter the existing output. Linux differences are explicit `if (platform() === 'linux')` branches. Apple-only features (Mata, voice input, moshi-hook) must degrade gracefully on Linux, not crash.
 
-**Bilingual UI.** User-facing strings go through `lib/i18n.js` and have entries in both `public/locales/en.json` and `public/locales/de.json`. API error strings stay in English.
+**Bilingual UI.** User-facing strings go through `lib/i18n.js` and have entries in both `public/locales/en.js` and `public/locales/de.js`. API error strings stay in English.
 
 ## Submitting changes
 

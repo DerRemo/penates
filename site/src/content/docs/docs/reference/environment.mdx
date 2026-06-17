@@ -30,7 +30,7 @@ Copy `.env.example` to `.env` in the repo root and set values before starting th
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PREVIEW_DOMAIN` | `(none)` | Base domain for the dev-server reverse proxy. Leave empty to disable the feature. Example: `hub.example.com` makes the proxy available at `https://preview.hub.example.com/`. Requires a wildcard DNS entry `*.preview.<domain>` and a matching Cloudflare Access policy. |
+| `PREVIEW_DOMAIN` | `(none)` | Base domain for the dev-server reverse proxy. Leave empty to disable the feature. Example: `hub.example.com` makes the proxy available at `https://preview.hub.example.com/`. Requires a single DNS CNAME record named `preview` pointing at your Cloudflare Tunnel; no wildcard DNS record is needed. Also requires a matching Cloudflare Access policy. |
 
 ## Web Push
 
