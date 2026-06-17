@@ -33,6 +33,5 @@ struct TerminalScreen: View {
         let s = TerminalSocket(credentials: creds, name: session.name)
         socket = s
         isReady = true
-        s.connect()
     }
 }

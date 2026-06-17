@@ -21,6 +21,8 @@ struct SwiftTermBridge: UIViewRepresentable {
         socket.onBytes = { [weak tv] bytes in
             DispatchQueue.main.async { tv?.feed(byteArray: bytes[...]) }
         }
+        // Connect after onBytes is wired so no early PTY output is dropped
+        socket.connect()
         return tv
     }
 
