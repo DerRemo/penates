@@ -14,14 +14,18 @@ targets:
     platform: iOS
     sources:
       - path: Penates
+    info:
+      path: Penates/Info.plist
+      properties:
+        NSFaceIDUsageDescription: "Schützt den Zugriff auf deine Sessions."
+        UILaunchScreen: {}
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.penates.app
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_NSFaceIDUsageDescription: "Schützt den Zugriff auf deine Sessions."
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"
     dependencies:

@@ -27,7 +27,11 @@ final class NotificationsFirehose {
     // One WS connection; firehose = every event, no subscribe message.
     func events() -> AsyncStream<FirehoseEvent> {
         AsyncStream { continuation in
-            let url = credentials.baseURL.appendingPathComponent("/api/notifications/events")
+            // Convert http→ws (wss for https) so URLSession accepts the WebSocket scheme.
+            var comps = URLComponents(url: credentials.baseURL.appendingPathComponent("/api/notifications/events"),
+                                      resolvingAgainstBaseURL: false)!
+            comps.scheme = comps.scheme == "https" ? "wss" : "ws"
+            let url = comps.url ?? credentials.baseURL.appendingPathComponent("/api/notifications/events")
             let task = session.webSocketTask(with: url, protocols: ["bearer.\(credentials.token)"])
             task.resume()
             func receive() {

@@ -15,7 +15,7 @@ extension Result {
 @MainActor
 @Test func connectStoresCredentialsOnSuccess() async {
     StubURLProtocol.handler = { req in
-        let body = try! JSONSerialization.data(withJSONObject: ["version": "1.0.1"])
+        let body = try! JSONSerialization.data(withJSONObject: ["current": "1.0.1"])
         return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, body)
     }
     let store = KeychainStore(backend: InMemoryKeychain())

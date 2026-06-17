@@ -10,11 +10,11 @@ private func client(_ creds: ServerCredentials = .init(baseURL: URL(string: "htt
     StubURLProtocol.handler = { req in
         #expect(req.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
         #expect(req.url?.path == "/api/version")
-        let body = try! JSONSerialization.data(withJSONObject: ["version": "1.0.1"])
+        let body = try! JSONSerialization.data(withJSONObject: ["current": "1.0.1"])
         return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, body)
     }
     let info = try await client().version()
-    #expect(info.version == "1.0.1")
+    #expect(info.current == "1.0.1")
 }
 
 @Test func unauthorizedMapsToError() async {

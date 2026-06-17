@@ -1,6 +1,6 @@
 import Foundation
 
-struct VersionInfo: Decodable { let version: String }
+struct VersionInfo: Decodable { let current: String }
 
 enum APIError: Error, Equatable {
     case unauthorized, http(Int), transport(String), decoding(String)
