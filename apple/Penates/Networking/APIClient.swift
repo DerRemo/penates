@@ -15,6 +15,7 @@ final class APIClient {
     }
 
     func version() async throws -> VersionInfo { try await request("GET", "/api/version") }
+    func sessions() async throws -> [Session] { try await request("GET", "/api/sessions") }
 
     func request<T: Decodable>(_ method: String, _ path: String,
                                query: [String: String] = [:],
