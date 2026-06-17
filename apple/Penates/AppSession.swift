@@ -17,11 +17,13 @@ final class AppSession {
     func restore() { credentials = store.load() }
 
     func connect(baseURL: String, token: String) async -> Result<Void, ConnectError> {
-        let trimmed = baseURL.trimmingCharacters(in: .whitespaces)
-        guard let url = URL(string: trimmed), url.scheme != nil, url.host != nil else {
+        let trimmedURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedToken.isEmpty else { return .failure(.badURL) }
+        guard let url = URL(string: trimmedURL), url.scheme != nil, url.host != nil else {
             return .failure(.badURL)
         }
-        let creds = ServerCredentials(baseURL: url, token: token)
+        let creds = ServerCredentials(baseURL: url, token: trimmedToken)
         let client = APIClient(credentials: creds, session: sessionFactory(creds))
         do {
             _ = try await client.version()

@@ -34,3 +34,12 @@ extension Result {
     guard case .failure(let e) = result else { Issue.record("expected failure"); return }
     #expect(e == .badURL)
 }
+
+@MainActor
+@Test func connectRejectsEmptyToken() async {
+    let app = AppSession(store: KeychainStore(backend: InMemoryKeychain()),
+                         sessionFactory: { _ in StubURLProtocol.session() })
+    let result = await app.connect(baseURL: "http://mac:3333", token: "   ")
+    guard case .failure(let e) = result else { Issue.record("expected failure"); return }
+    #expect(e == .badURL)
+}
