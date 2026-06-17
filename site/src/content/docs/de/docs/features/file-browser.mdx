@@ -5,16 +5,28 @@ sidebar:
   order: 4
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
-
 ## Was es ist
+
+Der Filebrowser ist ein anpassbares Seitenleisten-Panel fur jedes Projekt. Er zeigt den Verzeichnisbaum des registrierten Projektpfads. Jede Dateioperation lauft durch einen Pfad-Guard (`resolveSafe` in `lib/files.js`), der Pfade ablehnt, die via `../` aus dem Projektstamm ausbrechen, und dabei 403 zuruckgibt.
+
+Unterstutzte Operationen: Verzeichnisse auflisten, Dateien lesen (Text bis 2 MB, Bilder und PDFs bis 10 MB als Base64), Verzeichnisse erstellen, umbenennen oder verschieben (atomar), kopieren, per Multipart hochladen und in den OS-Papierkorb verschieben. Dateien werden nie mit `rm` geloscht; der Papierkorb-Aufruf geht auf macOS und Linux an den Systempapierkorb.
+
+Live-Anderungen im Verzeichnis kommen uber den `/api/files/events`-WebSocket an, sodass sich der Baum im Browser ohne manuelles Neuladen aktualisiert.
 
 ## Warum / wann
 
+Der Filebrowser ist nutzlich, wenn eine Coding-Session Dateien erstellt oder geandert hat und man diese inspizieren mochte, ohne in ein Terminal oder einen externen Editor zu wechseln. Quelldateien lassen sich mit Syntax-Highlighting voranschauen, PDFs inline offnen und Assets direkt ins Projektverzeichnis hochladen.
+
+Er erganzt auch das [Repo-Panel](/de/docs/features/repo-panel): Das Repo-Panel zeigt, was sich in git geandert hat; der Filebrowser zeigt die gesamte Verzeichnisstruktur und ermoglicht das Offnen jeder beliebigen Datei, nicht nur der modifizierten.
+
 ## Wie nutzen
 
+- **Baum offnen:** Filebrowser-Toggle auf der Session-Karte klicken. Der Baum ladt beim Aufklappen von Ordnern lazy nach.
+- **Datei voranschauen:** Datei anklicken, um sie im Vorschau-Modal zu offnen. Textdateien bekommen Syntax-Highlighting (via `highlight.js`, on-demand geladen). PDFs offnen in einem eingebetteten `<iframe>`. Dateien uber dem Großenlimit zeigen stattdessen Metadaten.
+- **Rechtsklick-Aktionen:** Ein Rechtsklick auf eine Datei oder einen Ordner offnet ein Kontextmenu mit Umbenennen, Kopieren, Verschieben und Loschen mit zwei Klicks (in den Papierkorb).
+- **Hochladen:** Dateien auf den Baum ziehen, um sie in den Zielordner hochzuladen. Alternativ Dateien auf den Terminal-Bereich ablegen oder den mobilen Datei-Picker nutzen. Der Uploader zeigt Fortschritts-Toasts und behandelt Konflikte (409) mit einem Dialog.
+- **Ordner erstellen:** Neue-Ordner-Aktion in der Baum-Toolbar nutzen.
+
 ## Grenzen
+
+Der Filebrowser ist auf das registrierte Projektverzeichnis beschrankt. Er kann weder `$HOME` noch Pfade außerhalb des Projektstamms anzeigen. Cross-Projekt-Kopieren wird nicht unterstutzt. Uploads werden gegen das globale Write-Limiter (60 pro Minute) gezahlt. Der File-Watcher hat einen 30-Sekunden-Idle-Timeout und ein 80-ms-Debounce; sehr schnelle Anderungen konnen gebundelt werden. Der Watcher ignoriert `.git`, daher triggern git-Operationen keine Live-Aktualisierung in der Seitenleiste.

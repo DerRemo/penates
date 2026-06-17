@@ -5,16 +5,25 @@ sidebar:
   order: 6
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
-
 ## What it is
+
+The browser preview is a split panel to the right of the terminal that embeds a running local dev server (Vite, Next.js, or any HTTP server) in an iframe. Because the remote browser cannot reach `localhost` directly, the hub reverse-proxies the dev server through a fixed host: `preview.<PREVIEW_DOMAIN>`.
+
+One preview port is active at a time. The hub scans listening ports via `lsof` and lists them in a combobox; you pick one. The proxy handles both HTTP and WebSocket connections, so hot-module replacement (HMR) works through the panel.
+
+The feature is off unless `PREVIEW_DOMAIN` is set in `.env`. It requires a Cloudflare DNS wildcard entry (`*.<domain>`) and a public hostname pointing to `localhost:<PORT>`.
 
 ## Why / when to use it
 
+The preview panel removes the need to open a separate browser tab when iterating on a web project inside a coding session. The coding agent can modify files, HMR updates the preview, and you see the result in the same window.
+
 ## How to use it
 
+- **Enable:** add `PREVIEW_DOMAIN=yourdomain.com` to `.env` and restart the hub. Follow the Cloudflare setup printed by `setup.sh` (one DNS CNAME `preview`, one public hostname, add the host to the Access policy).
+- **Open the panel:** click the preview toggle on the session card. The panel occupies the same slot as the [repo panel](/docs/features/repo-panel); opening one closes the other.
+- **Pick a port:** the combobox lists ports currently listening on the machine (filtered to remove the hub port and ports below 1024). Select the port your dev server is on. The hub proxies that port immediately.
+- **HMR:** no extra configuration is needed for most dev servers. If your dev server checks the WebSocket origin, add `server.hmr.clientPort: 443` to its config.
+
 ## Limits
+
+Only one preview is active at a time. Apps with hardcoded origin URLs may misroute because the hub does not rewrite response bodies. HMR clients that reject the proxied origin require `server.hmr.clientPort: 443` (or equivalent) in the dev project configuration. The feature requires a working Cloudflare tunnel and wildcard DNS; it does not work on a plain local network without those. The [iOS simulator panel](/docs/features/ios-simulator) shares the same slot, so web preview and simulator cannot be open simultaneously.

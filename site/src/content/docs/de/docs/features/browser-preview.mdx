@@ -1,20 +1,29 @@
 ---
 title: Browser-Preview
-description: Einen lokalen Dev-Server (inkl. HMR) als Split-Panel in Penates live vorschauen – durch den Hub proxied.
+description: Einen lokalen Dev-Server (inkl. HMR) als Split-Panel in Penates live vorschauen, durch den Hub proxied.
 sidebar:
   order: 6
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="In Arbeit">
-Diese Seite wird noch geschrieben. Die Struktur steht; die Prosa folgt im Content-Sweep.
-</Aside>
-
 ## Was es ist
+
+Die Browser-Preview ist ein Split-Panel rechts neben dem Terminal, das einen laufenden lokalen Dev-Server (Vite, Next.js oder jeden anderen HTTP-Server) in einem iframe einbettet. Da der Remote-Browser `localhost` nicht direkt erreichen kann, reverse-proxied der Hub den Dev-Server uber einen festen Host: `preview.<PREVIEW_DOMAIN>`.
+
+Zu einer Zeit ist nur ein Preview-Port aktiv. Der Hub scannt lauschende Ports via `lsof` und listet sie in einer Combobox auf; man wahlt einen aus. Der Proxy behandelt sowohl HTTP- als auch WebSocket-Verbindungen, sodass Hot-Module-Replacement (HMR) durch das Panel funktioniert.
+
+Das Feature ist inaktiv, wenn `PREVIEW_DOMAIN` nicht in `.env` gesetzt ist. Es benotigt einen Cloudflare-DNS-Wildcard-Eintrag (`*.<domain>`) und einen Public Hostname, der auf `localhost:<PORT>` zeigt.
 
 ## Warum / wann
 
+Das Preview-Panel macht es uberflussig, einen separaten Browser-Tab zu offnen, wenn man an einem Web-Projekt in einer Coding-Session iteriert. Der Coding-Agent andert Dateien, HMR aktualisiert die Preview, und das Ergebnis ist im selben Fenster sichtbar.
+
 ## Wie nutzen
 
+- **Aktivieren:** `PREVIEW_DOMAIN=yourdomain.com` in `.env` eintragen und den Hub neu starten. Das Cloudflare-Setup, das `setup.sh` ausgibt, befolgen (ein DNS-CNAME `preview`, ein Public Hostname, Host zur Access-App hinzufugen).
+- **Panel offnen:** Preview-Toggle auf der Session-Karte klicken. Das Panel belegt denselben Slot wie das [Repo-Panel](/de/docs/features/repo-panel); eines offnen schließt das andere.
+- **Port wahlen:** Die Combobox listet aktuell lauschende Ports auf (Hub-Port und Ports unter 1024 werden herausgefiltert). Den Port des Dev-Servers wahlen. Der Hub proxied diesen Port sofort.
+- **HMR:** Fur die meisten Dev-Server ist keine zusatzliche Konfiguration notig. Wenn der Dev-Server den WebSocket-Origin pruft, `server.hmr.clientPort: 443` in seiner Konfiguration setzen.
+
 ## Grenzen
+
+Nur eine Preview ist gleichzeitig aktiv. Apps mit hartkodierten Origin-URLs konnen fehlrouten, da der Hub keine Response-Bodies umschreibt. HMR-Clients, die den geproxieten Origin ablehnen, benotigen `server.hmr.clientPort: 443` (oder aquivalent) in der Dev-Projekt-Konfiguration. Das Feature benotigt einen funktionierenden Cloudflare-Tunnel und Wildcard-DNS; es funktioniert nicht in einem lokalen Netzwerk ohne diese Voraussetzungen. Das [iOS-Simulator-Panel](/de/docs/features/ios-simulator) teilt denselben Slot, daher konnen Web-Preview und Simulator nicht gleichzeitig geoffnet sein.

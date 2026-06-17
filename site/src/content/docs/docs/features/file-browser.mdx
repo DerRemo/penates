@@ -1,20 +1,32 @@
 ---
 title: File browser
-description: Browse, preview, upload, rename, move, copy and trash files inside a project directory without leaving the hub.
+description: Browse, preview, upload, rename, move, copy, and trash files inside a project directory without leaving the hub.
 sidebar:
   order: 4
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="Work in progress">
-This page is being written. The structure is in place; prose follows in the content sweep.
-</Aside>
-
 ## What it is
+
+The file browser is a resizable sidebar panel attached to each project. It shows the directory tree for the project's registered path. Every file operation goes through a path guard (`resolveSafe` in `lib/files.js`) that rejects any path escaping the project root via `../`, returning 403 on escape attempts.
+
+Supported operations: list directories, read files (text up to 2 MB, images and PDFs up to 10 MB as base64), create directories, rename or move (atomic), copy, upload via multipart, and delete to the OS trash. Files are never deleted with `rm`; the trash call goes to the system trash on both macOS and Linux.
+
+Live directory changes arrive over the `/api/files/events` WebSocket, so the tree updates in the browser without a manual refresh.
 
 ## Why / when to use it
 
+The file browser is useful when a coding session has created or modified files and you want to inspect them without switching to a terminal or an external editor. You can preview source files with syntax highlighting, open PDFs inline, and upload assets directly into the project directory.
+
+It also pairs with the [repo panel](/docs/features/repo-panel): the repo panel shows what has changed in git; the file browser shows the full directory structure and lets you open any file, not just modified ones.
+
 ## How to use it
 
+- **Open the tree:** click the file browser toggle on the session card. The tree loads lazily as you expand folders.
+- **Preview a file:** click any file to open it in the preview modal. Text files get syntax highlighting (via `highlight.js`, loaded on demand). PDFs open in an inline `<iframe>`. Files over the size limit show metadata instead of content.
+- **Right-click actions:** right-clicking a file or folder opens a context menu with rename, copy, move, and two-click delete (move to trash).
+- **Upload:** drag files onto the tree to upload them into the target folder. You can also drop files onto the terminal area or use the mobile file picker. The uploader shows progress toasts and handles conflicts (409) with a dialog.
+- **Create a folder:** use the new-folder action in the tree toolbar.
+
 ## Limits
+
+The file browser is scoped to the project's registered directory. It cannot browse `$HOME` or any path outside the project root. Cross-project copy is not supported. Uploads are counted against the global write limiter (60 per minute). The file watcher has a 30-second idle timeout and an 80 ms debounce; very rapid file changes may be batched. The watcher ignores `.git`, so git operations do not trigger live tree updates in the sidebar.
