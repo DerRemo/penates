@@ -80,3 +80,14 @@ private func boolBody(_ req: URLRequest) -> [String: Bool]? {
                       session: StubURLProtocol.session())
     try await c.setPinned(name: "cc-demo", pinned: false)
 }
+
+@Test func restoreHitsRestoreEndpoint() async throws {
+    StubURLProtocol.handler = { req in
+        #expect(req.httpMethod == "POST")
+        #expect(req.url?.path == "/api/sessions/cc-demo/restore")
+        return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("{}".utf8))
+    }
+    let c = APIClient(credentials: .init(baseURL: URL(string: "http://h:3333")!, token: "t"),
+                      session: StubURLProtocol.session())
+    try await c.restoreSession(name: "cc-demo")
+}

@@ -20,6 +20,7 @@ struct OverviewView: View {
             ScrollView {
                 if let model {
                     LazyVGrid(columns: columns, spacing: 12) {
+                        section("Angeheftet", model.pinned, model)
                         section("Aktiv", model.active, model)
                         section("Ruhend", model.dormant, model)
                     }.padding()
@@ -41,7 +42,7 @@ struct OverviewView: View {
         .sheet(isPresented: $showNewSession) { NewSessionView { Task { await model?.load() } } }
         // Kill confirmation dialog
         .confirmationDialog(
-            killTarget.map { "Session \"\($0.name)\" beenden?" } ?? "",
+            killTarget.map { "Session \"\($0.displayName)\" beenden?" } ?? "",
             isPresented: Binding(get: { killTarget != nil }, set: { if !$0 { killTarget = nil } }),
             titleVisibility: .visible
         ) {

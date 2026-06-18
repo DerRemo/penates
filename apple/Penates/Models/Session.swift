@@ -10,6 +10,9 @@ enum SessionStatus: String, Decodable, Equatable {
 
 struct Session: Identifiable, Hashable, Decodable {
     var id: String { name }
+    /// Name shown in the UI — the hub's "cc-" session prefix stripped. `id`
+    /// keeps the real tmux name so navigation/identity are unaffected.
+    var displayName: String { name.hasPrefix("cc-") ? String(name.dropFirst(3)) : name }
     let name: String
     let command: String?
     let activity: Activity

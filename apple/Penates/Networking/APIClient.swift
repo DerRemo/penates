@@ -66,6 +66,11 @@ final class APIClient {
         let _: EmptyResponse = try await request("POST", "/api/sessions/\(name)/pin", body: body)
     }
 
+    /// Re-spawn a dormant session on the hub (same path the boot auto-restore uses).
+    func restoreSession(name: String) async throws {
+        let _: EmptyResponse = try await request("POST", "/api/sessions/\(name)/restore")
+    }
+
     // MARK: - Generic request
 
     func request<T: Decodable>(_ method: String, _ path: String,

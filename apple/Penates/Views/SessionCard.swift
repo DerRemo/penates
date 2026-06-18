@@ -37,11 +37,10 @@ struct SessionCard: View {
             }
             Spacer(minLength: 0)
             HStack(spacing: 5) {
-                Text(session.name).font(.subheadline.weight(.semibold)).lineLimit(2)
+                Text(session.displayName).font(.subheadline.weight(.semibold)).lineLimit(2)
                 Spacer(minLength: 4)
-                if session.pinned {
-                    Image(systemName: "pin.fill").font(.caption2).opacity(0.85)
-                }
+                // No pin glyph here — pinned sessions live in their own
+                // "Angeheftet" section, so the indicator would be redundant.
                 if session.muted {
                     Image(systemName: "bell.slash.fill").font(.caption2).opacity(0.85)
                 }
