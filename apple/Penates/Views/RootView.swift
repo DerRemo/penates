@@ -36,7 +36,11 @@ struct RootView: View {
 private struct LockOverlay: View {
     /// Runs the biometric prompt; returns whether it succeeded.
     let authenticate: () async -> Bool
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showRetry = false
+    // Re-entrancy guard: .task and .onChange can both fire close together at
+    // launch — without this they'd race two LAContext evaluations.
+    @State private var running = false
 
     var body: some View {
         ZStack {
@@ -54,10 +58,19 @@ private struct LockOverlay: View {
                 }
             }
         }
-        .task { await run() }
+        .task { await run() } // cold launch
+        // Re-fire when the scene becomes active — covers the launch-timing race
+        // (LAContext evaluated before the scene was active) and returning from
+        // background while still locked.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await run() } }
+        }
     }
 
     private func run() async {
+        guard !running else { return }
+        running = true
+        defer { running = false }
         showRetry = false
         let ok = await authenticate()
         if !ok { showRetry = true }

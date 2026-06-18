@@ -11,22 +11,18 @@ struct SessionCard: View {
         let tint = Color.cli(session.command)
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                providerIcon
+                // Status now lives top-left as a backgroundless tinted glyph,
+                // level with the 30pt "…" circle on the right.
+                StatusChip(activity: session.activity,
+                           dormant: session.status != .running,
+                           plain: true, diameter: 30)
                 Spacer()
                 Menu {
-                    Button("Umbenennen", systemImage: "pencil", action: onRename)
-                    Button(session.pinned ? "Lösen" : "Anheften",
-                           systemImage: session.pinned ? "pin.slash" : "pin",
-                           action: onTogglePin)
-                    Button(session.muted ? "Stummschaltung aufheben" : "Stummschalten",
-                           systemImage: session.muted ? "bell" : "bell.slash",
-                           action: onToggleMute)
-                    Divider()
-                    Button("Beenden", systemImage: "trash", role: .destructive, action: onKill)
+                    actionButtons
                 } label: {
                     // Shortcuts-style: white dots on a translucent circle. The
-                    // fixed 30pt circle keeps the glyph level with the provider
-                    // icon and stable on tap (no jump).
+                    // fixed 30pt circle keeps the glyph level with the status
+                    // circle and stable on tap (no jump).
                     Image(systemName: "ellipsis")
                         .font(.footnote.weight(.bold))
                         .frame(width: 30, height: 30)
@@ -44,7 +40,7 @@ struct SessionCard: View {
                 if session.muted {
                     Image(systemName: "bell.slash.fill").font(.caption2).opacity(0.85)
                 }
-                StatusChip(activity: session.activity, dormant: session.status != .running)
+                // Status moved to the top-left circle, so no chip here anymore.
             }
         }
         .padding(14)
@@ -62,19 +58,20 @@ struct SessionCard: View {
         )
         .shadow(color: tint.opacity(session.status == .running ? 0.22 : 0.07), radius: 9, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: 18))
+        // Long-press anywhere on the card surfaces the same actions as "…".
+        .contextMenu { actionButtons }
     }
 
-    /// Real provider logo (monochrome, tinted white by the card's foreground
-    /// style); falls back to a generic terminal glyph for unknown commands.
-    @ViewBuilder private var providerIcon: some View {
-        if let command = session.command, let cli = CLIRegistry.from(command: command) {
-            Image("cli-\(cli.id)")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 22, height: 22)
-        } else {
-            Image(systemName: "terminal.fill").font(.title3)
-        }
+    /// The session actions, shared by the "…" Menu and the card's context menu.
+    @ViewBuilder private var actionButtons: some View {
+        Button("Umbenennen", systemImage: "pencil", action: onRename)
+        Button(session.pinned ? "Lösen" : "Anheften",
+               systemImage: session.pinned ? "pin.slash" : "pin",
+               action: onTogglePin)
+        Button(session.muted ? "Stummschaltung aufheben" : "Stummschalten",
+               systemImage: session.muted ? "bell" : "bell.slash",
+               action: onToggleMute)
+        Divider()
+        Button("Beenden", systemImage: "trash", role: .destructive, action: onKill)
     }
 }

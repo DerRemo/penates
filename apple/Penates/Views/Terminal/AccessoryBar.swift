@@ -84,12 +84,16 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
     // MARK: Build UI
 
     private func buildUI() {
-        // Blurred background (.systemMaterial = regularMaterial equivalent on iOS).
-        let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterial))
-        blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        blur.frame = bounds
-        insertSubview(blur, at: 0)
-        backgroundColor = .clear
+        // Opaque background tuned to the system keyboard colour so the bar reads
+        // as one continuous piece with the keyboard below it — on iPad in
+        // particular. The `.keyboard` input-view style is translucent and bleeds
+        // the (now adaptive) terminal colour behind the bar, which mismatched the
+        // opaque iPad keyboard; a solid keyboard-tone fill removes that seam.
+        let bg = UIView()
+        bg.backgroundColor = Self.keyboardBackground
+        bg.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        bg.frame = bounds
+        insertSubview(bg, at: 0)
 
         // --- Button row ---
         let stack = UIStackView()
@@ -128,11 +132,28 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
 
     // MARK: Button factory
 
+    /// The native iOS keyboard tray tone (no public API exposes it) — measured
+    /// pixel-for-pixel against the live system keyboard so the bar blends in.
+    static let keyboardBackground = UIColor { tc in
+        tc.userInterfaceStyle == .dark
+            ? UIColor(red: 0.094, green: 0.094, blue: 0.098, alpha: 1)   // #181819 native dark tray
+            : UIColor(red: 0.882, green: 0.886, blue: 0.902, alpha: 1)   // #E1E2E6 native light tray
+    }
+
+    /// Native keyboard-key fill, measured against the system keys: white in
+    /// light mode, a dark charcoal in dark mode (matches the letter keys).
+    static let keyColor = UIColor { tc in
+        tc.userInterfaceStyle == .dark
+            ? UIColor(red: 0.239, green: 0.239, blue: 0.243, alpha: 1)   // #3D3D3E native dark key
+            : .white
+    }
+
     private func makeKey(_ title: String, icon: String = "", action: Selector) -> UIButton {
         var cfg = UIButton.Configuration.filled()
         cfg.baseForegroundColor = .label
-        cfg.baseBackgroundColor = UIColor.systemBackground.withAlphaComponent(0.85)
-        cfg.cornerStyle = .medium
+        cfg.background.backgroundColor = Self.keyColor
+        cfg.cornerStyle = .fixed
+        cfg.background.cornerRadius = 5
         cfg.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attrs in
             var a = attrs
             a.font = UIFont.systemFont(ofSize: 12, weight: .medium)
@@ -149,8 +170,15 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
         }
         let b = UIButton(configuration: cfg)
         b.addTarget(self, action: action, for: .touchDown)
+        // Subtle bottom drop-shadow, exactly like a real keyboard key. The
+        // rounded fill comes from the configuration background, so the layer
+        // stays unmasked (masksToBounds = false) to let the shadow show.
         b.layer.cornerRadius = 5
-        b.layer.masksToBounds = true
+        b.layer.masksToBounds = false
+        b.layer.shadowColor = UIColor.black.cgColor
+        b.layer.shadowOpacity = 0.35
+        b.layer.shadowOffset = CGSize(width: 0, height: 1)
+        b.layer.shadowRadius = 0
         return b
     }
 
@@ -206,9 +234,9 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
     private func refreshCtrlButton() {
         guard let b = ctrlButton else { return }
         var cfg = b.configuration ?? .filled()
-        cfg.baseBackgroundColor = ctrlActive
+        cfg.background.backgroundColor = ctrlActive
             ? UIColor.systemBlue.withAlphaComponent(0.25)
-            : UIColor.systemBackground.withAlphaComponent(0.85)
+            : Self.keyColor
         b.configuration = cfg
     }
 }

@@ -4,7 +4,7 @@ struct SettingsView: View {
     @Environment(AppSession.self) private var app
     @Environment(\.dismiss) private var dismiss
     @AppStorage("requireBiometrics") private var requireBiometrics = false
-    @AppStorage("terminalFontSize") private var fontSize = 13.0
+    @AppStorage("autoFocusTerminal") private var autoFocusTerminal = true
     @State private var hubVersion = "…"
 
     var body: some View {
@@ -23,8 +23,13 @@ struct SettingsView: View {
                 Section("Sicherheit") {
                     Toggle("Face ID beim Start", isOn: $requireBiometrics)
                 }
-                Section("Terminal") {
-                    Stepper("Schriftgröße: \(Int(fontSize))", value: $fontSize, in: 9...24)
+                Section {
+                    Toggle("Tastatur beim Öffnen anzeigen", isOn: $autoFocusTerminal)
+                } header: {
+                    Text("Terminal")
+                } footer: {
+                    // Off = der Nutzer tippt zuerst ins Terminal, um zu schreiben.
+                    Text("Aus: erst ins Terminal tippen, um zu schreiben.")
                 }
                 Section("Über") {
                     LabeledContent("App",
