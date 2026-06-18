@@ -15,7 +15,12 @@ final class TerminalSocket {
     private var lastPong = Date()
     private var pingTimer: Timer?
     private var didConfirmAlive = false
+    private var didNotifyClose = false
     var onBytes: ([UInt8]) -> Void = { _ in }
+    /// Fired on the main thread when the connection is gone for good (no
+    /// reconnect): 4004 = session ended, 4001 = auth rejected. Lets the UI
+    /// surface a terminal-ended state instead of a frozen screen.
+    var onClose: (Int) -> Void = { _ in }
 
     init(credentials: ServerCredentials, name: String, session: URLSession = .shared) {
         self.credentials = credentials
@@ -83,7 +88,18 @@ final class TerminalSocket {
         pingTimer?.invalidate()
         pingTimer = nil
         didConfirmAlive = false
-        guard Self.decision(forCloseCode: code) == .retry else { return }
+        guard Self.decision(forCloseCode: code) == .retry else {
+            // Terminal close (session gone / auth rejected): notify the UI once.
+            // reconnect() can run on the URLSession callback thread OR the main
+            // (pingTimer) thread, so the once-guard is checked/set on main only
+            // — keeps didNotifyClose race-free without a lock.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.didNotifyClose else { return }
+                self.didNotifyClose = true
+                self.onClose(code)
+            }
+            return
+        }
         let delay = backoff.next()
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.connect()

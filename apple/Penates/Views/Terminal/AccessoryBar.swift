@@ -115,8 +115,8 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
         ctrl.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.4).cgColor
         ctrlButton = ctrl
         stack.addArrangedSubview(ctrl)
-        // Tab
-        stack.addArrangedSubview(makeKey("tab", icon: "arrow.right.to.line.compact", action: #selector(tapTab)))
+        // Tab — icon only; the "tab" label does not fit the equal-width button
+        stack.addArrangedSubview(makeKey("", icon: "arrow.right.to.line.compact", action: #selector(tapTab)))
         // Arrows
         stack.addArrangedSubview(makeKey("", icon: "arrow.up", action: #selector(tapUp)))
         stack.addArrangedSubview(makeKey("", icon: "arrow.down", action: #selector(tapDown)))

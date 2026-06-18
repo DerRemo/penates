@@ -4,6 +4,8 @@ struct RootView: View {
     @State private var app = AppSession()
     @AppStorage("requireBiometrics") private var requireBiometrics = false
     @State private var unlocked = false
+    // Constant for the app's lifetime — compute once instead of on every body pass.
+    @State private var deviceCapable = BiometricGate.canAuthenticate()
 
     var body: some View {
         Group {
@@ -12,14 +14,15 @@ struct RootView: View {
             } else {
                 AppTabs()
                     .overlay {
-                        if BiometricGate.shouldPrompt(enabled: requireBiometrics, alreadyUnlocked: unlocked) {
+                        if BiometricGate.shouldPrompt(enabled: requireBiometrics,
+                                                      alreadyUnlocked: unlocked,
+                                                      deviceCapable: deviceCapable) {
                             LockOverlay {
-                                Task {
-                                    let ok = await BiometricGate.authenticate(
-                                        reason: "Schützt den Zugriff auf deine Sessions."
-                                    )
-                                    if ok { unlocked = true }
-                                }
+                                let ok = await BiometricGate.authenticate(
+                                    reason: "Schützt den Zugriff auf deine Sessions."
+                                )
+                                if ok { unlocked = true }
+                                return ok
                             }
                         }
                     }
@@ -31,7 +34,9 @@ struct RootView: View {
 }
 
 private struct LockOverlay: View {
-    let onUnlock: () -> Void
+    /// Runs the biometric prompt; returns whether it succeeded.
+    let authenticate: () async -> Bool
+    @State private var showRetry = false
 
     var body: some View {
         ZStack {
@@ -40,9 +45,21 @@ private struct LockOverlay: View {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 56))
                     .foregroundStyle(.secondary)
-                Button("Entsperren", action: onUnlock)
-                    .buttonStyle(.borderedProminent)
+                // No button in the happy path — Face ID fires automatically on
+                // appear. The retry button only surfaces after a failed/cancelled
+                // attempt so the user is never trapped on the lock screen.
+                if showRetry {
+                    Button("Entsperren") { Task { await run() } }
+                        .buttonStyle(.borderedProminent)
+                }
             }
         }
+        .task { await run() }
+    }
+
+    private func run() async {
+        showRetry = false
+        let ok = await authenticate()
+        if !ok { showRetry = true }
     }
 }

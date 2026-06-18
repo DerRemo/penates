@@ -12,9 +12,15 @@ struct SwiftTermBridge: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(socket: socket) }
 
     func makeUIView(context: Context) -> TerminalView {
-        let tv = TerminalView(frame: .zero)
+        let tv = ScrollableTerminalView(frame: .zero)
         tv.terminalDelegate = context.coordinator
         tv.font = UIFont.monospacedSystemFont(ofSize: CGFloat(fontSize), weight: .regular)
+
+        // Touch-drag → tmux wheel events. Without this, tmux's server-global
+        // `mouse on` makes SwiftTerm forward pans as button drags (read as a
+        // selection), and the alt-screen leaves nothing to scroll locally.
+        tv.sendInput = { [weak socket] data in socket?.send(.input(data)) }
+        tv.installScrollGesture()
 
         // Replace the built-in TerminalAccessory with our custom accessory bar.
         // `TerminalAccessory` is public-but-not-open so we cannot subclass it.

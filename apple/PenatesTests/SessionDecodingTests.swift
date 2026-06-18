@@ -24,3 +24,17 @@ import Foundation
     let s = try JSONDecoder().decode([Session].self, from: json).first
     #expect(s?.project == "penates")
 }
+
+@Test func decodesMutedAndPinned() throws {
+    let json = #"[{"name":"cc-m","status":"running","muted":true,"pinned":true}]"#.data(using: .utf8)!
+    let s = try JSONDecoder().decode([Session].self, from: json).first
+    #expect(s?.muted == true)
+    #expect(s?.pinned == true)
+}
+
+@Test func mutedAndPinnedDefaultToFalseWhenAbsent() throws {
+    let json = #"[{"name":"cc-x","status":"running"}]"#.data(using: .utf8)!
+    let s = try JSONDecoder().decode([Session].self, from: json).first
+    #expect(s?.muted == false)
+    #expect(s?.pinned == false)
+}

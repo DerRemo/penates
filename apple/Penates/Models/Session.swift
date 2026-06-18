@@ -15,9 +15,11 @@ struct Session: Identifiable, Hashable, Decodable {
     let activity: Activity
     let status: SessionStatus
     let project: String?
+    let muted: Bool
+    let pinned: Bool
 
     enum CodingKeys: String, CodingKey {
-        case name, command, activity, status, project
+        case name, command, activity, status, project, muted, pinned
     }
 
     init(from decoder: Decoder) throws {
@@ -26,6 +28,8 @@ struct Session: Identifiable, Hashable, Decodable {
         command  = try c.decodeIfPresent(String.self, forKey: .command)
         activity = (try? c.decodeIfPresent(Activity.self, forKey: .activity)) ?? .unknown
         status   = (try? c.decodeIfPresent(SessionStatus.self, forKey: .status)) ?? .running
+        muted    = (try? c.decode(Bool.self, forKey: .muted)) ?? false
+        pinned   = (try? c.decode(Bool.self, forKey: .pinned)) ?? false
         // `project` can arrive as a plain string OR as `{ "id": ..., "name": ... }` from
         // server.js projectOf(). Decode tolerantly so either form resolves to a String?.
         if let s = try? c.decodeIfPresent(String.self, forKey: .project) {
@@ -38,12 +42,15 @@ struct Session: Identifiable, Hashable, Decodable {
     }
 
     /// Memberwise init for tests and SwiftUI previews.
-    init(name: String, command: String?, activity: Activity, status: SessionStatus, project: String?) {
+    init(name: String, command: String?, activity: Activity, status: SessionStatus, project: String?,
+         muted: Bool = false, pinned: Bool = false) {
         self.name     = name
         self.command  = command
         self.activity = activity
         self.status   = status
         self.project  = project
+        self.muted    = muted
+        self.pinned   = pinned
     }
 }
 
