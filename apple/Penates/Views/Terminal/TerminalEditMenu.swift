@@ -36,3 +36,23 @@ enum TerminalScrollPolicy {
         !hasActiveSelection
     }
 }
+
+/// A 0-based terminal buffer cell, mirroring SwiftTerm's `Position` but free of
+/// any SwiftTerm import so the ordering logic stays unit-testable.
+struct GridCell: Equatable {
+    let col: Int
+    let row: Int
+}
+
+enum TerminalSelection {
+    /// Orders the press anchor and the current finger cell into reading order
+    /// (`start ≤ end`) so a long-press-drag selecting in any direction — left,
+    /// right, up, or down across lines — yields a normalized range. Row
+    /// dominates; column breaks ties on the same row.
+    static func ordered(_ a: GridCell, _ b: GridCell) -> (start: GridCell, end: GridCell) {
+        if a.row < b.row || (a.row == b.row && a.col <= b.col) {
+            return (a, b)
+        }
+        return (b, a)
+    }
+}

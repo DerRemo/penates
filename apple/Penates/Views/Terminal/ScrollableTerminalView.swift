@@ -34,6 +34,21 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, U
     /// during a drag-extend; we present once per selection.
     private var menuShownForSelection = false
 
+    /// The cell where a long-press-drag selection started. While set,
+    /// `selectionDragActive` is true and the drag extends the selection from
+    /// this anchor rather than scrolling.
+    private var selectionAnchor: GridCell?
+    /// True between a selection long-press `.began` and its release. Suppresses
+    /// the scroll pan and the per-tick menu presentation so the drag cleanly
+    /// extends the highlight; the menu is presented once on release.
+    private var selectionDragActive = false
+
+    /// References to the two competing recognizers so the delegate can keep
+    /// exactly this pair mutually exclusive (scroll xor select) while leaving
+    /// every other pairing simultaneous.
+    private weak var scrollPan: UIPanGestureRecognizer?
+    private weak var selectionPress: UILongPressGestureRecognizer?
+
     /// Installs the wheel-forwarding pan. The native scroll view stays enabled
     /// (so a real finger drag still produces touches our pan observes) but its
     /// bounce is disabled — on tmux's alternate screen there is nothing to
@@ -45,6 +60,7 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, U
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handleScrollPan(_:)))
         pan.delegate = self
         addGestureRecognizer(pan)
+        scrollPan = pan
 
         // Unlock SwiftTerm's local selection: with tmux `mouse on`, reporting
         // would otherwise forward double-tap/drag to tmux instead of selecting.
@@ -54,6 +70,18 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, U
         let menu = UIEditMenuInteraction(delegate: self)
         addInteraction(menu)
         editMenuInteraction = menu
+
+        // Press-and-drag to select a range — the standard iOS text-selection
+        // gesture (Safari/Notes), and the only discoverable way to pick a
+        // multi-line range here. SwiftTerm's own selection needs a double-tap
+        // *then* a second drag started exactly on the (handle-less) selection
+        // edge, which races our scroll pan and lands as a scroll. A quick drag
+        // still scrolls — the press threshold disambiguates select vs scroll.
+        let press = UILongPressGestureRecognizer(target: self, action: #selector(handleSelectionLongPress(_:)))
+        press.minimumPressDuration = 0.3
+        press.delegate = self
+        addGestureRecognizer(press)
+        selectionPress = press
     }
 
     /// Suppresses SwiftTerm's button-drag mouse gesture. With native text
@@ -84,6 +112,10 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, U
     /// fires many selectionChanged ticks — doesn't make the menu flicker.
     override func selectionChanged(source: Terminal) {
         super.selectionChanged(source: source)
+        // During a long-press-drag we mutate the selection on every tick; the
+        // menu would flicker and cover the text, so we present it once on
+        // release instead (see handleSelectionLongPress).
+        if selectionDragActive { return }
         if hasActiveSelection {
             if !menuShownForSelection {
                 menuShownForSelection = true
@@ -153,10 +185,67 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, U
         }
     }
 
+    /// Press-and-drag selection: anchor at the press cell, extend to the finger
+    /// on every move, present the edit menu on release. Drives SwiftTerm's
+    /// selection via the public `setSelectionRange` API; `selectionDragActive`
+    /// keeps the scroll pan and the per-tick menu out of the way.
+    @objc private func handleSelectionLongPress(_ gesture: UILongPressGestureRecognizer) {
+        let point = gesture.location(in: self)
+        switch gesture.state {
+        case .began:
+            _ = becomeFirstResponder()
+            let anchor = bufferCell(at: point)
+            selectionAnchor = anchor
+            selectionDragActive = true
+            lastTouchPoint = point
+            setSelectionRange(start: Position(col: anchor.col, row: anchor.row),
+                              end: Position(col: anchor.col, row: anchor.row))
+        case .changed:
+            guard let anchor = selectionAnchor else { return }
+            let (s, e) = TerminalSelection.ordered(anchor, bufferCell(at: point))
+            lastTouchPoint = point
+            setSelectionRange(start: Position(col: s.col, row: s.row),
+                              end: Position(col: e.col, row: e.row))
+        case .ended:
+            selectionDragActive = false
+            selectionAnchor = nil
+            lastTouchPoint = point
+            // Present the menu once the range is final. If the press never
+            // moved off a blank cell, drop the empty highlight.
+            if hasActiveSelection, let text = getSelection(), !text.isEmpty {
+                menuShownForSelection = true
+                presentEditMenu(at: point)
+            } else {
+                clearSelection()
+            }
+        case .cancelled, .failed:
+            selectionDragActive = false
+            selectionAnchor = nil
+        default:
+            break
+        }
+    }
+
+    /// Maps a view point to a 0-based buffer cell for selection. Attached to a
+    /// tmux pane the emulator runs on the alternate screen (no SwiftTerm-side
+    /// scrollback), so the visible grid is the buffer — viewport row == buffer
+    /// row. Cell size is derived from bounds like `cellCoordinate`.
+    private func bufferCell(at point: CGPoint) -> GridCell {
+        let terminal = getTerminal()
+        let cols = max(1, terminal.cols)
+        let rows = max(1, terminal.rows)
+        let cellWidth = bounds.width / CGFloat(cols)
+        let cellHeight = bounds.height / CGFloat(rows)
+        let col = cellWidth > 0 ? Int(point.x / cellWidth) : 0
+        let row = cellHeight > 0 ? Int(point.y / cellHeight) : 0
+        return GridCell(col: min(max(0, col), cols - 1), row: min(max(0, row), rows - 1))
+    }
+
     @objc private func handleScrollPan(_ gesture: UIPanGestureRecognizer) {
-        // While a selection is active, a drag should extend it (SwiftTerm's
-        // selection pan), not scroll.
-        guard TerminalScrollPolicy.shouldScroll(hasActiveSelection: hasActiveSelection) else { return }
+        // While a selection is active (or being dragged), a drag should extend
+        // it, not scroll.
+        guard !selectionDragActive,
+              TerminalScrollPolicy.shouldScroll(hasActiveSelection: hasActiveSelection) else { return }
         switch gesture.state {
         case .began:
             accumulator = WheelScrollAccumulator(step: scrollStep)
@@ -189,9 +278,18 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, U
     }
 
     // Recognize alongside SwiftTerm's tap / long-press gestures so scrolling
-    // never blocks keyboard focus or selection.
+    // never blocks keyboard focus or selection — EXCEPT the scroll pan and our
+    // selection long-press, which must stay mutually exclusive (scroll xor
+    // select). Letting that pair recognize together lets a dwell mid-drag flip
+    // an in-flight scroll into a selection — the "hangs in the middle" bug.
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
-        true
+        if let pan = scrollPan, let press = selectionPress {
+            let pair = Set([ObjectIdentifier(gestureRecognizer), ObjectIdentifier(other)])
+            if pair == Set([ObjectIdentifier(pan), ObjectIdentifier(press)]) {
+                return false
+            }
+        }
+        return true
     }
 }
