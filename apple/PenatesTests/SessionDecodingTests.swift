@@ -38,3 +38,13 @@ import Foundation
     #expect(s?.muted == false)
     #expect(s?.pinned == false)
 }
+
+@Test func displayNameStripsLeadingCcPrefixOnce() {
+    func s(_ name: String) -> Session {
+        Session(name: name, command: nil, activity: .idle, status: .running, project: nil)
+    }
+    #expect(s("cc-packliste").displayName == "packliste")
+    #expect(s("cc-cc-iostest").displayName == "cc-iostest")   // only the leading prefix
+    #expect(s("foreign-session").displayName == "foreign-session")  // no prefix → unchanged
+    #expect(s("cc-").displayName == "")
+}

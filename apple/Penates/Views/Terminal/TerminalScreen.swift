@@ -25,7 +25,7 @@ struct TerminalScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .navigationTitle(session.name)
+        .navigationTitle(session.displayName)
         .navigationBarTitleDisplayMode(.inline)
         // The session view is immersive: hide the tab bar so the terminal owns
         // the full height. Otherwise the pushed view keeps the TabView's bar and
@@ -38,6 +38,13 @@ struct TerminalScreen: View {
     private func connect() async {
         guard let creds = appSession.credentials else { return }
         let client = APIClient(credentials: creds)
+        // A dormant session has no live tmux/PTY — re-spawn it on the hub before
+        // attaching, otherwise the terminal WS closes immediately (4004).
+        // Foreign/running sessions are already live and attach directly.
+        if session.status == .dormant {
+            do { try await client.restoreSession(name: session.name) }
+            catch { endedCode = 4004; return }
+        }
         // Seed scrollback; swallow errors — missing scrollback is non-fatal
         if let text = try? await client.scrollback(name: session.name) {
             seed = Array(text.utf8)

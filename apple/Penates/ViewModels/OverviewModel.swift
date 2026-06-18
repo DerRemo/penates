@@ -7,19 +7,12 @@ final class OverviewModel {
     private let client: APIClient?
     init(client: APIClient?) { self.client = client }
 
-    var active: [Session] { pinnedFirst(sessions.filter { $0.status == .running }) }
-    var dormant: [Session] { pinnedFirst(sessions.filter { $0.status != .running }) }
-
-    /// Float pinned sessions to the front while preserving the server's order
-    /// among equals (Swift's `sort` is not guaranteed stable, so tie-break on
-    /// the original index).
-    private func pinnedFirst(_ xs: [Session]) -> [Session] {
-        xs.enumerated()
-            .sorted { l, r in
-                l.element.pinned != r.element.pinned ? l.element.pinned : l.offset < r.offset
-            }
-            .map(\.element)
-    }
+    // Pinned sessions get their own section at the very top, regardless of
+    // running/dormant; Aktiv/Ruhend show only the unpinned remainder. Server
+    // order is preserved within each group (filter is stable).
+    var pinned: [Session]  { sessions.filter { $0.pinned } }
+    var active: [Session]  { sessions.filter { $0.status == .running && !$0.pinned } }
+    var dormant: [Session] { sessions.filter { $0.status != .running && !$0.pinned } }
 
     func load() async {
         guard let client else { return }
