@@ -1,5 +1,15 @@
 import SwiftUI
 import SwiftTerm
+import UIKit
+
+/// Single source of truth for the adaptive terminal colors so the SwiftTerm
+/// view and the SwiftUI background behind it stay byte-identical. SwiftTerm
+/// resolves the UIColor to its own color at set-time (it does not track a
+/// dynamic UIColor), so the bridge re-applies these on every scheme change.
+enum TerminalPalette {
+    static func background(_ dark: Bool) -> UIColor { dark ? UIColor(white: 0.05, alpha: 1) : UIColor(white: 0.98, alpha: 1) }
+    static func foreground(_ dark: Bool) -> UIColor { dark ? UIColor(white: 0.92, alpha: 1) : UIColor(white: 0.12, alpha: 1) }
+}
 
 /// UIViewRepresentable wrapping SwiftTerm's TerminalView.
 /// Seeds scrollback data before live bytes arrive, then wires
@@ -8,6 +18,12 @@ struct SwiftTermBridge: UIViewRepresentable {
     let socket: TerminalSocket
     let seed: [UInt8]
     var fontSize: Double = 13.0
+    /// Drives the adaptive terminal colors; passed in from TerminalScreen's
+    /// environment so a live light/dark switch re-colors the terminal.
+    var colorScheme: ColorScheme = .dark
+    /// When true, the terminal grabs first responder on creation so the
+    /// keyboard appears immediately on opening a session.
+    var autoFocus: Bool = true
 
     func makeCoordinator() -> Coordinator { Coordinator(socket: socket) }
 
@@ -15,6 +31,13 @@ struct SwiftTermBridge: UIViewRepresentable {
         let tv = ScrollableTerminalView(frame: .zero)
         tv.terminalDelegate = context.coordinator
         tv.font = UIFont.monospacedSystemFont(ofSize: CGFloat(fontSize), weight: .regular)
+
+        // Adaptive theme: dark bg + bright text in dark mode, light bg + dark
+        // text in light mode. This also makes default (uncolored) CLI text
+        // bright in dark mode, so the previously too-dark font reads cleanly.
+        let dark = colorScheme == .dark
+        tv.nativeBackgroundColor = TerminalPalette.background(dark)
+        tv.nativeForegroundColor = TerminalPalette.foreground(dark)
 
         // Touch-drag → tmux wheel events. Without this, tmux's server-global
         // `mouse on` makes SwiftTerm forward pans as button drags (read as a
@@ -48,6 +71,12 @@ struct SwiftTermBridge: UIViewRepresentable {
         }
         // Connect after onBytes is wired so no early PTY output is dropped
         socket.connect()
+
+        // Show the keyboard immediately on open (async so the view is in the
+        // hierarchy first). If false, the user taps into the terminal to focus.
+        if autoFocus {
+            DispatchQueue.main.async { _ = tv.becomeFirstResponder() }
+        }
         return tv
     }
 
@@ -56,6 +85,15 @@ struct SwiftTermBridge: UIViewRepresentable {
         if uiView.font != newFont {
             uiView.font = newFont
         }
+
+        // Re-apply colors on a live light/dark switch. SwiftTerm resolves the
+        // UIColor at set-time, so we must re-set (a dynamic UIColor would not
+        // re-resolve on its own). Only set when the value actually differs.
+        let dark = colorScheme == .dark
+        let bg = TerminalPalette.background(dark)
+        let fg = TerminalPalette.foreground(dark)
+        if uiView.nativeBackgroundColor != bg { uiView.nativeBackgroundColor = bg }
+        if uiView.nativeForegroundColor != fg { uiView.nativeForegroundColor = fg }
     }
 
     // MARK: - Delegate

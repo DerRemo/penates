@@ -4,22 +4,38 @@ struct TerminalScreen: View {
     let session: Session
     @Environment(AppSession.self) private var appSession
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var socket: TerminalSocket?
     @State private var seed: [UInt8] = []
     @State private var isReady = false
     @State private var endedCode: Int?
-    @AppStorage("terminalFontSize") private var fontSize = 13.0
+    // Fixed terminal font size — the user-facing stepper was removed; a single
+    // tuned size keeps the terminal layout consistent across devices.
+    private let fontSize = 13.0
+    // Default true = keyboard appears immediately on opening a session.
+    @AppStorage("autoFocusTerminal") private var autoFocusTerminal = true
 
     var body: some View {
         Group {
             if let code = endedCode {
                 SessionEndedView(code: code) { dismiss() }
             } else if isReady, let s = socket {
-                SwiftTermBridge(socket: s, seed: seed, fontSize: fontSize)
-                    // Keep the terminal's last rows above the home indicator,
-                    // but fill the inset band with the terminal's black
-                    // background so there is no light gap below it.
-                    .background(Color.black.ignoresSafeArea(.container, edges: .bottom))
+                SwiftTermBridge(socket: s, seed: seed, fontSize: fontSize,
+                                colorScheme: colorScheme, autoFocus: autoFocusTerminal)
+                    // Inset the terminal off the screen edges so text doesn't
+                    // stick to the bezel.
+                    .padding(.horizontal, 10)
+                    .padding(.top, 4)
+                    // Adaptive full-bleed background BEHIND the padded terminal:
+                    // the inset band matches the terminal color (no contrasting
+                    // gap) and fills the bottom safe-area + the region under the
+                    // keyboard. .ignoresSafeArea() extends it under the keyboard
+                    // so no host background shows through the rounded corners.
+                    // (Final corner polish is device-verified.)
+                    .background(
+                        Color(uiColor: TerminalPalette.background(colorScheme == .dark))
+                            .ignoresSafeArea()
+                    )
             } else {
                 ProgressView("Connecting…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

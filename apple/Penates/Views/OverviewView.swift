@@ -40,19 +40,7 @@ struct OverviewView: View {
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showNewSession) { NewSessionView { Task { await model?.load() } } }
-        // Kill confirmation dialog
-        .confirmationDialog(
-            killTarget.map { "Session \"\($0.displayName)\" beenden?" } ?? "",
-            isPresented: Binding(get: { killTarget != nil }, set: { if !$0 { killTarget = nil } }),
-            titleVisibility: .visible
-        ) {
-            Button("Beenden", role: .destructive) {
-                guard let s = killTarget else { return }
-                killTarget = nil
-                Task { await performKill(s) }
-            }
-            Button("Abbrechen", role: .cancel) { killTarget = nil }
-        }
+        // Kill confirmation is anchored to each card via a popover (see `section`).
         // Rename alert
         .alert("Session umbenennen", isPresented: Binding(get: { renameTarget != nil }, set: { if !$0 { renameTarget = nil } })) {
             TextField("Neuer Name", text: $renameText)
@@ -67,8 +55,6 @@ struct OverviewView: View {
             }
             .disabled(!SessionName.isValid(renameText))
             Button("Abbrechen", role: .cancel) { renameTarget = nil }
-        } message: {
-            Text("Der Prefix \"cc-\" wird automatisch ergänzt.")
         }
         // Error alert
         .alert("Fehler", isPresented: $showError) {
@@ -89,6 +75,19 @@ struct OverviewView: View {
                                     onRename: { renameText = ""; renameTarget = s },
                                     onTogglePin: { Task { await performPin(s) } },
                                     onToggleMute: { Task { await performMute(s) } })
+                            // Kill confirmation pops up right at the card, not as
+                            // a bottom action sheet.
+                            .popover(isPresented: Binding(
+                                get: { killTarget?.id == s.id },
+                                set: { if !$0 { killTarget = nil } }
+                            )) {
+                                KillConfirmPopover(
+                                    name: s.displayName,
+                                    onConfirm: { let target = s; killTarget = nil; Task { await performKill(target) } },
+                                    onCancel: { killTarget = nil }
+                                )
+                                .presentationCompactAdaptation(.popover)
+                            }
                     }
                     .buttonStyle(.plain)
                 }
@@ -151,5 +150,25 @@ struct OverviewView: View {
         await m.load()
         let firehose = NotificationsFirehose(credentials: creds)
         for await event in firehose.events() { m.apply(event) }   // live, no polling
+    }
+}
+
+/// Compact kill confirmation shown as a popover bubble anchored to the card.
+private struct KillConfirmPopover: View {
+    let name: String
+    var onConfirm: () -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Session „\(name)“ beenden?")
+                .font(.subheadline.weight(.semibold))
+                .multilineTextAlignment(.center)
+            Button("Beenden", role: .destructive, action: onConfirm)
+                .buttonStyle(.borderedProminent)
+            Button("Abbrechen", role: .cancel, action: onCancel)
+        }
+        .padding()
+        .frame(minWidth: 240)
     }
 }
