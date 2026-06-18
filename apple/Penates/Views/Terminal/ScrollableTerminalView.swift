@@ -56,9 +56,11 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, U
         editMenuInteraction = menu
     }
 
-    /// Suppress SwiftTerm's button-drag mouse gesture. Taps keep forwarding
-    /// clicks through the separate tap recognizers, so this only removes the
-    /// drag path that would otherwise fight our scroll gesture.
+    /// Suppresses SwiftTerm's button-drag mouse gesture. With native text
+    /// selection enabled (`allowMouseReporting = false`), tap-to-click
+    /// forwarding to TUIs is intentionally disabled — an accepted v1
+    /// trade-off. Scrolling is preserved because the scroll pan emits wheel
+    /// events directly; only the drag-mouse path is removed here.
     override func mouseModeChanged(source: Terminal) {}
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -101,6 +103,15 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, U
     // MARK: UIEditMenuInteractionDelegate
 
     func editMenuInteraction(_ interaction: UIEditMenuInteraction,
+                             willDismissMenuFor configuration: UIEditMenuConfiguration,
+                             animator: UIEditMenuInteractionAnimating) {
+        // Reset the present-once guard whenever the menu goes away (incl. an
+        // external tap-outside dismiss that left the selection intact), so a
+        // later drag-extend can re-present it.
+        menuShownForSelection = false
+    }
+
+    func editMenuInteraction(_ interaction: UIEditMenuInteraction,
                              menuFor configuration: UIEditMenuConfiguration,
                              suggestedActions: [UIMenuElement]) -> UIMenu? {
         // hasStrings avoids triggering the iOS paste-access prompt that reading
@@ -118,19 +129,27 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, U
     private func performMenuAction(_ action: TerminalMenuAction) {
         switch action {
         case .copy:
-            UIPasteboard.general.string = getSelection() ?? ""
-            clearSelection()   // → selectionChanged → dismiss + reset guard
+            guard let text = getSelection(), !text.isEmpty else {
+                clearSelection()   // → selectionChanged → dismiss + reset guard
+                return
+            }
+            UIPasteboard.general.string = text
+            clearSelection()       // → selectionChanged → dismiss + reset guard
         case .selectAll:
             selectAll()
             // Re-present on the next runloop so the user can immediately Copy
             // the full buffer (the current menu is mid-dismiss from the tap).
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
+                // Load-bearing: set BEFORE presenting so the selectionChanged
+                // that presenting triggers sees the guard already set and does
+                // not re-present (which would flicker). Do not remove.
                 self.menuShownForSelection = true
                 self.presentEditMenu(at: self.lastTouchPoint)
             }
         case .paste:
-            paste(nil)         // no auto-enter
+            paste(nil)             // no auto-enter
+            clearSelection()       // drop the now-stale highlight, like copy
         }
     }
 
