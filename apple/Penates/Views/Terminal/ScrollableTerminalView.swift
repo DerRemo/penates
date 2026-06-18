@@ -15,7 +15,7 @@ import SwiftTerm
 /// button-drag gesture (taps still forward clicks via separate recognizers, so
 /// TUI mouse interaction is preserved) and disable scroll-view bounce so the
 /// alt-screen has no rubber-band.
-final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate {
+final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, UIEditMenuInteractionDelegate {
     /// Sends raw bytes to the PTY stdin (wired to the WebSocket `input` frame).
     var sendInput: ((String) -> Void)?
 
@@ -24,6 +24,15 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate {
 
     private var accumulator = WheelScrollAccumulator(step: 22)
     private var lastTranslationY: CGFloat = 0
+
+    /// Modern edit menu (replaces SwiftTerm's deprecated UIMenuController path,
+    /// which is inert on iOS 26).
+    private var editMenuInteraction: UIEditMenuInteraction?
+    /// Anchor for the edit menu — the most recent touch location.
+    private var lastTouchPoint: CGPoint = .zero
+    /// Guards against re-presenting the menu on every selectionChanged tick
+    /// during a drag-extend; we present once per selection.
+    private var menuShownForSelection = false
 
     /// Installs the wheel-forwarding pan. The native scroll view stays enabled
     /// (so a real finger drag still produces touches our pan observes) but its
@@ -36,12 +45,26 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate {
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handleScrollPan(_:)))
         pan.delegate = self
         addGestureRecognizer(pan)
+
+        // Unlock SwiftTerm's local selection: with tmux `mouse on`, reporting
+        // would otherwise forward double-tap/drag to tmux instead of selecting.
+        // Scrolling survives because our pan emits wheel events directly.
+        allowMouseReporting = false
+
+        let menu = UIEditMenuInteraction(delegate: self)
+        addInteraction(menu)
+        editMenuInteraction = menu
     }
 
     /// Suppress SwiftTerm's button-drag mouse gesture. Taps keep forwarding
     /// clicks through the separate tap recognizers, so this only removes the
     /// drag path that would otherwise fight our scroll gesture.
     override func mouseModeChanged(source: Terminal) {}
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if let p = touches.first?.location(in: self) { lastTouchPoint = p }
+        super.touchesBegan(touches, with: event)
+    }
 
     /// Hardware-keyboard paste (iPad / Magic Keyboard). `paste(_:)` is the open
     /// SwiftTerm responder method. Deduped so we never double-register if a
@@ -54,7 +77,67 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate {
         return cmds
     }
 
+    /// Present our modern edit menu when a selection appears, dismiss it when it
+    /// clears. Presented once per selection (the guard) so drag-extend — which
+    /// fires many selectionChanged ticks — doesn't make the menu flicker.
+    override func selectionChanged(source: Terminal) {
+        super.selectionChanged(source: source)
+        if hasActiveSelection {
+            if !menuShownForSelection {
+                menuShownForSelection = true
+                presentEditMenu(at: lastTouchPoint)
+            }
+        } else if menuShownForSelection {
+            menuShownForSelection = false
+            editMenuInteraction?.dismissMenu()
+        }
+    }
+
+    private func presentEditMenu(at point: CGPoint) {
+        let config = UIEditMenuConfiguration(identifier: nil, sourcePoint: point)
+        editMenuInteraction?.presentEditMenu(with: config)
+    }
+
+    // MARK: UIEditMenuInteractionDelegate
+
+    func editMenuInteraction(_ interaction: UIEditMenuInteraction,
+                             menuFor configuration: UIEditMenuConfiguration,
+                             suggestedActions: [UIMenuElement]) -> UIMenu? {
+        // hasStrings avoids triggering the iOS paste-access prompt that reading
+        // `.string` would.
+        let actions = TerminalEditMenuModel
+            .actions(pasteboardHasText: UIPasteboard.general.hasStrings)
+            .map { action in
+                UIAction(title: TerminalEditMenuModel.title(for: action)) { [weak self] _ in
+                    self?.performMenuAction(action)
+                }
+            }
+        return UIMenu(children: actions)
+    }
+
+    private func performMenuAction(_ action: TerminalMenuAction) {
+        switch action {
+        case .copy:
+            UIPasteboard.general.string = getSelection() ?? ""
+            clearSelection()   // → selectionChanged → dismiss + reset guard
+        case .selectAll:
+            selectAll()
+            // Re-present on the next runloop so the user can immediately Copy
+            // the full buffer (the current menu is mid-dismiss from the tap).
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.menuShownForSelection = true
+                self.presentEditMenu(at: self.lastTouchPoint)
+            }
+        case .paste:
+            paste(nil)         // no auto-enter
+        }
+    }
+
     @objc private func handleScrollPan(_ gesture: UIPanGestureRecognizer) {
+        // While a selection is active, a drag should extend it (SwiftTerm's
+        // selection pan), not scroll.
+        guard TerminalScrollPolicy.shouldScroll(hasActiveSelection: hasActiveSelection) else { return }
         switch gesture.state {
         case .began:
             accumulator = WheelScrollAccumulator(step: scrollStep)
