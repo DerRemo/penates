@@ -122,6 +122,8 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
         stack.addArrangedSubview(makeKey("", icon: "arrow.down", action: #selector(tapDown)))
         stack.addArrangedSubview(makeKey("", icon: "arrow.left", action: #selector(tapLeft)))
         stack.addArrangedSubview(makeKey("", icon: "arrow.right", action: #selector(tapRight)))
+        // Paste — inserts clipboard text into the input line (no auto-enter)
+        stack.addArrangedSubview(makeKey("", icon: "doc.on.clipboard", action: #selector(tapPaste)))
         // Dismiss keyboard
         stack.addArrangedSubview(makeKey("", icon: "keyboard.chevron.compact.down", action: #selector(tapDismiss)))
     }
@@ -198,6 +200,11 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
     @objc private func tapDismiss() {
         UIDevice.current.playInputClick()
         _ = terminalView?.resignFirstResponder()
+    }
+
+    @objc private func tapPaste() {
+        UIDevice.current.playInputClick()
+        terminalView?.paste(nil)   // SwiftTerm handles bracketed-paste; no auto-enter
     }
 
     // MARK: Ctrl button visual feedback

@@ -43,6 +43,17 @@ final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate {
     /// drag path that would otherwise fight our scroll gesture.
     override func mouseModeChanged(source: Terminal) {}
 
+    /// Hardware-keyboard paste (iPad / Magic Keyboard). `paste(_:)` is the open
+    /// SwiftTerm responder method. Deduped so we never double-register if a
+    /// future SwiftTerm version already maps Cmd+V.
+    override var keyCommands: [UIKeyCommand]? {
+        var cmds = super.keyCommands ?? []
+        if !cmds.contains(where: { $0.input == "v" && $0.modifierFlags == .command }) {
+            cmds.append(UIKeyCommand(input: "v", modifierFlags: .command, action: #selector(paste(_:))))
+        }
+        return cmds
+    }
+
     @objc private func handleScrollPan(_ gesture: UIPanGestureRecognizer) {
         switch gesture.state {
         case .began:
