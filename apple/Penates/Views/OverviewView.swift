@@ -85,7 +85,9 @@ struct OverviewView: View {
                     NavigationLink(value: s) {
                         SessionCard(session: s,
                                     onKill: { killTarget = s },
-                                    onRename: { renameText = ""; renameTarget = s })
+                                    onRename: { renameText = ""; renameTarget = s },
+                                    onTogglePin: { Task { await performPin(s) } },
+                                    onToggleMute: { Task { await performMute(s) } })
                     }
                     .buttonStyle(.plain)
                 }
@@ -110,6 +112,30 @@ struct OverviewView: View {
         let client = APIClient(credentials: creds)
         do {
             try await client.renameSession(name: s.name, to: newName)
+            await model?.load()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    private func performPin(_ s: Session) async {
+        guard let creds = app.credentials else { return }
+        let client = APIClient(credentials: creds)
+        do {
+            try await client.setPinned(name: s.name, pinned: !s.pinned)
+            await model?.load()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    private func performMute(_ s: Session) async {
+        guard let creds = app.credentials else { return }
+        let client = APIClient(credentials: creds)
+        do {
+            try await client.setMuted(name: s.name, muted: !s.muted)
             await model?.load()
         } catch {
             errorMessage = error.localizedDescription

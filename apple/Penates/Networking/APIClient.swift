@@ -53,6 +53,19 @@ final class APIClient {
         let _: EmptyResponse = try await request("PATCH", "/api/sessions/\(name)", body: body)
     }
 
+    /// Notification mute toggle. The hub takes the explicit target value, not a
+    /// toggle, so the caller passes `!session.muted`.
+    func setMuted(name: String, muted: Bool) async throws {
+        let body = try JSONEncoder().encode(["muted": muted])
+        let _: EmptyResponse = try await request("POST", "/api/sessions/\(name)/mute", body: body)
+    }
+
+    /// Sidebar/overview pin toggle. Like mute, the hub takes the explicit target value.
+    func setPinned(name: String, pinned: Bool) async throws {
+        let body = try JSONEncoder().encode(["pinned": pinned])
+        let _: EmptyResponse = try await request("POST", "/api/sessions/\(name)/pin", body: body)
+    }
+
     // MARK: - Generic request
 
     func request<T: Decodable>(_ method: String, _ path: String,
