@@ -57,7 +57,7 @@ test.describe('Mata integration (preview source-switcher)', () => {
     await expect(page.locator('#preview-port-combo')).toBeHidden();
   });
 
-  test('Mata source with open port POSTs {source:"mata"} and loads /session', async ({ authedPage }) => {
+  test('Mata source with open port POSTs {source:"mata"} and loads the viewer root', async ({ authedPage }) => {
     const page = authedPage;
     await mockConfig(page, { enabled: true, host: 'preview.example.com', activePort: null });
     await mockPorts(page, []);
@@ -71,7 +71,8 @@ test.describe('Mata integration (preview source-switcher)', () => {
     await page.evaluate(() => window.PreviewPanel.toggle());
     await page.click('#preview-source-mata');
     await expect.poll(() => sentSource).toBe('mata');
-    await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/session?__penates=mata');
+    // Root-Pfad (Viewer-SPA), NICHT /session (= WS/JSON-Endpoint → plain GET liefert JSON).
+    await expect(page.locator('#preview-iframe')).toHaveAttribute('src', 'https://preview.example.com/?__penates=mata');
   });
 
   test('not-running state offers a Start action that POSTs control', async ({ authedPage }) => {

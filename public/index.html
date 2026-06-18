@@ -13275,8 +13275,14 @@
         } catch { mataStatus = { installed: false, running: false, portOpen: false }; }
         return mataStatus;
       }
-      // Mata-Viewer-Pfad ist /session (vs Dev-Server /). __penates erzwingt iframe-Reload.
-      function mataIframeUrl() { return `https://${config.host}/session?__penates=mata`; }
+      // Die Mata-Viewer-SPA (web-dist/index.html) wird unter dem Root-Pfad / serviert.
+      // `/session` ist NICHT die Seite, sondern das WebSocket-Video- bzw. JSON-Daten-
+      // Endpoint: ein plain GET (was ein iframe macht) liefert nur Session-JSON bzw.
+      // `426 Upgrade Required` — daher erschien beim Embed von /session nur ein JSON-File.
+      // Die SPA öffnet die `wss://…/session`-Verbindung selbst (URL relativ zu
+      // window.location → läuft durch den Hub-Proxy/attachUpgrade). __penates erzwingt
+      // den iframe-Reload beim Quellenwechsel (stripCachebust entfernt ihn vor dem Forward).
+      function mataIframeUrl() { return `https://${config.host}/?__penates=mata`; }
 
       async function startMata() {
         showState({ title: t('preview.mata.startingTitle'), body: t('preview.mata.startingBody') });
