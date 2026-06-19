@@ -12345,11 +12345,9 @@
       function toggleRow(path) { setSelected(path, !selected.has(path)); lastClickedPath = path; }
       function selectRange(toPath) {
         const rows = visibleRows();
-        const from = rows.findIndex(r => r.dataset.path === lastClickedPath);
-        const to = rows.findIndex(r => r.dataset.path === toPath);
-        if (from === -1 || to === -1) { toggleRow(toPath); return; }
-        const [a, b] = from < to ? [from, to] : [to, from];
-        for (let i = a; i <= b; i++) selected.add(rows[i].dataset.path);
+        const add = L.selectionRange(rows.map(r => r.dataset.path), lastClickedPath, toPath);
+        if (!add) { toggleRow(toPath); return; }
+        for (const p of add) selected.add(p);
         rows.forEach(applySelClass);
         updateSelbar();
       }
@@ -12417,21 +12415,9 @@
           const lbl = row.querySelector('span:last-child');
           if (!lbl) continue;
           const name = row.dataset.path.split('/').pop();
-          lbl.innerHTML = highlightMatch(name, match);
+          lbl.innerHTML = L.highlightMatch(name, match);
         }
       }
-      function highlightMatch(name, match) {
-        const esc = (s) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-        if (!match || !match.indices || !match.indices.length) return esc(name);
-        let out = '', last = 0;
-        for (const [a, b] of match.indices) {
-          out += esc(name.slice(last, a)) + '<span class="hl">' + esc(name.slice(a, b + 1)) + '</span>';
-          last = b + 1;
-        }
-        out += esc(name.slice(last));
-        return out;
-      }
-
       function loadOpenFolders(id) {
         openFolders.clear();
         try {
