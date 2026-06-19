@@ -61,6 +61,7 @@ window.__I18N_BUNDLES.en = {
   'dashboard.section.dormant': 'Dormant',
   'dashboard.section.foreign': 'Foreign',
   'dashboard.section.board': 'Board',
+  'dashboard.section.pinned': 'Pinned',
 
   // Session card — status badges
   'sessionCard.status.working': 'Working',
