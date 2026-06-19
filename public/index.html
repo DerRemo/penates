@@ -12289,6 +12289,27 @@
       let wsBackoff = 500;
       const seenSeq = new Map(); // projectId → max seq
 
+      // Pure logic + path helpers, lazily imported once and cached so the sync
+      // interaction handlers below can use them directly. ensureLogic() is
+      // idempotent and gates the async entry points (open / activateForSession);
+      // no row exists and no handler fires until a gate has resolved.
+      let L = null, R = null, logicFailed = false;
+      async function ensureLogic() {
+        if (L && R) return true;
+        if (logicFailed) return false;
+        try {
+          [L, R] = await Promise.all([
+            import('./filebrowser-logic.js'),
+            import('./relpath.js'),
+          ]);
+          return true;
+        } catch (e) {
+          logicFailed = true;
+          console.warn('[FileBrowser] logic import failed', e);
+          return false;
+        }
+      }
+
       // ── Multi-Select-State ───────────────────────────────────────
       const selected = new Set();        // relPaths
       let selectMode = false;            // Touch: Tap toggelt statt öffnet
@@ -12439,8 +12460,7 @@
       let showHidden = getFilterPref('showHidden', false);
 
       function entryVisible(entry) {
-        if (hideIgnored && entry.ignored) return false;
-        return true;
+        return L.isEntryVisible(entry, hideIgnored);
       }
 
       // ── Git-Status-Map (Tree-Marker) ─────────────────────────────
@@ -12586,6 +12606,11 @@
       }
 
       async function open(project) {
+        if (!(await ensureLogic())) {
+          const tree = document.getElementById('files-tree');
+          if (tree) tree.innerHTML = `<div style="padding:8px;color:var(--red,#f88)">${t('filebrowser.tree.loading')}</div>`;
+          return;
+        }
         // Panel-Sichtbarkeit besitzt RepoPanel; hier nur Tree rendern.
         currentProject = project;
         window.__currentProjectForFiles = project;
@@ -12613,7 +12638,7 @@
       function renderBreadcrumb() {
         const bc = document.getElementById('files-breadcrumb');
         if (!bc) return;
-        const rootName = (currentProject && (currentProject.name || (currentProject.path || '').split('/').filter(Boolean).pop())) || '/';
+        const rootName = L.breadcrumbRootName(currentProject);
         bc.innerHTML = '';
         const root = document.createElement('span');
         root.className = 'bc-seg bc-root';
