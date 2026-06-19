@@ -24,7 +24,7 @@
 		<true/>
 	</dict>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Schützt den Zugriff auf deine Sessions.</string>
+	<string>Protects access to your sessions.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>
