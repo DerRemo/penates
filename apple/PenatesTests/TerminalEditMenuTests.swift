@@ -12,8 +12,8 @@ import Testing
     #expect(TerminalEditMenuModel.actions(pasteboardHasText: true) == [.copy, .selectAll, .paste])
 }
 
-@Test func menuTitlesAreGerman() {
-    #expect(TerminalEditMenuModel.title(for: .copy) == "Kopieren")
-    #expect(TerminalEditMenuModel.title(for: .selectAll) == "Alles auswählen")
-    #expect(TerminalEditMenuModel.title(for: .paste) == "Einfügen")
+@Test func menuTitlesAreLocalized() {
+    #expect(TerminalEditMenuModel.title(for: .copy) == "Copy")
+    #expect(TerminalEditMenuModel.title(for: .selectAll) == "Select All")
+    #expect(TerminalEditMenuModel.title(for: .paste) == "Paste")
 }

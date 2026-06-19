@@ -38,14 +38,14 @@ struct SessionCard: View {
                 }
                 .buttonStyle(.plain)
                 // Icon-only Menu trigger → give VoiceOver a label.
-                .accessibilityLabel("Aktionen")
+                .accessibilityLabel("Actions")
             }
             Spacer(minLength: 0)
             HStack(spacing: 5) {
                 Text(session.displayName).font(.subheadline.weight(.semibold)).lineLimit(2)
                 Spacer(minLength: 4)
                 // No pin glyph here — pinned sessions live in their own
-                // "Angeheftet" section, so the indicator would be redundant.
+                // "Pinned" section, so the indicator would be redundant.
                 if session.muted {
                     Image(systemName: "bell.slash.fill").font(.caption2).opacity(0.85)
                 }
@@ -69,14 +69,14 @@ struct SessionCard: View {
 
     /// The session actions, shared by the "…" Menu and the card's context menu.
     @ViewBuilder private var actionButtons: some View {
-        Button("Umbenennen", systemImage: "pencil", action: onRename)
-        Button(session.pinned ? "Lösen" : "Anheften",
+        Button("Rename", systemImage: "pencil", action: onRename)
+        Button(session.pinned ? "Unpin" : "Pin",
                systemImage: session.pinned ? "pin.slash" : "pin",
                action: onTogglePin)
-        Button(session.muted ? "Stummschaltung aufheben" : "Stummschalten",
+        Button(session.muted ? "Unmute" : "Mute",
                systemImage: session.muted ? "bell" : "bell.slash",
                action: onToggleMute)
         Divider()
-        Button("Beenden", systemImage: "trash", role: .destructive, action: onKill)
+        Button("Stop", systemImage: "trash", role: .destructive, action: onKill)
     }
 }

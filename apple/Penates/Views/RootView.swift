@@ -19,7 +19,7 @@ struct RootView: View {
                                                       deviceCapable: deviceCapable) {
                             LockOverlay {
                                 let ok = await BiometricGate.authenticate(
-                                    reason: "Schützt den Zugriff auf deine Sessions."
+                                    reason: String(localized: "Protects access to your sessions.")
                                 )
                                 if ok { unlocked = true }
                                 return ok
@@ -53,7 +53,7 @@ private struct LockOverlay: View {
                 // appear. The retry button only surfaces after a failed/cancelled
                 // attempt so the user is never trapped on the lock screen.
                 if showRetry {
-                    Button("Entsperren") { Task { await run() } }
+                    Button("Unlock") { Task { await run() } }
                         .buttonStyle(.borderedProminent)
                 }
             }

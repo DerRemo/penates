@@ -114,7 +114,7 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
         // Esc
         stack.addArrangedSubview(makeKey("esc", action: #selector(tapEsc), accessibilityLabel: "Escape"))
         // Ctrl (sticky)
-        let ctrl = makeKey("ctrl", action: #selector(tapCtrl), accessibilityLabel: "Steuerung")
+        let ctrl = makeKey("ctrl", action: #selector(tapCtrl), accessibilityLabel: String(localized: "Control"))
         ctrl.layer.borderWidth = 1
         ctrl.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.4).cgColor
         ctrlButton = ctrl
@@ -122,14 +122,14 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
         // Tab — icon only; the "tab" label does not fit the equal-width button
         stack.addArrangedSubview(makeKey("", icon: "arrow.right.to.line.compact", action: #selector(tapTab), accessibilityLabel: "Tab"))
         // Arrows
-        stack.addArrangedSubview(makeKey("", icon: "arrow.up", action: #selector(tapUp), accessibilityLabel: "Nach oben"))
-        stack.addArrangedSubview(makeKey("", icon: "arrow.down", action: #selector(tapDown), accessibilityLabel: "Nach unten"))
-        stack.addArrangedSubview(makeKey("", icon: "arrow.left", action: #selector(tapLeft), accessibilityLabel: "Nach links"))
-        stack.addArrangedSubview(makeKey("", icon: "arrow.right", action: #selector(tapRight), accessibilityLabel: "Nach rechts"))
+        stack.addArrangedSubview(makeKey("", icon: "arrow.up", action: #selector(tapUp), accessibilityLabel: String(localized: "Up")))
+        stack.addArrangedSubview(makeKey("", icon: "arrow.down", action: #selector(tapDown), accessibilityLabel: String(localized: "Down")))
+        stack.addArrangedSubview(makeKey("", icon: "arrow.left", action: #selector(tapLeft), accessibilityLabel: String(localized: "Left")))
+        stack.addArrangedSubview(makeKey("", icon: "arrow.right", action: #selector(tapRight), accessibilityLabel: String(localized: "Right")))
         // Paste — inserts clipboard text into the input line (no auto-enter)
-        stack.addArrangedSubview(makeKey("", icon: "doc.on.clipboard", action: #selector(tapPaste), accessibilityLabel: "Einfügen"))
+        stack.addArrangedSubview(makeKey("", icon: "doc.on.clipboard", action: #selector(tapPaste), accessibilityLabel: String(localized: "Paste")))
         // Dismiss keyboard
-        stack.addArrangedSubview(makeKey("", icon: "keyboard.chevron.compact.down", action: #selector(tapDismiss), accessibilityLabel: "Tastatur ausblenden"))
+        stack.addArrangedSubview(makeKey("", icon: "keyboard.chevron.compact.down", action: #selector(tapDismiss), accessibilityLabel: String(localized: "Hide keyboard")))
     }
 
     // MARK: Button factory

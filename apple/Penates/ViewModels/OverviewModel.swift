@@ -11,7 +11,7 @@ final class OverviewModel {
     init(client: APIClient?) { self.client = client }
 
     // Pinned sessions get their own section at the very top, regardless of
-    // running/dormant; Aktiv/Ruhend show only the unpinned remainder. Server
+    // running/dormant; Active/Dormant show only the unpinned remainder. Server
     // order is preserved within each group (filter is stable).
     var pinned: [Session]  { sessions.filter { $0.pinned } }
     var active: [Session]  { sessions.filter { $0.status == .running && !$0.pinned } }
@@ -21,7 +21,7 @@ final class OverviewModel {
         defer { didLoad = true }
         guard let client else { return }
         do { sessions = try await client.sessions(); loadError = nil }
-        catch { loadError = "Sessions konnten nicht geladen werden." }
+        catch { loadError = String(localized: "Couldn't load sessions.") }
     }
 
     // MARK: - Mutations

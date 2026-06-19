@@ -23,24 +23,24 @@ struct OverviewView: View {
                     if model.sessions.isEmpty {
                         if let err = model.loadError {
                             ContentUnavailableView {
-                                Label("Sessions nicht geladen", systemImage: "exclamationmark.triangle")
+                                Label("Couldn't load sessions", systemImage: "exclamationmark.triangle")
                             } description: {
                                 Text(err)
                             } actions: {
-                                Button("Erneut versuchen") { Task { await model.load() } }
+                                Button("Try Again") { Task { await model.load() } }
                             }
                         } else if model.didLoad {
-                            ContentUnavailableView("Keine Sessions", systemImage: "square.grid.2x2",
-                                description: Text("Tippe oben rechts auf +, um eine Session zu starten."))
+                            ContentUnavailableView("No Sessions", systemImage: "square.grid.2x2",
+                                description: Text("Tap + in the top right to start a session."))
                         } else {
                             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     } else {
                         ScrollView {
                             LazyVGrid(columns: columns, spacing: 12) {
-                                sessionSection("Angeheftet", model.pinned)
-                                sessionSection("Aktiv", model.active)
-                                sessionSection("Ruhend", model.dormant)
+                                sessionSection("Pinned", model.pinned)
+                                sessionSection("Active", model.active)
+                                sessionSection("Dormant", model.dormant)
                             }
                             .padding()
                         }
@@ -53,10 +53,10 @@ struct OverviewView: View {
             .navigationTitle("Sessions")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Einstellungen", systemImage: "gearshape") { showSettings = true }
+                    Button("Settings", systemImage: "gearshape") { showSettings = true }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Neue Session", systemImage: "plus") { showNewSession = true }
+                    Button("New Session", systemImage: "plus") { showNewSession = true }
                 }
             }
             .navigationDestination(for: Session.self) { s in TerminalScreen(session: s) }
@@ -65,24 +65,24 @@ struct OverviewView: View {
         .sheet(isPresented: $showNewSession) { NewSessionView { Task { await model?.load() } } }
         // Rename alert — bool-driven with `presenting:` so the optional session
         // is safely unwrapped without a Binding(get:set:) in the body.
-        .alert("Session umbenennen", isPresented: $isRenaming, presenting: renameTarget) { session in
-            TextField("Neuer Name", text: $renameText)
+        .alert("Rename Session", isPresented: $isRenaming, presenting: renameTarget) { session in
+            TextField("New name", text: $renameText)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
-            Button("Umbenennen") {
+            Button("Rename") {
                 // Defense-in-depth: a hardware-keyboard Return can bypass .disabled on an alert button.
                 guard SessionName.isValid(renameText) else { return }
                 let newName = renameText
                 Task { await performRename(session, to: newName) }
             }
             .disabled(!SessionName.isValid(renameText))
-            Button("Abbrechen", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         }
         // Error alert
-        .alert("Fehler", isPresented: $showError) {
+        .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(errorMessage ?? "Unbekannter Fehler")
+            Text(errorMessage ?? "Unknown error")
         }
         .task { await setup() }
     }
@@ -90,7 +90,7 @@ struct OverviewView: View {
     /// Builds one overview section, sharing the common per-card action closures.
     /// Returns a concrete `SessionSection` (a factory, not a `some View` body
     /// fragment) so the three call sites stay DRY.
-    private func sessionSection(_ title: String, _ items: [Session]) -> SessionSection {
+    private func sessionSection(_ title: LocalizedStringKey, _ items: [Session]) -> SessionSection {
         SessionSection(
             title: title,
             items: items,

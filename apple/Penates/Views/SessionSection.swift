@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// One titled group of session cards in the overview grid (Angeheftet / Aktiv /
-/// Ruhend). Renders nothing when empty. Extracted from `OverviewView` so the
+/// One titled group of session cards in the overview grid (Pinned / Active /
+/// Dormant). Renders nothing when empty. Extracted from `OverviewView` so the
 /// grid body stays a flat list of sections rather than an inline `@ViewBuilder`
 /// helper.
 struct SessionSection: View {
-    let title: String
+    let title: LocalizedStringKey
     let items: [Session]
     /// Drives the per-card kill-confirmation popover. Anchoring requires a
     /// per-card `isPresented` binding (a single `popover(item:)` would fire on
@@ -59,12 +59,12 @@ private struct KillConfirmPopover: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("Session „\(name)“ beenden?")
+            Text("Stop session “\(name)”?")
                 .font(.subheadline.weight(.semibold))
                 .multilineTextAlignment(.center)
-            Button("Beenden", role: .destructive, action: onConfirm)
+            Button("Stop", role: .destructive, action: onConfirm)
                 .buttonStyle(.borderedProminent)
-            Button("Abbrechen", role: .cancel, action: onCancel)
+            Button("Cancel", role: .cancel, action: onCancel)
         }
         .padding()
         .frame(minWidth: 240)

@@ -4,6 +4,10 @@ options:
   deploymentTarget:
     iOS: "18.0"
   developmentLanguage: en
+  knownRegions:
+    - Base
+    - en
+    - de
 packages:
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
@@ -17,7 +21,7 @@ targets:
     info:
       path: Penates/Info.plist
       properties:
-        NSFaceIDUsageDescription: "Schützt den Zugriff auf deine Sessions."
+        NSFaceIDUsageDescription: "Protects access to your sessions."
         UILaunchScreen: {}
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
@@ -31,6 +35,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "6.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: YES
+        LOCALIZATION_PREFERS_STRING_CATALOGS: YES
     dependencies:
       - package: SwiftTerm
   PenatesTests:
