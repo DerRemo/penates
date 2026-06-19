@@ -63,10 +63,16 @@ test.describe('Pinned sessions ordering', () => {
 
     // Default sidebar filter = active → running shown, dormant hidden.
     // Visible: cc-zzz (pinned), cc-aaa (unpinned). Pinned-first beats alphabetical.
-    const items = await page.locator('#sidebar-sessions .sidebar__item').evaluateAll(
-      els => els.map(e => e.getAttribute('data-session')),
-    );
-    expect(items).toEqual(['cc-zzz', 'cc-aaa']);
+    // Poll the DOM rather than snapshot it once: session-sort.js is a deferred
+    // module, so the first sidebar render can use the unsorted fallback before
+    // window.SessionSort loads, and a later poll re-renders in pinned-first order.
+    // A single evaluateAll() raced that re-render and made this test flaky.
+    await expect.poll(
+      () => page.locator('#sidebar-sessions .sidebar__item').evaluateAll(
+        els => els.map(e => e.getAttribute('data-session')),
+      ),
+      { timeout: 10_000 },
+    ).toEqual(['cc-zzz', 'cc-aaa']);
 
     // Pin glyph only on the pinned item.
     await expect(page.locator('#sidebar-sessions .sidebar__item[data-session="cc-zzz"] .sidebar__pin')).toBeVisible();

@@ -14,8 +14,10 @@ export function sessionLabel(s) {
 
 // Case-insensitive, natural-numeric comparator on the display label, so
 // `s2` sorts before `s10` and capitalization doesn't split the list.
+// Pinned locale ('en') keeps collation deterministic across environments
+// (node:test vs. a non-en browser) rather than deferring to the runtime default.
 export function compareByLabel(a, b) {
-  return sessionLabel(a).localeCompare(sessionLabel(b), undefined, {
+  return sessionLabel(a).localeCompare(sessionLabel(b), 'en', {
     numeric: true,
     sensitivity: 'base',
   });
