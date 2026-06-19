@@ -12289,6 +12289,27 @@
       let wsBackoff = 500;
       const seenSeq = new Map(); // projectId → max seq
 
+      // Pure logic + path helpers, lazily imported once and cached so the sync
+      // interaction handlers below can use them directly. ensureLogic() is
+      // idempotent and gates the async entry points (open / activateForSession);
+      // no row exists and no handler fires until a gate has resolved.
+      let L = null, R = null, logicFailed = false;
+      async function ensureLogic() {
+        if (L && R) return true;
+        if (logicFailed) return false;
+        try {
+          [L, R] = await Promise.all([
+            import('./filebrowser-logic.js'),
+            import('./relpath.js'),
+          ]);
+          return true;
+        } catch (e) {
+          logicFailed = true;
+          console.warn('[FileBrowser] logic import failed', e);
+          return false;
+        }
+      }
+
       // ── Multi-Select-State ───────────────────────────────────────
       const selected = new Set();        // relPaths
       let selectMode = false;            // Touch: Tap toggelt statt öffnet
@@ -12324,11 +12345,9 @@
       function toggleRow(path) { setSelected(path, !selected.has(path)); lastClickedPath = path; }
       function selectRange(toPath) {
         const rows = visibleRows();
-        const from = rows.findIndex(r => r.dataset.path === lastClickedPath);
-        const to = rows.findIndex(r => r.dataset.path === toPath);
-        if (from === -1 || to === -1) { toggleRow(toPath); return; }
-        const [a, b] = from < to ? [from, to] : [to, from];
-        for (let i = a; i <= b; i++) selected.add(rows[i].dataset.path);
+        const add = L.selectionRange(rows.map(r => r.dataset.path), lastClickedPath, toPath);
+        if (!add) { toggleRow(toPath); return; }
+        for (const p of add) selected.add(p);
         rows.forEach(applySelClass);
         updateSelbar();
       }
@@ -12396,21 +12415,9 @@
           const lbl = row.querySelector('span:last-child');
           if (!lbl) continue;
           const name = row.dataset.path.split('/').pop();
-          lbl.innerHTML = highlightMatch(name, match);
+          lbl.innerHTML = L.highlightMatch(name, match);
         }
       }
-      function highlightMatch(name, match) {
-        const esc = (s) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-        if (!match || !match.indices || !match.indices.length) return esc(name);
-        let out = '', last = 0;
-        for (const [a, b] of match.indices) {
-          out += esc(name.slice(last, a)) + '<span class="hl">' + esc(name.slice(a, b + 1)) + '</span>';
-          last = b + 1;
-        }
-        out += esc(name.slice(last));
-        return out;
-      }
-
       function loadOpenFolders(id) {
         openFolders.clear();
         try {
@@ -12439,8 +12446,7 @@
       let showHidden = getFilterPref('showHidden', false);
 
       function entryVisible(entry) {
-        if (hideIgnored && entry.ignored) return false;
-        return true;
+        return L.isEntryVisible(entry, hideIgnored);
       }
 
       // ── Git-Status-Map (Tree-Marker) ─────────────────────────────
@@ -12586,6 +12592,11 @@
       }
 
       async function open(project) {
+        if (!(await ensureLogic())) {
+          const tree = document.getElementById('files-tree');
+          if (tree) tree.innerHTML = `<div style="padding:8px;color:var(--red,#f88)">${t('filebrowser.tree.loading')}</div>`;
+          return;
+        }
         // Panel-Sichtbarkeit besitzt RepoPanel; hier nur Tree rendern.
         currentProject = project;
         window.__currentProjectForFiles = project;
@@ -12613,7 +12624,7 @@
       function renderBreadcrumb() {
         const bc = document.getElementById('files-breadcrumb');
         if (!bc) return;
-        const rootName = (currentProject && (currentProject.name || (currentProject.path || '').split('/').filter(Boolean).pop())) || '/';
+        const rootName = L.breadcrumbRootName(currentProject);
         bc.innerHTML = '';
         const root = document.createElement('span');
         root.className = 'bc-seg bc-root';
@@ -12818,22 +12829,16 @@
       // Picker für JEDE Session funktioniert — nicht nur projekt-gebundene.
       // Von RepoPanel.open aufgerufen: Quelle bestimmen + Tree in #files-tree
       // rendern. Panel-Sichtbarkeit besitzt RepoPanel (Tab-Logik).
-      function activateForSession(sessionName) {
+      async function activateForSession(sessionName) {
+        if (!(await ensureLogic())) return;
         const session = Array.isArray(sessions) ? sessions.find(s => s.name === sessionName) : null;
-        const match = (session && Array.isArray(projectsCache))
-          ? findMatchingProject(session.path, projectsCache)
-          : null;
-        let source;
-        if (match) {
-          source = { id: match.id, path: match.path, name: match.displayName || match.name };
-        } else {
-          source = { id: 'session:' + sessionName, path: (session && session.path) || '', name: (session && session.name) || sessionName };
-          // Cache noch kalt → später erneut versuchen, ob doch ein Projekt matcht
-          // (registriertes Projekt hat Vorrang vor der Session-Quelle).
-          if (session && !projectsCache) {
-            ensureProjectsLoaded().then(() => activateForSession(sessionName));
-          }
+        const resolved = L.resolveFileSource(session, projectsCache, findMatchingProject, sessionName);
+        // Cache noch kalt → später erneut versuchen, ob doch ein Projekt matcht
+        // (registriertes Projekt hat Vorrang vor der Session-Quelle).
+        if (resolved.needsRetry) {
+          ensureProjectsLoaded().then(() => activateForSession(sessionName));
         }
+        const source = { id: resolved.id, path: resolved.path, name: resolved.name };
         window.__currentProjectForFiles = source;
         stateSession = sessionName;
         // Bei Quell-Wechsel den alten Tree-State abräumen, dann neu rendern.
@@ -12863,15 +12868,15 @@
           let msg;
           try { msg = JSON.parse(e.data); } catch { return; }
           if (!msg || !msg.projectId) return;
-          const last = seenSeq.get(msg.projectId) || 0;
-          if (typeof msg.seq === 'number' && msg.seq <= last) return;
-          if (typeof msg.seq === 'number') seenSeq.set(msg.projectId, msg.seq);
+          const gate = L.seqGate(seenSeq.get(msg.projectId) || 0, msg.seq);
+          if (!gate.accept) return;
+          seenSeq.set(msg.projectId, gate.next);
           onFsEvent(msg);
         });
         ws.addEventListener('close', () => {
           ws = null;
           if (!currentProject) return;
-          wsBackoff = Math.min(wsBackoff * 2, 30_000);
+          wsBackoff = L.nextBackoff(wsBackoff);
           wsReconnectTimer = setTimeout(() => {
             if (currentProject) connectWs(currentProject.id);
           }, wsBackoff);
@@ -12889,7 +12894,7 @@
       function onFsEvent(msg) {
         // Minimum-viable refresh: if the parent folder of msg.relPath is either the
         // root or a currently-expanded directory, refetch its children and redraw.
-        const parent = msg.relPath.includes('/') ? msg.relPath.split('/').slice(0, -1).join('/') : '';
+        const parent = R.parentRel(msg.relPath);
         if (parent === '') {
           refreshContainer(document.getElementById('files-tree'), '');
           return;
@@ -12957,9 +12962,7 @@
           const isInternal = types.includes(PATH_TYPE);
           if (!isFiles && !isInternal) return;
           e.preventDefault();
-          e.dataTransfer.dropEffect = isFiles
-            ? 'copy'
-            : ((e.altKey || e.ctrlKey) ? 'copy' : 'move');
+          e.dataTransfer.dropEffect = L.dropEffect(isFiles, e.altKey || e.ctrlKey);
           const row = e.target.closest('.file-row[data-type="dir"]');
           clearHighlights();
           if (row) {
@@ -13007,11 +13010,9 @@
           const rel = (e.dataTransfer.getData(PATH_TYPE) || '').replace(/\/$/, '');
           if (!rel) return;
           const copy = e.altKey || e.ctrlKey;
-          const parentOf = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '';
-          // Move in den aktuellen Parent → stiller No-op (Copy ist ein legit Duplikat).
-          if (!copy && destDir === parentOf) return;
-          // Ordner in sich/Nachfahren → Fehler-Toast, kein Request.
-          if (destDir === rel || destDir.startsWith(rel + '/')) {
+          const decision = L.moveCopyDecision(rel, destDir, copy);
+          if (decision === 'noop') return;
+          if (decision === 'self-error') {
             if (typeof showToast === 'function') showToast(t('filebrowser.toast.moveSelfError'), 'error');
             return;
           }
