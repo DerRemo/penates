@@ -9479,7 +9479,7 @@
         try {
           const res = await fetch(`/api/sessions/${encodeURIComponent(fullName)}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', ...apiHeaders() },
+            headers: apiHeaders(),
             body: JSON.stringify({ newName: newDisplay }),
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -11463,7 +11463,7 @@
         try {
           await fetch('/api/settings', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', ...apiHeaders() },
+            headers: apiHeaders(),
             body: JSON.stringify({ tmuxMouse: next ? 'on' : 'off' }),
           });
         } catch { tm.setAttribute('aria-pressed', next ? 'false' : 'true'); }
@@ -11482,7 +11482,7 @@
           try {
             await fetch('/api/settings', {
               method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', ...apiHeaders() },
+              headers: apiHeaders(),
               body: JSON.stringify({ [key]: next }),
             });
           } catch { btn.setAttribute('aria-pressed', next ? 'false' : 'true'); }
