@@ -670,6 +670,14 @@
       font-size: var(--text-sm);
       font-weight: 500;
     }
+    .sidebar__pin {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      color: var(--accent);
+      opacity: 0.85;
+    }
+    .sidebar__pin svg { width: 12px; height: 12px; }
 
     .sidebar__nav-label {
       flex: 1;
@@ -4764,6 +4772,8 @@
     import { commitTypeColor as _commitTypeColor, commitType as _commitType } from './commit-type.js';
     window.commitTypeColor = _commitTypeColor;
     window.commitType = _commitType;
+    import { partitionOverview as _partitionOverview, orderSidebar as _orderSidebar } from './session-sort.js';
+    window.SessionSort = { partitionOverview: _partitionOverview, orderSidebar: _orderSidebar };
     import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
   </script>
   <script>
@@ -6829,20 +6839,25 @@
         updateSidebarNavActive();
         return;
       }
-      // Reihenfolge: attached zuerst (optisch markiert über active-class),
-      // danach nach created desc. Namen als data-session für patchActivityBadge.
-      const sorted = [...visible].sort((a, b) => {
-        if (a.attached !== b.attached) return a.attached ? -1 : 1;
-        return (b.created || 0) - (a.created || 0);
-      });
+      // Reihenfolge zentral in session-sort.js: angeheftet zuerst, dann
+      // alphabetisch nach Anzeigename. Kein attached-first mehr — die offene
+      // Session ist ohnehin über sidebar__item--active markiert.
+      const SS = window.SessionSort;
+      const sorted = SS ? SS.orderSidebar(visible) : visible;
       list.innerHTML = sorted.map(s => {
         const display = s.name.replace(/^cc-/, '');
         const safe = escapeHtml(s.name);
         const activity = s.activity || 'unknown';
         const isActive = currentView === 'terminal' && currentSessionName === s.name;
+        const pinGlyph = s.pinned
+          ? `<span class="sidebar__pin" aria-label="${t('sidebar.pinned')}" title="${t('sidebar.pinned')}">`
+            + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`
+            + `</span>`
+          : '';
         return `<button class="sidebar__item${isActive ? ' sidebar__item--active' : ''}" type="button" data-session="${safe}">`
           + `<span class="sidebar__dot" data-activity="${activity}"></span>`
           + `<span class="sidebar__name">${escapeHtml(display)}</span>`
+          + pinGlyph
           + `</button>`;
       }).join('');
       updateSidebarNavActive();
@@ -8508,30 +8523,25 @@
         return;
       }
 
-      // Board-verlinkte LAUFENDE Sessions in eine eigene Sektion herausziehen
-      // (dormante bleiben in „Ruhend" — eine dormante Session lässt sich nicht killen).
-      const isBoardSession = (s) => !!s.boardCard && (s.status || 'running') === 'running';
-      const boardSessions = filtered.filter(isBoardSession);
-
-      // Gruppiere den Rest nach Status — stabile Reihenfolge innerhalb jeder Gruppe.
-      const byStatus = { running: [], dormant: [], foreign: [] };
-      for (const s of filtered) {
-        if (isBoardSession(s)) continue;   // keine Doppelung Board ↔ Aktiv
-        const key = s.status || 'running';
-        if (byStatus[key]) byStatus[key].push(s);
+      // Gruppierung + Sortierung zentral in session-sort.js (eine Quelle der
+      // Ordnung für Sidebar und Overview): angeheftet zuerst (eigene Sektion),
+      // dann alphabetisch nach Anzeigename. Board-Sessions bleiben in „Board"
+      // (gepinnte floaten dort nach oben); Fremd-Sessions können nicht gepinnt
+      // werden.
+      const SS = window.SessionSort;
+      let pinnedSessions, boardSessions, activeSessions, dormantSessions, foreignSessions;
+      if (SS) {
+        ({ pinned: pinnedSessions, board: boardSessions, active: activeSessions,
+           dormant: dormantSessions, foreign: foreignSessions } = SS.partitionOverview(filtered));
+      } else {
+        // Defensive: Modul noch nicht geladen (passiert beim ersten Poll nicht,
+        // da Module-Scripts deferred laufen) — ungruppierter Fallback statt Crash.
+        pinnedSessions = [];
+        boardSessions = [];
+        activeSessions = filtered.filter(s => (s.status || 'running') === 'running');
+        dormantSessions = filtered.filter(s => s.status === 'dormant');
+        foreignSessions = filtered.filter(s => s.status === 'foreign');
       }
-
-      // Gepinnte Sessions innerhalb ihrer Partition nach oben sortieren.
-      // Array.sort ist in modernen Engines stabil — die relative Reihenfolge
-      // gleichartiger (pinned/unpinned) Sessions bleibt erhalten.
-      for (const key of Object.keys(byStatus)) {
-        byStatus[key].sort((a, b) => {
-          const ap = a.pinned ? 1 : 0;
-          const bp = b.pinned ? 1 : 0;
-          return bp - ap; // pinned first
-        });
-      }
-      boardSessions.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)); // pinned first
 
       const activityMap = {
         working: { cls: 'working', get label() { return t('sessionCard.status.working'); },      get title() { return t('sessionCard.status.workingTitle'); } },
@@ -8729,12 +8739,18 @@
       // (`unread-breathe`, `attention-flash`) das 5s-Polling, statt bei
       // jedem Re-Render von vorne zu starten — und der User sieht keinen
       // Flash.
+      // Angeheftet ganz oben — mischt running/dormant, also Renderer nach Status
+      // wählen (running-Karte vs. dormant-Karte mit Restore-Button).
+      const renderPinnedCard = (s) => (s.status === 'dormant')
+        ? renderDormantCard(s)
+        : renderRunningCard(s);
       const newOrder = [];
       const sectionSpecs = [
+        [t('dashboard.section.pinned'),  pinnedSessions,   renderPinnedCard],
         [t('dashboard.section.board'),   boardSessions,    renderBoardSessionCard],
-        [t('dashboard.section.active'),  byStatus.running, renderRunningCard],
-        [t('dashboard.section.dormant'), byStatus.dormant, renderDormantCard],
-        [t('dashboard.section.foreign'), byStatus.foreign, renderForeignCard],
+        [t('dashboard.section.active'),  activeSessions,   renderRunningCard],
+        [t('dashboard.section.dormant'), dormantSessions,  renderDormantCard],
+        [t('dashboard.section.foreign'), foreignSessions,  renderForeignCard],
       ];
       for (const [label, items, renderer] of sectionSpecs) {
         if (!items.length) continue;

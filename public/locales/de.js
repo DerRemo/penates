@@ -12,6 +12,7 @@ window.__I18N_BUNDLES.de = {
   'sidebar.filterActive': 'Aktiv',
   'sidebar.filterAll': 'Alle',
   'sidebar.noActiveFiltered': 'Keine aktiven Sessions — wechsle zu „Alle"',
+  'sidebar.pinned': 'Angeheftet',
   'sidebar.nav.overview': 'Übersicht',
   'sidebar.nav.projects': 'Projekte',
   'sidebar.nav.usage': 'Usage',
@@ -60,6 +61,7 @@ window.__I18N_BUNDLES.de = {
   'dashboard.section.dormant': 'Ruhend',
   'dashboard.section.foreign': 'Fremd',
   'dashboard.section.board': 'Board',
+  'dashboard.section.pinned': 'Angeheftet',
 
   // Session card — status badges
   'sessionCard.status.working': 'Arbeitet',
