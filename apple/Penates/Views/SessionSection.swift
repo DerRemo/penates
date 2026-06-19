@@ -5,7 +5,7 @@ import SwiftUI
 /// grid body stays a flat list of sections rather than an inline `@ViewBuilder`
 /// helper.
 struct SessionSection: View {
-    let title: String
+    let title: LocalizedStringKey
     let items: [Session]
     /// Drives the per-card kill-confirmation popover. Anchoring requires a
     /// per-card `isPresented` binding (a single `popover(item:)` would fire on

@@ -90,7 +90,7 @@ struct OverviewView: View {
     /// Builds one overview section, sharing the common per-card action closures.
     /// Returns a concrete `SessionSection` (a factory, not a `some View` body
     /// fragment) so the three call sites stay DRY.
-    private func sessionSection(_ title: String, _ items: [Session]) -> SessionSection {
+    private func sessionSection(_ title: LocalizedStringKey, _ items: [Session]) -> SessionSection {
         SessionSection(
             title: title,
             items: items,
