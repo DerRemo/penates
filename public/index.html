@@ -5855,11 +5855,16 @@
       return c;
     }
 
-    // Mirror von lib/backoff.js (dort unit-getestet). Base 1s, Faktor 2, Cap 20s, ±20% Jitter.
+    // nextBackoffMs lebt jetzt im geteilten, unit-getesteten public/backoff.js
+    // (kein Inline-Mirror mehr). Einmal beim Init vorgeladen, damit der SYNCHRONE
+    // Reconnect-Pfad (ws.onclose) es ohne await nutzen kann — das Modul ist winzig
+    // + same-origin, also längst geladen, bevor das erste Reconnect feuern kann
+    // (das setzt eine zuvor offene Terminal-Verbindung voraus). Bis dahin 1s-Default:
+    // nur das allererste Reconnect-Delay, nie die Formel.
+    let _backoffMod = null;
+    import('./backoff.js').then(m => { _backoffMod = m; }).catch(() => {});
     function nextBackoffMs(attempt) {
-      const base = Math.min(1000 * 2 ** attempt, 20000);
-      const jitter = base * 0.2;
-      return Math.round(base - jitter + Math.random() * 2 * jitter);
+      return _backoffMod ? _backoffMod.nextBackoffMs(attempt) : 1000;
     }
 
     function stopHeartbeat() {
@@ -10656,77 +10661,8 @@
     }
 
     // ── Markdown-mini renderer ────────────────────────────────────
-    // Duplicate of lib/markdown-mini.js (tested there). Keep in sync if either copy changes.
-    (function () {
-      function mdEscapeHtml(s) {
-        return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-      }
-      function mdRenderInline(text) {
-        const parts = [];
-        let rest = text;
-        const codeRe = /`([^`]+)`/;
-        let m;
-        while ((m = rest.match(codeRe))) {
-          parts.push({ type: 'text', value: rest.slice(0, m.index) });
-          parts.push({ type: 'code', value: m[1] });
-          rest = rest.slice(m.index + m[0].length);
-        }
-        parts.push({ type: 'text', value: rest });
-        return parts.map(p => {
-          if (p.type === 'code') return `<code>${mdEscapeHtml(p.value)}</code>`;
-          let s = mdEscapeHtml(p.value);
-          // Nur sichere Schemes verlinken — javascript:/data:/vbscript: würden im
-          // Hub-Origin (Token im localStorage) Skript ausführen. Unsicher → Roh-Text.
-          s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (whole, label, url) =>
-            /^(?:https?:\/\/|mailto:|\/|\.{1,2}\/|#)/i.test(url)
-              ? `<a href="${mdEscapeHtml(url)}" target="_blank" rel="noopener">${label}</a>`
-              : whole);
-          s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-          s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
-          s = s.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>');
-          return s;
-        }).join('');
-      }
-      function mdRenderBlock(b) {
-        switch (b.kind) {
-          case 'h3': return `<h3>${mdRenderInline(b.text)}</h3>`;
-          case 'h4': return `<h4>${mdRenderInline(b.text)}</h4>`;
-          case 'ul': return `<ul>${b.items.map(i => `<li>${mdRenderInline(i)}</li>`).join('')}</ul>`;
-          case 'para': return `<p>${mdRenderInline(b.text).replace(/\n/g, '<br>')}</p>`;
-          default: return '';
-        }
-      }
-      function renderMarkdownMini(src) {
-        if (!src || typeof src !== 'string') return '';
-        const lines = src.replace(/\r\n?/g, '\n').split('\n');
-        const blocks = [];
-        let buffer = [];
-        let mode = null;
-        const flushBuffer = () => {
-          if (buffer.length === 0) return;
-          if (mode === 'ul') blocks.push({ kind: 'ul', items: buffer.map(l => l.replace(/^[-*]\s+/, '')) });
-          else if (mode === 'para') blocks.push({ kind: 'para', text: buffer.join('\n') });
-          buffer = [];
-          mode = null;
-        };
-        for (const raw of lines) {
-          const h2 = raw.match(/^##\s+(.*)$/);
-          const h3 = raw.match(/^###\s+(.*)$/);
-          const li = raw.match(/^[-*]\s+.+$/);
-          const blank = /^\s*$/.test(raw);
-          if (h3) { flushBuffer(); blocks.push({ kind: 'h4', text: h3[1] }); continue; }
-          if (h2) { flushBuffer(); blocks.push({ kind: 'h3', text: h2[1] }); continue; }
-          if (li) { if (mode !== 'ul') flushBuffer(); mode = 'ul'; buffer.push(raw); continue; }
-          if (blank) { flushBuffer(); continue; }
-          if (mode !== 'para') flushBuffer();
-          mode = 'para';
-          buffer.push(raw);
-        }
-        flushBuffer();
-        return blocks.map(mdRenderBlock).join('\n');
-      }
-      window.renderMarkdownMini = renderMarkdownMini;
-    })();
+    // Lebt im geteilten, unit-getesteten public/markdown-mini.js. Einziger Consumer
+    // ist der Settings-About-Changelog, der es dort lazy per import() lädt.
 
     function formatAge(timestamp) {
       const diff = Date.now() - timestamp;
@@ -11698,7 +11634,9 @@
         linkEl.setAttribute('hidden', '');
       }
 
-      changelogEl.innerHTML = window.renderMarkdownMini(info.changelogMd || '');
+      import('./markdown-mini.js')
+        .then(m => { changelogEl.innerHTML = m.renderMarkdownMini(info.changelogMd || ''); })
+        .catch(() => { changelogEl.textContent = info.changelogMd || ''; });
     }
 
     // ── Settings: Updates panel ───────────────────────────────────
