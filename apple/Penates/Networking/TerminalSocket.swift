@@ -81,6 +81,11 @@ final class TerminalSocket {
     }
 
     private func startReceiveLoop(on socket: URLSessionWebSocketTask) {
+        // Cancel any prior loop before reassigning the handle (mirrors
+        // startHeartbeat). The current call graph always cancels via reconnect()
+        // first, but overwriting a live Task handle would orphan it — defensive
+        // against a future second caller of connect().
+        receiveTask?.cancel()
         receiveTask = Task { [weak self] in
             while !Task.isCancelled {
                 do {
