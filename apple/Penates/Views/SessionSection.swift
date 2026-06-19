@@ -59,12 +59,12 @@ private struct KillConfirmPopover: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("Session „\(name)“ beenden?")
+            Text("Stop session “\(name)”?")
                 .font(.subheadline.weight(.semibold))
                 .multilineTextAlignment(.center)
-            Button("Beenden", role: .destructive, action: onConfirm)
+            Button("Stop", role: .destructive, action: onConfirm)
                 .buttonStyle(.borderedProminent)
-            Button("Abbrechen", role: .cancel, action: onCancel)
+            Button("Cancel", role: .cancel, action: onCancel)
         }
         .padding()
         .frame(minWidth: 240)

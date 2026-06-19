@@ -27,15 +27,15 @@ struct StatusChip: View {
             case .unknown: .secondary
         }
     }
-    // German VoiceOver label, matching the rest of the (German) UI rather than
-    // reading the raw English enum case.
+    // Localized VoiceOver label — English source strings; translations added via
+    // the string catalog in a later task.
     private var accessibilityText: String {
-        if dormant { return "Ruhend" }
+        if dormant { return String(localized: "Dormant") }
         return switch activity {
-            case .working: "Arbeitet"
-            case .waiting: "Wartet"
-            case .idle:    "Bereit"
-            case .unknown: "Unbekannt"
+            case .working: String(localized: "Working")
+            case .waiting: String(localized: "Waiting")
+            case .idle:    String(localized: "Ready")
+            case .unknown: String(localized: "Unknown")
         }
     }
     // Sized variant scales the glyph to fill the fixed frame; the default uses a

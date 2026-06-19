@@ -21,7 +21,7 @@ final class OverviewModel {
         defer { didLoad = true }
         guard let client else { return }
         do { sessions = try await client.sessions(); loadError = nil }
-        catch { loadError = "Sessions konnten nicht geladen werden." }
+        catch { loadError = String(localized: "Couldn't load sessions.") }
     }
 
     // MARK: - Mutations
