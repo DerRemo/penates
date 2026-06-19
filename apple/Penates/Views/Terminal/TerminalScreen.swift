@@ -84,14 +84,14 @@ private struct SessionEndedView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label(code == 4001 ? "Nicht autorisiert" : "Session beendet",
+            Label(code == 4001 ? "Not authorized" : "Session ended",
                   systemImage: code == 4001 ? "lock.slash" : "xmark.circle")
         } description: {
             Text(code == 4001
-                 ? "Die Verbindung wurde abgelehnt."
-                 : "Diese Session läuft nicht mehr.")
+                 ? "The connection was rejected."
+                 : "This session is no longer running.")
         } actions: {
-            Button("Zurück zur Übersicht", action: onBack)
+            Button("Back to Overview", action: onBack)
                 .buttonStyle(.borderedProminent)
         }
     }

@@ -18,13 +18,12 @@ enum TerminalEditMenuModel {
         pasteboardHasText ? [.copy, .selectAll, .paste] : [.copy, .selectAll]
     }
 
-    /// Hard-coded German labels — the app has no i18n infrastructure; all UI
-    /// strings are German literals (cf. SettingsView, SessionEndedView).
+    /// Localized edit-menu labels (English source; German via Localizable.xcstrings).
     static func title(for action: TerminalMenuAction) -> String {
         switch action {
-        case .copy:      return "Kopieren"
-        case .selectAll: return "Alles auswählen"
-        case .paste:     return "Einfügen"
+        case .copy:      return String(localized: "Copy")
+        case .selectAll: return String(localized: "Select All")
+        case .paste:     return String(localized: "Paste")
         }
     }
 }
