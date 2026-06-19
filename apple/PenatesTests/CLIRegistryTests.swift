@@ -18,8 +18,9 @@ import Testing
     #expect(CLIRegistry.from(command: "vim") == nil)
 }
 
-@Test func everyCLIHasAtLeastOneVariant() {
-    for cli in CLIRegistry.all { #expect(!cli.variants.isEmpty) }
+@Test(arguments: CLIRegistry.all)
+func everyCLIHasAtLeastOneVariant(_ cli: CLI) {
+    #expect(cli.variants.isEmpty == false)
 }
 
 @Test func resolvesPathPrefixedCommand() {

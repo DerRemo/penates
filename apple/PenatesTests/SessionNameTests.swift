@@ -6,7 +6,7 @@ import Testing
     #expect(SessionName.isValid("a b.c"))
 }
 @Test func rejectsInvalid() {
-    #expect(!SessionName.isValid(""))
-    #expect(!SessionName.isValid("has/slash"))
-    #expect(!SessionName.isValid(String(repeating: "x", count: 65)))
+    #expect(SessionName.isValid("") == false)
+    #expect(SessionName.isValid("has/slash") == false)
+    #expect(SessionName.isValid(String(repeating: "x", count: 65)) == false)
 }

@@ -13,14 +13,14 @@ extension Result {
 // MARK: - Tests
 
 @MainActor
-@Test func connectStoresCredentialsOnSuccess() async {
-    StubURLProtocol.handler = { req in
+@Test(.tags(.networking)) func connectStoresCredentialsOnSuccess() async {
+    let (session, creds) = StubURLProtocol.make { req in
         let body = try! JSONSerialization.data(withJSONObject: ["current": "1.0.1"])
         return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, body)
     }
     let store = KeychainStore(backend: InMemoryKeychain())
-    let app = AppSession(store: store, sessionFactory: { _ in StubURLProtocol.session() })
-    let result = await app.connect(baseURL: "http://mac:3333", token: "tok")
+    let app = AppSession(store: store, sessionFactory: { _ in session })
+    let result = await app.connect(baseURL: creds.baseURL.absoluteString, token: "tok")
     #expect(result.isSuccess)
     #expect(app.credentials?.token == "tok")
     #expect(store.load()?.token == "tok")
