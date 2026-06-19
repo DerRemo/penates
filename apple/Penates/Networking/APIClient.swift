@@ -6,7 +6,10 @@ enum APIError: Error, Equatable {
     case unauthorized, http(Int), transport(String), decoding(String)
 }
 
-final class APIClient {
+/// Sendable: a `final` class whose entire state is immutable `let`s of Sendable
+/// types (`ServerCredentials` value type, `URLSession`), so instances are safe to
+/// hand to the `nonisolated` async request methods from any actor.
+final class APIClient: Sendable {
     let credentials: ServerCredentials
     private let session: URLSession
     init(credentials: ServerCredentials, session: URLSession = .shared) {

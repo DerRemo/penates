@@ -15,7 +15,11 @@ import SwiftTerm
 /// button-drag gesture (taps still forward clicks via separate recognizers, so
 /// TUI mouse interaction is preserved) and disable scroll-view bounce so the
 /// alt-screen has no rubber-band.
-final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, UIEditMenuInteractionDelegate {
+// The `UIEditMenuInteractionDelegate` conformance is isolated to the main actor:
+// every method touches main-actor UIKit state, and UIKit only ever invokes the
+// edit-menu delegate on the main thread. (UIGestureRecognizerDelegate is already
+// `@MainActor` in the SDK, so only the edit-menu conformance needs the annotation.)
+final class ScrollableTerminalView: TerminalView, UIGestureRecognizerDelegate, @MainActor UIEditMenuInteractionDelegate {
     /// Sends raw bytes to the PTY stdin (wired to the WebSocket `input` frame).
     var sendInput: ((String) -> Void)?
 
