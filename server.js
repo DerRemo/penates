@@ -326,6 +326,18 @@ function extractToken(req) {
   return null;
 }
 
+// Auth-Guard für die app.ws-Handler: express-ws läuft außerhalb der
+// secureMiddleware-Kette, daher prüft jeder WS-Handler den Token selbst. Schließt
+// mit 4001 und liefert false (Caller: `if (!wsAuthGuard(ws, req)) return;`); das
+// close ist try/catch-umhüllt (Socket evtl. schon im Schließen).
+function wsAuthGuard(ws, req) {
+  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
+    try { ws.close(4001, 'Unauthorized'); } catch {}
+    return false;
+  }
+  return true;
+}
+
 async function secureMiddleware(req, res, next) {
   // Meta früh extrahieren — req.penatesContext existiert noch nicht, also
   // ziehen wir die Rohwerte. Wird nach erfolgreicher Auth durch context
@@ -2116,10 +2128,7 @@ projectWatcher.subscribe((event) => {
 });
 
 app.ws('/api/projects/events', (ws, req) => {
-  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
-    ws.close(4001, 'Unauthorized');
-    return;
-  }
+  if (!wsAuthGuard(ws, req)) return;
   projectEventClients.add(ws);
   try { ws.send(JSON.stringify({ type: 'hello' })); } catch {}
   ws.on('close', () => projectEventClients.delete(ws));
@@ -2300,10 +2309,7 @@ attention.subscribe((event) => {
 });
 
 app.ws('/api/notifications/events', (ws, req) => {
-  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
-    ws.close(4001, 'Unauthorized');
-    return;
-  }
+  if (!wsAuthGuard(ws, req)) return;
   notificationClients.add(ws);
   let wsDeviceId = null;
   try { ws.send(JSON.stringify({ type: 'hello' })); } catch {}
@@ -2741,10 +2747,7 @@ app.ws('/api/terminal/:name', (ws, req) => {
   // Auth ist bereits durch die HTTP-Middleware geprüft worden (authMiddleware
   // akzeptiert Sec-WebSocket-Protocol). Defensiv nochmal checken, falls die
   // Middleware später umgebaut wird.
-  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
-    ws.close(4001, 'Unauthorized');
-    return;
-  }
+  if (!wsAuthGuard(ws, req)) return;
 
   const sessionName = req.params.name;
 
@@ -2878,10 +2881,7 @@ eventWsKeepaliveTimer.unref();
 // Client sendet { subscribe: projectId } / { unsubscribe: projectId }.
 // Server broadcastet FSEvent-Objekte für die abonnierten Projekte.
 app.ws('/api/files/events', (ws, req) => {
-  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
-    try { ws.close(4001, 'Unauthorized'); } catch {}
-    return;
-  }
+  if (!wsAuthGuard(ws, req)) return;
   const subs = new Map(); // projectId → handler
   ws.on('message', async (raw) => {
     let msg;
