@@ -27,23 +27,34 @@ struct StatusChip: View {
             case .unknown: .secondary
         }
     }
+    // German VoiceOver label, matching the rest of the (German) UI rather than
+    // reading the raw English enum case.
+    private var accessibilityText: String {
+        if dormant { return "Ruhend" }
+        return switch activity {
+            case .working: "Arbeitet"
+            case .waiting: "Wartet"
+            case .idle:    "Bereit"
+            case .unknown: "Unbekannt"
+        }
+    }
+    // Sized variant scales the glyph to fill the fixed frame; the default uses a
+    // caption glyph. Resolved as a value (not a view branch) so the two paths
+    // share one Image and keep a stable structural identity.
+    private var glyphFont: Font {
+        if let diameter { .system(size: diameter * 0.62, weight: .bold) }
+        else { .caption2.weight(.bold) }
+    }
 
     var body: some View {
-        if let diameter {
-            // Sized variant: scale the glyph to fill the fixed frame nicely.
-            Image(systemName: symbol)
-                .font(.system(size: diameter * 0.62, weight: .bold))
-                .foregroundStyle(tint)
-                .frame(width: diameter, height: diameter)
-                .modifier(ChipBackground(plain: plain))
-                .accessibilityLabel(dormant ? "dormant" : activity.rawValue)
-        } else {
-            Image(systemName: symbol)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(tint)
-                .modifier(ChipBackground(plain: plain))
-                .accessibilityLabel(dormant ? "dormant" : activity.rawValue)
-        }
+        // `.frame(width:height:)` with a nil diameter is a no-op, so a single
+        // Image covers both the sized and unsized cases.
+        Image(systemName: symbol)
+            .font(glyphFont)
+            .foregroundStyle(tint)
+            .frame(width: diameter, height: diameter)
+            .modifier(ChipBackground(plain: plain))
+            .accessibilityLabel(accessibilityText)
     }
 }
 

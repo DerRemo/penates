@@ -7,6 +7,10 @@ struct SettingsView: View {
     @AppStorage("autoFocusTerminal") private var autoFocusTerminal = true
     @State private var hubVersion = "…"
 
+    // Compile-time-constant literal; the single force-unwrap is isolated here
+    // rather than scattered in the body.
+    private static let siteURL = URL(string: "https://penates.dev")!
+
     var body: some View {
         NavigationStack {
             Form {
@@ -35,7 +39,7 @@ struct SettingsView: View {
                     LabeledContent("App",
                         value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                     LabeledContent("Hub", value: hubVersion)
-                    Link("penates.dev", destination: URL(string: "https://penates.dev")!)
+                    Link("penates.dev", destination: Self.siteURL)
                 }
             }
             .navigationTitle("Einstellungen")

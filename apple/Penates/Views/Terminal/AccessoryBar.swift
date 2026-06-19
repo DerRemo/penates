@@ -112,24 +112,24 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
         ])
 
         // Esc
-        stack.addArrangedSubview(makeKey("esc", action: #selector(tapEsc)))
+        stack.addArrangedSubview(makeKey("esc", action: #selector(tapEsc), accessibilityLabel: "Escape"))
         // Ctrl (sticky)
-        let ctrl = makeKey("ctrl", action: #selector(tapCtrl))
+        let ctrl = makeKey("ctrl", action: #selector(tapCtrl), accessibilityLabel: "Steuerung")
         ctrl.layer.borderWidth = 1
         ctrl.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.4).cgColor
         ctrlButton = ctrl
         stack.addArrangedSubview(ctrl)
         // Tab — icon only; the "tab" label does not fit the equal-width button
-        stack.addArrangedSubview(makeKey("", icon: "arrow.right.to.line.compact", action: #selector(tapTab)))
+        stack.addArrangedSubview(makeKey("", icon: "arrow.right.to.line.compact", action: #selector(tapTab), accessibilityLabel: "Tab"))
         // Arrows
-        stack.addArrangedSubview(makeKey("", icon: "arrow.up", action: #selector(tapUp)))
-        stack.addArrangedSubview(makeKey("", icon: "arrow.down", action: #selector(tapDown)))
-        stack.addArrangedSubview(makeKey("", icon: "arrow.left", action: #selector(tapLeft)))
-        stack.addArrangedSubview(makeKey("", icon: "arrow.right", action: #selector(tapRight)))
+        stack.addArrangedSubview(makeKey("", icon: "arrow.up", action: #selector(tapUp), accessibilityLabel: "Nach oben"))
+        stack.addArrangedSubview(makeKey("", icon: "arrow.down", action: #selector(tapDown), accessibilityLabel: "Nach unten"))
+        stack.addArrangedSubview(makeKey("", icon: "arrow.left", action: #selector(tapLeft), accessibilityLabel: "Nach links"))
+        stack.addArrangedSubview(makeKey("", icon: "arrow.right", action: #selector(tapRight), accessibilityLabel: "Nach rechts"))
         // Paste — inserts clipboard text into the input line (no auto-enter)
-        stack.addArrangedSubview(makeKey("", icon: "doc.on.clipboard", action: #selector(tapPaste)))
+        stack.addArrangedSubview(makeKey("", icon: "doc.on.clipboard", action: #selector(tapPaste), accessibilityLabel: "Einfügen"))
         // Dismiss keyboard
-        stack.addArrangedSubview(makeKey("", icon: "keyboard.chevron.compact.down", action: #selector(tapDismiss)))
+        stack.addArrangedSubview(makeKey("", icon: "keyboard.chevron.compact.down", action: #selector(tapDismiss), accessibilityLabel: "Tastatur ausblenden"))
     }
 
     // MARK: Button factory
@@ -150,7 +150,8 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
             : .white
     }
 
-    private func makeKey(_ title: String, icon: String = "", action: Selector) -> UIButton {
+    private func makeKey(_ title: String, icon: String = "", action: Selector,
+                         accessibilityLabel: String? = nil) -> UIButton {
         var cfg = UIButton.Configuration.filled()
         cfg.baseForegroundColor = .label
         cfg.background.backgroundColor = Self.keyColor
@@ -172,6 +173,8 @@ final class PenatesAccessoryBar: UIInputView, UIInputViewAudioFeedback {
         }
         let b = UIButton(configuration: cfg)
         b.addTarget(self, action: action, for: .touchDown)
+        // Icon-only keys carry no title, so give VoiceOver an explicit label.
+        if let accessibilityLabel { b.accessibilityLabel = accessibilityLabel }
         // Subtle bottom drop-shadow, exactly like a real keyboard key. The
         // rounded fill comes from the configuration background, so the layer
         // stays unmasked (masksToBounds = false) to let the shadow show.

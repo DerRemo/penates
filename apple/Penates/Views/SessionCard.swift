@@ -8,7 +8,14 @@ struct SessionCard: View {
     var onToggleMute: () -> Void
 
     var body: some View {
+        // Derive the tint + brightness-scaled gradient stops once per render
+        // instead of recomputing them inline in the modifier chain.
         let tint = Color.cli(session.command)
+        let running = session.status == .running
+        let cardGradient = LinearGradient(
+            colors: [tint.adjustingBrightness(1.10), tint.adjustingBrightness(0.84)],
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 // Status now lives top-left as a backgroundless tinted glyph,
@@ -30,6 +37,8 @@ struct SessionCard: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
+                // Icon-only Menu trigger → give VoiceOver a label.
+                .accessibilityLabel("Aktionen")
             }
             Spacer(minLength: 0)
             HStack(spacing: 5) {
@@ -49,14 +58,10 @@ struct SessionCard: View {
         // Shortcuts-style depth: a subtle top→bottom brightness gradient on the
         // CLI tint plus a soft tinted shadow lifting the card off the background.
         .background(
-            LinearGradient(
-                colors: [tint.adjustingBrightness(1.10), tint.adjustingBrightness(0.84)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
-            .opacity(session.status == .running ? 1 : 0.4),
+            cardGradient.opacity(running ? 1 : 0.4),
             in: RoundedRectangle(cornerRadius: 18)
         )
-        .shadow(color: tint.opacity(session.status == .running ? 0.22 : 0.07), radius: 9, y: 4)
+        .shadow(color: tint.opacity(running ? 0.22 : 0.07), radius: 9, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: 18))
         // Long-press anywhere on the card surfaces the same actions as "…".
         .contextMenu { actionButtons }

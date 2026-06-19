@@ -4,6 +4,9 @@ import SwiftUI
 final class OverviewModel {
     var sessions: [Session] = []
     var loadError: String?
+    /// Flips true after the first `load()` completes (success OR failure) so the
+    /// view can tell "still loading" apart from "loaded, genuinely empty".
+    private(set) var didLoad = false
     private let client: APIClient?
     init(client: APIClient?) { self.client = client }
 
@@ -15,9 +18,36 @@ final class OverviewModel {
     var dormant: [Session] { sessions.filter { $0.status != .running && !$0.pinned } }
 
     func load() async {
+        defer { didLoad = true }
         guard let client else { return }
         do { sessions = try await client.sessions(); loadError = nil }
         catch { loadError = "Sessions konnten nicht geladen werden." }
+    }
+
+    // MARK: - Mutations
+    //
+    // Each action lives here (not in the view) so the client is reused and the
+    // logic is testable. They throw on API failure; the view owns presentation.
+    // After each, `load()` re-syncs the list with the hub.
+
+    func kill(_ s: Session) async throws {
+        try await client?.deleteSession(name: s.name)
+        await load()
+    }
+
+    func rename(_ s: Session, to newName: String) async throws {
+        try await client?.renameSession(name: s.name, to: newName)
+        await load()
+    }
+
+    func togglePin(_ s: Session) async throws {
+        try await client?.setPinned(name: s.name, pinned: !s.pinned)
+        await load()
+    }
+
+    func toggleMute(_ s: Session) async throws {
+        try await client?.setMuted(name: s.name, muted: !s.muted)
+        await load()
     }
 
     func apply(_ event: FirehoseEvent) {

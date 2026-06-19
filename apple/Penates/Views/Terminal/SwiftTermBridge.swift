@@ -65,17 +65,16 @@ struct SwiftTermBridge: UIViewRepresentable {
         if !seed.isEmpty {
             tv.feed(byteArray: seed[...])
         }
-        // Route incoming PTY bytes to the terminal
-        socket.onBytes = { [weak tv] bytes in
-            DispatchQueue.main.async { tv?.feed(byteArray: bytes[...]) }
-        }
+        // Route incoming PTY bytes to the terminal. TerminalSocket is @MainActor,
+        // so onBytes already fires on the main actor — feed directly, no hop.
+        socket.onBytes = { [weak tv] bytes in tv?.feed(byteArray: bytes[...]) }
         // Connect after onBytes is wired so no early PTY output is dropped
         socket.connect()
 
-        // Show the keyboard immediately on open (async so the view is in the
+        // Show the keyboard immediately on open (deferred so the view is in the
         // hierarchy first). If false, the user taps into the terminal to focus.
         if autoFocus {
-            DispatchQueue.main.async { _ = tv.becomeFirstResponder() }
+            Task { @MainActor in _ = tv.becomeFirstResponder() }
         }
         return tv
     }
@@ -104,13 +103,16 @@ struct SwiftTermBridge: UIViewRepresentable {
         init(socket: TerminalSocket) { self.socket = socket }
 
         /// User typed something → forward to the hub via WebSocket.
+        /// SwiftTerm invokes its delegate on the main thread and `socket.send`
+        /// is @MainActor, so assert the isolation rather than hop (no latency).
         func send(source: TerminalView, data: ArraySlice<UInt8>) {
-            socket.send(.input(String(decoding: data, as: UTF8.self)))
+            let text = String(decoding: data, as: UTF8.self)
+            MainActor.assumeIsolated { socket.send(.input(text)) }
         }
 
         /// Terminal was resized → tell the hub so the PTY can reflow.
         func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
-            socket.send(.resize(cols: newCols, rows: newRows))
+            MainActor.assumeIsolated { socket.send(.resize(cols: newCols, rows: newRows)) }
         }
 
         // Required stubs — no-op for our remote-terminal use-case

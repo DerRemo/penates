@@ -1,5 +1,30 @@
 import Testing
+import Foundation
 @testable import Penates
+
+@MainActor
+@Test func loadMarksDidLoadEvenWithoutClient() async {
+    let m = OverviewModel(client: nil)
+    #expect(m.didLoad == false)
+    await m.load()
+    #expect(m.didLoad == true)   // lets the view distinguish "loading" from "empty"
+}
+
+@MainActor
+@Test func togglePinCallsHubThenReloadsWithUpdatedState() async throws {
+    let creds = ServerCredentials(baseURL: URL(string: "http://h:3333")!, token: "tok")
+    StubURLProtocol.handler = { req in
+        let data: Data = req.url?.path == "/api/sessions"
+            // Reload returns the post-toggle state, proving load() ran after the pin call.
+            ? Data(#"[{"name":"cc-a","command":"claude","activity":"idle","status":"running","pinned":true,"muted":false}]"#.utf8)
+            : Data("{}".utf8)   // the /pin POST
+        return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, data)
+    }
+    let m = OverviewModel(client: APIClient(credentials: creds, session: StubURLProtocol.session()))
+    let s = Session(name: "cc-a", command: "claude", activity: .idle, status: .running, project: nil, pinned: false)
+    try await m.togglePin(s)
+    #expect(m.sessions.first?.pinned == true)
+}
 
 @MainActor
 @Test func activityEventUpdatesSession() {
