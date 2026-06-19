@@ -31,6 +31,7 @@ import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
 import { createTtlCache } from './lib/single-flight.js';
+import { createSyncTtlCache } from './lib/ttl-cache.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
 import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
 import { preflightFinish, finishCard } from './lib/git-finish.js';
@@ -120,13 +121,10 @@ let activePreviewPort = null;
 // WS-Upgrade ruft previewPortReady() → hier. Ein einzelner Dev-Server-Pageload
 // fächert in dutzende Asset-Requests auf — ohne Cache würde jeder den Event-Loop
 // (alle Sessions/Terminals/Hooks) blockieren. ~1s TTL hält es frisch genug.
-let _listeningPortsCache = { ts: 0, val: [] };
 const LISTENING_PORTS_TTL_MS = 1000;
+const _listeningPortsCache = createSyncTtlCache(() => listListeningPorts({ excludePort: PORT }), LISTENING_PORTS_TTL_MS);
 function cachedListeningPorts() {
-  const now = Date.now();
-  if (now - _listeningPortsCache.ts < LISTENING_PORTS_TTL_MS) return _listeningPortsCache.val;
-  _listeningPortsCache = { ts: now, val: listListeningPorts({ excludePort: PORT }) };
-  return _listeningPortsCache.val;
+  return _listeningPortsCache.get();
 }
 function isPreviewPortListening(port) {
   return cachedListeningPorts().some((p) => p.port === port);
@@ -269,7 +267,7 @@ app.get('/healthz', (_req, res) => {
   res.json({
     status: 'ok',
     uptimeSeconds: Math.floor((Date.now() - START_TIME) / 1000),
-    sessions: getTmuxSessions().length,
+    sessions: getTmuxSessionsCached().length,
     activePtys: activePtys.size,
     version: pkgJson.version || null,
   });
@@ -565,6 +563,22 @@ function getTmuxSessions() {
   }
 }
 
+// Gecachte Variante für read-only Hot-Path-Sites, die die Frontends im Intervall
+// pollen (GET /api/sessions, GET /api/board/cards, Status-Counts). Mehrere
+// Clients (Desktop-Browser + iOS-App) feuern dieselben Polls — ohne Cache wäre
+// jeder ein frisches blockierendes execFileSync(tmux list-sessions). 1s TTL
+// kollabiert die Bursts zu einem Scan, ohne dass die UI spürbar veraltet.
+//
+// NUR für Anzeige/Enrichment verwenden. Spawn-Liveness-Polls, Race-Recovery-
+// Catches, Pre-Spawn/Restore/Adopt/Rename-Checks und die Boot-Reconciliation
+// müssen die FRISCHE getTmuxSessions() nutzen — sie lesen direkt nach einer
+// Mutation und ein stale Snapshot würde die Idempotenz-/Liveness-Logik brechen.
+const TMUX_SESSIONS_TTL_MS = 1000;
+const _tmuxSessionsCache = createSyncTtlCache(getTmuxSessions, TMUX_SESSIONS_TTL_MS);
+function getTmuxSessionsCached() {
+  return _tmuxSessionsCache.get();
+}
+
 // ── Helper: git-status pro Session-cwd mit TTL-Cache ─────────────────────────
 // Gleiches Cache-TTL wie pane-preview (2s) — jeder Dashboard-Poll löst
 // sonst einen execFile pro Session aus. Wenn der cwd kein git-Repo ist
@@ -670,7 +684,7 @@ const TRUST_GATE_ATTEMPTS = Number(process.env.BRAINSTORM_TRUST_ATTEMPTS) || 8;
 // entfernt. `?preview=0` behält seine Bedeutung (schaltet auch die
 // Activity-Detection ab, weil dafür auch der capture-pane-Call entfällt).
 app.get('/api/sessions', (req, res) => {
-  const live = getTmuxSessions();
+  const live = getTmuxSessionsCached();
   const liveByName = new Map(live.map(s => [s.name, s]));
   const known = knownSessions.list();
   const knownByName = new Map(known.map(e => [e.name, e]));
@@ -1023,9 +1037,10 @@ app.patch('/api/projects/:id/items', async (req, res) => {
 // ── Idea Pipeline: Board cards ──────────────────────────────────────────
 // Mutationen sind durch den globalen writeLimiter (s.o.) abgedeckt.
 // Board-Card-Response-Enrichment (Route-Schicht): lib/board.js ist tmux-agnostisch,
-// das Live-Flag kommt daher hier rein. getTmuxSessions() ist gecacht/günstig (gleiche
-// Quelle wie /api/sessions). Für die GET-Liste die Live-Namen-Menge EINMAL bilden
-// (siehe GET-Handler); pro Einzel-Response reicht ein Scan.
+// das Live-Flag kommt daher hier rein. Die GET-Liste pollt das Frontend im
+// Intervall → getTmuxSessionsCached() (1s-Snapshot, EINE Live-Namen-Menge für die
+// ganze Liste). enrichCard() bedient Einzel-Responses NACH Mutationen
+// (Spawn/Kill) → frische getTmuxSessions(), damit das Flag nicht stale ist.
 function enrichCard(card) {
   if (!card) return card;
   const live = !!card.sessionRef && getTmuxSessions().some(s => s.name === card.sessionRef);
@@ -1034,7 +1049,7 @@ function enrichCard(card) {
 
 app.get('/api/board/cards', (req, res) => {
   const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
-  const liveNames = new Set(getTmuxSessions().map(s => s.name));
+  const liveNames = new Set(getTmuxSessionsCached().map(s => s.name));
   res.json({ cards: board.listCards({ projectId }).map(c => ({
     ...c, sessionLive: !!c.sessionRef && liveNames.has(c.sessionRef),
   })) });
@@ -2410,7 +2425,7 @@ app.get('/api/settings', (_req, res) => {
     status: {
       version: pkgJson.version || null,
       uptimeSeconds: Math.floor((Date.now() - START_TIME) / 1000),
-      sessions: getTmuxSessions().length,
+      sessions: getTmuxSessionsCached().length,
       activePtys: activePtys.size,
     },
     features: {
