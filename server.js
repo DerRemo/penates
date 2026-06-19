@@ -32,6 +32,7 @@ import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
 import { createTtlCache } from './lib/single-flight.js';
 import { createSyncTtlCache } from './lib/ttl-cache.js';
+import { LIST_FORMAT, parseTmuxSessions, buildSpawnArgs } from './lib/tmux.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
 import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
 import { preflightFinish, finishCard } from './lib/git-finish.js';
@@ -552,24 +553,9 @@ function isUnderAllowedRoot(p) {
 // ── Helper: tmux list-sessions ───────────────────────────────────────────────
 function getTmuxSessions() {
   try {
-    const output = execFileSync(TMUX, [
-      'list-sessions',
-      '-F', '#{session_name}|#{session_created}|#{session_windows}|#{session_attached}|#{pane_current_path}',
-    ], { encoding: 'utf-8', timeout: 5000 }).trim();
-    if (!output) return [];
-    return output.split('\n').map(line => {
-      // pane_current_path kann ein '|' enthalten (legaler macOS-Dateiname) und
-      // ist das LETZTE Feld → die ersten 4 Felder destructuren, Rest als Pfad
-      // rejoinen, sonst würde der cwd am ersten '|' abgeschnitten.
-      const [name, created, windows, attached, ...rest] = line.split('|');
-      return {
-        name,
-        created: parseInt(created) * 1000,
-        windows: parseInt(windows),
-        attached: parseInt(attached) > 0,
-        path: rest.join('|') || '~',
-      };
-    });
+    return parseTmuxSessions(
+      execFileSync(TMUX, ['list-sessions', '-F', LIST_FORMAT], { encoding: 'utf-8', timeout: 5000 }),
+    );
   } catch {
     return [];
   }
@@ -1633,6 +1619,19 @@ app.post('/api/browse/mkdir', (req, res) => {
 // Shell-Command hängt nur die Referenz "$PENATES_PRIME_PROMPT" an, die die Shell
 // zu EINEM Argument expandiert. known-sessions + Audit-Log speichern bewusst
 // das nackte cmd — ein Dormant-Respawn läuft ohne den (dann stale) Prompt.
+// Geteilte Liveness-Schleife der Spawn-Pfade: nach new-session bis zu 20×40 ms
+// pollen, bis die Session in tmux auftaucht. Liefert das gefundene Session-Objekt
+// oder null. Nutzt bewusst das FRISCHE getTmuxSessions() (Read-after-Write direkt
+// nach dem Spawn — niemals den gecachten Snapshot).
+async function pollForSession(name, { attempts = 20, delayMs = 40 } = {}) {
+  for (let i = 0; i < attempts; i++) {
+    await sleep(delayMs);
+    const created = getTmuxSessions().find(s => s.name === name);
+    if (created) return created;
+  }
+  return null;
+}
+
 async function spawnTmuxSession({ sessionName, dir, cmd, promptText, auditMeta = {} }) {
   const envArgs = hubEnvArgs(sessionName);
   let shellCmd = cmd;
@@ -1640,25 +1639,22 @@ async function spawnTmuxSession({ sessionName, dir, cmd, promptText, auditMeta =
     envArgs.push('-e', `PENATES_PRIME_PROMPT=${promptText}`);
     shellCmd = promptedSpawnCommand(cmd);
   }
-  execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...envArgs, '-c', dir, shellCmd], {
+  execFileSync(TMUX, buildSpawnArgs({ sessionName, envArgs, dir, shellCmd }), {
     encoding: 'utf-8', timeout: 5000,
   });
-  for (let i = 0; i < 20; i++) {
-    await sleep(40);
-    const created = getTmuxSessions().find(s => s.name === sessionName);
-    if (created) {
-      try {
-        await knownSessions.add({ name: sessionName, directory: dir, command: cmd });
-      } catch (e) {
-        console.error('[known-sessions] add failed:', e);
-      }
-      ensureMouseMode();
-      ensureClipboardMode();
-      auditLog.record('session.create', { ...auditMeta, session: sessionName, directory: dir, command: cmd });
-      return created;
-    }
+  const created = await pollForSession(sessionName);
+  if (!created) {
+    throw new Error(`Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`);
   }
-  throw new Error(`Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`);
+  try {
+    await knownSessions.add({ name: sessionName, directory: dir, command: cmd });
+  } catch (e) {
+    console.error('[known-sessions] add failed:', e);
+  }
+  ensureMouseMode();
+  ensureClipboardMode();
+  auditLog.record('session.create', { ...auditMeta, session: sessionName, directory: dir, command: cmd });
+  return created;
 }
 
 // Respawnt eine dormant Session (geteilt von POST /api/sessions/:name/restore
@@ -1669,25 +1665,22 @@ async function spawnTmuxSession({ sessionName, dir, cmd, promptText, auditMeta =
 // Status-Codes/Bodies bzw. Boot-Logs).
 async function spawnDormantSession(name, { directory, command }) {
   try {
-    execFileSync(TMUX, ['new-session', '-d', '-s', name, ...hubEnvArgs(name), '-c', directory, command], {
+    execFileSync(TMUX, buildSpawnArgs({ sessionName: name, envArgs: hubEnvArgs(name), dir: directory, shellCmd: command }), {
       encoding: 'utf-8', timeout: 5000,
     });
   } catch (err) {
     return { ok: false, error: err.message };
   }
-  for (let i = 0; i < 20; i++) {
-    await sleep(40);
-    const created = getTmuxSessions().find(s => s.name === name);
-    if (created) {
-      try {
-        await knownSessions.add({ name, directory, command });
-      } catch (e) {
-        console.error('[known-sessions] restore persist failed:', e);
-      }
-      return { ok: true, session: created };
-    }
+  const created = await pollForSession(name);
+  if (!created) {
+    return { ok: false, error: `Session "${name}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${command}" nicht mehr im PATH.` };
   }
-  return { ok: false, error: `Session "${name}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${command}" nicht mehr im PATH.` };
+  try {
+    await knownSessions.add({ name, directory, command });
+  } catch (e) {
+    console.error('[known-sessions] restore persist failed:', e);
+  }
+  return { ok: true, session: created };
 }
 
 // capture-pane (Plain-Text) einer Session; fehlertolerant (Session weg → '').
