@@ -4777,7 +4777,12 @@
     import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
   </script>
   <script>
-    // i18n translator bootstrap — mirrors lib/i18n.js createTranslator (tested there).
+    // i18n translator bootstrap — BEWUSST inline, KEIN import aus lib/i18n.js:
+    // window.t muss SYNCHRON stehen, bevor das classic Haupt-Script (<script> unten)
+    // parst und Funktionen mit t() definiert; ein ESM-import wäre deferred und käme
+    // zu spät (White-Screen-Risiko). lib/i18n.js ist die getestete Referenz der
+    // t-Lookup-Logik (createTranslator); hier kommt nur Bootstrap-Glue dazu
+    // (localStorage-Lang, i18nApi, documentElement.lang). Drift-Risiko niedrig (6 Z.).
     (function () {
       const bundles = window.__I18N_BUNDLES || { en: {}, de: {} };
       const DEFAULT_LANG = 'en';
