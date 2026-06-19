@@ -12874,15 +12874,15 @@
           let msg;
           try { msg = JSON.parse(e.data); } catch { return; }
           if (!msg || !msg.projectId) return;
-          const last = seenSeq.get(msg.projectId) || 0;
-          if (typeof msg.seq === 'number' && msg.seq <= last) return;
-          if (typeof msg.seq === 'number') seenSeq.set(msg.projectId, msg.seq);
+          const gate = L.seqGate(seenSeq.get(msg.projectId) || 0, msg.seq);
+          if (!gate.accept) return;
+          seenSeq.set(msg.projectId, gate.next);
           onFsEvent(msg);
         });
         ws.addEventListener('close', () => {
           ws = null;
           if (!currentProject) return;
-          wsBackoff = Math.min(wsBackoff * 2, 30_000);
+          wsBackoff = L.nextBackoff(wsBackoff);
           wsReconnectTimer = setTimeout(() => {
             if (currentProject) connectWs(currentProject.id);
           }, wsBackoff);
@@ -12900,7 +12900,7 @@
       function onFsEvent(msg) {
         // Minimum-viable refresh: if the parent folder of msg.relPath is either the
         // root or a currently-expanded directory, refetch its children and redraw.
-        const parent = msg.relPath.includes('/') ? msg.relPath.split('/').slice(0, -1).join('/') : '';
+        const parent = R.parentRel(msg.relPath);
         if (parent === '') {
           refreshContainer(document.getElementById('files-tree'), '');
           return;
@@ -12968,9 +12968,7 @@
           const isInternal = types.includes(PATH_TYPE);
           if (!isFiles && !isInternal) return;
           e.preventDefault();
-          e.dataTransfer.dropEffect = isFiles
-            ? 'copy'
-            : ((e.altKey || e.ctrlKey) ? 'copy' : 'move');
+          e.dataTransfer.dropEffect = L.dropEffect(isFiles, e.altKey || e.ctrlKey);
           const row = e.target.closest('.file-row[data-type="dir"]');
           clearHighlights();
           if (row) {
@@ -13018,11 +13016,9 @@
           const rel = (e.dataTransfer.getData(PATH_TYPE) || '').replace(/\/$/, '');
           if (!rel) return;
           const copy = e.altKey || e.ctrlKey;
-          const parentOf = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '';
-          // Move in den aktuellen Parent → stiller No-op (Copy ist ein legit Duplikat).
-          if (!copy && destDir === parentOf) return;
-          // Ordner in sich/Nachfahren → Fehler-Toast, kein Request.
-          if (destDir === rel || destDir.startsWith(rel + '/')) {
+          const decision = L.moveCopyDecision(rel, destDir, copy);
+          if (decision === 'noop') return;
+          if (decision === 'self-error') {
             if (typeof showToast === 'function') showToast(t('filebrowser.toast.moveSelfError'), 'error');
             return;
           }
