@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OverviewView: View {
     @Environment(AppSession.self) private var app
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model: OverviewModel?
     @State private var showSettings = false
     @State private var showNewSession = false
@@ -85,6 +86,14 @@ struct OverviewView: View {
             Text(errorMessage ?? "Unknown error")
         }
         .task { await setup() }
+        // `.task` is view-lifecycle bound, so returning from background never
+        // re-runs setup() — the firehose only carries deltas and its socket dies
+        // on suspend. Re-sync the full list the moment the scene comes forward so
+        // the user never opens to a stale state (no manual pull-to-refresh).
+        // onChange skips the initial `.active`, so this won't double-load at launch.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await model?.load() } }
+        }
     }
 
     /// Builds one overview section, sharing the common per-card action closures.
