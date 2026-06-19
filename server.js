@@ -33,6 +33,7 @@ import { createRateLimiter } from './lib/rate-limit.js';
 import { createTtlCache } from './lib/single-flight.js';
 import { createSyncTtlCache } from './lib/ttl-cache.js';
 import { LIST_FORMAT, parseTmuxSessions, buildSpawnArgs } from './lib/tmux.js';
+import { composeSessions } from './lib/session-list.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
 import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
 import { preflightFinish, finishCard } from './lib/git-finish.js';
@@ -677,122 +678,23 @@ const TRUST_GATE_ATTEMPTS = Number(process.env.BRAINSTORM_TRUST_ATTEMPTS) || 8;
 
 // ── REST API ────────────────────────────────────────────────────────────────
 
-// List sessions. Preview wird intern für Activity-Detection geholt, aber
-// NICHT ans Frontend ausgeliefert — der 8-Zeilen-Preview-Block im UI ist
-// entfernt. `?preview=0` behält seine Bedeutung (schaltet auch die
-// Activity-Detection ab, weil dafür auch der capture-pane-Call entfällt).
+// List sessions. Dünner Adapter: Klassifikation (running/foreign/dormant) +
+// Enrichment liegen in lib/session-list.js (rein, unit-getestet); hier werden
+// nur die Laufzeit-Quellen reingereicht.
 app.get('/api/sessions', (req, res) => {
-  const live = getTmuxSessionsCached();
-  const liveByName = new Map(live.map(s => [s.name, s]));
-  const known = knownSessions.list();
-  const knownByName = new Map(known.map(e => [e.name, e]));
-
-  // 1) running + foreign aus tmux — foreign = läuft in tmux, aber weder
-  //    mit cc-Prefix noch in known-sessions eingetragen.
-  const running = [];
-  const foreign = [];
-  for (const s of live) {
-    const isKnown = knownByName.has(s.name);
-    const isCcPrefixed = s.name.startsWith(SESSION_PREFIX);
-    if (isKnown || isCcPrefixed) {
-      running.push({ ...s, status: 'running' });
-    } else {
-      foreign.push({ ...s, status: 'foreign' });
-    }
-  }
-
-  // 2) dormant = in known-sessions, aber nicht in tmux live.
-  //    Kein Preview/Activity — die Pane existiert nicht.
-  const dormant = known
-    .filter(e => !liveByName.has(e.name))
-    .map(e => ({
-      name: e.name,
-      path: e.directory,
-      command: e.command,
-      created: e.createdAt ? Date.parse(e.createdAt) : null,
-      lastSeenAt: e.lastSeenAt,
-      windows: 0,
-      attached: false,
-      status: 'dormant',
-    }));
-
-  // Overview-Projekt-Badge: cwd → Projekt-Registry-Match (exakt oder
-  // Unterverzeichnis). Registry einmal synchron lesen (nicht pro Session).
-  const _projs = getProjectsSync();
-  const projectOf = (cwd) => {
-    if (!cwd) return null;
-    const m = _projs.find(p => cwd === p.path || cwd.startsWith(p.path + '/'));
-    return m ? { id: m.id, name: m.displayName } : null;
-  };
-
-  // Enrichment: Activity kommt ausschließlich aus dem Hook-State. Limits
-  // und Costs kommen aus dem StatusLine-Hook. Sessions ohne frischen Hook
-  // zeigen activity:`unknown` → Label "Aktiv" im Dashboard.
-  const enrich = (s) => {
-    const hookActivity = attention.getHookActivity(s.name);
-    const sl = usageLimits.getSessionStatusline(s.name);
-    const base = {
-      ...s,
-      activity: hookActivity || 'unknown',
-      cost: sl ? {
-        totalUsd: sl.costUsd,
-        durationMs: sl.durationMs,
-        linesAdded: sl.linesAdded,
-        linesRemoved: sl.linesRemoved,
-      } : null,
-    };
-    // attached-Flag bleibt in s.attached (UI-Anzeige), wird aber nicht mehr
-    // zur Attention-Suppression verwendet — siehe Device-Presence in der Push-Schicht.
-    // Context-Anzeige: Claudes eigener Statusline-Wert
-    // (context_window.used_percentage) ist autoritativ und matcht exakt, was
-    // unten in der Session steht. Den bevorzugen, solange er frisch ist; nur
-    // wenn kein frischer Statusline-Wert vorliegt (z.B. dormant, alte Claude-
-    // Version ohne context_window), auf die JSONL-Schätzung zurückfallen.
-    if (sl && sl.contextPct != null) {
-      base.contextPct = sl.contextPct;
-      base.contextLimit = sl.contextSize ?? null;
-      base.contextTokens = sl.contextSize != null
-        ? Math.round(sl.contextSize * sl.contextPct / 100)
-        : null;
-      base.contextModel = sl.model ?? null;
-    } else {
-      try {
-        const ctx = getCurrentContext(s.path);
-        base.contextTokens = ctx.tokens;
-        base.contextModel = ctx.model;
-        base.contextLimit = ctx.limit;
-        base.contextPct = ctx.pct;
-      } catch {
-        base.contextTokens = null;
-        base.contextModel = null;
-        base.contextLimit = null;
-        base.contextPct = null;
-      }
-    }
-    base.muted = knownSessions.isMuted(s.name);
-    base.pinned = knownSessions.isPinned(s.name);
-    base.git = getGitStatus(s.path);
-    base.project = projectOf(s.path);
-    // Board-Karte (Idea Pipeline) die diese Session spawnte — Minimal-Subset für
-    // die separate Overview-Sektion. findCardBySessionRef ist synchron; defensiv
-    // gewrappt (board ist beim Boot geladen, aber enrich läuft pro Session).
-    let bc = null;
-    try { bc = board.findCardBySessionRef(s.name); } catch { bc = null; }
-    base.boardCard = bc ? { id: bc.id, title: bc.title, stage: bc.stage } : null;
-    // command für Running-Sessions aus known-sessions nachreichen (tmux
-    // liefert es nicht). Dormant tragen es schon; foreign ggf. nicht → null.
-    if (base.command == null) {
-      const ke = knownByName.get(s.name);
-      base.command = ke ? ke.command : null;
-    }
-    return base;
-  };
-
-  res.json([
-    ...running.map(enrich),
-    ...dormant.map(enrich),
-    ...foreign.map(enrich),
-  ]);
+  res.json(composeSessions({
+    live: getTmuxSessionsCached(),
+    known: knownSessions.list(),
+    sessionPrefix: SESSION_PREFIX,
+    projects: getProjectsSync(),
+    getHookActivity: (name) => attention.getHookActivity(name),
+    getStatusline: (name) => usageLimits.getSessionStatusline(name),
+    getContext: (path) => getCurrentContext(path),
+    getGitStatus: (path) => getGitStatus(path),
+    isMuted: (name) => knownSessions.isMuted(name),
+    isPinned: (name) => knownSessions.isPinned(name),
+    findBoardCard: (name) => board.findCardBySessionRef(name),
+  }));
 });
 
 // Aggregierte Usage-Historie (Tages-Totals + Monatssumme). 60s-Cache, weil
