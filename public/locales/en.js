@@ -12,6 +12,7 @@ window.__I18N_BUNDLES.en = {
   'sidebar.filterActive': 'Active',
   'sidebar.filterAll': 'All',
   'sidebar.noActiveFiltered': 'No active sessions — switch to "All"',
+  'sidebar.pinned': 'Pinned',
   'sidebar.nav.overview': 'Overview',
   'sidebar.nav.projects': 'Projects',
   'sidebar.nav.usage': 'Usage',

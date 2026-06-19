@@ -670,6 +670,14 @@
       font-size: var(--text-sm);
       font-weight: 500;
     }
+    .sidebar__pin {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      color: var(--accent);
+      opacity: 0.85;
+    }
+    .sidebar__pin svg { width: 12px; height: 12px; }
 
     .sidebar__nav-label {
       flex: 1;
@@ -4764,6 +4772,8 @@
     import { commitTypeColor as _commitTypeColor, commitType as _commitType } from './commit-type.js';
     window.commitTypeColor = _commitTypeColor;
     window.commitType = _commitType;
+    import { partitionOverview as _partitionOverview, orderSidebar as _orderSidebar } from './session-sort.js';
+    window.SessionSort = { partitionOverview: _partitionOverview, orderSidebar: _orderSidebar };
     import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
   </script>
   <script>
@@ -6829,20 +6839,25 @@
         updateSidebarNavActive();
         return;
       }
-      // Reihenfolge: attached zuerst (optisch markiert über active-class),
-      // danach nach created desc. Namen als data-session für patchActivityBadge.
-      const sorted = [...visible].sort((a, b) => {
-        if (a.attached !== b.attached) return a.attached ? -1 : 1;
-        return (b.created || 0) - (a.created || 0);
-      });
+      // Reihenfolge zentral in session-sort.js: angeheftet zuerst, dann
+      // alphabetisch nach Anzeigename. Kein attached-first mehr — die offene
+      // Session ist ohnehin über sidebar__item--active markiert.
+      const SS = window.SessionSort;
+      const sorted = SS ? SS.orderSidebar(visible) : visible;
       list.innerHTML = sorted.map(s => {
         const display = s.name.replace(/^cc-/, '');
         const safe = escapeHtml(s.name);
         const activity = s.activity || 'unknown';
         const isActive = currentView === 'terminal' && currentSessionName === s.name;
+        const pinGlyph = s.pinned
+          ? `<span class="sidebar__pin" aria-label="${t('sidebar.pinned')}" title="${t('sidebar.pinned')}">`
+            + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`
+            + `</span>`
+          : '';
         return `<button class="sidebar__item${isActive ? ' sidebar__item--active' : ''}" type="button" data-session="${safe}">`
           + `<span class="sidebar__dot" data-activity="${activity}"></span>`
           + `<span class="sidebar__name">${escapeHtml(display)}</span>`
+          + pinGlyph
           + `</button>`;
       }).join('');
       updateSidebarNavActive();
