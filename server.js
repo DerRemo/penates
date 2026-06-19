@@ -31,6 +31,9 @@ import * as cfAccess from './lib/cf-access.js';
 import * as auditLog from './lib/audit-log.js';
 import { createRateLimiter } from './lib/rate-limit.js';
 import { createTtlCache } from './lib/single-flight.js';
+import { createSyncTtlCache } from './lib/ttl-cache.js';
+import { LIST_FORMAT, parseTmuxSessions, buildSpawnArgs } from './lib/tmux.js';
+import { composeSessions } from './lib/session-list.js';
 import { discoverProjects, listProjects, getProject, patchProject, createProject, releaseProject, searchItems, loadRegistry, setProjectPinned, removeProject, getProjectsSync, resolveProjectDoc } from './lib/projects.js';
 import { addDoneItem, sectionExists } from './lib/roadmap-writer.js';
 import { preflightFinish, finishCard } from './lib/git-finish.js';
@@ -120,13 +123,10 @@ let activePreviewPort = null;
 // WS-Upgrade ruft previewPortReady() → hier. Ein einzelner Dev-Server-Pageload
 // fächert in dutzende Asset-Requests auf — ohne Cache würde jeder den Event-Loop
 // (alle Sessions/Terminals/Hooks) blockieren. ~1s TTL hält es frisch genug.
-let _listeningPortsCache = { ts: 0, val: [] };
 const LISTENING_PORTS_TTL_MS = 1000;
+const _listeningPortsCache = createSyncTtlCache(() => listListeningPorts({ excludePort: PORT }), LISTENING_PORTS_TTL_MS);
 function cachedListeningPorts() {
-  const now = Date.now();
-  if (now - _listeningPortsCache.ts < LISTENING_PORTS_TTL_MS) return _listeningPortsCache.val;
-  _listeningPortsCache = { ts: now, val: listListeningPorts({ excludePort: PORT }) };
-  return _listeningPortsCache.val;
+  return _listeningPortsCache.get();
 }
 function isPreviewPortListening(port) {
   return cachedListeningPorts().some((p) => p.port === port);
@@ -269,7 +269,7 @@ app.get('/healthz', (_req, res) => {
   res.json({
     status: 'ok',
     uptimeSeconds: Math.floor((Date.now() - START_TIME) / 1000),
-    sessions: getTmuxSessions().length,
+    sessions: getTmuxSessionsCached().length,
     activePtys: activePtys.size,
     version: pkgJson.version || null,
   });
@@ -326,6 +326,18 @@ function extractToken(req) {
     if (sub) return sub.slice(7);
   }
   return null;
+}
+
+// Auth-Guard für die app.ws-Handler: express-ws läuft außerhalb der
+// secureMiddleware-Kette, daher prüft jeder WS-Handler den Token selbst. Schließt
+// mit 4001 und liefert false (Caller: `if (!wsAuthGuard(ws, req)) return;`); das
+// close ist try/catch-umhüllt (Socket evtl. schon im Schließen).
+function wsAuthGuard(ws, req) {
+  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
+    try { ws.close(4001, 'Unauthorized'); } catch {}
+    return false;
+  }
+  return true;
 }
 
 async function secureMiddleware(req, res, next) {
@@ -512,6 +524,16 @@ app.post('/api/mata/control', async (req, res) => {
 // Explizit verboten: Quotes, Backslash, Shell-Metachars, Control-Chars.
 const SESSION_NAME_RE = /^[\w\-. ]{1,64}$/;
 const validSessionName = (n) => typeof n === 'string' && SESSION_NAME_RE.test(n);
+// Route-Guard für :name-Params: validiert + sendet bei Fehler die 400-Antwort.
+// Caller-Muster: `if (!requireValidName(res, name)) return;`. Bewusst NUR für die
+// einheitlichen 'Invalid session name'-Sites — Create/Adopt/Rename/Slug-Routen
+// behalten ihre eigenen, spezifischeren Messages (API-Stabilität für Consumer
+// wie die iOS-App; die Strings bleiben byte-identisch).
+function requireValidName(res, name) {
+  if (validSessionName(name)) return true;
+  res.status(400).json({ error: 'Invalid session name' });
+  return false;
+}
 
 // Browse auf den Home-Ordner eingrenzen — verhindert `?path=/etc/passwd`.
 const HOME = homedir();
@@ -542,27 +564,28 @@ function isUnderAllowedRoot(p) {
 // ── Helper: tmux list-sessions ───────────────────────────────────────────────
 function getTmuxSessions() {
   try {
-    const output = execFileSync(TMUX, [
-      'list-sessions',
-      '-F', '#{session_name}|#{session_created}|#{session_windows}|#{session_attached}|#{pane_current_path}',
-    ], { encoding: 'utf-8', timeout: 5000 }).trim();
-    if (!output) return [];
-    return output.split('\n').map(line => {
-      // pane_current_path kann ein '|' enthalten (legaler macOS-Dateiname) und
-      // ist das LETZTE Feld → die ersten 4 Felder destructuren, Rest als Pfad
-      // rejoinen, sonst würde der cwd am ersten '|' abgeschnitten.
-      const [name, created, windows, attached, ...rest] = line.split('|');
-      return {
-        name,
-        created: parseInt(created) * 1000,
-        windows: parseInt(windows),
-        attached: parseInt(attached) > 0,
-        path: rest.join('|') || '~',
-      };
-    });
+    return parseTmuxSessions(
+      execFileSync(TMUX, ['list-sessions', '-F', LIST_FORMAT], { encoding: 'utf-8', timeout: 5000 }),
+    );
   } catch {
     return [];
   }
+}
+
+// Gecachte Variante für read-only Hot-Path-Sites, die die Frontends im Intervall
+// pollen (GET /api/sessions, GET /api/board/cards, Status-Counts). Mehrere
+// Clients (Desktop-Browser + iOS-App) feuern dieselben Polls — ohne Cache wäre
+// jeder ein frisches blockierendes execFileSync(tmux list-sessions). 1s TTL
+// kollabiert die Bursts zu einem Scan, ohne dass die UI spürbar veraltet.
+//
+// NUR für Anzeige/Enrichment verwenden. Spawn-Liveness-Polls, Race-Recovery-
+// Catches, Pre-Spawn/Restore/Adopt/Rename-Checks und die Boot-Reconciliation
+// müssen die FRISCHE getTmuxSessions() nutzen — sie lesen direkt nach einer
+// Mutation und ein stale Snapshot würde die Idempotenz-/Liveness-Logik brechen.
+const TMUX_SESSIONS_TTL_MS = 1000;
+const _tmuxSessionsCache = createSyncTtlCache(getTmuxSessions, TMUX_SESSIONS_TTL_MS);
+function getTmuxSessionsCached() {
+  return _tmuxSessionsCache.get();
 }
 
 // ── Helper: git-status pro Session-cwd mit TTL-Cache ─────────────────────────
@@ -665,122 +688,23 @@ const TRUST_GATE_ATTEMPTS = Number(process.env.BRAINSTORM_TRUST_ATTEMPTS) || 8;
 
 // ── REST API ────────────────────────────────────────────────────────────────
 
-// List sessions. Preview wird intern für Activity-Detection geholt, aber
-// NICHT ans Frontend ausgeliefert — der 8-Zeilen-Preview-Block im UI ist
-// entfernt. `?preview=0` behält seine Bedeutung (schaltet auch die
-// Activity-Detection ab, weil dafür auch der capture-pane-Call entfällt).
+// List sessions. Dünner Adapter: Klassifikation (running/foreign/dormant) +
+// Enrichment liegen in lib/session-list.js (rein, unit-getestet); hier werden
+// nur die Laufzeit-Quellen reingereicht.
 app.get('/api/sessions', (req, res) => {
-  const live = getTmuxSessions();
-  const liveByName = new Map(live.map(s => [s.name, s]));
-  const known = knownSessions.list();
-  const knownByName = new Map(known.map(e => [e.name, e]));
-
-  // 1) running + foreign aus tmux — foreign = läuft in tmux, aber weder
-  //    mit cc-Prefix noch in known-sessions eingetragen.
-  const running = [];
-  const foreign = [];
-  for (const s of live) {
-    const isKnown = knownByName.has(s.name);
-    const isCcPrefixed = s.name.startsWith(SESSION_PREFIX);
-    if (isKnown || isCcPrefixed) {
-      running.push({ ...s, status: 'running' });
-    } else {
-      foreign.push({ ...s, status: 'foreign' });
-    }
-  }
-
-  // 2) dormant = in known-sessions, aber nicht in tmux live.
-  //    Kein Preview/Activity — die Pane existiert nicht.
-  const dormant = known
-    .filter(e => !liveByName.has(e.name))
-    .map(e => ({
-      name: e.name,
-      path: e.directory,
-      command: e.command,
-      created: e.createdAt ? Date.parse(e.createdAt) : null,
-      lastSeenAt: e.lastSeenAt,
-      windows: 0,
-      attached: false,
-      status: 'dormant',
-    }));
-
-  // Overview-Projekt-Badge: cwd → Projekt-Registry-Match (exakt oder
-  // Unterverzeichnis). Registry einmal synchron lesen (nicht pro Session).
-  const _projs = getProjectsSync();
-  const projectOf = (cwd) => {
-    if (!cwd) return null;
-    const m = _projs.find(p => cwd === p.path || cwd.startsWith(p.path + '/'));
-    return m ? { id: m.id, name: m.displayName } : null;
-  };
-
-  // Enrichment: Activity kommt ausschließlich aus dem Hook-State. Limits
-  // und Costs kommen aus dem StatusLine-Hook. Sessions ohne frischen Hook
-  // zeigen activity:`unknown` → Label "Aktiv" im Dashboard.
-  const enrich = (s) => {
-    const hookActivity = attention.getHookActivity(s.name);
-    const sl = usageLimits.getSessionStatusline(s.name);
-    const base = {
-      ...s,
-      activity: hookActivity || 'unknown',
-      cost: sl ? {
-        totalUsd: sl.costUsd,
-        durationMs: sl.durationMs,
-        linesAdded: sl.linesAdded,
-        linesRemoved: sl.linesRemoved,
-      } : null,
-    };
-    // attached-Flag bleibt in s.attached (UI-Anzeige), wird aber nicht mehr
-    // zur Attention-Suppression verwendet — siehe Device-Presence in der Push-Schicht.
-    // Context-Anzeige: Claudes eigener Statusline-Wert
-    // (context_window.used_percentage) ist autoritativ und matcht exakt, was
-    // unten in der Session steht. Den bevorzugen, solange er frisch ist; nur
-    // wenn kein frischer Statusline-Wert vorliegt (z.B. dormant, alte Claude-
-    // Version ohne context_window), auf die JSONL-Schätzung zurückfallen.
-    if (sl && sl.contextPct != null) {
-      base.contextPct = sl.contextPct;
-      base.contextLimit = sl.contextSize ?? null;
-      base.contextTokens = sl.contextSize != null
-        ? Math.round(sl.contextSize * sl.contextPct / 100)
-        : null;
-      base.contextModel = sl.model ?? null;
-    } else {
-      try {
-        const ctx = getCurrentContext(s.path);
-        base.contextTokens = ctx.tokens;
-        base.contextModel = ctx.model;
-        base.contextLimit = ctx.limit;
-        base.contextPct = ctx.pct;
-      } catch {
-        base.contextTokens = null;
-        base.contextModel = null;
-        base.contextLimit = null;
-        base.contextPct = null;
-      }
-    }
-    base.muted = knownSessions.isMuted(s.name);
-    base.pinned = knownSessions.isPinned(s.name);
-    base.git = getGitStatus(s.path);
-    base.project = projectOf(s.path);
-    // Board-Karte (Idea Pipeline) die diese Session spawnte — Minimal-Subset für
-    // die separate Overview-Sektion. findCardBySessionRef ist synchron; defensiv
-    // gewrappt (board ist beim Boot geladen, aber enrich läuft pro Session).
-    let bc = null;
-    try { bc = board.findCardBySessionRef(s.name); } catch { bc = null; }
-    base.boardCard = bc ? { id: bc.id, title: bc.title, stage: bc.stage } : null;
-    // command für Running-Sessions aus known-sessions nachreichen (tmux
-    // liefert es nicht). Dormant tragen es schon; foreign ggf. nicht → null.
-    if (base.command == null) {
-      const ke = knownByName.get(s.name);
-      base.command = ke ? ke.command : null;
-    }
-    return base;
-  };
-
-  res.json([
-    ...running.map(enrich),
-    ...dormant.map(enrich),
-    ...foreign.map(enrich),
-  ]);
+  res.json(composeSessions({
+    live: getTmuxSessionsCached(),
+    known: knownSessions.list(),
+    sessionPrefix: SESSION_PREFIX,
+    projects: getProjectsSync(),
+    getHookActivity: (name) => attention.getHookActivity(name),
+    getStatusline: (name) => usageLimits.getSessionStatusline(name),
+    getContext: (path) => getCurrentContext(path),
+    getGitStatus: (path) => getGitStatus(path),
+    isMuted: (name) => knownSessions.isMuted(name),
+    isPinned: (name) => knownSessions.isPinned(name),
+    findBoardCard: (name) => board.findCardBySessionRef(name),
+  }));
 });
 
 // Aggregierte Usage-Historie (Tages-Totals + Monatssumme). 60s-Cache, weil
@@ -1023,9 +947,10 @@ app.patch('/api/projects/:id/items', async (req, res) => {
 // ── Idea Pipeline: Board cards ──────────────────────────────────────────
 // Mutationen sind durch den globalen writeLimiter (s.o.) abgedeckt.
 // Board-Card-Response-Enrichment (Route-Schicht): lib/board.js ist tmux-agnostisch,
-// das Live-Flag kommt daher hier rein. getTmuxSessions() ist gecacht/günstig (gleiche
-// Quelle wie /api/sessions). Für die GET-Liste die Live-Namen-Menge EINMAL bilden
-// (siehe GET-Handler); pro Einzel-Response reicht ein Scan.
+// das Live-Flag kommt daher hier rein. Die GET-Liste pollt das Frontend im
+// Intervall → getTmuxSessionsCached() (1s-Snapshot, EINE Live-Namen-Menge für die
+// ganze Liste). enrichCard() bedient Einzel-Responses NACH Mutationen
+// (Spawn/Kill) → frische getTmuxSessions(), damit das Flag nicht stale ist.
 function enrichCard(card) {
   if (!card) return card;
   const live = !!card.sessionRef && getTmuxSessions().some(s => s.name === card.sessionRef);
@@ -1034,7 +959,7 @@ function enrichCard(card) {
 
 app.get('/api/board/cards', (req, res) => {
   const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
-  const liveNames = new Set(getTmuxSessions().map(s => s.name));
+  const liveNames = new Set(getTmuxSessionsCached().map(s => s.name));
   res.json({ cards: board.listCards({ projectId }).map(c => ({
     ...c, sessionLive: !!c.sessionRef && liveNames.has(c.sessionRef),
   })) });
@@ -1606,6 +1531,19 @@ app.post('/api/browse/mkdir', (req, res) => {
 // Shell-Command hängt nur die Referenz "$PENATES_PRIME_PROMPT" an, die die Shell
 // zu EINEM Argument expandiert. known-sessions + Audit-Log speichern bewusst
 // das nackte cmd — ein Dormant-Respawn läuft ohne den (dann stale) Prompt.
+// Geteilte Liveness-Schleife der Spawn-Pfade: nach new-session bis zu 20×40 ms
+// pollen, bis die Session in tmux auftaucht. Liefert das gefundene Session-Objekt
+// oder null. Nutzt bewusst das FRISCHE getTmuxSessions() (Read-after-Write direkt
+// nach dem Spawn — niemals den gecachten Snapshot).
+async function pollForSession(name, { attempts = 20, delayMs = 40 } = {}) {
+  for (let i = 0; i < attempts; i++) {
+    await sleep(delayMs);
+    const created = getTmuxSessions().find(s => s.name === name);
+    if (created) return created;
+  }
+  return null;
+}
+
 async function spawnTmuxSession({ sessionName, dir, cmd, promptText, auditMeta = {} }) {
   const envArgs = hubEnvArgs(sessionName);
   let shellCmd = cmd;
@@ -1613,25 +1551,22 @@ async function spawnTmuxSession({ sessionName, dir, cmd, promptText, auditMeta =
     envArgs.push('-e', `PENATES_PRIME_PROMPT=${promptText}`);
     shellCmd = promptedSpawnCommand(cmd);
   }
-  execFileSync(TMUX, ['new-session', '-d', '-s', sessionName, ...envArgs, '-c', dir, shellCmd], {
+  execFileSync(TMUX, buildSpawnArgs({ sessionName, envArgs, dir, shellCmd }), {
     encoding: 'utf-8', timeout: 5000,
   });
-  for (let i = 0; i < 20; i++) {
-    await sleep(40);
-    const created = getTmuxSessions().find(s => s.name === sessionName);
-    if (created) {
-      try {
-        await knownSessions.add({ name: sessionName, directory: dir, command: cmd });
-      } catch (e) {
-        console.error('[known-sessions] add failed:', e);
-      }
-      ensureMouseMode();
-      ensureClipboardMode();
-      auditLog.record('session.create', { ...auditMeta, session: sessionName, directory: dir, command: cmd });
-      return created;
-    }
+  const created = await pollForSession(sessionName);
+  if (!created) {
+    throw new Error(`Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`);
   }
-  throw new Error(`Session "${sessionName}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${cmd}" nicht im PATH oder das Kommando beendet sich direkt.`);
+  try {
+    await knownSessions.add({ name: sessionName, directory: dir, command: cmd });
+  } catch (e) {
+    console.error('[known-sessions] add failed:', e);
+  }
+  ensureMouseMode();
+  ensureClipboardMode();
+  auditLog.record('session.create', { ...auditMeta, session: sessionName, directory: dir, command: cmd });
+  return created;
 }
 
 // Respawnt eine dormant Session (geteilt von POST /api/sessions/:name/restore
@@ -1642,25 +1577,22 @@ async function spawnTmuxSession({ sessionName, dir, cmd, promptText, auditMeta =
 // Status-Codes/Bodies bzw. Boot-Logs).
 async function spawnDormantSession(name, { directory, command }) {
   try {
-    execFileSync(TMUX, ['new-session', '-d', '-s', name, ...hubEnvArgs(name), '-c', directory, command], {
+    execFileSync(TMUX, buildSpawnArgs({ sessionName: name, envArgs: hubEnvArgs(name), dir: directory, shellCmd: command }), {
       encoding: 'utf-8', timeout: 5000,
     });
   } catch (err) {
     return { ok: false, error: err.message };
   }
-  for (let i = 0; i < 20; i++) {
-    await sleep(40);
-    const created = getTmuxSessions().find(s => s.name === name);
-    if (created) {
-      try {
-        await knownSessions.add({ name, directory, command });
-      } catch (e) {
-        console.error('[known-sessions] restore persist failed:', e);
-      }
-      return { ok: true, session: created };
-    }
+  const created = await pollForSession(name);
+  if (!created) {
+    return { ok: false, error: `Session "${name}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${command}" nicht mehr im PATH.` };
   }
-  return { ok: false, error: `Session "${name}" wurde gestartet, aber sofort wieder beendet. Wahrscheinlich ist "${command}" nicht mehr im PATH.` };
+  try {
+    await knownSessions.add({ name, directory, command });
+  } catch (e) {
+    console.error('[known-sessions] restore persist failed:', e);
+  }
+  return { ok: true, session: created };
 }
 
 // capture-pane (Plain-Text) einer Session; fehlertolerant (Session weg → '').
@@ -1794,9 +1726,7 @@ async function finalizeCardToDone(card, reqMeta = {}) {
 // Kill session
 app.delete('/api/sessions/:name', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   try {
     destroySession(name, auditLog.extractRequestMeta(req));
     await cleanupWorktreeForSession(name);
@@ -1854,7 +1784,7 @@ app.patch('/api/sessions/:name', async (req, res) => {
 // Git-Diff der Session: vollständige Hunks aller geänderten Dateien.
 app.get('/api/sessions/:name/diff', (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   try {
@@ -1868,7 +1798,7 @@ app.get('/api/sessions/:name/diff', (req, res) => {
 // Muster wie /diff: validName→400, kein cwd→404, fehlertolerant 200 mit leer.
 app.get('/api/sessions/:name/git/log', (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 50, 200));
@@ -1884,7 +1814,7 @@ app.get('/api/sessions/:name/git/log', (req, res) => {
 // GET /api/sessions/:name/git/branches — local + remote (read-only).
 app.get('/api/sessions/:name/git/branches', (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   try {
@@ -1898,7 +1828,7 @@ app.get('/api/sessions/:name/git/branches', (req, res) => {
 app.get('/api/sessions/:name/git/commit/:sha', (req, res) => {
   const name = req.params.name;
   const sha = req.params.sha;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   if (!/^[0-9a-f]{4,40}$/.test(sha)) return res.status(400).json({ error: 'Invalid sha' });
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
@@ -1915,7 +1845,7 @@ app.get('/api/sessions/:name/git/commit/:sha', (req, res) => {
 // frischen xterm. Bearer-Auth via Middleware. Session-Existenz wie im Terminal-Handler.
 app.get('/api/sessions/:name/scrollback', (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   if (!getTmuxSessions().some(s => s.name === name)) {
     return res.status(404).json({ error: 'Session not found' });
   }
@@ -1930,7 +1860,7 @@ app.get('/api/sessions/:name/scrollback', (req, res) => {
 app.get('/api/sessions/:name/file-content', async (req, res) => {
   try {
     const name = req.params.name;
-    if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+    if (!requireValidName(res, name)) return;
     const cwd = resolveSessionCwd(name);
     if (!cwd) return res.status(404).json({ error: 'not-found' });
     const result = await readSessionFile(cwd, String(req.query.path || ''));
@@ -1950,7 +1880,7 @@ const imageBody = express.raw({ type: 'image/png', limit: '8mb' });
 // Body = rohes image/png (≤8 MB). writeLimiter (global) deckt das Rate-Limit ab.
 app.post('/api/sessions/:name/image', imageBody, (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   const buf = req.body;
@@ -1978,7 +1908,7 @@ app.use('/api/sessions/:name/image', (err, req, res, next) => {
 // Reuse session-images.saveSessionImage; identische @-Inject-Pipeline wie Image-Paste.
 app.post('/api/sessions/:name/mata-capture', async (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   if (!mata.isInstalled()) return res.status(409).json({ error: 'mata not installed' });
@@ -2030,9 +1960,7 @@ app.use('/api/voice/transcribe', (err, req, res, next) => {
 // Source of truth ist known-sessions.json — tmux weiß von dormant nichts.
 app.post('/api/sessions/:name/restore', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   const entry = knownSessions.find(name);
   if (!entry) {
     return res.status(404).json({ error: 'Session not found in known-sessions' });
@@ -2074,9 +2002,7 @@ app.post('/api/sessions/:name/adopt', async (req, res) => {
 // aufgelistet (ohne known-Eintrag).
 app.delete('/api/sessions/:name/known', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   const removed = await knownSessions.remove(name);
   if (!removed) return res.status(404).json({ error: 'Not in known-sessions' });
   res.json({ success: true });
@@ -2101,10 +2027,7 @@ projectWatcher.subscribe((event) => {
 });
 
 app.ws('/api/projects/events', (ws, req) => {
-  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
-    ws.close(4001, 'Unauthorized');
-    return;
-  }
+  if (!wsAuthGuard(ws, req)) return;
   projectEventClients.add(ws);
   try { ws.send(JSON.stringify({ type: 'hello' })); } catch {}
   ws.on('close', () => projectEventClients.delete(ws));
@@ -2285,10 +2208,7 @@ attention.subscribe((event) => {
 });
 
 app.ws('/api/notifications/events', (ws, req) => {
-  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
-    ws.close(4001, 'Unauthorized');
-    return;
-  }
+  if (!wsAuthGuard(ws, req)) return;
   notificationClients.add(ws);
   let wsDeviceId = null;
   try { ws.send(JSON.stringify({ type: 'hello' })); } catch {}
@@ -2372,9 +2292,7 @@ app.post('/api/push/test', async (_req, res) => {
 // haben und bewusst keine Auto-Adoption triggern wollen.
 app.post('/api/sessions/:name/mute', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   const muted = !!(req.body && req.body.muted);
   const ok = await knownSessions.setMuted(name, muted);
   if (!ok) return res.status(404).json({ error: 'Session not in known-sessions' });
@@ -2385,9 +2303,7 @@ app.post('/api/sessions/:name/mute', async (req, res) => {
 // known-Eintrag werden mit 404 abgelehnt (keine Auto-Adoption).
 app.post('/api/sessions/:name/pin', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   const pinned = !!(req.body && req.body.pinned);
   const ok = await knownSessions.setPinned(name, pinned);
   if (!ok) return res.status(404).json({ error: 'Session not in known-sessions' });
@@ -2410,7 +2326,7 @@ app.get('/api/settings', (_req, res) => {
     status: {
       version: pkgJson.version || null,
       uptimeSeconds: Math.floor((Date.now() - START_TIME) / 1000),
-      sessions: getTmuxSessions().length,
+      sessions: getTmuxSessionsCached().length,
       activePtys: activePtys.size,
     },
     features: {
@@ -2726,10 +2642,7 @@ app.ws('/api/terminal/:name', (ws, req) => {
   // Auth ist bereits durch die HTTP-Middleware geprüft worden (authMiddleware
   // akzeptiert Sec-WebSocket-Protocol). Defensiv nochmal checken, falls die
   // Middleware später umgebaut wird.
-  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
-    ws.close(4001, 'Unauthorized');
-    return;
-  }
+  if (!wsAuthGuard(ws, req)) return;
 
   const sessionName = req.params.name;
 
@@ -2863,10 +2776,7 @@ eventWsKeepaliveTimer.unref();
 // Client sendet { subscribe: projectId } / { unsubscribe: projectId }.
 // Server broadcastet FSEvent-Objekte für die abonnierten Projekte.
 app.ws('/api/files/events', (ws, req) => {
-  if (AUTH_TOKEN && extractToken(req) !== AUTH_TOKEN) {
-    try { ws.close(4001, 'Unauthorized'); } catch {}
-    return;
-  }
+  if (!wsAuthGuard(ws, req)) return;
   const subs = new Map(); // projectId → handler
   ws.on('message', async (raw) => {
     let msg;
