@@ -37,14 +37,14 @@ struct NewSessionView: View {
                 directorySection
                 cliSection
             }
-            .navigationTitle("Neue Session")
+            .navigationTitle("New Session")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Abbrechen") { dismiss() }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Erstellen") { create() }
+                    Button("Create") { create() }
                         .bold()
                         .disabled(!canCreate)
                 }
@@ -57,12 +57,12 @@ struct NewSessionView: View {
     // MARK: - Sections
 
     @ViewBuilder private var nameSection: some View {
-        Section("Sitzungsname") {
-            TextField("z. B. mein-projekt", text: $sessionName)
+        Section("Session Name") {
+            TextField("e.g. my-project", text: $sessionName)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
             if !sessionName.isEmpty && !isNameValid {
-                Label("Nur Buchstaben, Zahlen, -, _, . und Leerzeichen (max. 64 Zeichen)", systemImage: "exclamationmark.circle")
+                Label("Letters, numbers, -, _, . and spaces only (max. 64 characters)", systemImage: "exclamationmark.circle")
                     .font(.caption)
                     .foregroundStyle(.red)
             }
@@ -70,14 +70,14 @@ struct NewSessionView: View {
     }
 
     @ViewBuilder private var directorySection: some View {
-        Section("Verzeichnis") {
+        Section("Directory") {
             if isLoadingDirs {
-                HStack { ProgressView(); Text("Lädt…").foregroundStyle(.secondary) }
+                HStack { ProgressView(); Text("Loading…").foregroundStyle(.secondary) }
             }
 
             // Recent dirs quick-pick
             if !recentDirs.isEmpty {
-                DisclosureGroup("Zuletzt benutzt") {
+                DisclosureGroup("Recent") {
                     ForEach(recentDirs, id: \.self) { dir in
                         Button {
                             selectedDirectory = dir
@@ -101,7 +101,7 @@ struct NewSessionView: View {
             }
 
             // Browse navigation
-            DisclosureGroup("Durchsuchen") {
+            DisclosureGroup("Browse") {
                 browsePager
             }
 
@@ -125,7 +125,7 @@ struct NewSessionView: View {
             Button {
                 browseStack.removeLast()
             } label: {
-                Label("Zurück", systemImage: "chevron.left")
+                Label("Back", systemImage: "chevron.left")
                     .font(.subheadline)
             }
         }
@@ -135,9 +135,9 @@ struct NewSessionView: View {
         let loading = page?.isLoading ?? false
 
         if loading {
-            HStack { ProgressView(); Text("Lädt…").foregroundStyle(.secondary) }
+            HStack { ProgressView(); Text("Loading…").foregroundStyle(.secondary) }
         } else if entries.isEmpty && page != nil {
-            Text("Keine Unterordner")
+            Text("No subfolders")
                 .foregroundStyle(.secondary)
                 .font(.caption)
         } else {
@@ -179,7 +179,7 @@ struct NewSessionView: View {
                 selectedVariant = newCLI.variants[0]
             }
 
-            Picker("Modus", selection: $selectedVariant) {
+            Picker("Mode", selection: $selectedVariant) {
                 ForEach(selectedCLI.variants, id: \.command) { variant in
                     Text(variant.label).tag(variant)
                 }
@@ -268,11 +268,11 @@ struct NewSessionView: View {
                 onCreated()
                 dismiss()
             } catch APIError.unauthorized {
-                errorMessage = "Nicht autorisiert. Bitte Token prüfen."
+                errorMessage = String(localized: "Not authorized. Please check your token.")
             } catch APIError.http(let code) {
-                errorMessage = "Serverfehler \(code). Bitte Name und Verzeichnis prüfen."
+                errorMessage = String(localized: "Server error \(code). Please check the name and directory.")
             } catch {
-                errorMessage = "Fehler: \(error.localizedDescription)"
+                errorMessage = String(localized: "Error: \(error.localizedDescription)")
             }
             isCreating = false
         }

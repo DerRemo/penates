@@ -23,9 +23,9 @@ struct ConnectView: View {
                         .keyboardType(.URL)
                     SecureField("Token", text: $token)
                 } header: {
-                    Text("Hub-Verbindung")
+                    Text("Hub Connection")
                 } footer: {
-                    Text("Server-URL deines Penates-Hubs (im LAN oder über Tailscale) und der Bearer-Token aus der .env.")
+                    Text("Your Penates hub's server URL (on your LAN or via Tailscale) and the bearer token from .env.")
                 }
 
                 if let error { Text(error).foregroundStyle(.red) }
@@ -33,7 +33,7 @@ struct ConnectView: View {
                 Button(action: connect) {
                     HStack {
                         if busy { ProgressView() }
-                        Text("Verbinden")
+                        Text("Connect")
                     }
                 }
                 .disabled(busy || urlText.isEmpty || token.isEmpty)
@@ -49,9 +49,9 @@ struct ConnectView: View {
             case .success: break
             case .failure(let e):
                 error = switch e {
-                    case .badURL: "Ungültige URL."
-                    case .unauthorized: "Token abgelehnt."
-                    case .unreachable: "Hub nicht erreichbar. Läuft der Server / ist Tailscale verbunden?"
+                    case .badURL: String(localized: "Invalid URL.")
+                    case .unauthorized: String(localized: "Token rejected.")
+                    case .unreachable: String(localized: "Hub unreachable. Is the server running / is Tailscale connected?")
                 }
             }
             busy = false
