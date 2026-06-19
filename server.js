@@ -524,6 +524,16 @@ app.post('/api/mata/control', async (req, res) => {
 // Explizit verboten: Quotes, Backslash, Shell-Metachars, Control-Chars.
 const SESSION_NAME_RE = /^[\w\-. ]{1,64}$/;
 const validSessionName = (n) => typeof n === 'string' && SESSION_NAME_RE.test(n);
+// Route-Guard für :name-Params: validiert + sendet bei Fehler die 400-Antwort.
+// Caller-Muster: `if (!requireValidName(res, name)) return;`. Bewusst NUR für die
+// einheitlichen 'Invalid session name'-Sites — Create/Adopt/Rename/Slug-Routen
+// behalten ihre eigenen, spezifischeren Messages (API-Stabilität für Consumer
+// wie die iOS-App; die Strings bleiben byte-identisch).
+function requireValidName(res, name) {
+  if (validSessionName(name)) return true;
+  res.status(400).json({ error: 'Invalid session name' });
+  return false;
+}
 
 // Browse auf den Home-Ordner eingrenzen — verhindert `?path=/etc/passwd`.
 const HOME = homedir();
@@ -1716,9 +1726,7 @@ async function finalizeCardToDone(card, reqMeta = {}) {
 // Kill session
 app.delete('/api/sessions/:name', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   try {
     destroySession(name, auditLog.extractRequestMeta(req));
     await cleanupWorktreeForSession(name);
@@ -1776,7 +1784,7 @@ app.patch('/api/sessions/:name', async (req, res) => {
 // Git-Diff der Session: vollständige Hunks aller geänderten Dateien.
 app.get('/api/sessions/:name/diff', (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   try {
@@ -1790,7 +1798,7 @@ app.get('/api/sessions/:name/diff', (req, res) => {
 // Muster wie /diff: validName→400, kein cwd→404, fehlertolerant 200 mit leer.
 app.get('/api/sessions/:name/git/log', (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 50, 200));
@@ -1806,7 +1814,7 @@ app.get('/api/sessions/:name/git/log', (req, res) => {
 // GET /api/sessions/:name/git/branches — local + remote (read-only).
 app.get('/api/sessions/:name/git/branches', (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   try {
@@ -1820,7 +1828,7 @@ app.get('/api/sessions/:name/git/branches', (req, res) => {
 app.get('/api/sessions/:name/git/commit/:sha', (req, res) => {
   const name = req.params.name;
   const sha = req.params.sha;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   if (!/^[0-9a-f]{4,40}$/.test(sha)) return res.status(400).json({ error: 'Invalid sha' });
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
@@ -1837,7 +1845,7 @@ app.get('/api/sessions/:name/git/commit/:sha', (req, res) => {
 // frischen xterm. Bearer-Auth via Middleware. Session-Existenz wie im Terminal-Handler.
 app.get('/api/sessions/:name/scrollback', (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   if (!getTmuxSessions().some(s => s.name === name)) {
     return res.status(404).json({ error: 'Session not found' });
   }
@@ -1852,7 +1860,7 @@ app.get('/api/sessions/:name/scrollback', (req, res) => {
 app.get('/api/sessions/:name/file-content', async (req, res) => {
   try {
     const name = req.params.name;
-    if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+    if (!requireValidName(res, name)) return;
     const cwd = resolveSessionCwd(name);
     if (!cwd) return res.status(404).json({ error: 'not-found' });
     const result = await readSessionFile(cwd, String(req.query.path || ''));
@@ -1872,7 +1880,7 @@ const imageBody = express.raw({ type: 'image/png', limit: '8mb' });
 // Body = rohes image/png (≤8 MB). writeLimiter (global) deckt das Rate-Limit ab.
 app.post('/api/sessions/:name/image', imageBody, (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   const buf = req.body;
@@ -1900,7 +1908,7 @@ app.use('/api/sessions/:name/image', (err, req, res, next) => {
 // Reuse session-images.saveSessionImage; identische @-Inject-Pipeline wie Image-Paste.
 app.post('/api/sessions/:name/mata-capture', async (req, res) => {
   const name = req.params.name;
-  if (!validSessionName(name)) return res.status(400).json({ error: 'Invalid session name' });
+  if (!requireValidName(res, name)) return;
   const cwd = resolveSessionCwd(name);
   if (!cwd) return res.status(404).json({ error: 'Session cwd not found' });
   if (!mata.isInstalled()) return res.status(409).json({ error: 'mata not installed' });
@@ -1952,9 +1960,7 @@ app.use('/api/voice/transcribe', (err, req, res, next) => {
 // Source of truth ist known-sessions.json — tmux weiß von dormant nichts.
 app.post('/api/sessions/:name/restore', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   const entry = knownSessions.find(name);
   if (!entry) {
     return res.status(404).json({ error: 'Session not found in known-sessions' });
@@ -1996,9 +2002,7 @@ app.post('/api/sessions/:name/adopt', async (req, res) => {
 // aufgelistet (ohne known-Eintrag).
 app.delete('/api/sessions/:name/known', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   const removed = await knownSessions.remove(name);
   if (!removed) return res.status(404).json({ error: 'Not in known-sessions' });
   res.json({ success: true });
@@ -2288,9 +2292,7 @@ app.post('/api/push/test', async (_req, res) => {
 // haben und bewusst keine Auto-Adoption triggern wollen.
 app.post('/api/sessions/:name/mute', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   const muted = !!(req.body && req.body.muted);
   const ok = await knownSessions.setMuted(name, muted);
   if (!ok) return res.status(404).json({ error: 'Session not in known-sessions' });
@@ -2301,9 +2303,7 @@ app.post('/api/sessions/:name/mute', async (req, res) => {
 // known-Eintrag werden mit 404 abgelehnt (keine Auto-Adoption).
 app.post('/api/sessions/:name/pin', async (req, res) => {
   const { name } = req.params;
-  if (!SESSION_NAME_RE.test(name)) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
+  if (!requireValidName(res, name)) return;
   const pinned = !!(req.body && req.body.pinned);
   const ok = await knownSessions.setPinned(name, pinned);
   if (!ok) return res.status(404).json({ error: 'Session not in known-sessions' });
