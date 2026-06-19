@@ -32,7 +32,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Terminal")
                 } footer: {
-                    // Off = der Nutzer tippt zuerst ins Terminal, um zu schreiben.
+                    // Off = the user taps into the terminal first before typing.
                     Text("Off: tap the terminal first to type.")
                 }
                 Section("About") {

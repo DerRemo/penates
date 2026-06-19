@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// One titled group of session cards in the overview grid (Angeheftet / Aktiv /
-/// Ruhend). Renders nothing when empty. Extracted from `OverviewView` so the
+/// One titled group of session cards in the overview grid (Pinned / Active /
+/// Dormant). Renders nothing when empty. Extracted from `OverviewView` so the
 /// grid body stays a flat list of sections rather than an inline `@ViewBuilder`
 /// helper.
 struct SessionSection: View {

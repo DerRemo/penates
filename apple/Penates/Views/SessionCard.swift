@@ -45,7 +45,7 @@ struct SessionCard: View {
                 Text(session.displayName).font(.subheadline.weight(.semibold)).lineLimit(2)
                 Spacer(minLength: 4)
                 // No pin glyph here — pinned sessions live in their own
-                // "Angeheftet" section, so the indicator would be redundant.
+                // "Pinned" section, so the indicator would be redundant.
                 if session.muted {
                     Image(systemName: "bell.slash.fill").font(.caption2).opacity(0.85)
                 }
