@@ -14,38 +14,38 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Verbindung") {
+                Section("Connection") {
                     if let url = app.credentials?.baseURL {
                         Text(url.absoluteString)
                             .foregroundStyle(.secondary)
                     }
-                    Button("Verbindung trennen", role: .destructive) {
+                    Button("Disconnect", role: .destructive) {
                         app.disconnect()
                         dismiss()
                     }
                 }
-                Section("Sicherheit") {
-                    Toggle("Face ID beim Start", isOn: $requireBiometrics)
+                Section("Security") {
+                    Toggle("Face ID on launch", isOn: $requireBiometrics)
                 }
                 Section {
-                    Toggle("Tastatur beim Öffnen anzeigen", isOn: $autoFocusTerminal)
+                    Toggle("Show keyboard on open", isOn: $autoFocusTerminal)
                 } header: {
                     Text("Terminal")
                 } footer: {
                     // Off = der Nutzer tippt zuerst ins Terminal, um zu schreiben.
-                    Text("Aus: erst ins Terminal tippen, um zu schreiben.")
+                    Text("Off: tap the terminal first to type.")
                 }
-                Section("Über") {
+                Section("About") {
                     LabeledContent("App",
                         value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                     LabeledContent("Hub", value: hubVersion)
                     Link("penates.dev", destination: Self.siteURL)
                 }
             }
-            .navigationTitle("Einstellungen")
+            .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fertig") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
             }
             .task {
