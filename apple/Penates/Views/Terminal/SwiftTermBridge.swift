@@ -107,11 +107,16 @@ struct SwiftTermBridge: UIViewRepresentable {
         /// is @MainActor, so assert the isolation rather than hop (no latency).
         func send(source: TerminalView, data: ArraySlice<UInt8>) {
             let text = String(decoding: data, as: UTF8.self)
+            // Bind `socket` (a `@MainActor` class, hence Sendable) to a local so the
+            // assumeIsolated closure captures it directly instead of the non-Sendable
+            // Coordinator `self`.
+            let socket = self.socket
             MainActor.assumeIsolated { socket.send(.input(text)) }
         }
 
         /// Terminal was resized → tell the hub so the PTY can reflow.
         func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+            let socket = self.socket
             MainActor.assumeIsolated { socket.send(.resize(cols: newCols, rows: newRows)) }
         }
 

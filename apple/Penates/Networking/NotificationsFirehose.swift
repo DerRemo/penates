@@ -33,7 +33,10 @@ final class NotificationsFirehose {
             let url = credentials.webSocketURL(path: "/api/notifications/events")
             let task = session.webSocketTask(with: url, protocols: ["bearer.\(credentials.token)"])
             task.resume()
-            func receive() {
+            // `@Sendable`: this local recurses through the `@Sendable` completion
+            // handler of `task.receive`, so it must itself be Sendable. It captures
+            // only the Sendable `task` and `continuation`.
+            @Sendable func receive() {
                 task.receive { result in
                     switch result {
                     case .success(let msg):
