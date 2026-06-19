@@ -6512,7 +6512,7 @@
             try {
               await fetch('/api/projects/' + encodeURIComponent(id), {
                 method: 'PATCH',
-                headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+                headers: apiHeaders(),
                 body: JSON.stringify({ pinned: next }),
               });
               renderProjects();
@@ -6574,7 +6574,7 @@
         try {
           await fetch('/api/approvals/' + encodeURIComponent(id), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            headers: apiHeaders(),
             body: JSON.stringify({ decision }),
           });
         } catch (e) { console.warn('[approval] decide failed', e); }
@@ -6974,7 +6974,7 @@
         // Subscription vorhanden → idempotent beim Server registrieren (Sync nach Server-Neustart).
         await fetch('/api/push/subscribe', {
           method: 'POST',
-          headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+          headers: apiHeaders(),
           body: JSON.stringify({ subscription: existingSub.toJSON(), deviceId: getDeviceId() }),
         }).catch(() => {});
         localStorage.setItem(PUSH_KEY, '1');
@@ -7009,7 +7009,7 @@
       try {
         const r = await fetch('/api/push/subscribe', {
           method: 'POST',
-          headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+          headers: apiHeaders(),
           body: JSON.stringify({ subscription: sub.toJSON(), deviceId: getDeviceId() }),
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -7030,7 +7030,7 @@
         // Server zuerst — falls sub.unsubscribe() scheitert, ist der Server sauber.
         await fetch('/api/push/subscribe', {
           method: 'DELETE',
-          headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+          headers: apiHeaders(),
           body: JSON.stringify({ endpoint: sub.endpoint }),
         }).catch(() => {});
         await sub.unsubscribe().catch(() => {});
@@ -7117,7 +7117,7 @@
     async function patchItem(projectId, body) {
       const res = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/items', {
         method: 'PATCH',
-        headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+        headers: apiHeaders(),
         body: JSON.stringify(body),
       });
       if (res.status === 401) {
@@ -7228,7 +7228,7 @@
         // nicht mehr ein Backlog-Item in der ROADMAP/CHANGELOG.
         await fetch('/api/board/cards', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+          headers: apiHeaders(),
           body: JSON.stringify({ projectId, title: text, stage: 'idea', origin: 'solo' }),
         }).then(r => { if (!r.ok) throw Object.assign(new Error('add failed'), { status: r.status }); });
         showToast(t('toast.ideaAdded'), 'success');
@@ -8269,6 +8269,11 @@
     }
 
     // ── API helpers ──────────────────────────────────────────────
+    // Auth-only Header (ohne Content-Type) — für GET-Requests ohne Body.
+    function authHeaders() {
+      return AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {};
+    }
+    // Voller JSON-Request-Header inkl. Content-Type — für POST/PATCH/DELETE.
     function apiHeaders() {
       const h = { 'Content-Type': 'application/json' };
       if (AUTH_TOKEN) h['Authorization'] = `Bearer ${AUTH_TOKEN}`;
@@ -8920,7 +8925,7 @@
           try {
             const res = await fetch('/api/sessions/' + encodeURIComponent(name) + '/mute', {
               method: 'POST',
-              headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+              headers: apiHeaders(),
               body: JSON.stringify({ muted: next }),
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -8947,7 +8952,7 @@
           try {
             const res = await fetch('/api/sessions/' + encodeURIComponent(name) + '/pin', {
               method: 'POST',
-              headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+              headers: apiHeaders(),
               body: JSON.stringify({ pinned: next }),
             });
             if (res.status === 404) {
@@ -10431,7 +10436,7 @@
       try {
         const res = await fetch('/api/projects', {
           method: 'POST',
-          headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+          headers: apiHeaders(),
           body: JSON.stringify({ displayName, path }),
         });
         if (res.status === 401) {
@@ -10838,7 +10843,7 @@
       try {
         const r = await fetch('/api/board/cards', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+          headers: apiHeaders(),
           body: JSON.stringify({ projectId: pid, title: title.trim(), stage: 'idea', origin: 'solo' }),
         });
         if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { status: r.status });
@@ -10857,7 +10862,7 @@
       try {
         const r = await fetch(`/api/projects/${encodeURIComponent(pid)}/ideagen`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+          headers: apiHeaders(),
         });
         if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { status: r.status });
         const data = await r.json();
@@ -10884,7 +10889,7 @@
       try {
         const res = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/release', {
           method: 'POST',
-          headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+          headers: apiHeaders(),
           body: JSON.stringify({ releaseVersion, newDevVersion, narrative }),
         });
         if (res.status === 401) { clearToken(); showLoginModal(); return; }
@@ -11239,7 +11244,7 @@
       (async () => {
         let cfg = { enabled: true };
         try {
-          const headers = AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {};
+          const headers = authHeaders();
           cfg = await (await fetch('/api/approvals/config', { headers })).json();
         } catch {}
         sync(!!cfg.enabled);
@@ -11247,7 +11252,7 @@
       btn.addEventListener('click', async () => {
         const next = btn.getAttribute('aria-pressed') !== 'true';
         try {
-          const headers = { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) };
+          const headers = apiHeaders();
           const r = await fetch('/api/approvals/config', {
             method: 'POST',
             headers,
@@ -11862,8 +11867,8 @@
       const STAGE_GLYPH = { idea: '✦', brainstorming: '✎', implement: '⟳', review: '⦿', done: '✓' };
 
       const el = (id) => document.getElementById(id);
-      const authH = () => (AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {});
-      const jsonH = () => ({ 'Content-Type': 'application/json', ...authH() });
+      const authH = authHeaders;
+      const jsonH = apiHeaders;
       const projName = (id) => (projects.find(p => p.id === id)?.displayName) || id;
       // <option>-Liste aller Projekte; das aktuell zugewiesene wird vorausgewählt
       // (und ergänzt, falls es nicht in der geladenen Projektliste steckt).
@@ -13189,7 +13194,7 @@
         try {
           const r = await fetch('/api/preview/select', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            headers: apiHeaders(),
             body: JSON.stringify({ port }),
           });
           if (!r.ok) { stateNoServer(port); return; }
@@ -13269,14 +13274,14 @@
       async function fetchConfig() {
         if (config) return config;
         try {
-          const r = await fetch('/api/preview/config', { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
+          const r = await fetch('/api/preview/config', { headers: authHeaders() });
           config = await r.json();
         } catch { config = { enabled: false, host: null, activePort: null }; }
         return config;
       }
       async function fetchPorts() {
         try {
-          const r = await fetch('/api/preview/ports', { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
+          const r = await fetch('/api/preview/ports', { headers: authHeaders() });
           const body = await r.json();
           ports = Array.isArray(body.ports) ? body.ports : [];
         } catch { ports = []; }
@@ -13286,7 +13291,7 @@
       // ── Mata (iOS-Simulator) source ──
       async function fetchMataStatus() {
         try {
-          const r = await fetch('/api/mata/status', { headers: AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {} });
+          const r = await fetch('/api/mata/status', { headers: authHeaders() });
           mataStatus = await r.json();
         } catch { mataStatus = { installed: false, running: false, portOpen: false }; }
         return mataStatus;
@@ -13305,7 +13310,7 @@
         try {
           await fetch('/api/mata/control', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            headers: apiHeaders(),
             body: JSON.stringify({ action: 'start' }),
           });
         } catch {}
@@ -13333,7 +13338,7 @@
         try {
           const r = await fetch('/api/preview/select', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}) },
+            headers: apiHeaders(),
             body: JSON.stringify({ source: 'mata' }),
           });
           if (!r.ok) {
