@@ -7286,13 +7286,18 @@
       try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(m)); } catch {}
     }
     let projectDetailReq = 0;
-    // Lazy-loaded pure render logic (project-detail-render.js + relpath.js),
-    // cached across re-renders. Mirrors FileBrowser's ensureLogic() gate:
-    // awaited at the top of renderProjectDetail before any innerHTML write, so
-    // the sync sub-builders used during the write run race-free.
+    // Lazy-loaded pure render logic (project-detail-render.js), cached across
+    // re-renders. Mirrors FileBrowser's ensureLogic() gate: awaited at the top
+    // of renderProjectDetail before any innerHTML write (so the sync sub-builders
+    // used during the write run race-free), and returns null on import failure
+    // so the caller bails gracefully instead of throwing an uncaught rejection.
+    // Failure is not cached: a transient blip can recover on the next re-render.
     let _PD = null;
     async function ensureProjectDetailLogic() {
-      if (!_PD) _PD = await import('./project-detail-render.js');
+      if (!_PD) {
+        try { _PD = await import('./project-detail-render.js'); }
+        catch (e) { console.warn('[project-detail] logic import failed', e); return null; }
+      }
       return _PD;
     }
     // Phase 4 Move-Menü: an document.body angehängt → muss bei Outside-Click
@@ -7409,6 +7414,13 @@
 
       const reqId = ++projectDetailReq;
       const PD = await ensureProjectDetailLogic();
+      // Render-Logik nicht ladbar → sauber bailen statt halb zu rendern oder
+      // eine uncaught rejection zu werfen (gleicher Posture wie FileBrowsers Gate).
+      if (!PD) {
+        title.textContent = id;
+        body.innerHTML = `<div class="usage-empty">${t('common.errorWithMessage', { message: 'render logic unavailable' })}</div>`;
+        return;
+      }
 
       // Scroll-Position und Focus-Target merken. Mit Live-Sync + Toggle-
       // Clicks re-rendert die View jetzt häufiger; ohne Preservation
