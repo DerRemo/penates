@@ -20,7 +20,10 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: ShellCheck new install scripts (strict)
-        run: shellcheck -s bash install.sh scripts/lib.sh scripts/doctor.sh scripts/remote-setup.sh
+        # SC2015: the `A && B || true` / `… || fallback` one-liners are intentional guard
+        # idioms (the C-branch is a harmless `|| true` or the deliberate else), not the
+        # if-then-else footgun the check warns about.
+        run: shellcheck -s bash -e SC2015 install.sh scripts/lib.sh scripts/doctor.sh scripts/remote-setup.sh
       - name: ShellCheck setup.sh (excluding pre-existing intentional patterns)
         # SC2016: single-quoted hook/statusline commands are evaluated later, must NOT expand here.
         # SC2046: `gui/$(id -u)` is always a single integer — no word-splitting risk.
@@ -48,8 +51,11 @@ jobs:
       - name: Installer preflight (--check, no mutation)
         # Exit 3 is expected on a CI runner missing some required prereqs; we assert it
         # produces a coherent report and a 0-or-3 code, never a crash.
+        # NB: `|| code=$?` (not `; code=$?`) — GitHub runs steps under `bash -e`, so the
+        # expected non-zero exit must be in a `||` list or errexit kills the step early.
         run: |
-          bash install.sh --check; code=$?
+          code=0
+          bash install.sh --check || code=$?
           echo "doctor exit=$code"
           [ "$code" = 0 ] || [ "$code" = 3 ]
       - name: Shell unit tests on macOS

@@ -43,9 +43,13 @@ arch_brew_prefix() {
 }
 
 # PENATES_TEST_PKG — Test-Seam: Komma-Liste „vorhandener" Paketmanager-Binaries.
+# Wenn gesetzt, ist die Liste autoritativ (wie PENATES_TEST_OS) — die reale Umgebung
+# wird NICHT konsultiert, sonst leakt z. B. das echte apt-get des CI-Runners durch.
 : "${PENATES_TEST_PKG:=}"
 _pkg_present() {
-  case ",${PENATES_TEST_PKG}," in *",$1,"*) return 0 ;; esac
+  if [ -n "$PENATES_TEST_PKG" ]; then
+    case ",${PENATES_TEST_PKG}," in *",$1,"*) return 0 ;; *) return 1 ;; esac
+  fi
   have "$1"
 }
 
