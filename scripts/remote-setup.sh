@@ -41,11 +41,17 @@ fi
 
 setup_tailscale() {
   step "Tailscale-Remote"
-  have brew || { err "Homebrew fehlt — erst install.sh/Prereqs."; return 1; }
+  # --dry-run ist ein reiner Plan-Preview: nicht an fehlendem brew / nicht-angemeldetem
+  # Tailscale abbrechen (sonst zeigt der Plan auf einer Maschine ohne Homebrew nichts).
+  if ! have brew && [ "$PENATES_DRY_RUN" != 1 ]; then
+    err "Homebrew fehlt — erst install.sh/Prereqs."; return 1
+  fi
   have tailscale || run brew install tailscale
-  guide_step "Tailscale angemeldet" tailscale status --json -- \
-    "Führe aus:  sudo tailscale up" \
-    "und melde dich im Browser an." || { REMOTE_TODO+=("sudo tailscale up  # dann erneut: ./scripts/remote-setup.sh tailscale"); return 1; }
+  if ! guide_step "Tailscale angemeldet" tailscale status --json -- \
+        "Führe aus:  sudo tailscale up" \
+        "und melde dich im Browser an." && [ "$PENATES_DRY_RUN" != 1 ]; then
+    REMOTE_TODO+=("sudo tailscale up  # dann erneut: ./scripts/remote-setup.sh tailscale"); return 1
+  fi
   # MagicDNS + HTTPS-Certs (Admin-Console, nicht skriptbar)
   local host url
   host="$(tailscale status --json 2>/dev/null | sed -n 's/.*"DNSName":"\([^"]*\)".*/\1/p' | head -1)"

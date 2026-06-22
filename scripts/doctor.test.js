@@ -15,7 +15,10 @@ function runJson(env = {}) {
 }
 
 test('--json emits a structured report with required/clis/optional blocks', () => {
-  const { json } = runJson();
+  // Pin the macOS report shape (xcode_clt/brew keys) so it is deterministic on any
+  // host — on a Linux CI runner the real OS would otherwise emit the build_tools
+  // shape (no xcode_clt). The Linux shape is covered separately below.
+  const { json } = runJson({ PENATES_TEST_OS: 'macos' });
   assert.equal(typeof json.os, 'string');
   for (const k of ['xcode_clt', 'brew', 'node', 'tmux', 'git', 'jq', 'trash'])
     assert.equal(typeof json.required[k], 'boolean', `required.${k}`);
