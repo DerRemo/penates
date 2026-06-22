@@ -1,6 +1,6 @@
 ---
 title: What is Penates?
-description: A web interface to manage and remote-control coding-CLI sessions (Claude Code, Codex, Antigravity) on your own machine, accessible from any browser.
+description: A web interface to manage and remote-control coding-CLI sessions (Claude Code, Codex, Antigravity, opencode) on your own machine, accessible from any browser.
 sidebar:
   order: 1
 ---
@@ -9,7 +9,7 @@ import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components';
 
 Penates is a small self-hosted server that runs on your Mac or Linux box. It shows every running coding-CLI session in one dashboard and lets you drop into the terminal from any browser: your Mac, iPad, or phone, on your network or over the internet. No cloud relay: your machine, your sessions.
 
-You start sessions with **Claude Code** (Anthropic), **Codex** (OpenAI), or **Antigravity** (Google `agy`) from a CLI picker, each with tiered approval/sandbox variants. Claude Code is the most deeply integrated (hook-based notifications, usage tracking, image paste); the others run as full terminal sessions with their own login.
+You start sessions with **Claude Code** (Anthropic), **Codex** (OpenAI), **Antigravity** (Google `agy`), or **opencode** from a CLI picker, each with tiered approval/sandbox variants. Claude Code is the most deeply integrated (hook-based notifications, usage tracking, image paste); the others run as full terminal sessions with their own login.
 
 <CardGrid>
   <Card title="Manage sessions" icon="laptop">
@@ -25,5 +25,7 @@ You start sessions with **Claude Code** (Anthropic), **Codex** (OpenAI), or **An
     Usage dashboard, file browser, repo panel (changes · history · branches), browser preview, voice input, and more.
   </Card>
 </CardGrid>
+
+**Coming soon:** a native iOS companion app for iPhone and iPad is in the works. It is not on TestFlight or the App Store yet, so for now install the PWA to your home screen for a native feel.
 
 <LinkButton href="/docs/quickstart">Get started in 5 minutes →</LinkButton>

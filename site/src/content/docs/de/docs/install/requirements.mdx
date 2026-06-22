@@ -66,13 +66,15 @@ Danach einmalig `claude` starten und den Anweisungen folgen (Anthropic-Account v
 
 ## Optionale CLIs
 
-Der Hub startet auch **Codex** (OpenAI) und **Antigravity** (Google `agy`). Diese sind optional. Eine fehlende CLI lässt nur die eigenen Sessions mit einem „nicht im PATH"-Hinweis sterben, ohne andere Sessions zu stören.
+Der Hub startet auch **Codex** (OpenAI), **Antigravity** (Google `agy`) und **opencode**. Diese sind optional. Eine fehlende CLI lässt nur die eigenen Sessions mit einem „nicht im PATH"-Hinweis sterben, ohne andere Sessions zu stören.
 
 ```bash
 npm install -g @openai/codex      # Binary: codex
+npm install -g opencode-ai        # Binary: opencode
 ```
 
 Antigravity (`agy`) wird nach [Googles offizieller Anleitung](https://antigravity.google/) installiert. Beide Binaries müssen genauso wie `claude` im PATH liegen.
+opencode wird per npm als `opencode-ai` installiert; das Update-Center kann es später mit `opencode upgrade` aktualisieren.
 
 <Aside type="note">
 Der Hub fügt `~/.local/bin`, `/opt/homebrew/bin` und `/usr/local/bin` beim Spawnen von Sessions zur Laufzeit zum PATH hinzu. Wenn ein CLI nach der npm-Installation in einem dieser Pfade liegt, wird es gefunden. Die Profil-Änderung wird trotzdem empfohlen, damit Terminal-Sessions außerhalb des Hubs funktionieren.

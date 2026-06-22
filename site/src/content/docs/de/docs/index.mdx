@@ -1,6 +1,6 @@
 ---
 title: Was ist Penates?
-description: Eine Web-Oberfläche zum Verwalten und Fernsteuern von Coding-CLI-Sessions (Claude Code, Codex, Antigravity) auf deiner eigenen Maschine, zugänglich aus jedem Browser.
+description: Eine Web-Oberfläche zum Verwalten und Fernsteuern von Coding-CLI-Sessions (Claude Code, Codex, Antigravity, opencode) auf deiner eigenen Maschine, zugänglich aus jedem Browser.
 sidebar:
   order: 1
 ---
@@ -9,7 +9,7 @@ import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components';
 
 Penates ist ein kleiner selbst gehosteter Server, der auf deinem Mac oder Linux-Rechner läuft. Er zeigt alle laufenden Coding-CLI-Sessions in einem Dashboard und lässt dich per Browser ins Terminal einsteigen: vom Mac, iPad oder iPhone, im Heimnetz oder über das Internet. Kein Cloud-Relay: deine Maschine, deine Sessions.
 
-Du startest Sessions mit **Claude Code** (Anthropic), **Codex** (OpenAI) oder **Antigravity** (Google `agy`) über einen CLI-Picker, jeweils mit gestuften Approval-/Sandbox-Varianten. Claude Code ist die am tiefsten integrierte CLI (Hook-basierte Notifications, Usage-Tracking, Image-Paste); die anderen laufen als vollwertige Terminal-Sessions mit eigenem Login.
+Du startest Sessions mit **Claude Code** (Anthropic), **Codex** (OpenAI), **Antigravity** (Google `agy`) oder **opencode** über einen CLI-Picker, jeweils mit gestuften Approval-/Sandbox-Varianten. Claude Code ist die am tiefsten integrierte CLI (Hook-basierte Notifications, Usage-Tracking, Image-Paste); die anderen laufen als vollwertige Terminal-Sessions mit eigenem Login.
 
 <CardGrid>
   <Card title="Sessions verwalten" icon="laptop">
@@ -25,5 +25,7 @@ Du startest Sessions mit **Claude Code** (Anthropic), **Codex** (OpenAI) oder **
     Usage-Dashboard, Filebrowser, Repo-Panel (Änderungen · History · Branches), Browser-Preview, Voice-Input und mehr.
   </Card>
 </CardGrid>
+
+**Bald verfügbar:** Eine native iOS-Begleit-App für iPhone und iPad ist in Arbeit. Sie ist noch nicht auf TestFlight oder im App Store, installiere also vorerst die PWA auf dem Home-Bildschirm fürs native Gefühl.
 
 <LinkButton href="/de/docs/quickstart">In 5 Minuten loslegen →</LinkButton>

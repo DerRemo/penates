@@ -5,16 +5,19 @@ im Hub selbst. Struktur folgt dem `lib/roadmap.js`-Parser:
 H2-Sections Released / In Development / Backlog / Changelog,
 Top-Level-Checkboxen mit optionalem `{key: value}`-Meta-Suffix.
 
-## Released: v1.0.0
+## Released: v1.1.0
 
-Erstes stabiles Release. Der Hub ist aus der 0.x-Reihe heraus:
-Multi-CLI-Spawn (claude/codex/gemini), ein konsolidiertes Repo-Panel
-(Files · Changes · History · Branches), das Idea-Pipeline-Board mit
-autonomem Implement→Review→Done-Flow inklusive Worktree-Isolation,
-Browser-Preview und Mata-iOS-Simulator als Split-Panels, Voice-Input,
-Image-Paste, klickbare Datei-Pfade im Terminal, In-Tree-Drag-and-Drop
-im Filebrowser, ein Update-Center in den Settings und eine durchgängige
-Mobile-Optimierung — alles auf der Catppuccin-Calm-Card-Designsprache.
+Penates läuft jetzt plattformübergreifend auf macOS und Linux (Windows via
+WSL2). Vier Coding-CLIs (Claude Code, Codex, Antigravity, opencode) starten
+über einen Picker; ein konsolidiertes Repo-Panel (Files · Changes · History ·
+Branches), das Idea-Pipeline-Board mit autonomem Implement→Review→Done-Flow
+inklusive Worktree-Isolation, Browser-Preview und Mata-iOS-Simulator als
+Split-Panels, Voice-Input, Image-Paste, klickbare Datei-Pfade im Terminal und
+ein Update-Center stehen auf der Catppuccin-Calm-Card-Designsprache. Sessions
+überleben einen Reboot über den nativen tmux-Continuum-Auto-Restore. Ein
+Ein-Zeilen-Installer richtet alles ein (Remote-Zugriff über Tailscale oder
+Cloudflare), die zweisprachige Doku liegt auf penates.dev, und eine native
+iOS-Begleit-App für iPhone und iPad ist in Arbeit (coming soon).
 
 - [x] i18n: Strings extrahieren in Plain-JS-Modul plus DE-Bundle plus Toggle EN/Deutsch {priority: p1, theme: i18n}
 - [x] Settings-Page als eigener Sidebar-Tab ganz unten mit Appearance Language Notifications Help About — ersetzt alle 4 Header-Buttons Push Sound Theme Kbd-Help {priority: p1, theme: ux}
@@ -40,10 +43,15 @@ Mobile-Optimierung — alles auf der Catppuccin-Calm-Card-Designsprache.
 - [x] Update-Center in den Settings — vier Kategorien Hub plus CLIs plus Externals plus Deps, ausführbare Update-Buttons über detachte cc-update-tmux-Session, hub-guarded, lib/updates.js plus scripts/update.sh {priority: p1, theme: dev-x}
 - [x] Komplette Mobile-Optimierung — Board Quick-Move plus Bottom-Sheet, DiffView-Back, sticky Modal-Footer, Roadmap-Reorder, Terminal Copy-Output, 44px-Tap-Targets plus Safe-Area plus Landscape, Usage-Overflow-Fix {priority: p1, theme: mobile}
 
-## In Development: v1.0.1
-- [x] tmux-continumm einbauen
-- [x] Linux Phase 2: Hub OS-agnostisch lauffaehig machen (Windows nur via WSL2) {theme: oss-relaunch}
+- [x] tmux-Continuum nativ — Sessions überleben einen Reboot über den Boot-Auto-Restore (kein Plugin), Opt-out via manuallyStopped, --continue als Default für alle CLIs {priority: p1, theme: robustness}
+- [x] Linux Phase 2: Hub OS-agnostisch lauffähig machen (Windows nur via WSL2) {theme: oss-relaunch}
 - [x] opencode als vierte Coding-CLI — registry-only Parität zu codex/antigravity (Spawn plus Badge plus continue-Restore), nur Standard-Variante Build-Agent weil das opencode-TUI kein Permission-Bypass-Flag hat und der Plan-Agent ein Live-Tab-Toggle ist, plus echtes Update-Center-Ziel über opencode upgrade {priority: p1, theme: multi-cli}
+- [x] Ein-Zeilen-Installer (install.sh) plus geführtes Remote-Setup — Tailscale empfohlen, Cloudflare optional, --check als reiner Prüflauf {priority: p1, theme: install}
+- [x] penates.dev Doku-Site — Astro/Starlight, zweisprachig EN/DE, deployt über Cloudflare Workers Builds {priority: p1, theme: docs}
+- [x] Native iOS-Begleit-App für iPhone und iPad (SwiftUI, im Repo unter apple/) — coming soon, noch kein TestFlight- oder App-Store-Release {priority: p1, theme: ios}
+- [x] Rebrand Claude Code Hub auf Penates plus neues Icon (Teal-Haus mit Terminal-Prompt) {priority: p1, theme: oss-relaunch}
+
+## In Development: v1.2.0
 
 ## Archiv: v0.3.0
 
@@ -65,6 +73,26 @@ die Items sind hier reine Markdown-Dokumentation.
 - [x] Board-Spawn vereinheitlicht: Bewegen-in-Spalte startet die Session (Drag + Stage-Dropdown via geteilter applyTransition), Implement-Route advanced brainstorming→implement selbst, Detail-Buttons auf attach-only-when-alive reduziert {priority: p1, theme: board}
 - [x] Idea Pipeline Phase 5: Review→Fertig — In-Hub Branch-Diff (View-diff), Drag review→done mergt idea/<slug> in base + Changelog-Done-Item + Push + Session-Ende; lib/git-finish.js (worktree-isolierter Merge), addDoneItem/sectionExists, GET branch-diff + POST finish {priority: p0, theme: board}
 ## Changelog
+
+### v1.1.0 — 2026-06-22
+
+**Linux-Support (plattformübergreifend).** Penates läuft jetzt nativ auf Linux (Debian/Ubuntu · Fedora/RHEL · Arch; Windows nur via WSL2) — macOS bleibt byte-identisch. Die einzige Quelle der OS-Wahrheit ist das neue `lib/platform.js` (`platform()`, `resolveBin()` als purer PATH-Scan, `extraPaths()`, `resolveTrash()`); alle OS-Branches in `server.js`/`files.js`/`port-scan.js`/`voice.js`/`file-watcher.js` gehen dorthin. Auto-Start ist per-OS: macOS LaunchAgent, Linux systemd `--user`-Unit plus `loginctl enable-linger`. Apple-only Features (Mata, moshi-hook, Voice/whisper) degradieren graceful statt zu crashen. Container-Verifikation über `scripts/linux-smoke.sh` + `Dockerfile.linux-smoke`.
+
+**Ein-Zeilen-Installer plus geführtes Remote-Setup.** Ein `curl … | bash`-Bootstrap (`install.sh` + `scripts/lib.sh`) prüft Vorhandenes, installiert Fehlendes (Homebrew/Node/tmux/jq/CLIs/moshi-hook), richtet den Hub als Dienst ein und bietet Remote-Zugriff an — **Tailscale** als empfohlener Default (echtes HTTPS, keine Domain) oder **Cloudflare Tunnel** für öffentlichen Zugriff (`scripts/remote-setup.sh`). `./install.sh --check` prüft nur, ohne etwas zu ändern. Dazu ein `scripts/doctor.sh`-Prereq-Audit (`--json`).
+
+**tmux-Continuum nativ (Auto-Restore nach Reboot).** Nach einem tmux-Tod (Mac-Reboot, `tmux kill-server`, Server-Crash) fährt der Hub beim Boot die zuletzt laufenden `cc-`-Sessions automatisch wieder hoch — je im Originalverzeichnis, mit fortgesetzter CLI-Konversation (`claude --continue` / `codex resume --last` / `agy --continue` / `opencode --continue`). Nativ über die bestehende `known-sessions.json` (kein resurrect/continuum-Plugin, das `hubEnvArgs()` umgehen und mit dem Hub-Restore konkurrieren würde). Opt-out via `manuallyStopped` (ein bewusstes Kill schließt die Session vom Auto-Restore aus, bleibt aber fürs manuelle Restore dormant); zwei Settings-Toggles (Master plus Continue). Ein bewusstes Kill bleibt jetzt auch über einen Neustart hinweg tot — der `manuallyStopped`-Marker wird durabel geschrieben (known-sessions `flush()`, `destroySession` awaitet den Flag, Shutdown drainiert die Save-Queue), sodass ein Kill-dann-Neustart das Flag nicht mehr verliert.
+
+**opencode als vierte Coding-CLI.** Der CLI-Picker bietet jetzt vier CLIs: Claude Code, Codex, Antigravity und **opencode** — registry-only Parität zu codex/antigravity (Spawn plus Badge plus continue-Restore), nur die Standard-Variante (das opencode-TUI hat kein Permission-Bypass-Flag, der Plan-Agent ist ein Live-Tab-Toggle), plus echtes Update-Center-Ziel über `opencode upgrade` (npm-Paket `opencode-ai`).
+
+**penates.dev Doku-Site.** Eine zweisprachige (EN/DE) Astro/Starlight-Doku unter `site/` — Einführung, Installation & Betrieb, Funktionen, Referenz und Mitmachen, alle Seiten in beiden Sprachen, humanizer-sauber (kein em/en-Dash, echte Umlaute). Brand-Theme (Catppuccin Latte/Mocha, Teal-Akzent, self-hosted Fonts). Deployt über Cloudflare Workers Builds auf penates.dev (assets-only Worker, `site/wrangler.jsonc`).
+
+**Native iOS-Begleit-App (coming soon).** Eine native SwiftUI-App für iPhone und iPad liegt im Repo unter `apple/` — Session-Dashboard im Shortcuts-Stil mit Live-Status, vollwertiges Terminal (SwiftTerm) mit nativer Textauswahl, Copy/Paste-Edit-Menü und keyboard-genauer Accessory-Bar, Connection-Robustheit (Reconnect/Heartbeat-Policy gespiegelt aus dem Web-Client), CLI-Registry-Port, Notifications-Firehose, EN/DE-Lokalisierung (String Catalogs) und ein optionales Face-ID-Gate. **Noch kein TestFlight- oder App-Store-Release** — bis dahin bleibt die installierbare PWA der Weg aufs iPhone.
+
+**Rebrand auf Penates.** Claude Code Hub heißt jetzt Penates (penates.dev) — neues Icon (Teal-Haus mit Terminal-Prompt; transparente Glyph-Marke `mark.svg` für theme-adaptive In-App-Marks), durchgängige Umbenennung in Code, State-Dir (`~/.penates`) und LaunchAgent (`com.penates`).
+
+**Board (Idea-Pipeline) plus Übersicht.** Karten räumen beim Verschieben nach Fertig jetzt auf — der geteilte, idempotente `finalizeCardToDone`-Helper killt die laufende Session, entfernt den Worktree und löscht den gemergten Branch (ungemergt bleibt erhalten); das Frontend zeigt davor einen Destruktiv-Confirm und danach einen Cleanup-Toast. Der Spaltenwechsel wird erst nach erfolgreichem Spawn committet (spawn-before-move), und die Routen sind gegen Doppel-Sessions gehärtet. Die Overview listet Board-Sessions in einem eigenen Abschnitt mit Stage-Chip plus Kill-on-move-Confirm; Overview-Session-Cards tragen ein Projekt-Badge. Gepinnte Sessions stehen über einen eigenen Angeheftet-Abschnitt oben in Sidebar und Overview (`session-sort.js` als eine Ordnungsregel).
+
+**Modularität, Robustheit plus Bugfixes.** Große Modularisierungs-Welle — pure, getestete Module nach `public/`/`lib/` extrahiert (`terminal-logic.js`, `project-detail-render.js`, `filebrowser-logic.js`, `relpath.js`, `lib/tmux.js`, `lib/session-list.js`, geteilte `backoff.js`/`markdown-mini.js`), bei byte-identischem Verhalten für den iOS-REST-Vertrag. Verifizierte Race-Conditions geschlossen (git-finish-Isolation, atomare Uploads, Cache-Single-Flight, Spawn/Usage-Limits), Connection-Drop-Fixes (Client-Self-Reload-Loop, Pong-Timeouts, cloudflared http2, files/events-Keepalive) und ein Hub-Side-Bug-Batch (Recency-Gate für known-sessions, leisere File-Errors, docless-Project-Skip). State-Dir über `PENATES_HOME` isolierbar (Test-Seam). tmux `list-sessions` auf den Read-Hot-Paths gecacht.
 
 ### v1.0.0 — 2026-06-13
 

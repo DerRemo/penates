@@ -66,13 +66,15 @@ After that, run `claude` once and follow the prompts to connect your Anthropic a
 
 ## Optional CLIs
 
-The hub also spawns **Codex** (OpenAI) and **Antigravity** (Google `agy`). These are optional. A missing CLI causes only that CLI's sessions to exit with a "not in PATH" error; it does not affect other sessions.
+The hub also spawns **Codex** (OpenAI), **Antigravity** (Google `agy`), and **opencode**. These are optional. A missing CLI causes only that CLI's sessions to exit with a "not in PATH" error; it does not affect other sessions.
 
 ```bash
 npm install -g @openai/codex      # Binary: codex
+npm install -g opencode-ai        # Binary: opencode
 ```
 
 Antigravity (`agy`) follows [Google's official install instructions](https://antigravity.google/). Both binaries must be in your PATH, same as `claude`.
+opencode is installed from npm as `opencode-ai`; the Update Center can later upgrade it with `opencode upgrade`.
 
 <Aside type="note">
 The hub adds `~/.local/bin`, `/opt/homebrew/bin`, and `/usr/local/bin` to `PATH` at runtime when spawning sessions. If you installed a CLI with npm and it ended up in one of those locations, it will be found even without a shell-profile change. The shell profile change is still recommended so terminal sessions outside the hub work too.

@@ -1,6 +1,6 @@
 # Penates
 
-Web-Interface zum Verwalten und Fernsteuern von Coding-CLI-Sessions (Claude Code, Codex, Antigravity) auf deinem Mac mini —
+Web-Interface zum Verwalten und Fernsteuern von Coding-CLI-Sessions (Claude Code, Codex, Antigravity, opencode) auf deinem Mac oder Linux-Rechner,
 erreichbar per Browser, auch vom iPhone aus.
 
 ![Penates Screenshot](screenshot.png)
@@ -9,28 +9,31 @@ erreichbar per Browser, auch vom iPhone aus.
 
 ## Was macht das?
 
-Penates ist ein kleiner Server, der auf deinem Mac mini läuft. Er zeigt dir alle laufenden Coding-CLI-Sessions in einem Dashboard und lässt dich per Browser ins Terminal einsteigen — von deinem Mac, iPad oder iPhone aus, auch über das Internet. Über einen CLI-Picker startest du Sessions mit **Claude Code** (Anthropic), **Codex** (OpenAI) oder **Antigravity** (Google `agy`) — jeweils mit gestuften Approval-/Sandbox-Varianten. Claude Code ist die am tiefsten integrierte CLI (Hook-basierte Notifications, Usage-Tracking, Image-Paste); die anderen laufen als vollwertige Terminal-Sessions, jede mit ihrem eigenen Login.
+Penates ist ein kleiner Server, der auf deinem Mac mini läuft. Er zeigt dir alle laufenden Coding-CLI-Sessions in einem Dashboard und lässt dich per Browser ins Terminal einsteigen, von deinem Mac, iPad oder iPhone aus, auch über das Internet. Über einen CLI-Picker startest du Sessions mit **Claude Code** (Anthropic), **Codex** (OpenAI), **Antigravity** (Google `agy`) oder **opencode**, jeweils mit gestuften Approval-/Sandbox-Varianten. Claude Code ist die am tiefsten integrierte CLI (Hook-basierte Notifications, Usage-Tracking, Image-Paste); die anderen laufen als vollwertige Terminal-Sessions, jede mit ihrem eigenen Login.
 
 **Features:**
 - Dashboard mit allen Sessions und Live-Status (Aktivität, Context-Tokens, 5h-Limit)
 - Terminal im Browser (vollständig, mit Farben, Shift/Alt+Drag zum Kopieren)
 - Sessions starten, verbinden, beenden, umbenennen
-- **Multi-CLI**: Claude Code, Codex und Antigravity per CLI-Picker (mit Approval-/Sandbox-Varianten), CLI-Badge auf jeder Session-Card
+- **Multi-CLI**: Claude Code, Codex, Antigravity und opencode per CLI-Picker (mit Approval-/Sandbox-Varianten), CLI-Badge auf jeder Session-Card
 - **Bulk-Aktion**: alle idle/unattached Sessions auf einen Klick beenden
 - **Pinning** für wichtige Sessions (sortiert oben auf dem Dashboard)
 - **Git-Status** pro Session-Card (Branch, dirty-Dot, ↑n/↓n Ahead/Behind)
 - Projekt-Verwaltung mit Roadmap-Ansicht und Version-abschließen-Flow
 - Usage-Tracking (Kosten, Token, 5h-Limit)
 - Notifications über Sound, Visual, Web-Push und Per-Session-Mute
-- PWA — als App auf dem iPhone-Homescreen installierbar, nativer iOS-Feel
-- Auto-Start nach Reboot via macOS LaunchAgent
+- PWA: als App auf dem iPhone-Homescreen installierbar, nativer iOS-Feel (eine native iOS-Begleit-App ist in Arbeit, *coming soon*)
+- **Session-Auto-Restore**: nach einem Reboot fährt der Hub die zuletzt laufenden Sessions automatisch wieder hoch (native tmux-Continuum, fortgesetzte CLI-Konversation)
+- Auto-Start nach Reboot via macOS LaunchAgent (Linux: systemd `--user`-Unit)
 - **Security**: Bearer-Token-Auth, optional Cloudflare Access (Zero Trust) davor, Rate-Limiting auf REST-Endpoints, Append-only Audit-Log (`~/.penates/audit.log`)
 
 ---
 
 ## Voraussetzungen
 
-Du brauchst diese Programme auf deinem Mac mini, bevor du anfängst:
+Du brauchst diese Programme auf deinem Mac mini, bevor du anfängst.
+
+> **Linux?** Penates läuft auch nativ auf Linux (Debian/Ubuntu, Fedora/RHEL, Arch; Windows nur via WSL2). Nutze dafür den [Ein-Zeilen-Installer](#schnellstart-ein-befehl) unten (er erkennt den Paketmanager) und die [Plattform-Hinweise](https://penates.dev/docs/install/platforms/) in der Doku. Die folgenden Schritte beschreiben den macOS-Weg.
 
 ### 1. Xcode Command Line Tools
 
@@ -40,7 +43,7 @@ Du brauchst diese Programme auf deinem Mac mini, bevor du anfängst:
 xcode-select --install
 ```
 
-Ein Fenster öffnet sich — auf „Installieren" klicken und warten (ca. 5 Minuten).
+Ein Fenster öffnet sich. Auf „Installieren" klicken und warten (ca. 5 Minuten).
 
 ### 2. Homebrew
 
@@ -95,13 +98,14 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
 
 Dann einmalig `claude` starten und den Anweisungen folgen (Anthropic-Account verbinden).
 
-**Optional: Codex und Antigravity.** Der Hub spawnt auch OpenAI Codex und Google Antigravity (`agy`). Installiere nur die, die du nutzen willst — jede CLI hat ihren eigenen Login, und eine fehlende CLI lässt nur die jeweilige Session mit „nicht im PATH"-Hinweis sterben, ohne die anderen zu stören:
+**Optional: Codex, Antigravity und opencode.** Der Hub spawnt auch OpenAI Codex, Google Antigravity (`agy`) und opencode. Installiere nur die, die du nutzen willst. Jede CLI hat ihren eigenen Login, und eine fehlende CLI lässt nur die jeweilige Session mit „nicht im PATH"-Hinweis sterben, ohne die anderen zu stören:
 
 ```bash
 npm install -g @openai/codex   # OpenAI Codex → Binary `codex`
+npm install -g opencode-ai     # opencode → Binary `opencode`
 ```
 
-Antigravity (`agy`) installierst du nach [Googles offizieller Anleitung](https://antigravity.google/). Beide müssen wie `claude` im PATH liegen (siehe Fehlerbehebung unten).
+Antigravity (`agy`) installierst du nach [Googles offizieller Anleitung](https://antigravity.google/). Alle müssen wie `claude` im PATH liegen (siehe Fehlerbehebung unten).
 
 ---
 
@@ -152,7 +156,7 @@ Am Ende siehst du so etwas:
   Lokal:   http://localhost:3333
 ```
 
-> **Wichtig:** Das Setup zeigt dir einmalig dein Auth-Token. Notiere es — du brauchst es für den Browser-Zugriff. Du kannst es jederzeit wieder nachschauen mit:
+> **Wichtig:** Das Setup zeigt dir einmalig dein Auth-Token. Notiere es, du brauchst es für den Browser-Zugriff. Du kannst es jederzeit wieder nachschauen mit:
 > ```bash
 > grep AUTH_TOKEN penates/.env
 > ```
@@ -167,24 +171,24 @@ Am Ende siehst du so etwas:
 http://localhost:3333
 ```
 
-Beim ersten Besuch fragt der Browser nach dem Token — das ist der Wert aus `AUTH_TOKEN` in deiner `.env`. Nach einmaliger Eingabe wird er im Browser gespeichert.
+Beim ersten Besuch fragt der Browser nach dem Token. Das ist der Wert aus `AUTH_TOKEN` in deiner `.env`. Nach einmaliger Eingabe wird er im Browser gespeichert.
 
 ---
 
 ## Remote-Zugriff
 
 Damit du den Hub auch von außerhalb deines Heimnetzwerks erreichst (iPhone unterwegs,
-anderer Rechner) — zwei Wege, der Installer bietet beide an (`./scripts/remote-setup.sh`).
+anderer Rechner): zwei Wege, der Installer bietet beide an (`./scripts/remote-setup.sh`).
 
-### Tailscale (empfohlen — keine Domain, echtes HTTPS)
+### Tailscale (empfohlen, keine Domain, echtes HTTPS)
 
 ```bash
 ./scripts/remote-setup.sh tailscale
 ```
 
 Installiert Tailscale, meldet dich an und macht den Hub via `tailscale serve` unter
-`https://<rechner>.<tailnet>.ts.net` erreichbar — echtes Let's-Encrypt-Cert (nötig für
-PWA-Install + Web-Push), nur für deine eigenen Geräte, keine Domain, kein Cloudflare-Account.
+`https://<rechner>.<tailnet>.ts.net` erreichbar. Echtes Let's-Encrypt-Cert (nötig für
+PWA-Install und Web-Push), nur für deine eigenen Geräte, keine Domain, kein Cloudflare-Account.
 Einmalig im [Tailscale-Admin](https://login.tailscale.com/admin/dns) HTTPS-Certs aktivieren.
 
 ### Cloudflare Tunnel (öffentlich / eigene Domain)
@@ -256,7 +260,7 @@ Ab jetzt ist der Hub unter `https://code.DEINE-DOMAIN.xyz` erreichbar.
 
 ## Remote-Zugriff zusätzlich mit Cloudflare Access härten (empfohlen)
 
-Der Cloudflare Tunnel macht deinen Hub öffentlich erreichbar. Die einzige Auth-Schicht ist in diesem Zustand der statische Bearer-Token in `.env`. Wenn du dein Setup enger schrauben willst, schalte **Cloudflare Access (Zero Trust)** davor — dann muss sich jeder Browser-Besucher vor dem Hub erst bei Cloudflare via GitHub, Google, Email-PIN oder einer anderen Identity-Lösung anmelden. Cloudflare signiert die Identität als JWT, der Hub verifiziert die Signatur, und **nur** Requests mit gültigem JWT **und** gültigem Bearer kommen durch. Localhost-Traffic (z.B. Claude-Code-Hooks auf dem Mac mini selbst) ist davon nicht betroffen — der läuft weiter nur über Bearer, weil er den Tunnel nicht passiert.
+Der Cloudflare Tunnel macht deinen Hub öffentlich erreichbar. Die einzige Auth-Schicht ist in diesem Zustand der statische Bearer-Token in `.env`. Wenn du dein Setup enger schrauben willst, schalte **Cloudflare Access (Zero Trust)** davor. Dann muss sich jeder Browser-Besucher vor dem Hub erst bei Cloudflare via GitHub, Google, Email-PIN oder einer anderen Identity-Lösung anmelden. Cloudflare signiert die Identität als JWT, der Hub verifiziert die Signatur, und **nur** Requests mit gültigem JWT **und** gültigem Bearer kommen durch. Localhost-Traffic (z.B. Claude-Code-Hooks auf dem Mac mini selbst) ist davon nicht betroffen, denn der läuft weiter nur über Bearer, weil er den Tunnel nicht passiert.
 
 ### Voraussetzungen
 
@@ -276,7 +280,7 @@ Der Cloudflare Tunnel macht deinen Hub öffentlich erreichbar. Die einzige Auth-
    - `Emails` → deine Email-Adresse (für den PIN-Pfad)
    - `GitHub` → dein GitHub-Username (für den GitHub-OAuth-Pfad)
 7. Application speichern.
-8. In der Application-Overview den **Application Audience (AUD) Tag** kopieren — ein 64-Zeichen Hex-String.
+8. In der Application-Overview den **Application Audience (AUD) Tag** kopieren, einen 64-Zeichen Hex-String.
 
 ### Hub konfigurieren
 
@@ -306,7 +310,7 @@ launchctl kickstart -k gui/$(id -u)/com.penates
 
 ### Rollback falls was schief geht
 
-Einfach `.env` wieder leeren (`CF_ACCESS_TEAM_DOMAIN=` und `CF_ACCESS_AUD=`) und Hub neu starten. Dann läuft der Server wieder im Bearer-only-Modus. Kein Code-Rollback nötig — die Feature ist komplett Env-gated.
+Einfach `.env` wieder leeren (`CF_ACCESS_TEAM_DOMAIN=` und `CF_ACCESS_AUD=`) und Hub neu starten. Dann läuft der Server wieder im Bearer-only-Modus. Kein Code-Rollback nötig, das Feature ist komplett Env-gated.
 
 ---
 
@@ -317,16 +321,16 @@ Alle Einstellungen stehen in `penates/.env`:
 | Variable | Standard | Beschreibung |
 |---|---|---|
 | `PORT` | `3333` | Port des Servers |
-| `AUTH_TOKEN` | — | Pflichtfeld, wird von setup.sh generiert |
+| `AUTH_TOKEN` | (keiner) | Pflichtfeld, wird von setup.sh generiert |
 | `SESSION_PREFIX` | `cc-` | Prefix für neue Session-Namen |
 | `DEFAULT_PROJECT_DIR` | `~` | Standard-Verzeichnis für neue Sessions |
 | `TMUX_PATH` | auto-detected | Pfad zum tmux-Binary (wird automatisch via `which tmux` gefunden) |
 | `PROJECT_ROOTS` | `~/Projects` | Verzeichnisse für die Projekt-Erkennung (kommagetrennt) |
 | `BROWSE_ROOTS` | `$HOME` | Allow-List für den Verzeichnis-Picker im UI. `:`-getrennt, `~` erlaubt. Beispiel: `~/Projects:/Volumes/SSD/code` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | auto | Web-Push-Keys, werden beim ersten Start erzeugt |
-| `VAPID_SUBJECT` | — | Pflicht für Apple Web Push — echte HTTPS-Domain (kein localhost) |
-| `CF_ACCESS_TEAM_DOMAIN` | — | Optional. Cloudflare-Zero-Trust-Team-Domain (z.B. `deinteam.cloudflareaccess.com`). Leer = Cloudflare-Access-JWT-Validation disabled |
-| `CF_ACCESS_AUD` | — | Optional. Application-Audience-Tag aus dem Cloudflare-Dashboard. Beide `CF_ACCESS_*` Variablen müssen gesetzt sein damit JWT-Validation aktiv wird |
+| `VAPID_SUBJECT` | (keiner) | Pflicht für Apple Web Push, echte HTTPS-Domain (kein localhost) |
+| `CF_ACCESS_TEAM_DOMAIN` | (keiner) | Optional. Cloudflare-Zero-Trust-Team-Domain (z.B. `deinteam.cloudflareaccess.com`). Leer = Cloudflare-Access-JWT-Validation disabled |
+| `CF_ACCESS_AUD` | (keiner) | Optional. Application-Audience-Tag aus dem Cloudflare-Dashboard. Beide `CF_ACCESS_*` Variablen müssen gesetzt sein damit JWT-Validation aktiv wird |
 
 Nach Änderungen an `.env` muss der Server neu gestartet werden:
 
@@ -430,7 +434,7 @@ tmux new-session -d -s init
 
 - **Backend:** Node.js + Express + express-ws + node-pty
 - **Frontend:** Vanilla JS + xterm.js (kein Build-Step)
-- **CLIs:** Claude Code (`claude`) / Codex (`codex`) / Antigravity (`agy`) — je eigener Login
+- **CLIs:** Claude Code (`claude`) / Codex (`codex`) / Antigravity (`agy`) / opencode (`opencode`), je eigener Login
 - **Sessions:** tmux
-- **Remote:** Cloudflare Tunnel, optional Cloudflare Access (Zero Trust) davor
+- **Remote:** Tailscale (empfohlen) oder Cloudflare Tunnel, optional Cloudflare Access (Zero Trust) davor
 - **Security:** Bearer-Token + optional JWT-Validation (via `jose`) + Fixed-Window Rate-Limiting + JSONL Audit-Log

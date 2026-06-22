@@ -7,7 +7,7 @@ sidebar:
 
 ## What it is
 
-A session is a tmux session (prefixed `cc-`) that runs one coding CLI (Claude Code, Codex, or Antigravity) in a project directory. tmux is the source of truth: the hub keeps no session state of its own, so sessions survive a hub restart and can be adopted even when started outside Penates (e.g. over SSH or via Moshi).
+A session is a tmux session (prefixed `cc-`) that runs one coding CLI (Claude Code, Codex, Antigravity, or opencode) in a project directory. tmux is the source of truth: the hub keeps no session state of its own, so sessions survive a hub restart and can be adopted even when started outside Penates (e.g. over SSH or via Moshi).
 
 ## Why / when to use it
 
@@ -17,7 +17,7 @@ The dashboard is the single place to see and steer every running agent: live act
 
 - **Create:** click **New session**, pick a CLI and an approval/sandbox variant, choose a directory, and start. Names are auto-prefixed `cc-`.
 - **Attach:** open any card to drop into its terminal over a resilient WebSocket (auto-reconnect with backoff; scrollback replay on fresh connect).
-- **Multi-CLI:** the picker offers Claude Code, Codex (`--sandbox` variants), and Antigravity (`agy`), each with its own login.
+- **Multi-CLI:** the picker offers Claude Code, Codex (`--sandbox` variants), Antigravity (`agy`), and opencode, each with its own login.
 - **Rename / adopt / pin / mute:** rename keeps the hook state attached; *adopt* registers a foreign session under its original name; *pin* sorts it to the top; *mute* silences its notifications.
 - **Auto-restore:** after a reboot the hub re-spawns the last running `cc-` sessions in their original directory, continuing the CLI conversation (`claude --continue`, `codex resume --last`, `agy --continue`). Opt out per session by stopping it deliberately.
 
