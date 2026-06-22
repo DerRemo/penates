@@ -4773,6 +4773,11 @@
     window.commitTypeColor = _commitTypeColor;
     window.commitType = _commitType;
     import { partitionOverview as _partitionOverview, orderSidebar as _orderSidebar } from './session-sort.js';
+    import { ctrlByte as _ctrlByte, wheelScroll as _wheelScroll, wsCloseAction as _wsCloseAction, isPongFrame as _isPongFrame } from './terminal-logic.js';
+    window.ctrlByte = _ctrlByte;
+    window.wheelScroll = _wheelScroll;
+    window.wsCloseAction = _wsCloseAction;
+    window.isPongFrame = _isPongFrame;
     window.SessionSort = { partitionOverview: _partitionOverview, orderSidebar: _orderSidebar };
     import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
   </script>
@@ -9357,15 +9362,9 @@
           touchLastY = y;
           touchAccumPx += dy;
 
-          const linesSigned = touchAccumPx > 0
-            ? Math.floor(touchAccumPx / cellH)
-            : Math.ceil(touchAccumPx / cellH);
-
-          if (linesSigned !== 0) {
-            touchAccumPx -= linesSigned * cellH;
-            const button = linesSigned < 0 ? 64 : 65;
-            const count = Math.abs(linesSigned);
-            const seq = `\x1b[<${button};1;1M`.repeat(count);
+          const { lines, seq, remainderPx } = wheelScroll(touchAccumPx, cellH);
+          if (lines !== 0) {
+            touchAccumPx = remainderPx;
             if (currentWs && currentWs.readyState === WebSocket.OPEN) {
               currentWs.send(JSON.stringify({ type: 'input', data: seq }));
             }
@@ -9518,9 +9517,7 @@
       ws.onmessage = (event) => {
         if (typeof event.data === 'string') {
           // String-Frames sind Control-Messages (pong/error), keine PTY-Bytes.
-          let m = null;
-          try { m = JSON.parse(event.data); } catch {}
-          if (m && m.type === 'pong') { clearTimeout(pongTimer); return; }
+          if (isPongFrame(event.data)) { clearTimeout(pongTimer); return; }
           term.write(event.data); // unbekannte String-Frames (z.B. error) wie bisher
           return;
         }
@@ -9532,12 +9529,13 @@
       ws.onclose = (ev) => {
         stopHeartbeat();
         // 4001 = Auth failed, 4004 = Session gone → beide terminal, kein Reconnect
-        if (ev.code === 4001) {
+        const closeAction = wsCloseAction(ev.code);
+        if (closeAction === 'auth') {
           setConnStatus('disconnected', t('terminal.connStatus.authMissing'));
           showToast(t('toast.authFailed'), 'error');
           return;
         }
-        if (ev.code === 4004) {
+        if (closeAction === 'session-gone') {
           setConnStatus('disconnected', t('terminal.connStatus.sessionGone'));
           showToast(t('toast.sessionGone'), 'error');
           return;
@@ -9601,13 +9599,11 @@
     // als auch von sendRawInput (Touch-Bar-Tasten) genutzt, damit
     // pendingCtrl in beiden Pfaden konsistent wirkt.
     function applyPendingCtrl(data) {
-      if (!pendingCtrl || data.length !== 1) return data;
-      const code = data.charCodeAt(0);
-      if (code >= 0x40 && code <= 0x7e) {
-        setCtrlSticky(false);
-        return String.fromCharCode(code & 0x1f);
-      }
-      return data;
+      if (!pendingCtrl) return data;
+      const ctrl = ctrlByte(data);
+      if (ctrl === null) return data;
+      setCtrlSticky(false);
+      return ctrl;
     }
 
     function sendRawInput(data) {
