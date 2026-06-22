@@ -7286,6 +7286,15 @@
       try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(m)); } catch {}
     }
     let projectDetailReq = 0;
+    // Lazy-loaded pure render logic (project-detail-render.js + relpath.js),
+    // cached across re-renders. Mirrors FileBrowser's ensureLogic() gate:
+    // awaited at the top of renderProjectDetail before any innerHTML write, so
+    // the sync sub-builders used during the write run race-free.
+    let _PD = null;
+    async function ensureProjectDetailLogic() {
+      if (!_PD) _PD = await import('./project-detail-render.js');
+      return _PD;
+    }
     // Phase 4 Move-Menü: an document.body angehängt → muss bei Outside-Click
     // UND bei jedem Re-Render aufgeräumt werden (closeMoveMenu am Render-Anfang).
     let openMoveMenuEl = null;
@@ -7399,6 +7408,7 @@
       closeMoveMenu();
 
       const reqId = ++projectDetailReq;
+      const PD = await ensureProjectDetailLogic();
 
       // Scroll-Position und Focus-Target merken. Mit Live-Sync + Toggle-
       // Clicks re-rendert die View jetzt häufiger; ohne Preservation
@@ -7413,9 +7423,7 @@
           focusedKey = {
             section: li.getAttribute('data-section'),
             line: li.getAttribute('data-line'),
-            tag: focused.classList.contains('roadmap-checkbox') ? 'checkbox'
-               : focused.classList.contains('roadmap-item-delete') ? 'delete'
-               : null,
+            tag: PD.focusTag(focused.classList),
           };
         }
       }
@@ -7480,56 +7488,18 @@
           return;
         }
 
-        const renderItem = (it, sectionKey, index) => `
-          <li class="roadmap-item${it.done ? ' done' : ''}" data-section="${sectionKey}" data-line="${it.line}" data-index="${index}" draggable="true">
-            <span class="roadmap-grip" aria-hidden="true" title="${t('projects.detail.dragHandle')}">⠿</span>
-            <button class="roadmap-checkbox" type="button" aria-label="${it.done ? t('projects.detail.markAsOpen') : t('projects.detail.markAsDone')}">${it.done ? '[x]' : '[ ]'}</button>
-            <span class="roadmap-text" tabindex="0" role="button" title="${t('projects.detail.editItem')}">${escapeHtml(it.text)}</span>
-            ${renderMetaPills(it.meta)}
-            <span class="roadmap-item-actions">
-              <button class="roadmap-item-up" type="button" aria-label="${t('projects.detail.moveUp')}" title="${t('projects.detail.moveUp')}">▲</button>
-              <button class="roadmap-item-down" type="button" aria-label="${t('projects.detail.moveDown')}" title="${t('projects.detail.moveDown')}">▼</button>
-              <button class="roadmap-item-move" type="button" aria-label="${t('projects.detail.moveItem')}" title="${t('projects.detail.moveItem')}">⤴</button>
-              <button class="roadmap-item-edit" type="button" aria-label="${t('projects.detail.editItem')}" title="${t('projects.detail.editItem')}">✎</button>
-              <button class="roadmap-item-delete" type="button" aria-label="${t('projects.detail.deleteItem')}" title="${t('projects.detail.deleteTitle')}">×</button>
-            </span>
-          </li>`;
+        const renderItem = (it, sectionKey, index) => PD.renderItem(it, sectionKey, index, { t, escapeHtml, renderMetaPills });
 
-        const section = (label, version, items, sectionKey) => {
-          const doneN = items.filter(i => i.done).length;
-          const count = (sectionKey === 'released' || sectionKey === 'dev') ? `${doneN}/${items.length}` : `${items.length}`;
-          const collapsed = isSectionCollapsed(p.id, sectionKey);
-          return `
-            <section class="roadmap-section${collapsed ? ' collapsed' : ''}" data-section="${sectionKey}">
-              <button class="roadmap-section-head" type="button" data-section="${sectionKey}"
-                      aria-expanded="${collapsed ? 'false' : 'true'}">
-                <span class="roadmap-chevron" aria-hidden="true">▾</span>
-                <span class="roadmap-section-label">${label}</span>
-                ${version ? `<span class="roadmap-version" role="button" tabindex="0" data-version-edit data-section="${sectionKey}" title="${t('projects.detail.editVersion')}">v${escapeHtml(version)}</span>` : ''}
-                <span class="roadmap-section-count">${count}</span>
-              </button>
-              ${items.length
-                ? `<ul class="roadmap-list">${items.map((it, i) => renderItem(it, sectionKey, i)).join('')}</ul>`
-                : `<p class="roadmap-empty">${t('projects.detail.sectionEmpty')}</p>`}
-              <button class="roadmap-add-btn" type="button" data-section="${sectionKey}">${t('projects.detail.addItem')}</button>
-            </section>`;
-        };
+        const section = (label, version, items, sectionKey) => PD.renderSection(
+          { label, version, items, sectionKey, collapsed: isSectionCollapsed(p.id, sectionKey) },
+          { t, escapeHtml, renderMetaPills },
+        );
 
         // Sessions im cwd — wird aus globalem sessions-Cache gerendert.
         // Wenn noch nichts geladen ist, zeigen wir einen Lade-Hint und
         // kicken einen refreshSessions() an, der per re-render nachzieht.
         const linkedSessions = sessionsInProject(p.path);
-        const renderSessionItem = (s) => {
-          const displayName = s.name.replace(/^cc-/, '');
-          const relPath = s.path === p.path ? '.' : s.path.slice(p.path.length + 1);
-          const statusLabel = s.status === 'dormant' ? 'dormant' : 'running';
-          return `
-            <li class="project-session-item" data-status="${s.status || 'running'}" data-name="${escapeHtml(s.name)}">
-              <span class="project-session-dot" title="${statusLabel}"></span>
-              <span class="project-session-name">${escapeHtml(displayName)}</span>
-              <span class="project-session-path" title="${escapeHtml(s.path)}">${escapeHtml(relPath)}</span>
-            </li>`;
-        };
+        const renderSessionItem = (s) => PD.renderSessionItem(s, p.path, { escapeHtml });
         const sessionsPanelHtml = `
           <div class="project-sessions-panel">
             <h3>${t('projects.detail.openSessions', { n: linkedSessions.length })}</h3>
@@ -7556,29 +7526,21 @@
         // Alles andere wäre ein No-Op-Release.
         const releaseBtn = document.getElementById('project-release-btn');
         if (releaseBtn) {
-          const devCount = (p.dev?.items || []).length;
-          const hasVersions = !!(p.dev?.version && p.released?.version);
-          if (devCount > 0 && hasVersions) {
+          const rb = PD.releaseButtonState(p);
+          if (rb.show) {
             releaseBtn.hidden = false;
             releaseBtn.dataset.projectId = p.id;
-            releaseBtn.dataset.currentDev = p.dev.version;
-            releaseBtn.dataset.currentReleased = p.released.version;
+            releaseBtn.dataset.currentDev = rb.dev;
+            releaseBtn.dataset.currentReleased = rb.released;
           } else {
             releaseBtn.hidden = true;
           }
         }
 
-        // Changelog-Sektion (unverändert, nur in eine Variable extrahiert).
-        const changelogHtml = p.changelog
-          ? `<section class="roadmap-section${isSectionCollapsed(p.id, 'changelog') ? ' collapsed' : ''}" data-section="changelog">
-               <button class="roadmap-section-head" type="button" data-section="changelog"
-                       aria-expanded="${isSectionCollapsed(p.id, 'changelog') ? 'false' : 'true'}">
-                 <span class="roadmap-chevron" aria-hidden="true">▾</span>
-                 <span class="roadmap-section-label">${t('projects.detail.sectionChangelog')}</span>
-               </button>
-               <pre class="roadmap-changelog">${escapeHtml(p.changelog)}</pre>
-             </section>`
-          : '';
+        // Changelog-Sektion (unverändert, jetzt aus dem Render-Modul).
+        const changelogHtml = PD.changelogSection(
+          p.changelog, isSectionCollapsed(p.id, 'changelog'), { t, escapeHtml },
+        );
 
         body.innerHTML = `
           <div class="project-hub-grid">
@@ -7986,10 +7948,8 @@
             const targetIdx = parseInt(li.dataset.index, 10);
             const after = li.classList.contains('drop-after');
             clearDropMarkers();
-            let toIndex = after ? targetIdx + 1 : targetIdx;
-            // Beim Verschieben nach unten verschiebt das Entfernen die Zielposition um 1.
-            if (dragSrc.index < toIndex) toIndex -= 1;
-            if (toIndex === dragSrc.index) return; // no-op
+            const toIndex = PD.reorderTargetIndex(dragSrc.index, targetIdx, after);
+            if (toIndex === null) return; // no-op
             const { section, line } = dragSrc;
             try { await patchItem(p.id, { action: 'reorder', section, line, toIndex }); renderProjectDetail(p.id); }
             catch (err) {
