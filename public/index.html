@@ -4774,6 +4774,10 @@
     window.commitType = _commitType;
     import { partitionOverview as _partitionOverview, orderSidebar as _orderSidebar } from './session-sort.js';
     import { ctrlByte as _ctrlByte, wheelScroll as _wheelScroll, wsCloseAction as _wsCloseAction, isPongFrame as _isPongFrame } from './terminal-logic.js';
+    window.ctrlByte = _ctrlByte;
+    window.wheelScroll = _wheelScroll;
+    window.wsCloseAction = _wsCloseAction;
+    window.isPongFrame = _isPongFrame;
     window.SessionSort = { partitionOverview: _partitionOverview, orderSidebar: _orderSidebar };
     import('./vendor/fuse/fuse.mjs').then(m => { window.Fuse = m.default; });
   </script>
@@ -9358,7 +9362,7 @@
           touchLastY = y;
           touchAccumPx += dy;
 
-          const { lines, seq, remainderPx } = _wheelScroll(touchAccumPx, cellH);
+          const { lines, seq, remainderPx } = wheelScroll(touchAccumPx, cellH);
           if (lines !== 0) {
             touchAccumPx = remainderPx;
             if (currentWs && currentWs.readyState === WebSocket.OPEN) {
@@ -9597,7 +9601,7 @@
     // pendingCtrl in beiden Pfaden konsistent wirkt.
     function applyPendingCtrl(data) {
       if (!pendingCtrl) return data;
-      const ctrl = _ctrlByte(data);
+      const ctrl = ctrlByte(data);
       if (ctrl === null) return data;
       setCtrlSticky(false);
       return ctrl;
