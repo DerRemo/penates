@@ -9517,9 +9517,7 @@
       ws.onmessage = (event) => {
         if (typeof event.data === 'string') {
           // String-Frames sind Control-Messages (pong/error), keine PTY-Bytes.
-          let m = null;
-          try { m = JSON.parse(event.data); } catch {}
-          if (m && m.type === 'pong') { clearTimeout(pongTimer); return; }
+          if (isPongFrame(event.data)) { clearTimeout(pongTimer); return; }
           term.write(event.data); // unbekannte String-Frames (z.B. error) wie bisher
           return;
         }
@@ -9531,12 +9529,13 @@
       ws.onclose = (ev) => {
         stopHeartbeat();
         // 4001 = Auth failed, 4004 = Session gone → beide terminal, kein Reconnect
-        if (ev.code === 4001) {
+        const closeAction = wsCloseAction(ev.code);
+        if (closeAction === 'auth') {
           setConnStatus('disconnected', t('terminal.connStatus.authMissing'));
           showToast(t('toast.authFailed'), 'error');
           return;
         }
-        if (ev.code === 4004) {
+        if (closeAction === 'session-gone') {
           setConnStatus('disconnected', t('terminal.connStatus.sessionGone'));
           showToast(t('toast.sessionGone'), 'error');
           return;
