@@ -991,7 +991,7 @@ app.patch('/api/board/cards/:id', async (req, res) => {
 
     if (kill) {
       // Best-effort wie bei finish — eine bereits weg-gerennte Session ist kein Fehler.
-      try { destroySession(before.sessionRef, auditLog.extractRequestMeta(req)); } catch {}
+      try { await destroySession(before.sessionRef, auditLog.extractRequestMeta(req)); } catch {}
       // sessionRef IMMER nullen wenn gekillt → Karte zeigt danach sessionLive:false.
       // Worktree wird NICHT angefasst (Out-of-Scope; finish/Boot-Reconciliation räumt).
       card = await board.updateCard(req.params.id, { sessionRef: null });
@@ -1655,7 +1655,7 @@ app.post('/api/sessions', async (req, res) => {
 // Beendet eine Session (tmux kill + State-Cleanup). Geteilt von der DELETE-
 // Route und dem Phase-5-Finish. reqMeta = auditLog.extractRequestMeta(req).
 // Wirft, wenn kill-session scheitert (Caller mappt auf 500).
-function destroySession(name, reqMeta = {}) {
+async function destroySession(name, reqMeta = {}) {
   execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
   attention.forget(name);
   usageLimits.forget(name);
@@ -1667,10 +1667,20 @@ function destroySession(name, reqMeta = {}) {
   }
   auditLog.record('session.delete', { ...reqMeta, session: name });
   // Bewusster Stop (Kill via DELETE bzw. Phase-5-Finish) → vom Boot-Auto-Restore
-  // ausschließen (die Session bleibt dormant fürs MANUELLE Restore). Best-effort;
-  // ein Fehler darf den Kill nicht scheitern lassen. add() (Neustart/Restore)
-  // löscht das Flag wieder.
-  knownSessions.setManuallyStopped(name, true).catch(e => console.error('[known-sessions] markStopped failed:', e));
+  // ausschließen (die Session bleibt dormant fürs MANUELLE Restore). add()
+  // (Neustart/Restore) löscht das Flag wieder.
+  //
+  // DURABILITY: das Flag MUSS auf Platte sein, bevor der Caller antwortet.
+  // Früher fire-and-forget — ein Hub-Neustart direkt nach dem Kill (der Dev-Loop
+  // kill → `launchctl kickstart`) konnte den noch ungeschriebenen Write
+  // verlieren, und der tmux-continuum-Auto-Restore holte die gekillte Session
+  // beim nächsten Boot zurück. await schließt das Fenster; ein Fehler darf den
+  // Kill trotzdem nicht scheitern lassen.
+  try {
+    await knownSessions.setManuallyStopped(name, true);
+  } catch (e) {
+    console.error('[known-sessions] markStopped failed:', e);
+  }
 }
 
 // Entfernt den Implement-Worktree einer Session (Branch bleibt — konservativ).
@@ -1699,7 +1709,7 @@ async function finalizeCardToDone(card, reqMeta = {}) {
 
   // 1. Live-Session beenden (nur wenn sie noch in tmux lebt).
   if (card.sessionRef && getTmuxSessions().some(s => s.name === card.sessionRef)) {
-    try { destroySession(card.sessionRef, reqMeta); summary.sessionKilled = true; } catch { /* ignore */ }
+    try { await destroySession(card.sessionRef, reqMeta); summary.sessionKilled = true; } catch { /* ignore */ }
   }
 
   // 2. Worktree (force) — nur mit aufgelöstem repo. removeWorktree schluckt selbst.
@@ -1728,7 +1738,7 @@ app.delete('/api/sessions/:name', async (req, res) => {
   const { name } = req.params;
   if (!requireValidName(res, name)) return;
   try {
-    destroySession(name, auditLog.extractRequestMeta(req));
+    await destroySession(name, auditLog.extractRequestMeta(req));
     await cleanupWorktreeForSession(name);
     res.json({ success: true });
   } catch (err) {
@@ -2987,7 +2997,7 @@ const heartbeatTimer = setInterval(async () => {
 }, HEARTBEAT_INTERVAL_MS);
 heartbeatTimer.unref();
 
-function shutdown(signal) {
+async function shutdown(signal) {
   console.log(`\n  ${signal} received — killing ${activePtys.size} active PTY(s) and shutting down`);
   clearInterval(heartbeatTimer);
   clearInterval(wsHeartbeatTimer);
@@ -2997,12 +3007,16 @@ function shutdown(signal) {
   projectWatcher.closeAll();
   fwCloseAll();
   attention.stop();
+  // Ausstehende atomare known-sessions-Writes (z.B. ein manuallyStopped-Flag
+  // aus einem Kill kurz vor dem Signal) auf Platte bringen, BEVOR der Prozess
+  // geht — sonst verliert der tmux-continuum-Auto-Restore seinen Kill-Switch.
+  try { await knownSessions.flush(); } catch (e) { console.error('[known-sessions] flush on shutdown failed:', e); }
   server.close(() => process.exit(0));
   // Force-Exit falls server.close() hängt.
   setTimeout(() => process.exit(1), 5000).unref();
 }
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => { shutdown('SIGTERM').catch(e => { console.error('[shutdown]', e); process.exit(1); }); });
+process.on('SIGINT', () => { shutdown('SIGINT').catch(e => { console.error('[shutdown]', e); process.exit(1); }); });
 
 // Projekt-Discovery einmalig beim Startup. Scan-Roots sind konfigurierbar
 // via PROJECT_ROOTS (comma-separated), Default: ~/Projects.
