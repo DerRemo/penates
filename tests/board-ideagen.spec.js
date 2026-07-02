@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures.js';
-import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
+import { getToken, ensureSidebarOpen, ensureSidebarClosed, hubProjectId } from './helpers.js';
 
 // Idea-generation UI spec (Idea Pipeline Phase 3-B). The real endpoint spawns a
 // claude session — too heavy for CI. We stub POST /api/projects/:id/ideagen with
@@ -8,7 +8,8 @@ import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
 
 const NAV_PROJECTS = '[data-sidebar-nav="projects"]';
 const NAV_BOARD = '[data-sidebar-nav="board"]';
-const PROJECT_ID = 'penates';
+// Derive the hub project id from the repo dir instead of hardcoding 'penates'.
+const PROJECT_ID = hubProjectId();
 
 async function api(page, method, path, body) {
   const token = await getToken(page);

@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures.js';
-import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
+import { getToken, ensureSidebarOpen, ensureSidebarClosed, hubProjectId } from './helpers.js';
 
 // The board view (Idea Pipeline Phase 1). The E2E server runs with an isolated
 // PENATES_HOME=/tmp/penates-e2e-home (see playwright.config.js) so creating/
@@ -139,12 +139,15 @@ test.describe('Board (Idea Pipeline)', () => {
   });
 
   test('project filter narrows visible cards', async ({ authedPage: page }) => {
-    await seedCard(page, { projectId: 'penates', title: 'Hub card' });
+    // Use the real discovered hub project id (the board filter is populated from
+    // /api/projects) plus a distinct non-matching id for the contrast card.
+    const projectId = hubProjectId();
+    await seedCard(page, { projectId, title: 'Hub card' });
     await seedCard(page, { projectId: 'some-other-project', title: 'Other card' });
     await goToBoard(page);
     await expect(page.locator('.board-card')).toHaveCount(2);
 
-    await page.selectOption('#board-filter', 'penates');
+    await page.selectOption('#board-filter', projectId);
     await page.waitForTimeout(300);
     await expect(page.locator('.board-card', { hasText: 'Hub card' })).toBeVisible();
     await expect(page.locator('.board-card', { hasText: 'Other card' })).toHaveCount(0);

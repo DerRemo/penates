@@ -1,7 +1,17 @@
 import { expect } from '@playwright/test';
+import { basename } from 'node:path';
 
 export function getToken(page) {
   return page.evaluate(() => localStorage.getItem('penates_token'));
+}
+
+// The hub project's id is the repo directory basename — exactly how the server
+// derives a discovered project's id (lib/projects.js: `id = basename(path)`).
+// Dir-name independent: 'penates' on the canonical upstream checkout,
+// 'claude-code-hub' on this one. Use this instead of hardcoding 'penates' so the
+// board-filter / project-hub specs work on any checkout.
+export function hubProjectId() {
+  return basename(process.cwd());
 }
 
 export async function createSessionViaUI(page, { name, dir, command = 'bash --noprofile --norc' }) {

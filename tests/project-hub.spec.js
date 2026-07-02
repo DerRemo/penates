@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures.js';
-import { getToken, ensureSidebarOpen, ensureSidebarClosed } from './helpers.js';
+import { getToken, ensureSidebarOpen, ensureSidebarClosed, hubProjectId } from './helpers.js';
 
 // Projekt-Hub E2E (Idea Pipeline Phase 2).
 // The E2E server runs with PENATES_HOME=/tmp/penates-e2e-home so creating/
@@ -31,7 +31,7 @@ async function clearBoard(page) {
   }
 }
 
-async function goToProjectHub(page, projectId = 'penates') {
+async function goToProjectHub(page, projectId = hubProjectId()) {
   await ensureSidebarOpen(page);
   await page.click(NAV_PROJECTS);
   await page.waitForSelector('body[data-current-view="projects"]', { timeout: 5_000 });
