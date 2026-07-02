@@ -76,7 +76,13 @@ die Items sind hier reine Markdown-Dokumentation.
 
 ### v1.1.1 — 2026-07-02
 
-**Bugfix-Release aus einem vollständigen Feature-Audit.** Ein durchgehender Audit aller App-Features (562 User-Stories, getestet über Unit, API und E2E) hat drei echte Fehler zutage gefördert, die jetzt behoben sind. Das Löschen einer bereits selbst-beendeten oder doppelt geklickten Session liefert kein hässliches 500 mehr, sondern ist idempotent (der Kill läuft nur noch, wenn die Session in tmux lebt; der State-Cleanup läuft in jedem Fall). Beendet der Server eine Session (SessionEnd-Hook oder forget), reconciled die Oberfläche jetzt sofort statt bis zu fünf Sekunden auf den Poll zu warten, weil das Frontend den `session-ended`-WebSocket-Frame nun behandelt. Ein sticky Header verdeckte beim Scrollen (scrollIntoView, Tastatur-Fokus, Anker-Navigation) das darunterliegende Ziel; ein `scroll-padding-top` auf dem Dokument-Scroller reserviert jetzt die Header-Höhe und macht damit auch die Tastatur-Navigation sauber. Dazu kleinere Korrekturen: das PWA-Manifest meldet `lang: en` passend zum Runtime-Default, ungültige known-session-Verzeichnisse werden beim Boot toleriert (#2), das eigenständige Gemini-CLI-Ziel im Update-Center ist in Antigravity aufgegangen, und der Install-Smoke-CI läuft auf Linux und macOS grün (#1). Die E2E-Suite wurde vom Verzeichnisnamen entkoppelt (Projekt-IDs werden aus der Registry abgeleitet statt `penates` hart zu kodieren, die `projectSession`-Fixture legt eine echte Session an) und ist damit auf jedem Checkout vertrauenswürdig. Verifikation: Unit 708/708 grün, API-Probe 55/55, alle vorher fehlschlagenden E2E-Specs grün, jede Änderung auf einem isolierten Test-Server gegen ein separates tmux-Socket geprüft, sodass der produktive Hub unangetastet blieb.
+Ein Wartungs-Release: mehrere Fehler rund um Sessions und die Bedienung sind behoben.
+
+- **Session löschen ohne Fehlermeldung.** Eine Session zu beenden, die bereits von selbst gestoppt hat (oder ein doppelter Klick auf Löschen), zeigt keinen Fehler mehr, sondern entfernt die Session einfach sauber.
+- **Übersicht aktualisiert sofort.** Endet eine Session von selbst, verschwindet ihre Karte jetzt umgehend aus der Übersicht, statt erst nach ein paar Sekunden nachzuziehen.
+- **Nichts versteckt sich mehr hinter der Kopfzeile.** In der Projekt-Ansicht bleiben Schaltflächen und Einträge beim Scrollen und bei der Tastatur-Navigation sichtbar und anklickbar, statt unter die obere Leiste zu rutschen.
+- **Zuverlässiger Start.** Der Hub startet auch dann sauber, wenn der Ordner einer früheren Session inzwischen verschoben oder gelöscht wurde.
+- **Kleinere Aufräumarbeiten.** Das Update-Center listet Gemini nicht mehr als eigenen Eintrag (es gehört zu Antigravity), und die installierte App meldet die passende Sprache.
 
 ### v1.1.0 — 2026-06-22
 
