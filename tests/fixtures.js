@@ -62,8 +62,43 @@ export const test = base.extend({
     await use(page);
   },
 
-  projectSession: async ({}, use) => {
-    await use({ name: 'cc-penates', projectId: 'penates' });
+  // A REAL session created in a temp dir seeded with files, plus a file-source
+  // id that resolves to that session's cwd (the `session:<name>` pseudo-source
+  // the app itself uses for a session's Files tab). Dir-name independent — does
+  // NOT assume a checkout named `penates` or a pre-existing `cc-penates`.
+  projectSession: async ({ request }, use) => {
+    const dir = mkdtempSync(join(tmpdir(), 'penates-projsess-'));
+    mkdirSync(join(dir, 'subdir'));
+    writeFileSync(join(dir, 'hello.txt'), 'Hello E2E Test\nLine 2\nLine 3\n');
+    writeFileSync(join(dir, 'code.js'), 'function add(a, b) {\n  return a + b;\n}\n');
+    const pngHeader = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+      0xde, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41,
+      0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
+      0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc,
+      0x33, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e,
+      0x44, 0xae, 0x42, 0x60, 0x82,
+    ]);
+    writeFileSync(join(dir, 'test.png'), pngHeader);
+    writeFileSync(join(dir, 'big.txt'), 'x'.repeat(2.5 * 1024 * 1024));
+
+    const name = `projsess-${Date.now()}`;
+    const token = process.env.AUTH_TOKEN || '';
+    const res = await request.post('/api/sessions', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { name, directory: dir, command: 'bash --noprofile --norc' },
+    });
+    expect(res.ok(), `projectSession create failed: ${res.status()}`).toBeTruthy();
+
+    await use({ name: `cc-${name}`, shortName: name, projectId: `session:cc-${name}`, dir });
+
+    await request.delete(`/api/sessions/cc-${encodeURIComponent(name)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+    rmSync(dir, { recursive: true, force: true });
   },
 });
 

@@ -2,8 +2,9 @@ import { test, expect } from './fixtures.js';
 import { navigateToSession, waitForTerminal, getToken, openFileSidebar } from './helpers.js';
 import { readFileSync } from 'fs';
 
-// Filebrowser tests use the always-running cc-penates session
-// because the file API requires a registered project (projectId).
+// Filebrowser tests use the projectSession fixture: a real session created in a
+// temp dir seeded with files, addressed via the `session:<name>` file-source
+// (no registered project required, no checkout-name assumption).
 test.describe('Filebrowser', () => {
   let sessionName;
 

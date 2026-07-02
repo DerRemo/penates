@@ -1654,9 +1654,15 @@ app.post('/api/sessions', async (req, res) => {
 
 // Beendet eine Session (tmux kill + State-Cleanup). Geteilt von der DELETE-
 // Route und dem Phase-5-Finish. reqMeta = auditLog.extractRequestMeta(req).
-// Wirft, wenn kill-session scheitert (Caller mappt auf 500).
+// Idempotent: killt nur, wenn die Session noch in tmux lebt. Eine bereits
+// (selbst-)beendete oder doppelt gelöschte Session ist KEIN Fehler — sonst
+// würfe kill-session und die DELETE-Route mappte das auf ein hässliches 500
+// (samt geleaktem Kommando-Pfad). State-Cleanup läuft in beiden Fällen; genuine
+// kill-Fehler einer lebenden Session propagieren weiterhin (→ 500).
 async function destroySession(name, reqMeta = {}) {
-  execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
+  if (getTmuxSessions().some(s => s.name === name)) {
+    execFileSync(TMUX, ['kill-session', '-t', name], { encoding: 'utf-8', timeout: 5000 });
+  }
   attention.forget(name);
   usageLimits.forget(name);
   attachTracker.forget(name);

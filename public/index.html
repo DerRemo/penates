@@ -6628,6 +6628,14 @@
             if (msg.activity) patchActivityBadge(msg.name, msg.activity, msg.tool);
             return;
           }
+          if (msg.type === 'session-ended') {
+            // Session serverseitig beendet (SessionEnd-Hook / forget). Sofort die
+            // Liste reconciliaten statt bis zu 5s auf den refreshSessions()-Poll
+            // zu warten — sonst bleibt die Karte kurz „geistert" stehen.
+            clearUnread(msg.name);
+            try { refreshSessions(); } catch {}
+            return;
+          }
           if (msg.type !== 'session-attention') return;
           if (msg.activity) patchActivityBadge(msg.name, msg.activity);
           // Suppression: Wenn der User gerade GENAU diese Session im Vordergrund
