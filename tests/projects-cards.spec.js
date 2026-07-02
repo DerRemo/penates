@@ -59,7 +59,8 @@ test.describe('Projects cards (Phase 2)', () => {
 
     // The action row is revealed on hover/focus-within (grid) — it's already
     // visible in list layout and on touch devices. Hover to surface it on
-    // desktop grid before the mouse click.
+    // desktop grid before the mouse click. (The sticky .app-topbar no longer
+    // occludes the button thanks to `html { scroll-padding-top }`.)
     await card.hover();
     // mouse click — opens the modal, must NOT navigate to project-detail
     await startBtn.click();

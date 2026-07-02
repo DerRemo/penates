@@ -467,6 +467,11 @@
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    /* Reserve the sticky .app-topbar height (~68px) at the top of the document
+       scroller so scrollIntoView / keyboard-focus / anchor navigation don't tuck
+       the target under the translucent sticky header. */
+    html { scroll-padding-top: 80px; }
+
     body {
       font-family: var(--font-ui);
       background: var(--bg-deep);

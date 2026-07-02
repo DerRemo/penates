@@ -2,16 +2,20 @@
 // weil die E2E die echte Registry trifft. Die Schreib-Logik ist hermetisch
 // unit-getestet (lib/roadmap-writer.test.js, lib/projects.test.js).
 import { test, expect } from './fixtures.js';
+import { hubProjectId } from './helpers.js';
 
 async function openFirstProjectWithItems(page, isMobile) {
   if (isMobile) { const h = page.locator('#sidebar-toggle'); if (await h.isVisible()) await h.click(); }
   await page.click('[data-sidebar-nav="projects"]');
-  // Auf echte Karten warten — NICHT auf den transienten "Lade…"-Placeholder
-  // (der teilt sich die .usage-empty-Klasse). Eine wirklich leere/fehlerhafte
-  // Registry timeoutet hier bewusst und führt unten zum Skip.
-  const card = page.locator('.project-card').first();
-  await card.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
+  // Open the HUB project specifically — it has a real CHANGELOG.md (roadmap
+  // items). Targeting `.project-card.first()` was flaky: the first discovered
+  // project depends on the registry (82 real dirs here) and may have no
+  // CHANGELOG at all (→ "missing" state, zero roadmap items). Wait for the real
+  // card, not the transient "Lade…"-placeholder.
+  const card = page.locator(`.project-card[data-project-id="${hubProjectId()}"]`);
+  await card.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
   if (await card.count() === 0) return false;
+  await card.scrollIntoViewIfNeeded().catch(() => {});
   await card.click();
   // Auf den GELADENEN Detail-State warten — wieder nicht auf den
   // "Lade…"-Placeholder. Sektions-Köpfe gibt es nur im fertig gerenderten
