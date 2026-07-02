@@ -1,6 +1,6 @@
 {
   "name": "penates",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Self-hosted web interface to manage and remote-control coding-CLI sessions (Claude Code, Codex, Antigravity, opencode) on macOS and Linux",
   "type": "module",
   "main": "server.js",

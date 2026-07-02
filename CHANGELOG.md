@@ -1,11 +1,11 @@
 # Penates — Roadmap
 
-Stand: 2026-04-13. Lebendes Dokument, gepflegt über die Projekt-Verwaltung
+Stand: 2026-07-02. Lebendes Dokument, gepflegt über die Projekt-Verwaltung
 im Hub selbst. Struktur folgt dem `lib/roadmap.js`-Parser:
 H2-Sections Released / In Development / Backlog / Changelog,
 Top-Level-Checkboxen mit optionalem `{key: value}`-Meta-Suffix.
 
-## Released: v1.1.0
+## Released: v1.1.1
 
 Penates läuft jetzt plattformübergreifend auf macOS und Linux (Windows via
 WSL2). Vier Coding-CLIs (Claude Code, Codex, Antigravity, opencode) starten
@@ -73,6 +73,10 @@ die Items sind hier reine Markdown-Dokumentation.
 - [x] Board-Spawn vereinheitlicht: Bewegen-in-Spalte startet die Session (Drag + Stage-Dropdown via geteilter applyTransition), Implement-Route advanced brainstorming→implement selbst, Detail-Buttons auf attach-only-when-alive reduziert {priority: p1, theme: board}
 - [x] Idea Pipeline Phase 5: Review→Fertig — In-Hub Branch-Diff (View-diff), Drag review→done mergt idea/<slug> in base + Changelog-Done-Item + Push + Session-Ende; lib/git-finish.js (worktree-isolierter Merge), addDoneItem/sectionExists, GET branch-diff + POST finish {priority: p0, theme: board}
 ## Changelog
+
+### v1.1.1 — 2026-07-02
+
+**Bugfix-Release aus einem vollständigen Feature-Audit.** Ein durchgehender Audit aller App-Features (562 User-Stories, getestet über Unit, API und E2E) hat drei echte Fehler zutage gefördert, die jetzt behoben sind. Das Löschen einer bereits selbst-beendeten oder doppelt geklickten Session liefert kein hässliches 500 mehr, sondern ist idempotent (der Kill läuft nur noch, wenn die Session in tmux lebt; der State-Cleanup läuft in jedem Fall). Beendet der Server eine Session (SessionEnd-Hook oder forget), reconciled die Oberfläche jetzt sofort statt bis zu fünf Sekunden auf den Poll zu warten, weil das Frontend den `session-ended`-WebSocket-Frame nun behandelt. Ein sticky Header verdeckte beim Scrollen (scrollIntoView, Tastatur-Fokus, Anker-Navigation) das darunterliegende Ziel; ein `scroll-padding-top` auf dem Dokument-Scroller reserviert jetzt die Header-Höhe und macht damit auch die Tastatur-Navigation sauber. Dazu kleinere Korrekturen: das PWA-Manifest meldet `lang: en` passend zum Runtime-Default, ungültige known-session-Verzeichnisse werden beim Boot toleriert (#2), das eigenständige Gemini-CLI-Ziel im Update-Center ist in Antigravity aufgegangen, und der Install-Smoke-CI läuft auf Linux und macOS grün (#1). Die E2E-Suite wurde vom Verzeichnisnamen entkoppelt (Projekt-IDs werden aus der Registry abgeleitet statt `penates` hart zu kodieren, die `projectSession`-Fixture legt eine echte Session an) und ist damit auf jedem Checkout vertrauenswürdig. Verifikation: Unit 708/708 grün, API-Probe 55/55, alle vorher fehlschlagenden E2E-Specs grün, jede Änderung auf einem isolierten Test-Server gegen ein separates tmux-Socket geprüft, sodass der produktive Hub unangetastet blieb.
 
 ### v1.1.0 — 2026-06-22
 
